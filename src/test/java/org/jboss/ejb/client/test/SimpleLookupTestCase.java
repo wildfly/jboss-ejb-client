@@ -24,6 +24,7 @@ package org.jboss.ejb.client.test;
 
 import org.jboss.ejb.client.EJBClient;
 import org.junit.Assert;
+import org.junit.Ignore;
 import org.junit.Test;
 
 import javax.naming.Context;
@@ -35,6 +36,7 @@ import java.util.Properties;
  */
 public class SimpleLookupTestCase {
 
+    @Ignore("The test should not rely on the remote endpoint being there.")
     @Test
     public void testJndiLookup() throws Exception {
         final Properties props = new Properties();

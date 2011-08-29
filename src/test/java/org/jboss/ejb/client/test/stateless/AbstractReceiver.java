@@ -1,6 +1,6 @@
 /*
  * JBoss, Home of Professional Open Source.
- * Copyright 2011, Red Hat, Inc., and individual contributors
+ * Copyright (c) 2011, Red Hat, Inc., and individual contributors
  * as indicated by the @author tags. See the copyright.txt file in the
  * distribution for a full listing of individual contributors.
  *
@@ -19,29 +19,32 @@
  * Software Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
  * 02110-1301 USA, or see the FSF site: http://www.fsf.org.
  */
+package org.jboss.ejb.client.test.stateless;
 
-package org.jboss.ejb.client;
+import org.jboss.remoting3.Channel;
 
-import javax.security.auth.callback.Callback;
-import javax.security.auth.callback.CallbackHandler;
-import javax.security.auth.callback.NameCallback;
-import javax.security.auth.callback.UnsupportedCallbackException;
 import java.io.IOException;
 
 /**
- * User: jpai
+ * @author <a href="mailto:cdewolf@redhat.com">Carlo de Wolf</a>
  */
-class EndpointAuthenticationCallbackHandler implements CallbackHandler {
+abstract class AbstractReceiver implements Channel.Receiver {
+    @Override
+    public void handleError(Channel channel, IOException error) {
+        try {
+            channel.close();
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+        throw new RuntimeException("NYI: .handleError");
+    }
 
     @Override
-    public void handle(Callback[] callbacks) throws IOException, UnsupportedCallbackException {
-        for (Callback current : callbacks) {
-            if (current instanceof NameCallback) {
-                NameCallback ncb = (NameCallback) current;
-                ncb.setName("anonymous");
-            } else {
-                throw new UnsupportedCallbackException(current);
-            }
+    public void handleEnd(Channel channel) {
+        try {
+            channel.close();
+        } catch (IOException e) {
+            // ignore
         }
     }
 }

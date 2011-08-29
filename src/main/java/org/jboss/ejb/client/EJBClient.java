@@ -61,9 +61,9 @@ public class EJBClient {
     private static final Logger logger = Logger.getLogger(EJBClient.class);
 
     // TODO: Make it configurable
-    private final ExecutorService executor = Executors.newFixedThreadPool(4);
+    private final static ExecutorService executor = Executors.newFixedThreadPool(4);
 
-    private volatile Endpoint endpoint;
+    private final static Endpoint endpoint;
 
     private Registration connectionProviderRegistration;
 
@@ -75,8 +75,15 @@ public class EJBClient {
 
     private final String remoteServerURI;
 
-    {
+    static {
         Security.addProvider(new JBossSaslProvider());
+        try {
+            endpoint = Remoting.createEndpoint("endpoint", executor, OptionMap.EMPTY);
+            final Xnio xnio = Xnio.getInstance();
+            final Registration registration = endpoint.addConnectionProvider("remote", new RemoteConnectionProviderFactory(xnio), OptionMap.create(Options.SSL_ENABLED, false));
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
     }
 
     public EJBClient(final Hashtable<?, ?> environment) {
@@ -154,11 +161,11 @@ public class EJBClient {
     }
 
     private synchronized void connect() throws IOException, URISyntaxException, InterruptedException, ExecutionException {
-        if (this.endpoint == null) {
-            this.endpoint = Remoting.createEndpoint("endpoint", executor, OptionMap.EMPTY);
-            final Xnio xnio = Xnio.getInstance();
-            this.connectionProviderRegistration = endpoint.addConnectionProvider("remote", new RemoteConnectionProviderFactory(xnio), OptionMap.create(Options.SSL_ENABLED, false));
-        }
+//        if (this.endpoint == null) {
+//            this.endpoint = Remoting.createEndpoint("endpoint", executor, OptionMap.EMPTY);
+//            final Xnio xnio = Xnio.getInstance();
+//            this.connectionProviderRegistration = endpoint.addConnectionProvider("remote", new RemoteConnectionProviderFactory(xnio), OptionMap.create(Options.SSL_ENABLED, false));
+//        }
         final OptionMap clientOptions = OptionMap.create(Options.SASL_POLICY_NOANONYMOUS, Boolean.FALSE);
         final IoFuture<Connection> futureConnection = endpoint.connect(new URI(remoteServerURI), clientOptions, new EndpointAuthenticationCallbackHandler());
         final IoFuture.Status status = futureConnection.awaitInterruptibly(5, SECONDS);
@@ -222,5 +229,13 @@ public class EJBClient {
     protected void finalize() throws Throwable {
         this.cleanup();
         super.finalize();
+    }
+
+    static Endpoint getEndpoint() {
+        return endpoint;
+    }
+
+    public static <T> T proxy(final URI uri, final String fqBeanName, final Class<T> viewType) {
+        return viewType.cast(Proxy.newProxyInstance(viewType.getClassLoader(), new Class<?>[]{viewType}, new RemoteInvocationHandler(uri, fqBeanName, viewType)));
     }
 }

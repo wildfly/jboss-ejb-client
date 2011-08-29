@@ -1,6 +1,6 @@
 /*
  * JBoss, Home of Professional Open Source.
- * Copyright 2011, Red Hat, Inc., and individual contributors
+ * Copyright (c) 2011, Red Hat, Inc., and individual contributors
  * as indicated by the @author tags. See the copyright.txt file in the
  * distribution for a full listing of individual contributors.
  *
@@ -19,29 +19,36 @@
  * Software Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
  * 02110-1301 USA, or see the FSF site: http://www.fsf.org.
  */
+package org.jboss.ejb.client.test.stateless;
 
-package org.jboss.ejb.client;
+import org.jboss.ejb.client.EJBClient;
+import org.junit.BeforeClass;
+import org.junit.Test;
 
-import javax.security.auth.callback.Callback;
-import javax.security.auth.callback.CallbackHandler;
-import javax.security.auth.callback.NameCallback;
-import javax.security.auth.callback.UnsupportedCallbackException;
 import java.io.IOException;
+import java.net.URI;
+
+import static org.junit.Assert.assertEquals;
 
 /**
- * User: jpai
+ * Call a 'SLSB' via direct EJB remote API.
+ *
+ * @author <a href="mailto:cdewolf@redhat.com">Carlo de Wolf</a>
  */
-class EndpointAuthenticationCallbackHandler implements CallbackHandler {
+public class StatelessTestCase {
+    private static DummyServer server;
 
-    @Override
-    public void handle(Callback[] callbacks) throws IOException, UnsupportedCallbackException {
-        for (Callback current : callbacks) {
-            if (current instanceof NameCallback) {
-                NameCallback ncb = (NameCallback) current;
-                ncb.setName("anonymous");
-            } else {
-                throw new UnsupportedCallbackException(current);
-            }
-        }
+    @BeforeClass
+    public static void beforeClass() throws IOException {
+        server = new DummyServer();
+        server.start();
+    }
+
+    @Test
+    public void testGreeting() throws Exception {
+        final URI uri = new URI("remote://localhost:6999");
+        GreeterRemote remote = EJBClient.proxy(uri, "my-app/my-module/GreeterBean", GreeterRemote.class);
+        String result = remote.greet("test");
+        assertEquals("Hi test", result);
     }
 }
