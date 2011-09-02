@@ -1,6 +1,6 @@
 /*
  * JBoss, Home of Professional Open Source.
- * Copyright (c) 2011, Red Hat, Inc., and individual contributors
+ * Copyright 2011, Red Hat, Inc., and individual contributors
  * as indicated by the @author tags. See the copyright.txt file in the
  * distribution for a full listing of individual contributors.
  *
@@ -19,6 +19,7 @@
  * Software Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
  * 02110-1301 USA, or see the FSF site: http://www.fsf.org.
  */
+
 package org.jboss.ejb.client.protocol;
 
 import java.io.Externalizable;
@@ -26,42 +27,46 @@ import java.io.IOException;
 import java.io.ObjectInput;
 import java.io.ObjectOutput;
 
-import static org.jboss.ejb.client.protocol.PackedInteger.readPackedInteger;
-import static org.jboss.ejb.client.protocol.PackedInteger.writePackedInteger;
-
 /**
- * @author <a href="mailto:cdewolf@redhat.com">Carlo de Wolf</a>
+ * User: jpai
  */
-public class Attachment implements Externalizable {
-    private transient int id;
-    private transient byte[] data;
+public class MethodParam implements Externalizable {
 
-    public int getId() {
-        return this.id;
+    private transient String paramType;
+
+    private transient Object paramVal;
+
+    // For Externalizable contract
+    public MethodParam() {
+
     }
 
-    public byte[] getData() {
-        return this.data;
+    public MethodParam(final String paramType, final Object paramVal) {
+        if (paramType == null || paramType.trim().isEmpty()) {
+            throw new IllegalArgumentException("Method param type cannot be null or empty string");
+        }
+        this.paramType = paramType;
+        this.paramVal = paramVal;
+    }
+
+    public String getParamType() {
+        return this.paramType;
+    }
+
+    public Object getParamValue() {
+        return this.paramVal;
     }
     
     @Override
     public void writeExternal(ObjectOutput out) throws IOException {
-        out.writeShort(id);
-        writePackedInteger(out, data.length);
-        out.write(data);
+        out.writeUTF(this.paramType);
+        out.writeObject(this.paramVal);
     }
 
     @Override
     public void readExternal(ObjectInput in) throws IOException, ClassNotFoundException {
-        this.id = in.readShort() & 0xFFFF;
-        final int l = readPackedInteger(in);
-        this.data = new byte[l];
-        in.read(data);
+        this.paramType = in.readUTF();
+        this.paramVal = in.readObject();
     }
 
-    public static Attachment readAttachment(ObjectInput in) throws IOException, ClassNotFoundException {
-        final Attachment attachment = new Attachment();
-        attachment.readExternal(in);
-        return attachment;
-    }
 }

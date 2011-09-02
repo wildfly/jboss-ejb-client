@@ -1,6 +1,6 @@
 /*
  * JBoss, Home of Professional Open Source.
- * Copyright (c) 2011, Red Hat, Inc., and individual contributors
+ * Copyright 2011, Red Hat, Inc., and individual contributors
  * as indicated by the @author tags. See the copyright.txt file in the
  * distribution for a full listing of individual contributors.
  *
@@ -19,57 +19,62 @@
  * Software Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
  * 02110-1301 USA, or see the FSF site: http://www.fsf.org.
  */
-package org.jboss.ejb.client;
+package org.jboss.ejb.client.proxy;
 
+import org.jboss.ejb.client.EndpointAuthenticationCallbackHandler;
 import org.jboss.ejb.client.protocol.Attachment;
 import org.jboss.ejb.client.protocol.InvocationRequest;
-import org.jboss.marshalling.ByteOutput;
-import org.jboss.marshalling.Marshaller;
-import org.jboss.marshalling.MarshallerFactory;
-import org.jboss.marshalling.Marshalling;
-import org.jboss.marshalling.MarshallingConfiguration;
-import org.jboss.marshalling.SimpleClassResolver;
-import org.jboss.marshalling.SimpleDataOutput;
+import org.jboss.ejb.client.protocol.Version0Protocol;
 import org.jboss.remoting3.Channel;
 import org.jboss.remoting3.CloseHandler;
 import org.jboss.remoting3.Connection;
+import org.jboss.remoting3.Endpoint;
+import org.jboss.remoting3.MessageInputStream;
+import org.jboss.remoting3.Registration;
+import org.jboss.remoting3.Remoting;
+import org.jboss.remoting3.remote.RemoteConnectionProviderFactory;
+import org.jboss.sasl.JBossSaslProvider;
 import org.xnio.IoFuture;
 import org.xnio.OptionMap;
+import org.xnio.Options;
+import org.xnio.Xnio;
+
 
 import java.io.IOException;
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
 import java.net.URI;
+import java.security.Security;
 
 import static java.util.concurrent.TimeUnit.SECONDS;
-import static org.jboss.ejb.client.EJBClient.getEndpoint;
-import static org.jboss.ejb.client.IoFutureHelper.get;
+import static org.jboss.ejb.client.proxy.IoFutureHelper.get;
 import static org.xnio.Options.SASL_POLICY_NOANONYMOUS;
 
 /**
  * @author <a href="mailto:cdewolf@redhat.com">Carlo de Wolf</a>
  */
-class RemoteInvocationHandler implements InvocationHandler {
-    private static final MarshallerFactory MARSHALLER_FACTORY;
-    static {
-        MARSHALLER_FACTORY = Marshalling.getProvidedMarshallerFactory("river");
-    }
+public class RemoteInvocationHandler implements InvocationHandler {
 
-    private final MarshallingConfiguration config;
+    private final Version0Protocol protocol;
     private final URI uri;
-    private final String fqBeanName;
+    private final String appName;
+    private final String moduleName;
+    private final String beanName;
     private final Class<?> view;
     private volatile Channel channel;
     private volatile Connection connection;
     private volatile short invocationId = 0;
+    private final Endpoint endpoint;
 
-    RemoteInvocationHandler(final URI uri, final String fqBeanName, final Class<?> view) {
+    public RemoteInvocationHandler(final Endpoint endpoint, final URI uri, final String appName, final String moduleName, final String beanName, final Class<?> view) {
         this.uri = uri;
-        this.fqBeanName = fqBeanName;
+        this.endpoint = endpoint;
+        this.appName = appName;
+        this.moduleName = moduleName;
+        this.beanName = beanName;
         this.view = view;
-        this.config = new MarshallingConfiguration();
-        config.setVersion(2);
-        config.setClassResolver(new SimpleClassResolver(view.getClassLoader()));
+//        config.setClassResolver(new SimpleClassResolver(view.getClassLoader()));
+        this.protocol = new Version0Protocol();
     }
 
     private Channel getChannel() throws IOException {
@@ -84,9 +89,8 @@ class RemoteInvocationHandler implements InvocationHandler {
                             RemoteInvocationHandler.this.channel = null;
                         }
                     });
-                    final SimpleDataOutput output = new SimpleDataOutput(Marshalling.createByteOutput(channel.writeMessage()));
-                    output.writeByte(0x00); // test version
-                    output.close();
+                    // send the version greeting message to the channel
+                    this.protocol.sendVersionGreeting(channel.writeMessage());
                 }
             }
         }
@@ -99,7 +103,7 @@ class RemoteInvocationHandler implements InvocationHandler {
             synchronized (this) {
                 if (connection == null) {
                     final OptionMap clientOptions = OptionMap.create(SASL_POLICY_NOANONYMOUS, Boolean.FALSE);
-                    final IoFuture<Connection> futureConnection = getEndpoint().connect(uri, clientOptions, new EndpointAuthenticationCallbackHandler());
+                    final IoFuture<Connection> futureConnection = this.endpoint.connect(uri, clientOptions, new EndpointAuthenticationCallbackHandler());
                     this.connection = get(futureConnection, 5, SECONDS);
                 }
             }
@@ -111,18 +115,28 @@ class RemoteInvocationHandler implements InvocationHandler {
     public Object invoke(Object proxy, Method method, Object[] args) throws Throwable {
         // TODO: construct a packet and send it to the channel manager, then wait for the channel manager to reply
         final Attachment[] attachments = null;
-        final InvocationRequest request = new InvocationRequest(invocationId++ & 0xFFFF, fqBeanName, view.getName(), method.getName(), args, attachments);
+        final InvocationRequest invocationRequest = this.protocol.createInvocationRequest(this.invocationId++, this.appName,
+                this.moduleName, this.beanName,
+                this.view.getName(), method.getName(), this.toString(method.getParameterTypes()), args, attachments);
 
-        final Marshaller marshaller = MARSHALLER_FACTORY.createMarshaller(config);
-
+        this.protocol.writeInvocationRequest(getChannel().writeMessage(), invocationRequest);
         // For now we send directly onto the channel and wait for the reply
-        final ByteOutput output = Marshalling.createByteOutput(getChannel().writeMessage());
-        marshaller.start(output);
-        request.writeExternal(marshaller);
-        marshaller.finish();
-        marshaller.close();
-        output.close();
-
+//        final ByteOutput output = Marshalling.createByteOutput(getChannel().writeMessage());
+//        marshaller.start(output);
+//        marshaller.writeObject(request);
+//        //request.writeExternal(marshaller);
+//        marshaller.finish();
+//        marshaller.close();
+//        output.close();
+        Thread.sleep(10000l);
         return null;
+    }
+
+    private String[] toString(final Class[] classTypes) {
+        final String[] types = new String[classTypes.length];
+        for (int i = 0; i < types.length; i++) {
+            types[i] = classTypes[i].getName().toString();
+        }
+        return types;
     }
 }

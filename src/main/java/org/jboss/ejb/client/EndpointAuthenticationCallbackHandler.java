@@ -31,7 +31,7 @@ import java.io.IOException;
 /**
  * User: jpai
  */
-class EndpointAuthenticationCallbackHandler implements CallbackHandler {
+public class EndpointAuthenticationCallbackHandler implements CallbackHandler {
 
     @Override
     public void handle(Callback[] callbacks) throws IOException, UnsupportedCallbackException {

@@ -23,6 +23,7 @@
 package org.jboss.ejb.client;
 
 import org.jboss.ejb.client.proxy.EJBProxyInvocationHandler;
+import org.jboss.ejb.client.proxy.RemoteInvocationHandler;
 import org.jboss.logging.Logger;
 import org.jboss.remoting3.Channel;
 import org.jboss.remoting3.CloseHandler;
@@ -65,16 +66,6 @@ public class EJBClient {
 
     private final static Endpoint endpoint;
 
-    private Registration connectionProviderRegistration;
-
-    private volatile boolean channelOpened;
-
-    // TODO: Externalize
-    // Key to the EJB remote provider URL
-    public static final String EJB_REMOTE_PROVIDER_URI = "org.jboss.ejb.remote.provider.uri";
-
-    private final String remoteServerURI;
-
     static {
         Security.addProvider(new JBossSaslProvider());
         try {
@@ -86,14 +77,23 @@ public class EJBClient {
         }
     }
 
-    public EJBClient(final Hashtable<?, ?> environment) {
-        if (environment == null) {
-            throw new IllegalArgumentException("Environment cannot be null");
+    public void createSession(final Object proxy) {
+
+    }
+
+    private void cleanup() throws IOException {
+        if (endpoint != null) {
+            endpoint.close();
         }
-        if (environment.get(EJB_REMOTE_PROVIDER_URI) == null) {
-            throw new RuntimeException("Need to specify " + EJB_REMOTE_PROVIDER_URI + " while creating a EJBClient");
+        if (executor != null) {
+            executor.shutdown();
         }
-        this.remoteServerURI = (String) environment.get(EJB_REMOTE_PROVIDER_URI);
+    }
+
+    @Override
+    protected void finalize() throws Throwable {
+        this.cleanup();
+        super.finalize();
     }
 
     /**
@@ -112,11 +112,11 @@ public class EJBClient {
      *                          <p/>
      *                          <code>moduleName</code> cannot be null or an empty value
      * @param beanName          The name of the EJB for which the proxy is being created
-     * @param beanInterfaceType The interface type exposed by the bean, for which we are creating the proxy. For example, if the bean exposes
+     * @param viewType          The interface type exposed by the bean, for which we are creating the proxy. For example, if the bean exposes
      *                          remote business interface view, then the client can pass that as the <code>beanInterfaceType</code>. Same applies
      *                          for remote home interface.
      *                          <p/>
-     *                          The <code>beanInterfaceType</code> cannot be null
+     *                          The <code>viewType</code> cannot be null
      * @param <T>
      * @return
      * @throws IllegalArgumentException If the moduleName is null or empty
@@ -126,116 +126,17 @@ public class EJBClient {
      * @throws IllegalArgumentException If the passed combination of appName, moduleName, beanName and beanInterfaceType cannot identify
      *                                  an EJB deployed on the server
      */
-    public <T> T getProxy(final String appName, final String moduleName, final String beanName, final Class<T> beanInterfaceType) {
-        if (!this.channelOpened) {
-            try {
-                this.connect();
-            } catch (Exception e) {
-                throw new RuntimeException(e);
-            }
-        }
+    public static <T> T proxy(final URI uri, final String appName, final String moduleName, final String beanName, final Class<T> viewType) {
         if (moduleName == null || moduleName.trim().isEmpty()) {
             throw new IllegalArgumentException("Module name cannot be null or empty");
         }
         if (beanName == null || beanName.trim().isEmpty()) {
             throw new IllegalArgumentException("Bean name cannot be null or empty");
         }
-        if (beanInterfaceType == null) {
+        if (viewType == null) {
             throw new IllegalArgumentException("Bean interface type cannot be null");
         }
-        // TODO: Implement remoting protocol
-//        final byte[] resolutionRequest = EJBRemoteProtocol.generateResolutionRequest(appName, moduleName, beanName, beanInterfaceType);
-//        this.sendData(resolutionRequest);
-        if (beanInterfaceType == null) {
-            throw new UnsupportedOperationException("Proxy generation with a specific bean interface type not yet implemented");
-        }
-        return (T) Proxy.newProxyInstance(beanInterfaceType.getClassLoader(), new Class<?>[]{beanInterfaceType}, new EJBProxyInvocationHandler());
-    }
-
-    public void createSession(final Object proxy) {
-
-    }
-
-    private void sendData(final byte[] data) {
-
-    }
-
-    private synchronized void connect() throws IOException, URISyntaxException, InterruptedException, ExecutionException {
-//        if (this.endpoint == null) {
-//            this.endpoint = Remoting.createEndpoint("endpoint", executor, OptionMap.EMPTY);
-//            final Xnio xnio = Xnio.getInstance();
-//            this.connectionProviderRegistration = endpoint.addConnectionProvider("remote", new RemoteConnectionProviderFactory(xnio), OptionMap.create(Options.SSL_ENABLED, false));
-//        }
-        final OptionMap clientOptions = OptionMap.create(Options.SASL_POLICY_NOANONYMOUS, Boolean.FALSE);
-        final IoFuture<Connection> futureConnection = endpoint.connect(new URI(remoteServerURI), clientOptions, new EndpointAuthenticationCallbackHandler());
-        final IoFuture.Status status = futureConnection.awaitInterruptibly(5, SECONDS);
-        Connection connection = null;
-        switch (status) {
-            case CANCELLED:
-                throw new CancellationException();
-            case FAILED:
-                throw new ExecutionException(futureConnection.getException());
-            case DONE:
-                connection = futureConnection.get();
-                break;
-            case WAITING:
-                throw new RuntimeException("Timed out waiting to connect to EJB endpoint");
-            default:
-                throw new RuntimeException("Unknow return status: " + status + " during an attempt to connect to EJB endpoint");
-        }
-        logger.info("Connected to remote EJB endpoint " + connection);
-        final Channel channel = this.openChannel(connection);
-        channel.addCloseHandler(new ChannelCloseHandler());
-        logger.info("Channel opened: " + channel);
-        this.channelOpened = true;
-
-    }
-
-    private Channel openChannel(final Connection connection) throws InterruptedException, IOException, ExecutionException {
-        final IoFuture<Channel> futureChannel = connection.openChannel("ejb3", OptionMap.EMPTY);
-        final IoFuture.Status status = futureChannel.awaitInterruptibly(5, SECONDS);
-        switch (status) {
-            case CANCELLED:
-                throw new CancellationException();
-            case FAILED:
-                throw new ExecutionException(futureChannel.getException());
-            case DONE:
-                return futureChannel.get();
-            case WAITING:
-                throw new RuntimeException("Timed out waiting to open a channel on EJB endpoint");
-            default:
-                throw new RuntimeException("Unknown status");
-        }
-    }
-
-    private class ChannelCloseHandler implements CloseHandler<Channel> {
-
-        @Override
-        public void handleClose(Channel closed, IOException exception) {
-            EJBClient.this.channelOpened = false;
-        }
-    }
-
-    private void cleanup() throws IOException {
-        if (endpoint != null) {
-            endpoint.close();
-        }
-        if (executor != null) {
-            executor.shutdown();
-        }
-    }
-
-    @Override
-    protected void finalize() throws Throwable {
-        this.cleanup();
-        super.finalize();
-    }
-
-    static Endpoint getEndpoint() {
-        return endpoint;
-    }
-
-    public static <T> T proxy(final URI uri, final String fqBeanName, final Class<T> viewType) {
-        return viewType.cast(Proxy.newProxyInstance(viewType.getClassLoader(), new Class<?>[]{viewType}, new RemoteInvocationHandler(uri, fqBeanName, viewType)));
+        return viewType.cast(Proxy.newProxyInstance(viewType.getClassLoader(), new Class<?>[]{viewType},
+                                new RemoteInvocationHandler(endpoint, uri, appName, moduleName, beanName, viewType)));
     }
 }

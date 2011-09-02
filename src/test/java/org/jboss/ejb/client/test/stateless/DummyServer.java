@@ -52,7 +52,7 @@ import java.security.Security;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
-import static org.jboss.ejb.client.protocol.InvocationRequest.INVOCATION_REQUEST;
+import static org.jboss.ejb.client.protocol.InvocationRequest.INVOCATION_REQUEST_HEADER;
 
 /**
  * @author <a href="mailto:cdewolf@redhat.com">Carlo de Wolf</a>
@@ -99,7 +99,7 @@ class DummyServer {
             try {
                 int command = message.read();
                 switch (command) {
-                    case INVOCATION_REQUEST:
+                    case INVOCATION_REQUEST_HEADER:
                         break;
                 }
             } catch (IOException e) {

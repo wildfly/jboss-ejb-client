@@ -23,6 +23,7 @@ package org.jboss.ejb.client.test.stateless;
 
 import org.jboss.ejb.client.EJBClient;
 import org.junit.BeforeClass;
+import org.junit.Ignore;
 import org.junit.Test;
 
 import java.io.IOException;
@@ -44,10 +45,11 @@ public class StatelessTestCase {
         server.start();
     }
 
+    @Ignore("Till remoting is implemented")
     @Test
     public void testGreeting() throws Exception {
         final URI uri = new URI("remote://localhost:6999");
-        GreeterRemote remote = EJBClient.proxy(uri, "my-app/my-module/GreeterBean", GreeterRemote.class);
+        GreeterRemote remote = EJBClient.proxy(uri, "my-app", "my-module", "GreeterBean", GreeterRemote.class);
         String result = remote.greet("test");
         assertEquals("Hi test", result);
     }

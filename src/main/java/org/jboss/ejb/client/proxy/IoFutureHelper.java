@@ -19,7 +19,7 @@
  * Software Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
  * 02110-1301 USA, or see the FSF site: http://www.fsf.org.
  */
-package org.jboss.ejb.client;
+package org.jboss.ejb.client.proxy;
 
 import org.xnio.IoFuture;
 
@@ -33,7 +33,7 @@ import java.util.concurrent.TimeoutException;
 /**
  * @author <a href="mailto:cdewolf@redhat.com">Carlo de Wolf</a>
  */
-class IoFutureHelper {
+public class IoFutureHelper {
     static <V> Future<V> future(final IoFuture<V> ioFuture) {
         return new Future<V>() {
             @Override

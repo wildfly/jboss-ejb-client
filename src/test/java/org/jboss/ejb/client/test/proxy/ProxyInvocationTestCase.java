@@ -20,43 +20,51 @@
  * 02110-1301 USA, or see the FSF site: http://www.fsf.org.
  */
 
-package org.jboss.ejb.client.test;
+package org.jboss.ejb.client.test.proxy;
 
+import org.jboss.arquillian.container.test.api.Deployment;
+import org.jboss.arquillian.container.test.api.RunAsClient;
+import org.jboss.arquillian.junit.Arquillian;
 import org.jboss.ejb.client.EJBClient;
+import org.jboss.shrinkwrap.api.Archive;
+import org.jboss.shrinkwrap.api.ShrinkWrap;
+import org.jboss.shrinkwrap.api.spec.EnterpriseArchive;
+import org.jboss.shrinkwrap.api.spec.JavaArchive;
 import org.junit.Assert;
 import org.junit.Ignore;
 import org.junit.Test;
+import org.junit.runner.RunWith;
 
 import javax.naming.Context;
 import javax.naming.InitialContext;
+import java.net.URI;
 import java.util.Properties;
 
 /**
  * User: jpai
  */
-public class SimpleLookupTestCase {
+@RunWith(Arquillian.class)
+@RunAsClient
+public class ProxyInvocationTestCase {
 
-    @Ignore("The test should not rely on the remote endpoint being there.")
+    @Deployment
+    public static Archive<?> createDeployment() {
+        final EnterpriseArchive ear = ShrinkWrap.create(EnterpriseArchive.class, "myapp.ear");
+
+        final JavaArchive jar = ShrinkWrap.create(JavaArchive.class, "ejb.jar");
+        jar.addPackage(ProxyInvocationTestCase.class.getPackage());
+
+        ear.addAsModule(jar);
+
+        return ear;
+    }
+    
+    //@Ignore("The test should not rely on the remote endpoint being there.")
     @Test
     public void testJndiLookup() throws Exception {
-        final Properties props = new Properties();
-        props.put(EJBClient.EJB_REMOTE_PROVIDER_URI, "remote://localhost:9999");
-        props.put(Context.INITIAL_CONTEXT_FACTORY, org.jboss.ejb.client.naming.InitialContextFactory.class.getName());
-
-        final Context ctx = new InitialContext(props);
-        final SimpleRemoteBusinessInterface proxy = (SimpleRemoteBusinessInterface) ctx.lookup("java:global/app/module/bean!" + SimpleRemoteBusinessInterface.class.getName());
-        try {
-            proxy.doNothing();
-            // temporary till we implement the remoting
-            Assert.fail("Remoting was expected to be non-functional");
-        } catch (UnsupportedOperationException uoe) {
-            // expected for now!
-        }
+        RemoteEcho proxy = EJBClient.proxy(new URI("remote://localhost:9999"), "myapp", "ejb", "EchoBean", RemoteEcho.class);
+        proxy.echo("Hello world!!!");
 
     }
 
-    private interface SimpleRemoteBusinessInterface {
-
-        void doNothing();
-    }
 }

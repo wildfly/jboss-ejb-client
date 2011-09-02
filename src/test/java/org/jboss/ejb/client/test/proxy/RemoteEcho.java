@@ -20,20 +20,12 @@
  * 02110-1301 USA, or see the FSF site: http://www.fsf.org.
  */
 
-package org.jboss.ejb.client.naming;
-
-import javax.naming.Context;
-import javax.naming.NamingException;
-import java.util.Hashtable;
+package org.jboss.ejb.client.test.proxy;
 
 /**
  * User: jpai
  */
-public class InitialContextFactory implements javax.naming.spi.InitialContextFactory {
+public interface RemoteEcho {
 
-
-    @Override
-    public Context getInitialContext(Hashtable<?, ?> environment) throws NamingException {
-        return new org.jboss.ejb.client.naming.InitialContext(environment);
-    }
+    String echo(String msg);
 }
