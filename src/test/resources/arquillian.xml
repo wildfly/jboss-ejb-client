@@ -26,8 +26,6 @@
 
 	<container qualifier="jboss" default="true">
 		<configuration>
-            <!-- Change this to point to JBoss AS7 installation -->
-			<property name="jbossHome">/NotBackedUp/jpai/business/jboss/wc/jbossas/as7/jboss-as/build/target/jboss-as-7.1.0.Alpha1-SNAPSHOT</property>
 			<property name="allowConnectingToRunningServer">true</property>
 		</configuration>
 	</container>

@@ -23,7 +23,6 @@
 package org.jboss.ejb.client;
 
 import org.jboss.ejb.client.protocol.InvocationResponse;
-import org.xnio.FutureResult;
 
 
 /**
