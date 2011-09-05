@@ -23,12 +23,15 @@
 package org.jboss.ejb.client.protocol;
 
 import org.jboss.logging.Logger;
+import org.jboss.marshalling.ByteInput;
 import org.jboss.marshalling.ByteOutput;
 import org.jboss.marshalling.Marshaller;
 import org.jboss.marshalling.MarshallerFactory;
 import org.jboss.marshalling.Marshalling;
 import org.jboss.marshalling.MarshallingConfiguration;
 import org.jboss.marshalling.SimpleDataOutput;
+import org.jboss.marshalling.Unmarshaller;
+import org.jboss.remoting3.MessageInputStream;
 import org.jboss.remoting3.MessageOutputStream;
 
 import java.io.IOException;
@@ -36,9 +39,9 @@ import java.io.IOException;
 /**
  * User: jpai
  */
-public class Version0Protocol {
+public class Version0ProtocolHandler {
 
-    private static final Logger logger = Logger.getLogger(Version0Protocol.class);
+    private static final Logger logger = Logger.getLogger(Version0ProtocolHandler.class);
     
     private static final MarshallerFactory marshallerFactory = Marshalling.getProvidedMarshallerFactory("river");
 
@@ -46,17 +49,11 @@ public class Version0Protocol {
 
     public static final byte VERSION = 0x00;
 
-    public Version0Protocol() {
-        this.marshallingConfiguration = new MarshallingConfiguration();
-        this.marshallingConfiguration.setVersion(2);
+    public Version0ProtocolHandler(final MarshallingConfiguration marshallingConfiguration) {
+//        this.marshallingConfiguration = new MarshallingConfiguration();
+//        this.marshallingConfiguration.setVersion(2);
+        this.marshallingConfiguration = marshallingConfiguration;
 
-    }
-
-    public static InvocationRequest createInvocationRequest(final int invocationId, final String appName, final String moduleName,
-                                                  final String beanName, final String view, final String methodName,
-                                                  final String[] paramTypes, final Object[] params, final Attachment[] attachments) {
-
-        return new InvocationRequest(invocationId, appName, moduleName, beanName, view, methodName, paramTypes, params, attachments);
     }
 
     public void writeInvocationRequest(final MessageOutputStream messageOutputStream, final InvocationRequest invocationRequest) throws IOException {
@@ -102,8 +99,53 @@ public class Version0Protocol {
         marshaller.close();
     }
 
-    public void writeInvocationResponse(final MessageOutputStream messageOutputStream) {
-        // TODO: Implement
+    public void writeInvocationResponse(final InvocationResponse invocationResponse, final MessageOutputStream messageOutputStream) throws IOException {
+        final Marshaller marshaller = marshallerFactory.createMarshaller(this.marshallingConfiguration);
+
+        final ByteOutput byteOutput = Marshalling.createByteOutput(messageOutputStream);
+        marshaller.start(byteOutput);
+
+        // write the header
+        marshaller.write(InvocationResponse.INVOCATION_RESPONSE_HEADER);
+        // write the InvocationResponse
+        marshaller.writeObject(invocationResponse);
+
+        marshaller.finish();
+        marshaller.close();
+
+    }
+
+    public InvocationResponse readInvocationResponse(final MessageInputStream messageInputStream) throws IOException {
+        final Unmarshaller unmarshaller = marshallerFactory.createUnmarshaller(this.marshallingConfiguration);
+        final ByteInput byteInput = Marshalling.createByteInput(messageInputStream);
+        unmarshaller.start(byteInput);
+
+        final byte header = unmarshaller.readByte();
+        if (header != InvocationResponse.INVOCATION_RESPONSE_HEADER) {
+            throw new IOException("Incorrect header 0x" + Integer.toHexString(header) + " in invocation response");
+        }
+        // invocation id
+//        final short invocationId = unmarshaller.readShort();
+//        // exception or not
+//        final byte exception = unmarshaller.readByte();
+//        final boolean isException = (exception & 0x01) == 1;
+//        Object obj = null;
+//        try {
+//            obj = unmarshaller.readObject();
+//        } catch (ClassNotFoundException e) {
+//            throw new IOException(e);
+//        }
+//        InvocationResponse invocationResponse;
+//        if (isException) {
+//            return new InvocationResponse(invocationId, obj, null);
+//        }
+//        return new InvocationResponse(invocationId, null, (Exception) obj);
+        try {
+            final InvocationResponse invocationResponse = unmarshaller.readObject(InvocationResponse.class);
+            return invocationResponse;
+        } catch (ClassNotFoundException e) {
+            throw new IOException(e);
+        }
     }
 
     public void sendVersionGreeting(final MessageOutputStream messageOutputStream) throws IOException {

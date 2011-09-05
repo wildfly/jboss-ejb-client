@@ -34,7 +34,7 @@ import java.util.concurrent.TimeoutException;
  * @author <a href="mailto:cdewolf@redhat.com">Carlo de Wolf</a>
  */
 public class IoFutureHelper {
-    static <V> Future<V> future(final IoFuture<V> ioFuture) {
+    public static <V> Future<V> future(final IoFuture<V> ioFuture) {
         return new Future<V>() {
             @Override
             public boolean cancel(boolean mayInterruptIfRunning) {
@@ -81,7 +81,7 @@ public class IoFutureHelper {
         };
     }
 
-    static <V> V get(final IoFuture<V> ioFuture, final long timeout, final TimeUnit unit) throws IOException {
+    public static <V> V get(final IoFuture<V> ioFuture, final long timeout, final TimeUnit unit) throws IOException {
         final IoFuture.Status status = ioFuture.await(timeout, unit);
         switch (status) {
             case DONE:

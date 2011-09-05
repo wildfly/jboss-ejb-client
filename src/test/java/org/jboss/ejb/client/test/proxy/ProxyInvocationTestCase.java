@@ -26,6 +26,7 @@ import org.jboss.arquillian.container.test.api.Deployment;
 import org.jboss.arquillian.container.test.api.RunAsClient;
 import org.jboss.arquillian.junit.Arquillian;
 import org.jboss.ejb.client.EJBClient;
+import org.jboss.logging.Logger;
 import org.jboss.shrinkwrap.api.Archive;
 import org.jboss.shrinkwrap.api.ShrinkWrap;
 import org.jboss.shrinkwrap.api.spec.EnterpriseArchive;
@@ -47,6 +48,8 @@ import java.util.Properties;
 @RunAsClient
 public class ProxyInvocationTestCase {
 
+    private static final Logger logger = Logger.getLogger(ProxyInvocationTestCase.class);
+    
     @Deployment
     public static Archive<?> createDeployment() {
         final EnterpriseArchive ear = ShrinkWrap.create(EnterpriseArchive.class, "myapp.ear");
@@ -63,7 +66,10 @@ public class ProxyInvocationTestCase {
     @Test
     public void testJndiLookup() throws Exception {
         RemoteEcho proxy = EJBClient.proxy(new URI("remote://localhost:9999"), "myapp", "ejb", "EchoBean", RemoteEcho.class);
-        proxy.echo("Hello world!!!");
+        final String message = "Hello World!!!";
+        final String echoMessage = proxy.echo(message);
+        logger.info("Got echo: " + echoMessage + " for message " + message);
+        Assert.assertEquals("Unexpected echo", message, echoMessage);
 
     }
 

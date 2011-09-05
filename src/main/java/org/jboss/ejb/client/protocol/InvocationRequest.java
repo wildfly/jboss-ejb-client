@@ -29,7 +29,7 @@ import java.io.ObjectOutput;
 /**
  * @author <a href="mailto:cdewolf@redhat.com">Carlo de Wolf</a>
  */
-public class InvocationRequest implements Externalizable {
+public class InvocationRequest {
     public static final byte INVOCATION_REQUEST_HEADER = 0x01;
 
     private transient int invocationId;
@@ -43,16 +43,10 @@ public class InvocationRequest implements Externalizable {
     private transient Attachment[] attachments;
 
 
-    @Deprecated
-    public InvocationRequest() {
-        // TODO: don't want to expose this constructor
-    }
-
-    protected InvocationRequest(final int invocationId, final String appName, final String moduleName,
+    public InvocationRequest(final int invocationId, final String appName, final String moduleName,
                               final String beanName, final String viewClassName,
                               final String methodName, final String[] paramTypes, final Object[] methodParams, final Attachment[] attachments) {
 
-        this();
         this.invocationId = invocationId;
         this.appName = appName;
         this.moduleName = moduleName;
@@ -63,67 +57,6 @@ public class InvocationRequest implements Externalizable {
         this.attachments = attachments;
         this.paramTypes = paramTypes;
 
-    }
-
-    @Override
-    public void writeExternal(ObjectOutput out) throws IOException {
-        out.writeShort(invocationId);
-        out.writeByte(0x07); // full ids
-        if (this.appName != null) {
-            out.writeUTF(appName);
-        }
-        out.writeUTF(moduleName);
-        out.writeUTF(beanName);
-        out.writeUTF(viewClassName);
-        out.writeUTF(methodName);
-        if (params != null) {
-            out.writeByte(params.length);
-            for (final Object param : params) {
-                out.writeObject(param);
-            }
-        } else
-            out.writeByte(0);
-        if (attachments != null) {
-            out.writeByte(attachments.length);
-            for (final Attachment attachment : attachments) {
-                // do not call writeObject, because we don't want serialization bits
-                attachment.writeExternal(out);
-            }
-        } else
-            out.writeByte(0);
-    }
-
-    @Override
-    public void readExternal(ObjectInput in) throws IOException, ClassNotFoundException {
-        this.invocationId = in.readShort();
-        in.read(); // full ids
-        this.appName = in.readUTF();
-        this.moduleName = in.readUTF();
-        this.beanName = in.readUTF();
-        this.viewClassName = in.readUTF();
-        this.methodName = in.readUTF();
-        int paramLength = in.readByte();
-        if (paramLength < 0) {
-            // negative length isn't valid
-            throw new IOException("Invalid input - Negative param length: " + paramLength + " found");
-        }
-        this.params = new Object[paramLength];
-        if (paramLength > 0) {
-            for (int i = 0; i < paramLength; i++) {
-                this.params[i] = in.readObject();
-            }
-        }
-        int attachmentLength = in.readByte();
-        if (attachmentLength < 0) {
-            // negative length isn't valid
-            throw new IOException("Invalid input - Negative attachment length: " + attachmentLength + " found");
-        }
-        this.attachments = new Attachment[attachmentLength];
-        if (attachmentLength > 0) {
-            for (int i = 0; i < attachmentLength; i++) {
-                this.attachments[i] = Attachment.readAttachment(in);
-            }
-        }
     }
 
     public int getInvocationId() {
