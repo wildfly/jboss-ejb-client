@@ -22,18 +22,13 @@
 
 package org.jboss.ejb.client;
 
-import org.jboss.ejb.client.proxy.EJBProxyInvocationHandler;
 import org.jboss.ejb.client.proxy.RemoteInvocationHandler;
 import org.jboss.logging.Logger;
-import org.jboss.remoting3.Channel;
-import org.jboss.remoting3.CloseHandler;
-import org.jboss.remoting3.Connection;
 import org.jboss.remoting3.Endpoint;
 import org.jboss.remoting3.Registration;
 import org.jboss.remoting3.Remoting;
 import org.jboss.remoting3.remote.RemoteConnectionProviderFactory;
 import org.jboss.sasl.JBossSaslProvider;
-import org.xnio.IoFuture;
 import org.xnio.OptionMap;
 import org.xnio.Options;
 import org.xnio.Xnio;
@@ -41,15 +36,9 @@ import org.xnio.Xnio;
 import java.io.IOException;
 import java.lang.reflect.Proxy;
 import java.net.URI;
-import java.net.URISyntaxException;
 import java.security.Security;
-import java.util.Hashtable;
-import java.util.concurrent.CancellationException;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-
-import static java.util.concurrent.TimeUnit.SECONDS;
 
 /**
  * User: jpai
