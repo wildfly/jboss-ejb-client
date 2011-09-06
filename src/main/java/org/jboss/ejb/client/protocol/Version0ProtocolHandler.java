@@ -1,6 +1,6 @@
 /*
  * JBoss, Home of Professional Open Source.
- * Copyright 2011, Red Hat, Inc., and individual contributors
+ * Copyright (c) 2011, Red Hat, Inc., and individual contributors
  * as indicated by the @author tags. See the copyright.txt file in the
  * distribution for a full listing of individual contributors.
  *
@@ -56,6 +56,7 @@ public class Version0ProtocolHandler {
 
     }
 
+    @Deprecated
     public void writeInvocationRequest(final MessageOutputStream messageOutputStream, final InvocationRequest invocationRequest) throws IOException {
         final Marshaller marshaller = marshallerFactory.createMarshaller(this.marshallingConfiguration);
 
@@ -64,36 +65,7 @@ public class Version0ProtocolHandler {
 
         // write the header
         marshaller.write(InvocationRequest.INVOCATION_REQUEST_HEADER);
-        marshaller.writeShort(invocationRequest.getInvocationId());
-        // full ids
-        marshaller.writeByte(0x07);
-        if (invocationRequest.getAppName() != null) {
-            marshaller.writeUTF(invocationRequest.getAppName());
-        }
-        marshaller.writeUTF(invocationRequest.getModuleName());
-        marshaller.writeUTF(invocationRequest.getBeanName());
-        marshaller.writeUTF(invocationRequest.getViewClassName());
-        marshaller.writeUTF(invocationRequest.getMethodName());
-        final String[] methodParamTypes = invocationRequest.getParamTypes();
-        final Object[] params = invocationRequest.getParams();
-        if (methodParamTypes != null) {
-            marshaller.writeByte(methodParamTypes.length);
-            for (int i = 0; i < methodParamTypes.length; i++) {
-                final MethodParam methodParam = new MethodParam(methodParamTypes[i], params[i]);
-                marshaller.writeObject(methodParam);
-            }
-        } else {
-            marshaller.writeByte(0);
-        }
-        final Attachment[] attachments = invocationRequest.getAttachments();
-        if (attachments != null) {
-            marshaller.writeByte(attachments.length);
-            for (final Attachment attachment : attachments) {
-                // TODO: Write out the attachment
-            }
-        } else {
-            marshaller.writeByte(0);
-        }
+        invocationRequest.writeExternal(marshaller);
         // done
         marshaller.finish();
         marshaller.close();
@@ -107,8 +79,8 @@ public class Version0ProtocolHandler {
 
         // write the header
         marshaller.write(InvocationResponse.INVOCATION_RESPONSE_HEADER);
-        // write the InvocationResponse
-        marshaller.writeObject(invocationResponse);
+        // write the InvocationResponse without serialization bits
+        invocationResponse.writeExternal(marshaller);
 
         marshaller.finish();
         marshaller.close();
@@ -141,8 +113,9 @@ public class Version0ProtocolHandler {
 //        }
 //        return new InvocationResponse(invocationId, null, (Exception) obj);
         try {
-            final InvocationResponse invocationResponse = unmarshaller.readObject(InvocationResponse.class);
-            return invocationResponse;
+            final InvocationResponse response = new InvocationResponse();
+            response.readExternal(unmarshaller);
+            return response;
         } catch (ClassNotFoundException e) {
             throw new IOException(e);
         }

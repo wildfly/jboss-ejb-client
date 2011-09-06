@@ -29,7 +29,7 @@ import java.io.ObjectOutput;
 /**
  * @author <a href="mailto:cdewolf@redhat.com">Carlo de Wolf</a>
  */
-public class InvocationRequest {
+public class InvocationRequest implements Externalizable {
     public static final byte INVOCATION_REQUEST_HEADER = 0x01;
 
     private transient int invocationId;
@@ -38,14 +38,16 @@ public class InvocationRequest {
     private transient String beanName;
     private transient String viewClassName;
     private transient String methodName;
-    private transient String[] paramTypes;
+    private transient Class<?>[] paramTypes;
     private transient Object[] params;
     private transient Attachment[] attachments;
 
+    public InvocationRequest() {
+    }
 
     public InvocationRequest(final int invocationId, final String appName, final String moduleName,
                               final String beanName, final String viewClassName,
-                              final String methodName, final String[] paramTypes, final Object[] methodParams, final Attachment[] attachments) {
+                              final String methodName, final Class<?>[] paramTypes, final Object[] methodParams, final Attachment[] attachments) {
 
         this.invocationId = invocationId;
         this.appName = appName;
@@ -75,7 +77,7 @@ public class InvocationRequest {
         return params;
     }
 
-    public String[] getParamTypes() {
+    public Class<?>[] getParamTypes() {
         return this.paramTypes;
     }
     
@@ -93,5 +95,63 @@ public class InvocationRequest {
 
     public String getBeanName() {
         return this.beanName;
+    }
+
+    @Override
+    public void readExternal(final ObjectInput in) throws IOException, ClassNotFoundException {
+        this.invocationId = in.readShort() & 0xFFFF;
+        in.readByte(); // must be 0x07 for the moment
+        // TODO: fixme, see writeExternal
+        this.appName = in.readUTF();
+        this.moduleName = in.readUTF();
+        this.beanName = in.readUTF();
+        this.viewClassName = in.readUTF();
+        this.methodName = in.readUTF();
+        final int paramsLength = in.readByte() & 0xFF;
+        this.paramTypes = new Class[paramsLength];
+        this.params = new Object[paramsLength];
+        for (int i = 0; i < paramsLength; i++) {
+            // TODO: this must happen in the right context, based on the EJB ID
+            this.paramTypes[i] = (Class<?>) in.readObject();
+            this.params[i] = in.readObject();
+        }
+        final int attachmentsLength = in.readByte() & 0xFF;
+        this.attachments = new Attachment[attachmentsLength];
+        for (int i = 0; i < attachmentsLength; i++) {
+            // TODO: does not mirror writeExternal
+            this.attachments[i] = Attachment.readAttachment(in);
+        }
+    }
+
+    @Override
+    public void writeExternal(final ObjectOutput out) throws IOException {
+        out.writeShort(invocationId);
+        out.writeByte(0x07); // full ids
+        // TODO: fix the protocol so we know whether appName is coming up or not
+        if (appName != null) {
+            out.writeUTF(appName);
+        } else {
+            throw new RuntimeException("NYI");
+        }
+        out.writeUTF(moduleName);
+        out.writeUTF(beanName);
+        out.writeUTF(viewClassName);
+        out.writeUTF(methodName);
+        if (params != null) {
+            out.writeByte(params.length);
+            for (int i = 0; i < params.length; i++) {
+                out.writeObject(paramTypes[i]);
+                out.writeObject(params[i]);
+            }
+        } else
+            out.writeByte(0);
+        if (attachments != null) {
+            out.writeByte(attachments.length);
+            for (final Attachment attachment : attachments) {
+                // do not call writeObject, because we don't want serialization bits
+                attachment.writeExternal(out);
+            }
+        } else
+            out.writeByte(0);
     }
 }

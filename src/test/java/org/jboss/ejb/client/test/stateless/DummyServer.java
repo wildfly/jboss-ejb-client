@@ -21,15 +21,21 @@
  */
 package org.jboss.ejb.client.test.stateless;
 
+import org.jboss.ejb.client.protocol.InvocationRequest;
+import org.jboss.ejb.client.protocol.InvocationResponse;
+import org.jboss.marshalling.ByteOutput;
+import org.jboss.marshalling.Marshaller;
 import org.jboss.marshalling.MarshallerFactory;
 import org.jboss.marshalling.Marshalling;
 import org.jboss.marshalling.MarshallingConfiguration;
 import org.jboss.marshalling.SimpleClassResolver;
 import org.jboss.marshalling.SimpleDataInput;
+import org.jboss.marshalling.Unmarshaller;
 import org.jboss.remoting3.Channel;
 import org.jboss.remoting3.CloseHandler;
 import org.jboss.remoting3.Endpoint;
 import org.jboss.remoting3.MessageInputStream;
+import org.jboss.remoting3.MessageOutputStream;
 import org.jboss.remoting3.OpenListener;
 import org.jboss.remoting3.Registration;
 import org.jboss.remoting3.Remoting;
@@ -45,10 +51,13 @@ import org.xnio.channels.AcceptingChannel;
 import org.xnio.channels.ConnectedStreamChannel;
 
 import java.io.IOException;
+import java.lang.reflect.Method;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
 import java.security.Security;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -65,6 +74,8 @@ class DummyServer {
     }
 
     private final MarshallingConfiguration config;
+
+    private Map<String, Object> remoteInstances = new HashMap<String, Object>();
 
     class VersionReceiver extends AbstractReceiver {
         @Override
@@ -97,12 +108,41 @@ class DummyServer {
         @Override
         public void handleMessage(Channel channel, MessageInputStream message) {
             try {
-                int command = message.read();
+                // TODO: this is not supposed to happen, but the Marshaller changes the format
+                Unmarshaller unmarshaller = MARSHALLER_FACTORY.createUnmarshaller(config);
+                unmarshaller.start(Marshalling.createByteInput(message));
+                int command = unmarshaller.read();
                 switch (command) {
                     case INVOCATION_REQUEST_HEADER:
+                        final InvocationRequest request = new InvocationRequest();
+                        request.readExternal(unmarshaller);
+                        // in this dummy server we process the request within the remoting thread, this is not
+                        // how it is supposed to work in the real server
+                        final String fqBeanName = request.getAppName() + "/" + request.getModuleName() + "/" + request.getBeanName();
+                        InvocationResponse response;
+                        try {
+                            final Object bean = remoteInstances.get(fqBeanName);
+                            if (bean == null)
+                                throw new RuntimeException("Unknown bean registration " + fqBeanName);
+                            final Method method = bean.getClass().getMethod(request.getMethodName(), request.getParamTypes());
+                            final Object result = method.invoke(bean, request.getParams());
+                            response = new InvocationResponse(request.getInvocationId(), result, null);
+                        } catch (Exception e) {
+                            response = new InvocationResponse(request.getInvocationId(), null, e);
+                        }
+                        final MessageOutputStream out = channel.writeMessage();
+                        final Marshaller marshaller = MARSHALLER_FACTORY.createMarshaller(config);
+                        final ByteOutput byteOutput = Marshalling.createByteOutput(out);
+                        marshaller.start(byteOutput);
+                        marshaller.write(InvocationResponse.INVOCATION_RESPONSE_HEADER);
+                        response.writeExternal(marshaller);
+                        marshaller.finish();
+                        marshaller.close();
                         break;
+                    default:
+                        throw new RuntimeException("Unknown command " + command);
                 }
-            } catch (IOException e) {
+            } catch (Exception e) {
                 // log it
                 e.printStackTrace();
                 try {
@@ -119,6 +159,10 @@ class DummyServer {
         config.setVersion(2);
         // TODO: need to use the EJB bean class loader, this depends on the packet received
         config.setClassResolver(new SimpleClassResolver(DummyServer.class.getClassLoader()));
+    }
+
+    void register(final String fqBeanName, final Object instance) {
+        remoteInstances.put(fqBeanName, instance);
     }
 
     void start() throws IOException {

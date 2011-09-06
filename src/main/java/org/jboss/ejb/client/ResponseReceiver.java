@@ -1,6 +1,6 @@
 /*
  * JBoss, Home of Professional Open Source.
- * Copyright 2011, Red Hat, Inc., and individual contributors
+ * Copyright (c) 2011, Red Hat, Inc., and individual contributors
  * as indicated by the @author tags. See the copyright.txt file in the
  * distribution for a full listing of individual contributors.
  *
@@ -26,10 +26,8 @@ import org.jboss.ejb.client.protocol.InvocationResponse;
 import org.jboss.ejb.client.protocol.Version0ProtocolHandler;
 import org.jboss.remoting3.Channel;
 import org.jboss.remoting3.MessageInputStream;
-import org.xnio.FutureResult;
 
 import java.io.IOException;
-import java.util.concurrent.Future;
 
 /**
  * User: jpai

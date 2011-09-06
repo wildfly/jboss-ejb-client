@@ -36,14 +36,12 @@ import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 
-import javax.naming.Context;
-import javax.naming.InitialContext;
 import java.net.URI;
-import java.util.Properties;
 
 /**
  * User: jpai
  */
+@Ignore("This test should not be here, but in AS7 codebase")
 @RunWith(Arquillian.class)
 @RunAsClient
 public class ProxyInvocationTestCase {

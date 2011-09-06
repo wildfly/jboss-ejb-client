@@ -1,6 +1,6 @@
 /*
  * JBoss, Home of Professional Open Source.
- * Copyright 2011, Red Hat, Inc., and individual contributors
+ * Copyright (c) 2011, Red Hat, Inc., and individual contributors
  * as indicated by the @author tags. See the copyright.txt file in the
  * distribution for a full listing of individual contributors.
  *
@@ -22,29 +22,15 @@
 package org.jboss.ejb.client.proxy;
 
 import org.jboss.ejb.client.ChannelCommunicator;
-import org.jboss.ejb.client.EndpointAuthenticationCallbackHandler;
-import org.jboss.ejb.client.protocol.Attachment;
 import org.jboss.ejb.client.protocol.InvocationRequest;
 import org.jboss.ejb.client.protocol.InvocationResponse;
-import org.jboss.ejb.client.protocol.Version0ProtocolHandler;
-import org.jboss.remoting3.Channel;
-import org.jboss.remoting3.CloseHandler;
-import org.jboss.remoting3.Connection;
 import org.jboss.remoting3.Endpoint;
-import org.xnio.IoFuture;
-import org.xnio.OptionMap;
 
-
-import java.io.IOException;
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
 import java.net.URI;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
-
-import static java.util.concurrent.TimeUnit.SECONDS;
-import static org.jboss.ejb.client.proxy.IoFutureHelper.get;
-import static org.xnio.Options.SASL_POLICY_NOANONYMOUS;
 
 /**
  * @author <a href="mailto:cdewolf@redhat.com">Carlo de Wolf</a>
@@ -70,7 +56,7 @@ public class RemoteInvocationHandler implements InvocationHandler {
     public Object invoke(Object proxy, Method method, Object[] args) throws Throwable {
         final InvocationRequest invocationRequest = new InvocationRequest(this.invocationId++, this.appName,
                 this.moduleName, this.beanName,
-                this.view.getName(), method.getName(), this.toString(method.getParameterTypes()), args, null);
+                this.view.getName(), method.getName(), method.getParameterTypes(), args, null);
 
         final Future<InvocationResponse> result = this.channelCommunicator.invoke(invocationRequest);
         // TODO: Externalize timeout
