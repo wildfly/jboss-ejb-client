@@ -22,11 +22,18 @@
 package org.jboss.ejb.client.test.stateless;
 
 import org.jboss.ejb.client.EJBClient;
+import org.jboss.ejb.client.naming.EJBObjectFactory;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
-import java.io.IOException;
+import javax.naming.CompositeName;
+import javax.naming.Context;
+import javax.naming.InitialContext;
+import javax.naming.Name;
+import javax.naming.Reference;
+import javax.naming.spi.NamingManager;
 import java.net.URI;
+import java.util.Hashtable;
 
 import static org.junit.Assert.assertEquals;
 
@@ -39,7 +46,14 @@ public class StatelessTestCase {
     private static DummyServer server;
 
     @BeforeClass
-    public static void beforeClass() throws IOException {
+    public static void beforeClass() throws Exception {
+        /* TODO: needs a standalone JNDI provider
+        final InitialContext ctx = new InitialContext();
+        final URI uri = new URI("remote://localhost:6999");
+        final Reference refInfo = EJBObjectFactory.createReference(uri, "my-app", "my-module", "GreeterBean", GreeterRemote.class);
+        ctx.bind("test", refInfo);
+        */
+
         server = new DummyServer();
         server.start();
         server.register("my-app/my-module/GreeterBean", new GreeterBean());
@@ -51,5 +65,17 @@ public class StatelessTestCase {
         GreeterRemote remote = EJBClient.proxy(uri, "my-app", "my-module", "GreeterBean", GreeterRemote.class);
         String result = remote.greet("test");
         assertEquals("Hi test", result);
+    }
+
+    @Test
+    public void testObjectFactory() throws Exception {
+        final URI uri = new URI("remote://localhost:6999");
+        final Reference refInfo = EJBObjectFactory.createReference(uri, "my-app", "my-module", "GreeterBean", GreeterRemote.class);
+        final Name name = new CompositeName("test");
+        final Context nameCtx = new InitialContext();
+        final Hashtable<?, ?> environment = new Hashtable<Object, Object>();
+        final GreeterRemote remote = (GreeterRemote) NamingManager.getObjectInstance(refInfo, name, nameCtx, environment);
+        String result = remote.greet("objectfactory");
+        assertEquals("Hi objectfactory", result);
     }
 }
