@@ -30,8 +30,9 @@ import java.io.ObjectOutput;
  * @author <a href="mailto:cdewolf@redhat.com">Carlo de Wolf</a>
  */
 public class InvocationRequest implements Externalizable {
-    public static final byte INVOCATION_REQUEST_HEADER = 0x01;
 
+    public static final byte INVOCATION_REQUEST_HEADER = MessageType.INVOCATION_REQUEST.getHeader();
+    
     private transient int invocationId;
     private transient String appName;
     private transient String moduleName;
@@ -70,7 +71,7 @@ public class InvocationRequest implements Externalizable {
     }
 
     public String getViewClassName() {
-        return viewClassName;
+        return this.viewClassName;
     }
 
     public Object[] getParams() {
@@ -128,14 +129,14 @@ public class InvocationRequest implements Externalizable {
         out.writeShort(invocationId);
         out.writeByte(0x07); // full ids
         // TODO: fix the protocol so we know whether appName is coming up or not
-        if (appName != null) {
-            out.writeUTF(appName);
+        if (this.appName != null) {
+            out.writeUTF(this.appName);
         } else {
             throw new RuntimeException("NYI");
         }
-        out.writeUTF(moduleName);
-        out.writeUTF(beanName);
-        out.writeUTF(viewClassName);
+        out.writeUTF(this.moduleName);
+        out.writeUTF(this.beanName);
+        out.writeUTF(this.viewClassName);
         out.writeUTF(methodName);
         if (params != null) {
             out.writeByte(params.length);

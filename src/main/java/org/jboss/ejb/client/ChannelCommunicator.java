@@ -26,6 +26,7 @@ import org.jboss.ejb.client.protocol.InvocationRequest;
 import org.jboss.ejb.client.protocol.InvocationResponse;
 import org.jboss.ejb.client.protocol.Version0ProtocolHandler;
 import org.jboss.ejb.client.proxy.IoFutureHelper;
+import org.jboss.marshalling.Marshaller;
 import org.jboss.marshalling.MarshallingConfiguration;
 import org.jboss.marshalling.SimpleClassResolver;
 import org.jboss.remoting3.Channel;
@@ -73,7 +74,8 @@ public class ChannelCommunicator implements InvocationResponseManager {
         final Future<InvocationResponse> result = IoFutureHelper.future(futureResult.getIoFuture());
         this.waitingInvocations.put(invocationRequest.getInvocationId(), futureResult);
         // send out the request
-        this.protocol.writeInvocationRequest(getChannel().writeMessage(), invocationRequest);
+        final Marshaller marshaller = this.protocol.createMarshaller(getChannel().writeMessage());
+        this.protocol.writeInvocationRequest(invocationRequest, marshaller);
 
         return result;
     }

@@ -20,12 +20,23 @@
  * 02110-1301 USA, or see the FSF site: http://www.fsf.org.
  */
 
-package org.jboss.ejb.client.test.proxy;
+package org.jboss.ejb.client.protocol;
 
 /**
  * User: jpai
  */
-public interface RemoteEcho {
+public enum MessageType {
 
-    String echo(String msg);
+    INVOCATION_REQUEST((byte) 0x01)
+    ;
+    
+    private final byte header;
+
+    private MessageType(byte header) {
+        this.header = header;
+    }
+
+    public byte getHeader() {
+        return this.header;
+    }
 }

@@ -24,6 +24,7 @@ package org.jboss.ejb.client;
 
 import org.jboss.ejb.client.protocol.InvocationResponse;
 import org.jboss.ejb.client.protocol.Version0ProtocolHandler;
+import org.jboss.marshalling.Unmarshaller;
 import org.jboss.remoting3.Channel;
 import org.jboss.remoting3.MessageInputStream;
 
@@ -59,7 +60,8 @@ public class ResponseReceiver implements Channel.Receiver {
         channel.receiveMessage(this);
 
         try {
-            final InvocationResponse invocationResponse = this.protocolHandler.readInvocationResponse(messageInputStream);
+            final Unmarshaller unmarshaller = this.protocolHandler.createUnMarshaller(messageInputStream);
+            final InvocationResponse invocationResponse = this.protocolHandler.readInvocationResponse(unmarshaller);
             this.invocationResponseManager.onResponse(invocationResponse);
         } catch (IOException e) {
             // TODO: Handle

@@ -20,25 +20,12 @@
  * 02110-1301 USA, or see the FSF site: http://www.fsf.org.
  */
 
-package org.jboss.ejb.client.test.proxy;
-
-import org.jboss.logging.Logger;
-
-import javax.ejb.Remote;
-import javax.ejb.Stateless;
+package org.jboss.ejb.client;
 
 /**
  * User: jpai
  */
-@Stateless
-@Remote (RemoteEcho.class)
-public class EchoBean implements RemoteEcho {
+public interface EJBViewResolutionResult {
 
-    private static final Logger logger = Logger.getLogger(EchoBean.class.getName());
-
-    @Override
-    public String echo(String msg) {
-        logger.info("Echoing message " + msg);
-        return msg;
-    }
+    ClassLoader getEJBClassLoader();
 }

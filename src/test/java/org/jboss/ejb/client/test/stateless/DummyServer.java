@@ -112,8 +112,7 @@ class DummyServer {
                 Unmarshaller unmarshaller = MARSHALLER_FACTORY.createUnmarshaller(config);
                 unmarshaller.start(Marshalling.createByteInput(message));
                 int command = unmarshaller.read();
-                switch (command) {
-                    case INVOCATION_REQUEST_HEADER:
+                if (command == INVOCATION_REQUEST_HEADER) {
                         final InvocationRequest request = new InvocationRequest();
                         request.readExternal(unmarshaller);
                         // in this dummy server we process the request within the remoting thread, this is not
@@ -138,8 +137,7 @@ class DummyServer {
                         response.writeExternal(marshaller);
                         marshaller.finish();
                         marshaller.close();
-                        break;
-                    default:
+                } else {
                         throw new RuntimeException("Unknown command " + command);
                 }
             } catch (Exception e) {
