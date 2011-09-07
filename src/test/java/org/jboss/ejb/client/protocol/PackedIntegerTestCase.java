@@ -32,6 +32,7 @@ import java.io.InputStream;
 import java.io.OutputStream;
 
 import static junit.framework.Assert.assertEquals;
+import static junit.framework.Assert.fail;
 
 /**
  * @author <a href="mailto:cdewolf@redhat.com">Carlo de Wolf</a>
@@ -70,6 +71,7 @@ public class PackedIntegerTestCase {
     public void test128() throws IOException {
         try {
             test(128, 1);
+            fail("Did not receive a EOFException for value = 128 and number of bytes = 1");
         } catch (EOFException e) {
             // good
         }
@@ -80,6 +82,7 @@ public class PackedIntegerTestCase {
     public void test255() throws IOException {
         try {
             test(255, 1);
+            fail("Did not receive a EOFException for value = 255 and number of bytes = 1");
         } catch (EOFException e) {
             // good
         }
@@ -90,6 +93,7 @@ public class PackedIntegerTestCase {
     public void test32768() throws IOException {
         try {
             test(32768, 2);
+            fail("Did not receive a EOFException for value = 32768 and number of bytes = 2");
         } catch (EOFException e) {
             // good
         }
