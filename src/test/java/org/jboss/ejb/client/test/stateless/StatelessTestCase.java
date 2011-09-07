@@ -23,6 +23,8 @@ package org.jboss.ejb.client.test.stateless;
 
 import org.jboss.ejb.client.EJBClient;
 import org.jboss.ejb.client.naming.EJBObjectFactory;
+import org.jnp.server.SingletonNamingServer;
+import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
@@ -43,16 +45,22 @@ import static org.junit.Assert.assertEquals;
  * @author <a href="mailto:cdewolf@redhat.com">Carlo de Wolf</a>
  */
 public class StatelessTestCase {
+    private static SingletonNamingServer namingServer;
     private static DummyServer server;
+
+    @AfterClass
+    public static void afterClass() {
+        namingServer.destroy();
+    }
 
     @BeforeClass
     public static void beforeClass() throws Exception {
-        /* TODO: needs a standalone JNDI provider
+        namingServer = new SingletonNamingServer();
+
         final InitialContext ctx = new InitialContext();
         final URI uri = new URI("remote://localhost:6999");
         final Reference refInfo = EJBObjectFactory.createReference(uri, "my-app", "my-module", "GreeterBean", GreeterRemote.class);
         ctx.bind("test", refInfo);
-        */
 
         server = new DummyServer();
         server.start();
@@ -65,6 +73,14 @@ public class StatelessTestCase {
         GreeterRemote remote = EJBClient.proxy(uri, "my-app", "my-module", "GreeterBean", GreeterRemote.class);
         String result = remote.greet("test");
         assertEquals("Hi test", result);
+    }
+
+    @Test
+    public void testLookup() throws Exception {
+        final Context ctx = new InitialContext();
+        final GreeterRemote remote = (GreeterRemote) ctx.lookup("test");
+        String result = remote.greet("lookup");
+        assertEquals("Hi lookup", result);
     }
 
     @Test
