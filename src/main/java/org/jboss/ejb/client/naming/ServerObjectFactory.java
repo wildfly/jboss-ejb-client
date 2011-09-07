@@ -25,6 +25,8 @@ import org.jboss.logging.Logger;
 
 import javax.naming.Context;
 import javax.naming.Name;
+import javax.naming.NamingException;
+import javax.naming.RefAddr;
 import javax.naming.Reference;
 import javax.naming.StringRefAddr;
 import javax.naming.spi.ObjectFactory;
@@ -37,6 +39,13 @@ import java.util.Hashtable;
 public class ServerObjectFactory implements ObjectFactory {
     private static final Logger log = Logger.getLogger(EJBObjectFactory.class);
 
+    public static final String URI = "org.jboss.ejb.URI";
+
+    public static Reference createReference() {
+        final Reference ref = new Reference(Context.class.getName(), ServerObjectFactory.class.getName(), null);
+        return ref;
+    }
+
     public static Reference createReference(final URI uri) {
         final Reference ref = new Reference(Context.class.getName(), ServerObjectFactory.class.getName(), null);
         ref.add(new StringRefAddr("URI", uri.toString()));
@@ -48,7 +57,15 @@ public class ServerObjectFactory implements ObjectFactory {
         log.infof("env %s", environment);
         final Reference ref = (Reference) obj;
         final Reference refInfo = new Reference(Object.class.getName(), EJBObjectFactory.class.getName(), null);
-        refInfo.add(new StringRefAddr("URI", (String) ref.get("URI").getContent()));
+        final RefAddr refAddr = ref.get("URI");
+        final String uri;
+        if (refAddr == null)
+            uri = (String) environment.get(URI);
+        else
+            uri = (String) refAddr.getContent();
+        if (uri == null)
+            throw new NamingException("AS7-423: Badly configured ServerObjectFactory, missing URI");
+        refInfo.add(new StringRefAddr("URI", uri));
         return new SimpleContext(refInfo, environment);
     }
 }

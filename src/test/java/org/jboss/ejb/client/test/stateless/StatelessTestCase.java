@@ -64,6 +64,7 @@ public class StatelessTestCase {
         ctx.bind("test", refInfo);
         ctx.createSubcontext("x");
         ctx.bind("x/server1", ServerObjectFactory.createReference(uri));
+        ctx.bind("ejb", ServerObjectFactory.createReference());
 
         server = new DummyServer();
         server.start();
@@ -84,6 +85,14 @@ public class StatelessTestCase {
         final GreeterRemote remote = (GreeterRemote) ctx.lookup("test");
         String result = remote.greet("lookup");
         assertEquals("Hi lookup", result);
+    }
+
+    @Test
+    public void testLookupEJB() throws Exception {
+        final Context ctx = new InitialContext();
+        final GreeterRemote remote = (GreeterRemote) ctx.lookup("ejb/my-app/my-module/GreeterBean#" + GreeterRemote.class.getName());
+        String result = remote.greet("lookupEJB");
+        assertEquals("Hi lookupEJB", result);
     }
 
     @Test
