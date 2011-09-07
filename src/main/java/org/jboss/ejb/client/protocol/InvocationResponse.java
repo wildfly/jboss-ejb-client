@@ -22,31 +22,18 @@
 
 package org.jboss.ejb.client.protocol;
 
-import java.io.Externalizable;
-import java.io.IOException;
-import java.io.ObjectInput;
-import java.io.ObjectOutput;
-
 /**
  * User: jpai
  */
-public class InvocationResponse implements Externalizable {
+public class InvocationResponse {
 
     public static final byte INVOCATION_RESPONSE_HEADER = MessageType.INVOCATION_RESPONSE.getHeader();
 
-    private transient Object result;
+    private final Object result;
 
-    private transient Throwable failure;
+    private final Throwable failure;
 
-    private transient int invocationId;
-
-    /**
-     * @deprecated  This is here only for the purpose of marshalling/unmarshalling via Externalizable contract.
-     */
-    @Deprecated
-    public InvocationResponse() {
-
-    }
+    private final int invocationId;
 
     public InvocationResponse(final int invocationId, final Object result, final Throwable throwable) {
         this.invocationId = invocationId;
@@ -63,37 +50,10 @@ public class InvocationResponse implements Externalizable {
     }
 
     public int getInvocationId() {
-        return  this.invocationId;
+        return this.invocationId;
     }
 
     public Throwable getException() {
         return this.failure;
-    }
-
-    @Override
-    public void writeExternal(ObjectOutput out) throws IOException {
-        out.writeShort(this.invocationId);
-        if (this.failure != null) {
-            // exception indicator
-            out.writeBoolean(true);
-            out.writeObject(this.failure);
-        } else {
-            // no exception
-            out.writeBoolean(false);
-            out.writeObject(this.result);
-        }
-
-    }
-
-    @Override
-    public void readExternal(ObjectInput in) throws IOException, ClassNotFoundException {
-        this.invocationId = in.readShort();
-        final boolean isException = in.readBoolean();
-        if (isException) {
-            this.failure = (Throwable) in.readObject();
-        } else {
-            this.result = in.readObject();
-        }
-
     }
 }

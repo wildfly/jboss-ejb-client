@@ -21,8 +21,11 @@
  */
 package org.jboss.ejb.client.test.stateless;
 
+import org.jboss.ejb.client.EJBViewResolutionResult;
+import org.jboss.ejb.client.EJBViewResolver;
 import org.jboss.ejb.client.protocol.InvocationRequest;
 import org.jboss.ejb.client.protocol.InvocationResponse;
+import org.jboss.ejb.client.protocol.Version0ProtocolHandler;
 import org.jboss.marshalling.ByteOutput;
 import org.jboss.marshalling.Marshaller;
 import org.jboss.marshalling.MarshallerFactory;
@@ -50,6 +53,7 @@ import org.xnio.Xnio;
 import org.xnio.channels.AcceptingChannel;
 import org.xnio.channels.ConnectedStreamChannel;
 
+import javax.ejb.NoSuchEJBException;
 import java.io.IOException;
 import java.lang.reflect.Method;
 import java.net.InetAddress;
@@ -73,7 +77,7 @@ class DummyServer {
         MARSHALLER_FACTORY = Marshalling.getProvidedMarshallerFactory("river");
     }
 
-    private final MarshallingConfiguration config;
+    private final Version0ProtocolHandler protocolHandler;
 
     private Map<String, Object> remoteInstances = new HashMap<String, Object>();
 
@@ -108,13 +112,10 @@ class DummyServer {
         @Override
         public void handleMessage(Channel channel, MessageInputStream message) {
             try {
-                // TODO: this is not supposed to happen, but the Marshaller changes the format
-                Unmarshaller unmarshaller = MARSHALLER_FACTORY.createUnmarshaller(config);
-                unmarshaller.start(Marshalling.createByteInput(message));
+                final Unmarshaller unmarshaller = DummyServer.this.protocolHandler.createUnMarshaller(message);
                 int command = unmarshaller.read();
                 if (command == INVOCATION_REQUEST_HEADER) {
-                        final InvocationRequest request = new InvocationRequest();
-                        request.readExternal(unmarshaller);
+                        final InvocationRequest request = DummyServer.this.protocolHandler.readInvocationRequest(unmarshaller, new DummyEJBViewResolver());
                         // in this dummy server we process the request within the remoting thread, this is not
                         // how it is supposed to work in the real server
                         final String fqBeanName = request.getAppName() + "/" + request.getModuleName() + "/" + request.getBeanName();
@@ -130,13 +131,8 @@ class DummyServer {
                             response = new InvocationResponse(request.getInvocationId(), null, e);
                         }
                         final MessageOutputStream out = channel.writeMessage();
-                        final Marshaller marshaller = MARSHALLER_FACTORY.createMarshaller(config);
-                        final ByteOutput byteOutput = Marshalling.createByteOutput(out);
-                        marshaller.start(byteOutput);
-                        marshaller.write(InvocationResponse.INVOCATION_RESPONSE_HEADER);
-                        response.writeExternal(marshaller);
-                        marshaller.finish();
-                        marshaller.close();
+                        final Marshaller marshaller = DummyServer.this.protocolHandler.createMarshaller(out);
+                        DummyServer.this.protocolHandler.writeInvocationResponse(response, marshaller);
                 } else {
                         throw new RuntimeException("Unknown command " + command);
                 }
@@ -153,10 +149,11 @@ class DummyServer {
     }
 
     DummyServer() {
-        this.config = new MarshallingConfiguration();
+        final MarshallingConfiguration config = new MarshallingConfiguration();
         config.setVersion(2);
         // TODO: need to use the EJB bean class loader, this depends on the packet received
         config.setClassResolver(new SimpleClassResolver(DummyServer.class.getClassLoader()));
+        this.protocolHandler = new Version0ProtocolHandler(config);
     }
 
     void register(final String fqBeanName, final Object instance) {
@@ -194,5 +191,18 @@ class DummyServer {
                 throw new RuntimeException("NYI: .registrationTerminated");
             }
         }, OptionMap.EMPTY);
+    }
+
+    class DummyEJBViewResolver implements EJBViewResolver {
+
+        @Override
+        public EJBViewResolutionResult resolveEJBView(String appName, String moduleName, String beanName, String viewClassName) throws NoSuchEJBException {
+            return new EJBViewResolutionResult() {
+                @Override
+                public ClassLoader getEJBClassLoader() {
+                    return DummyServer.class.getClassLoader();
+                }
+            };
+        }
     }
 }
