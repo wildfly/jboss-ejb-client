@@ -22,6 +22,7 @@
 package org.jboss.ejb.client.naming;
 
 import org.jboss.ejb.client.EJBClient;
+import org.jboss.logging.Logger;
 
 import javax.naming.Context;
 import javax.naming.Name;
@@ -36,6 +37,8 @@ import java.util.Hashtable;
  * @author <a href="mailto:cdewolf@redhat.com">Carlo de Wolf</a>
  */
 public class EJBObjectFactory implements ObjectFactory {
+    private static final Logger log = Logger.getLogger(EJBObjectFactory.class);
+
     public static Reference createReference(final URI uri, final String appName, final String moduleName, final String beanName, final Class<?> viewType) {
         final Reference ref = new Reference(viewType.getName(), EJBObjectFactory.class.getName(), null);
         ref.add(new StringRefAddr("URI", uri.toString()));
@@ -49,11 +52,40 @@ public class EJBObjectFactory implements ObjectFactory {
     public Object getObjectInstance(Object obj, Name name, Context nameCtx, Hashtable<?, ?> environment) throws Exception {
         final Reference ref = (Reference) obj;
         final URI uri = new URI(string(ref, "URI"));
-        final String appName = string(ref, "appName");
-        final String moduleName = string(ref, "moduleName");
-        final String beanName = string(ref, "beanName");
+        int posn = 0;
+        final String appName;
+        {
+            final RefAddr refAddr = ref.get("appName");
+            if (refAddr == null)
+                appName = name.get(posn++);
+            else
+                appName = (String) refAddr.getContent();
+        }
+        final String moduleName;
+        {
+            final RefAddr refAddr = ref.get("moduleName");
+            if (refAddr == null)
+                moduleName = name.get(posn++);
+            else
+                moduleName = (String) refAddr.getContent();
+        }
+        final String beanName;
+        final String viewName;
+        {
+            final RefAddr refAddr = ref.get("beanName");
+            if (refAddr == null) {
+                final String n = name.get(posn++);
+                final int i = n.indexOf('#');
+                beanName = n.substring(0, i);
+                viewName = n.substring(i + 1);
+            }
+            else {
+                beanName = (String) refAddr.getContent();
+                viewName = ref.getClassName();
+            }
+        }
         // TODO: the real viewType is dependent upon the callers CL (/ TCCL)
-        final Class<?> viewType = Class.forName(ref.getClassName());
+        final Class<?> viewType = Class.forName(viewName);
         return EJBClient.proxy(uri, appName, moduleName, beanName, viewType);
     }
 

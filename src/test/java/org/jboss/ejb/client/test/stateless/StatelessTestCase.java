@@ -23,6 +23,7 @@ package org.jboss.ejb.client.test.stateless;
 
 import org.jboss.ejb.client.EJBClient;
 import org.jboss.ejb.client.naming.EJBObjectFactory;
+import org.jboss.ejb.client.naming.ServerObjectFactory;
 import org.jnp.server.SingletonNamingServer;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
@@ -61,6 +62,8 @@ public class StatelessTestCase {
         final URI uri = new URI("remote://localhost:6999");
         final Reference refInfo = EJBObjectFactory.createReference(uri, "my-app", "my-module", "GreeterBean", GreeterRemote.class);
         ctx.bind("test", refInfo);
+        ctx.createSubcontext("x");
+        ctx.bind("x/server1", ServerObjectFactory.createReference(uri));
 
         server = new DummyServer();
         server.start();
@@ -81,6 +84,14 @@ public class StatelessTestCase {
         final GreeterRemote remote = (GreeterRemote) ctx.lookup("test");
         String result = remote.greet("lookup");
         assertEquals("Hi lookup", result);
+    }
+
+    @Test
+    public void testLookupServer1() throws Exception {
+        final Context ctx = new InitialContext();
+        final GreeterRemote remote = (GreeterRemote) ctx.lookup("x/server1/my-app/my-module/GreeterBean#" + GreeterRemote.class.getName());
+        String result = remote.greet("lookupServer1");
+        assertEquals("Hi lookupServer1", result);
     }
 
     @Test
