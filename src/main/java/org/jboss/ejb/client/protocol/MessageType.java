@@ -27,7 +27,8 @@ package org.jboss.ejb.client.protocol;
  */
 public enum MessageType {
 
-    INVOCATION_REQUEST((byte) 0x01)
+    INVOCATION_REQUEST((byte) 0x01),
+    INVOCATION_RESPONSE((byte) 0x04)
     ;
     
     private final byte header;

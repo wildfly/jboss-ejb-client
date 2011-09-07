@@ -32,7 +32,7 @@ import java.io.ObjectOutput;
  */
 public class InvocationResponse implements Externalizable {
 
-    public static final byte INVOCATION_RESPONSE_HEADER = 0x04;
+    public static final byte INVOCATION_RESPONSE_HEADER = MessageType.INVOCATION_RESPONSE.getHeader();
 
     private transient Object result;
 
