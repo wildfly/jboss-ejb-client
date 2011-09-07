@@ -22,15 +22,29 @@
 
 package org.jboss.ejb.client;
 
-import org.jboss.remoting3.Channel;
+import java.util.concurrent.Callable;
 
 /**
- * User: jpai
+ * The context used for an EJB receiver to return the result of an invocation.
+ *
+ * @author <a href="mailto:david.lloyd@redhat.com">David M. Lloyd</a>
  */
-public interface ProtocolVersionCompatibilityListener {
+public final class EJBReceiverInvocationContext {
+    private final EJBClientInvocationContext<?> clientInvocationContext;
 
-    void handleCompatibleChannel(final Channel channel, final byte serverVersion, final String[] serverMarshallingStrategies);
+    EJBReceiverInvocationContext(final EJBClientInvocationContext<?> clientInvocationContext) {
+        this.clientInvocationContext = clientInvocationContext;
+    }
 
-    void handleInCompatibleChannel(final Channel channel);
-
+    /**
+     * Indicate that the invocation result is ready.  The given producer should either return the final
+     * invocation result or throw an appropriate exception.  Any unmarshalling is expected to be deferred until
+     * the result producer is called, in order to offload the work on the invoking thread even in the presence of
+     * asynchronous invocation.
+     *
+     * @param resultProducer the result producer
+     */
+    public void resultReady(Callable<?> resultProducer) {
+        clientInvocationContext.resultReady(resultProducer);
+    }
 }

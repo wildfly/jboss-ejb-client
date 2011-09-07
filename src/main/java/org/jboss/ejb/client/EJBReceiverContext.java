@@ -23,9 +23,14 @@
 package org.jboss.ejb.client;
 
 /**
- * User: jpai
+ * The context used by receivers to communicate state changes with the EJB client context.
+ *
+ * @author <a href="mailto:david.lloyd@redhat.com">David M. Lloyd</a>
  */
-public interface EJBViewResolutionResult {
+public interface EJBReceiverContext {
 
-    ClassLoader getEJBClassLoader();
+    /**
+     * Inform the EJB client context that this receiver is no longer available.
+     */
+    void close();
 }

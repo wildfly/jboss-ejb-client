@@ -22,8 +22,6 @@
 
 package org.jboss.ejb.client.protocol;
 
-import org.jboss.ejb.client.EJBViewResolutionResult;
-import org.jboss.ejb.client.EJBViewResolver;
 import org.junit.Before;
 import org.junit.Test;
 

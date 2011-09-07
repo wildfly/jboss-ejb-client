@@ -22,26 +22,11 @@
 
 package org.jboss.ejb.client;
 
-import javax.security.auth.callback.Callback;
-import javax.security.auth.callback.CallbackHandler;
-import javax.security.auth.callback.NameCallback;
-import javax.security.auth.callback.UnsupportedCallbackException;
-import java.io.IOException;
-
 /**
- * User: jpai
+ * A protocol-agnostic EJB client interceptors.  All user-provided interceptors which are protocol-agnostic should
+ * implement this interface in order to be properly discovered.
+ *
+ * @author <a href="mailto:david.lloyd@redhat.com">David M. Lloyd</a>
  */
-public class EndpointAuthenticationCallbackHandler implements CallbackHandler {
-
-    @Override
-    public void handle(Callback[] callbacks) throws IOException, UnsupportedCallbackException {
-        for (Callback current : callbacks) {
-            if (current instanceof NameCallback) {
-                NameCallback ncb = (NameCallback) current;
-                ncb.setName("anonymous");
-            } else {
-                throw new UnsupportedCallbackException(current);
-            }
-        }
-    }
+public interface GeneralEJBClientInterceptor extends EJBClientInterceptor<Object> {
 }

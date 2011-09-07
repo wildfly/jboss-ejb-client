@@ -22,17 +22,12 @@
 
 package org.jboss.ejb.client.protocol;
 
-import org.jboss.ejb.client.EJBViewResolutionResult;
-import org.jboss.ejb.client.EJBViewResolver;
 import org.jboss.ejb.client.protocol.marshalling.Marshaller;
 import org.jboss.ejb.client.protocol.marshalling.MarshallerFactory;
 import org.jboss.ejb.client.protocol.marshalling.UnMarshaller;
-import org.xnio.IoUtils;
 
 import java.io.DataInput;
 import java.io.DataOutput;
-import java.io.DataOutputStream;
-import java.io.EOFException;
 import java.io.IOException;
 import java.lang.reflect.Method;
 

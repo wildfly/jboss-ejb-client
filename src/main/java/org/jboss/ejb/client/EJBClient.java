@@ -22,72 +22,121 @@
 
 package org.jboss.ejb.client;
 
+import java.util.concurrent.Future;
 import org.jboss.ejb.client.proxy.RemoteInvocationHandler;
-import org.jboss.logging.Logger;
-import org.jboss.remoting3.Endpoint;
-import org.jboss.remoting3.Registration;
-import org.jboss.remoting3.Remoting;
-import org.jboss.remoting3.remote.RemoteConnectionProviderFactory;
-import org.jboss.sasl.JBossSaslProvider;
-import org.xnio.OptionMap;
-import org.xnio.Options;
-import org.xnio.Xnio;
+import java.lang.reflect.InvocationHandler;
 
-import java.io.IOException;
 import java.lang.reflect.Proxy;
-import java.net.URI;
-import java.security.Security;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 
 /**
- * User: jpai
+ * The main EJB client API class.  This class contains helper methods which may be used to create proxies, open sessions,
+ * and associate the current invocation context.
+ *
+ * @author jpai
+ * @author <a href="mailto:david.lloyd@redhat.com">David M. Lloyd</a>
  */
-public class EJBClient {
+public final class EJBClient {
+
+    private EJBClient() {
+    }
 
     /**
-     * Logger
+     * Open a new session for an EJB.
+     *
+     * @param proxy the stateful session bean remote/business interface proxy
      */
-    private static final Logger logger = Logger.getLogger(EJBClient.class);
-
-    // TODO: Make it configurable
-    private final static ExecutorService executor = Executors.newFixedThreadPool(4);
-
-    private final static Endpoint endpoint;
-
-    static {
-        Security.addProvider(new JBossSaslProvider());
+    public static void createSession(final Object proxy) {
+        final EJBInvocationHandler handler = (EJBInvocationHandler) Proxy.getInvocationHandler(proxy);
+        final EJBReceiver<?> ejbReceiver = EJBClientContext.requireCurrent().getEJBReceiver(handler.getAppName(), handler.getModuleName(), handler.getDistinctName());
         try {
-            endpoint = Remoting.createEndpoint("endpoint", executor, OptionMap.EMPTY);
-            final Xnio xnio = Xnio.getInstance();
-            final Registration registration = endpoint.addConnectionProvider("remote", new RemoteConnectionProviderFactory(xnio), OptionMap.create(Options.SSL_ENABLED, false));
-        } catch (IOException e) {
-            throw new RuntimeException(e);
+            final byte[] sessionId = ejbReceiver.openSession(handler.getAppName(), handler.getModuleName(), handler.getDistinctName(), handler.getBeanName());
+            handler.putAttachment(RemotingSessionInterceptor.SESSION_KEY, sessionId);
+        } catch (Exception e) {
+            // xxx
         }
     }
 
-    public void createSession(final Object proxy) {
+    private static final ThreadLocal<Future<?>> FUTURE_RESULT = new ThreadLocal<Future<?>>();
 
+    /**
+     * Get an asynchronous view of a proxy.  Any {@code void} method on the proxy will be invoked fully asynchronously
+     * without a server round-trip delay.  Any method which returns a {@link java.util.concurrent.Future Future} will
+     * continue to be asynchronous.  Any other method invoked on the returned proxy will return {@code null} (the future
+     * result can be acquired by wrapping the remote call with {@link #getFutureResult(Object)} or by using {@link #getFutureResult()}).
+     * If an asynchronous view is passed in, the same view is returned.
+     *
+     * @param proxy the proxy interface instance
+     * @param <T> the proxy type
+     * @return the asynchronous view
+     * @throws IllegalArgumentException if the given object is not a valid proxy
+     */
+    @SuppressWarnings("unchecked")
+    public static <T> T asynchronous(final T proxy) throws IllegalArgumentException {
+        final InvocationHandler invocationHandler = Proxy.getInvocationHandler(proxy);
+        if (invocationHandler instanceof RemoteInvocationHandler) {
+            final EJBInvocationHandler remoteInvocationHandler = (EJBInvocationHandler) invocationHandler;
+            // determine proxy "type", return existing instance if it's already async
+            if (true) {
+                return proxy;
+            } else {
+                return (T) Proxy.newProxyInstance(proxy.getClass().getClassLoader(), proxy.getClass().getInterfaces(), remoteInvocationHandler.getAsyncHandler());
+            }
+        } else {
+            throw new IllegalArgumentException("Not a valid remote EJB proxy");
+        }
     }
 
-    private void cleanup() throws IOException {
-        if (endpoint != null) {
-            endpoint.close();
+    /**
+     * Get the future result of an operation.  Should be called in conjunction with {@link #asynchronous(Object)}.
+     *
+     * @param operation the operation
+     * @param <T> the result type
+     * @return the future result
+     * @throws IllegalStateException if the operation is not appropriately given
+     */
+    @SuppressWarnings("unchecked")
+    public static <T> Future<T> getFutureResult(final T operation) throws IllegalStateException {
+        if (operation != null) {
+            // todo: maybe we should return a completed future here
+            throw new IllegalStateException("Operation wasn't asynchronous");
         }
-        if (executor != null) {
-            executor.shutdown();
+        final ThreadLocal<Future<?>> futureResult = FUTURE_RESULT;
+        try {
+            final Future<?> future = futureResult.get();
+            if (future == null) throw new IllegalStateException("No asynchronous operation in progress");
+            return (Future<T>) future;
+        } finally {
+            futureResult.remove();
         }
     }
 
-    @Override
-    protected void finalize() throws Throwable {
-        this.cleanup();
-        super.finalize();
+    /**
+     * Get the future result of an operation.  Should be called in conjunction with {@link #asynchronous(Object)}.
+     *
+     * @return the future result
+     * @throws IllegalStateException if the operation is not appropriately given
+     */
+    public static Future<?> getFutureResult() throws IllegalStateException {
+        final ThreadLocal<Future<?>> futureResult = FUTURE_RESULT;
+        try {
+            final Future<?> future = futureResult.get();
+            if (future == null) throw new IllegalStateException("No asynchronous operation in progress");
+            return future;
+        } finally {
+            futureResult.remove();
+        }
+    }
+
+    static void setFutureResult(final Future<?> future) {
+        FUTURE_RESULT.set(future);
     }
 
     /**
      * Creates and returns a proxy for a EJB identified by the <code>appName</code>, <code>moduleName</code>, <code>beanName</code>
      * and the <code>beanInterfaceType</code>
+     *
+     *
+     *
      *
      * @param appName           The application name of the deployment in which the EJB is deployed. This typically is the name of the enterprise
      *                          archive (without the .ear suffix) in which the EJB is deployed on the server. The application name of the deployment
@@ -100,22 +149,17 @@ public class EJBClient {
      *                          the use of deployment descriptors, in which case the passed <code>moduleName</code> should match that name.
      *                          <p/>
      *                          <code>moduleName</code> cannot be null or an empty value
-     * @param beanName          The name of the EJB for which the proxy is being created
+     * @param extraName         The extra name of the deployment, used to disambiguate one deployment from another
      * @param viewType          The interface type exposed by the bean, for which we are creating the proxy. For example, if the bean exposes
      *                          remote business interface view, then the client can pass that as the <code>beanInterfaceType</code>. Same applies
      *                          for remote home interface.
      *                          <p/>
      *                          The <code>viewType</code> cannot be null
-     * @param <T>
-     * @return
-     * @throws IllegalArgumentException If the moduleName is null or empty
-     * @throws IllegalArgumentException If the beanName is null or empty
-     * @throws IllegalArgumentException If the beanInterfaceType is null
-     * @throws IllegalArgumentException If the passed beanInterfaceType isn't a remote view of the bean
-     * @throws IllegalArgumentException If the passed combination of appName, moduleName, beanName and beanInterfaceType cannot identify
-     *                                  an EJB deployed on the server
+     * @param beanName          The name of the EJB for which the proxy is being created  @return
+     * @throws IllegalArgumentException ff the moduleName is {@code null} or empty, if the beanName is {@code null} or empty, or if {@code viewType} is {@code null}
+     * @return the new proxy
      */
-    public static <T> T proxy(final URI uri, final String appName, final String moduleName, final String beanName, final Class<T> viewType) {
+    public static <T> T getProxy(final String appName, final String moduleName, final String extraName, final Class<T> viewType, final String beanName) throws IllegalArgumentException {
         if (moduleName == null || moduleName.trim().isEmpty()) {
             throw new IllegalArgumentException("Module name cannot be null or empty");
         }
@@ -125,7 +169,10 @@ public class EJBClient {
         if (viewType == null) {
             throw new IllegalArgumentException("Bean interface type cannot be null");
         }
-        return viewType.cast(Proxy.newProxyInstance(viewType.getClassLoader(), new Class<?>[]{viewType},
-                                new RemoteInvocationHandler(endpoint, uri, appName, moduleName, beanName, viewType)));
+        return viewType.cast(Proxy.newProxyInstance(viewType.getClassLoader(), new Class<?>[]{viewType}, getInvocationHandler(appName, moduleName, extraName, beanName)));
+    }
+
+    static InvocationHandler getInvocationHandler(final String appName, final String moduleName, final String extraName, final String beanName) {
+        return new EJBInvocationHandler(appName, moduleName, extraName, beanName);
     }
 }

@@ -22,13 +22,12 @@
 
 package org.jboss.ejb.client;
 
-import org.jboss.ejb.client.protocol.MethodInvocationResponse;
-
-
 /**
- * User: jpai
+ * An attachment key.
+ *
+ * @param <T> the attachment value type
+ *
+ * @author <a href="mailto:david.lloyd@redhat.com">David M. Lloyd</a>
  */
-public interface InvocationResponseManager {
-
-    void onResponse(MethodInvocationResponse invocationResponse);
+public final class AttachmentKey<T> {
 }

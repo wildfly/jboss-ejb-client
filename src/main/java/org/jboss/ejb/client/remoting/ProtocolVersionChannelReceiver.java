@@ -20,7 +20,7 @@
  * 02110-1301 USA, or see the FSF site: http://www.fsf.org.
  */
 
-package org.jboss.ejb.client;
+package org.jboss.ejb.client.remoting;
 
 import org.jboss.ejb.client.protocol.PackedInteger;
 import org.jboss.logging.Logger;
@@ -32,7 +32,6 @@ import org.jboss.remoting3.MessageInputStream;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.Collection;
-import java.util.Collections;
 
 /**
  * User: jpai

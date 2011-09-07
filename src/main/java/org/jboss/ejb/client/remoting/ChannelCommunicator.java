@@ -20,13 +20,12 @@
  * 02110-1301 USA, or see the FSF site: http://www.fsf.org.
  */
 
-package org.jboss.ejb.client;
+package org.jboss.ejb.client.remoting;
 
 import org.jboss.ejb.client.protocol.Attachment;
 import org.jboss.ejb.client.protocol.MethodInvocationResponse;
 import org.jboss.ejb.client.protocol.ProtocolHandler;
 import org.jboss.ejb.client.protocol.ProtocolHandlerFactory;
-import org.jboss.ejb.client.proxy.IoFutureHelper;
 import org.jboss.remoting3.Channel;
 import org.jboss.remoting3.CloseHandler;
 import org.jboss.remoting3.Connection;
@@ -51,7 +50,7 @@ import static org.xnio.Options.SASL_POLICY_NOANONYMOUS;
 /**
  * User: jpai
  */
-public class ChannelCommunicator implements InvocationResponseManager, ProtocolVersionCompatibilityListener {
+class ChannelCommunicator implements InvocationResponseManager, ProtocolVersionCompatibilityListener {
 
     private volatile Channel channel;
     private volatile Connection connection;
@@ -73,7 +72,7 @@ public class ChannelCommunicator implements InvocationResponseManager, ProtocolV
 
     private Object channelStartLock = new Object();
 
-    public ChannelCommunicator(final Endpoint endpoint, final URI uri, final ClassLoader cl) {
+    ChannelCommunicator(final Endpoint endpoint, final URI uri, final ClassLoader cl) {
         this.uri = uri;
         this.endpoint = endpoint;
         this.protocolHandler = ProtocolHandlerFactory.getProtocolHandler(clientVersion, clientMarshallingStrategy);
@@ -98,7 +97,7 @@ public class ChannelCommunicator implements InvocationResponseManager, ProtocolV
                                                          final Attachment[] attachments) throws IOException {
 
         final FutureResult futureResult = new FutureResult<MethodInvocationResponse>();
-        final Future<MethodInvocationResponse> result = IoFutureHelper.future(futureResult.getIoFuture());
+        final Future<MethodInvocationResponse> result = IoUtils.getFuture(futureResult.getIoFuture());
         this.waitingInvocations.put(invocationId, futureResult);
 
         final DataOutputStream outputStream = new DataOutputStream(this.getChannel().writeMessage());

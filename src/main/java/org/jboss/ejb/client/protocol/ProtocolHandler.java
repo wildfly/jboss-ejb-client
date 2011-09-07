@@ -22,8 +22,6 @@
 
 package org.jboss.ejb.client.protocol;
 
-import org.jboss.ejb.client.EJBViewResolver;
-
 import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;

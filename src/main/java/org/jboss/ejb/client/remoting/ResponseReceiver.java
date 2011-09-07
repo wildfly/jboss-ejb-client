@@ -20,7 +20,7 @@
  * 02110-1301 USA, or see the FSF site: http://www.fsf.org.
  */
 
-package org.jboss.ejb.client;
+package org.jboss.ejb.client.remoting;
 
 import org.jboss.ejb.client.protocol.MessageType;
 import org.jboss.ejb.client.protocol.MethodInvocationResponse;
@@ -35,7 +35,7 @@ import java.io.IOException;
 /**
  * User: jpai
  */
-public class ResponseReceiver implements Channel.Receiver {
+class ResponseReceiver implements Channel.Receiver {
 
     private static final Logger logger = Logger.getLogger(ResponseReceiver.class);
 

@@ -74,7 +74,7 @@ public class StatelessTestCase {
     @Test
     public void testGreeting() throws Exception {
         final URI uri = new URI("remote://localhost:6999");
-        GreeterRemote remote = EJBClient.proxy(uri, "my-app", "my-module", "GreeterBean", GreeterRemote.class);
+        GreeterRemote remote = EJBClient.getProxy("my-app", "my-module", uri, GreeterRemote.class, "GreeterBean");
         String result = remote.greet("test");
         assertEquals("Hi test", result);
     }

@@ -20,14 +20,14 @@
  * 02110-1301 USA, or see the FSF site: http://www.fsf.org.
  */
 
-package org.jboss.ejb.client;
+package org.jboss.ejb.client.remoting;
 
-import javax.ejb.NoSuchEJBException;
+import org.jboss.ejb.client.EJBClientInterceptor;
 
 /**
- * User: jpai
+ * A Remoting-specific EJB client interceptor.
+ *
+ * @author <a href="mailto:david.lloyd@redhat.com">David M. Lloyd</a>
  */
-public interface EJBViewResolver {
-
-    EJBViewResolutionResult resolveEJBView(String appName, String moduleName, String beanName, String viewClassName) throws NoSuchEJBException;
+public interface RemotingEJBClientInterceptor extends EJBClientInterceptor<RemotingAttachments> {
 }

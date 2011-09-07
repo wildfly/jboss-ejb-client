@@ -21,8 +21,6 @@
  */
 package org.jboss.ejb.client.test.stateless;
 
-import org.jboss.ejb.client.EJBViewResolutionResult;
-import org.jboss.ejb.client.EJBViewResolver;
 import org.jboss.ejb.client.protocol.MessageType;
 import org.jboss.ejb.client.protocol.MethodInvocationRequest;
 import org.jboss.ejb.client.protocol.PackedInteger;
