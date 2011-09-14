@@ -1,6 +1,6 @@
 /*
  * JBoss, Home of Professional Open Source.
- * Copyright 2011, Red Hat, Inc., and individual contributors
+ * Copyright (c) 2011, Red Hat, Inc., and individual contributors
  * as indicated by the @author tags. See the copyright.txt file in the
  * distribution for a full listing of individual contributors.
  *
@@ -25,23 +25,33 @@ package org.jboss.ejb.client.protocol;
 /**
  * User: jpai
  */
-public enum MessageType {
+public class MethodInvocationResponse {
 
-    SESSION_OPEN_REQUEST((byte) 0x01),
-    SESSION_OPEN_RESPONSE((byte) 0x02),
-    INVOCATION_REQUEST((byte) 0x03),
-    INVOCATION_CANCEL_REQUEST((byte) 0x04),
-    INVOCATION_RESPONSE((byte) 0x05),
+    private final Object result;
 
-    ;
+    private final Throwable failure;
 
-    private final byte header;
+    private final short invocationId;
 
-    private MessageType(byte header) {
-        this.header = header;
+    public MethodInvocationResponse(final short invocationId, final Object result, final Throwable throwable) {
+        this.invocationId = invocationId;
+        this.result = result;
+        this.failure = throwable;
     }
 
-    public byte getHeader() {
-        return this.header;
+    public boolean isException() {
+        return this.failure != null;
+    }
+
+    public Object getResult() {
+        return this.result;
+    }
+
+    public short getInvocationId() {
+        return this.invocationId;
+    }
+
+    public Throwable getException() {
+        return this.failure;
     }
 }

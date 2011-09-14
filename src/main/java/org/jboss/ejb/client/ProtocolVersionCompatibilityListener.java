@@ -20,28 +20,17 @@
  * 02110-1301 USA, or see the FSF site: http://www.fsf.org.
  */
 
-package org.jboss.ejb.client.protocol;
+package org.jboss.ejb.client;
+
+import org.jboss.remoting3.Channel;
 
 /**
  * User: jpai
  */
-public enum MessageType {
+public interface ProtocolVersionCompatibilityListener {
 
-    SESSION_OPEN_REQUEST((byte) 0x01),
-    SESSION_OPEN_RESPONSE((byte) 0x02),
-    INVOCATION_REQUEST((byte) 0x03),
-    INVOCATION_CANCEL_REQUEST((byte) 0x04),
-    INVOCATION_RESPONSE((byte) 0x05),
+    void handleCompatibleChannel(final Channel channel, final byte serverVersion, final String[] serverMarshallingStrategies);
 
-    ;
+    void handleInCompatibleChannel(final Channel channel);
 
-    private final byte header;
-
-    private MessageType(byte header) {
-        this.header = header;
-    }
-
-    public byte getHeader() {
-        return this.header;
-    }
 }

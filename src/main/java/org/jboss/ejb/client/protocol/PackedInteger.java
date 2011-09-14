@@ -21,8 +21,10 @@
  */
 package org.jboss.ejb.client.protocol;
 
+import java.io.ByteArrayOutputStream;
 import java.io.DataInput;
 import java.io.DataOutput;
+import java.io.DataOutputStream;
 import java.io.IOException;
 
 /**
@@ -47,7 +49,7 @@ public class PackedInteger {
      * @throws IOException
      * @throws IllegalArgumentException If the passed <code>input</code> is null
      */
-    static int readPackedInteger(final DataInput input) throws IOException {
+    public static int readPackedInteger(final DataInput input) throws IOException {
         int b = input.readByte();
         if ((b & 0x80) == 0x80) {
             return readPackedInteger(input) << 7 | (b & 0x7F);
@@ -66,7 +68,7 @@ public class PackedInteger {
      *                                  allow signed integer
      * @throws IllegalArgumentException If the passed <code>output</code> is null
      */
-    static void writePackedInteger(final DataOutput output, int value) throws IOException {
+    public static void writePackedInteger(final DataOutput output, int value) throws IOException {
         if (value < 0)
             throw new IllegalArgumentException("Only unsigned integer can be packed");
         if (value > 127) {
@@ -75,6 +77,14 @@ public class PackedInteger {
         } else {
             output.writeByte(value & 0xFF);
         }
+    }
+
+    public static byte[] toPackedInteger(final int value) throws IOException {
+        ByteArrayOutputStream bos = new ByteArrayOutputStream();
+        DataOutputStream dos = new DataOutputStream(bos);
+        writePackedInteger(dos, value);
+        dos.flush();
+        return bos.toByteArray();
     }
 
 }

@@ -24,23 +24,22 @@ package org.jboss.ejb.client.protocol;
 /**
  * @author <a href="mailto:cdewolf@redhat.com">Carlo de Wolf</a>
  */
-public class InvocationRequest {
+public class MethodInvocationRequest {
 
-    public static final byte INVOCATION_REQUEST_HEADER = MessageType.INVOCATION_REQUEST.getHeader();
-
-    private final int invocationId;
+    private final short invocationId;
     private final String appName;
     private final String moduleName;
     private final String beanName;
     private final String viewClassName;
     private final String methodName;
-    private final Class<?>[] paramTypes;
+    private final String[] paramTypes;
     private final Object[] params;
     private final Attachment[] attachments;
 
-    public InvocationRequest(final int invocationId, final String appName, final String moduleName,
-                             final String beanName, final String viewClassName,
-                             final String methodName, final Class<?>[] paramTypes, final Object[] methodParams, final Attachment[] attachments) {
+    public MethodInvocationRequest(final short invocationId, final String appName, final String moduleName,
+                                   final String beanName, final String viewClassName,
+                                   final String methodName, final String[] methodParamTypes,
+                                   final Object[] methodParams, final Attachment[] attachments) {
 
         this.invocationId = invocationId;
         this.appName = appName;
@@ -50,11 +49,11 @@ public class InvocationRequest {
         this.methodName = methodName;
         this.params = methodParams;
         this.attachments = attachments;
-        this.paramTypes = paramTypes;
+        this.paramTypes = methodParamTypes;
 
     }
 
-    public int getInvocationId() {
+    public short getInvocationId() {
         return invocationId;
     }
 
@@ -70,7 +69,7 @@ public class InvocationRequest {
         return params;
     }
 
-    public Class<?>[] getParamTypes() {
+    public String[] getParamTypes() {
         return this.paramTypes;
     }
 

@@ -32,36 +32,21 @@ import static org.jboss.ejb.client.protocol.PackedInteger.writePackedInteger;
 /**
  * @author <a href="mailto:cdewolf@redhat.com">Carlo de Wolf</a>
  */
-public class Attachment implements Externalizable {
-    private transient int id;
-    private transient byte[] data;
+public class Attachment {
+    private short id;
+    private byte[] data;
 
-    public int getId() {
+    public Attachment(final short attachmentId, final byte[] data) {
+        this.id = attachmentId;
+        this.data = data;
+    }
+    
+    public short getId() {
         return this.id;
     }
 
     public byte[] getData() {
         return this.data;
     }
-    
-    @Override
-    public void writeExternal(ObjectOutput out) throws IOException {
-        out.writeShort(id);
-        writePackedInteger(out, data.length);
-        out.write(data);
-    }
 
-    @Override
-    public void readExternal(ObjectInput in) throws IOException, ClassNotFoundException {
-        this.id = in.readShort() & 0xFFFF;
-        final int l = readPackedInteger(in);
-        this.data = new byte[l];
-        in.read(data);
-    }
-
-    public static Attachment readAttachment(ObjectInput in) throws IOException, ClassNotFoundException {
-        final Attachment attachment = new Attachment();
-        attachment.readExternal(in);
-        return attachment;
-    }
 }

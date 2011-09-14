@@ -1,6 +1,6 @@
 /*
  * JBoss, Home of Professional Open Source.
- * Copyright (c) 2011, Red Hat, Inc., and individual contributors
+ * Copyright 2011, Red Hat, Inc., and individual contributors
  * as indicated by the @author tags. See the copyright.txt file in the
  * distribution for a full listing of individual contributors.
  *
@@ -20,40 +20,19 @@
  * 02110-1301 USA, or see the FSF site: http://www.fsf.org.
  */
 
-package org.jboss.ejb.client.protocol;
+package org.jboss.ejb.client.protocol.marshalling;
+
+import java.io.DataInput;
+import java.io.IOException;
 
 /**
  * User: jpai
  */
-public class InvocationResponse {
+public interface UnMarshaller {
 
-    public static final byte INVOCATION_RESPONSE_HEADER = MessageType.INVOCATION_RESPONSE.getHeader();
+    void start(DataInput input, ClassLoader classLoader) throws IOException;
 
-    private final Object result;
-
-    private final Throwable failure;
-
-    private final int invocationId;
-
-    public InvocationResponse(final int invocationId, final Object result, final Throwable throwable) {
-        this.invocationId = invocationId;
-        this.result = result;
-        this.failure = throwable;
-    }
-
-    public boolean isException() {
-        return this.failure != null;
-    }
-
-    public Object getResult() {
-        return this.result;
-    }
-
-    public int getInvocationId() {
-        return this.invocationId;
-    }
-
-    public Throwable getException() {
-        return this.failure;
-    }
+    Object readObject() throws ClassNotFoundException, IOException;
+    
+    void finish() throws  IOException;
 }

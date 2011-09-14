@@ -22,7 +22,7 @@
 
 package org.jboss.ejb.client;
 
-import org.jboss.ejb.client.protocol.InvocationResponse;
+import org.jboss.ejb.client.protocol.MethodInvocationResponse;
 
 
 /**
@@ -30,5 +30,5 @@ import org.jboss.ejb.client.protocol.InvocationResponse;
  */
 public interface InvocationResponseManager {
 
-    void onResponse(InvocationResponse invocationResponse);
+    void onResponse(MethodInvocationResponse invocationResponse);
 }

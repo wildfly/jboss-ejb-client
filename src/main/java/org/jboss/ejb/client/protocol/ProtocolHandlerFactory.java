@@ -23,25 +23,17 @@
 package org.jboss.ejb.client.protocol;
 
 /**
+ * TODO: This factory needs to be implemented correctly
  * User: jpai
  */
-public enum MessageType {
+public class ProtocolHandlerFactory {
 
-    SESSION_OPEN_REQUEST((byte) 0x01),
-    SESSION_OPEN_RESPONSE((byte) 0x02),
-    INVOCATION_REQUEST((byte) 0x03),
-    INVOCATION_CANCEL_REQUEST((byte) 0x04),
-    INVOCATION_RESPONSE((byte) 0x05),
-
-    ;
-
-    private final byte header;
-
-    private MessageType(byte header) {
-        this.header = header;
-    }
-
-    public byte getHeader() {
-        return this.header;
+    public static ProtocolHandler getProtocolHandler(byte protocolVersion, String marshallingStrategy) {
+        switch (protocolVersion) {
+            case 0x00 :
+                return new VersionZeroProtocolHandler(marshallingStrategy);
+            default:
+                throw new RuntimeException("Unsupported protocol version 0x" + Integer.toHexString(protocolVersion));
+        }
     }
 }

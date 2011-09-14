@@ -22,10 +22,10 @@
 package org.jboss.ejb.client.proxy;
 
 import org.jboss.ejb.client.ChannelCommunicator;
-import org.jboss.ejb.client.protocol.InvocationRequest;
-import org.jboss.ejb.client.protocol.InvocationResponse;
+import org.jboss.ejb.client.protocol.MethodInvocationResponse;
 import org.jboss.remoting3.Endpoint;
 
+import java.io.IOException;
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
 import java.net.URI;
@@ -50,28 +50,24 @@ public class RemoteInvocationHandler implements InvocationHandler {
         this.beanName = beanName;
         this.view = view;
         this.channelCommunicator = new ChannelCommunicator(endpoint, uri, view.getClassLoader());
+        // start the channel
+        try {
+            this.channelCommunicator.start(5000);
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
     }
 
     @Override
     public Object invoke(Object proxy, Method method, Object[] args) throws Throwable {
-        final InvocationRequest invocationRequest = new InvocationRequest(this.invocationId++, this.appName,
-                this.moduleName, this.beanName,
-                this.view.getName(), method.getName(), method.getParameterTypes(), args, null);
-
-        final Future<InvocationResponse> result = this.channelCommunicator.invoke(invocationRequest);
+        final Future<MethodInvocationResponse> result = this.channelCommunicator.invokeMethod(this.invocationId++, this.appName, this.moduleName,
+                this.beanName,this.view.getName(), method, args, null);
         // TODO: Externalize timeout
-        final InvocationResponse response = result.get(20, TimeUnit.SECONDS);
+        final MethodInvocationResponse response = result.get(20, TimeUnit.SECONDS);
         if (response.isException()) {
             throw response.getException();
         }
         return response.getResult();
     }
 
-    private String[] toString(final Class[] classTypes) {
-        final String[] types = new String[classTypes.length];
-        for (int i = 0; i < types.length; i++) {
-            types[i] = classTypes[i].getName().toString();
-        }
-        return types;
-    }
 }

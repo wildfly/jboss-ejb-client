@@ -20,28 +20,20 @@
  * 02110-1301 USA, or see the FSF site: http://www.fsf.org.
  */
 
-package org.jboss.ejb.client.protocol;
+package org.jboss.ejb.client.protocol.marshalling;
+
+import java.io.DataOutput;
+import java.io.IOException;
+import java.io.ObjectOutput;
 
 /**
  * User: jpai
  */
-public enum MessageType {
+public interface Marshaller {
 
-    SESSION_OPEN_REQUEST((byte) 0x01),
-    SESSION_OPEN_RESPONSE((byte) 0x02),
-    INVOCATION_REQUEST((byte) 0x03),
-    INVOCATION_CANCEL_REQUEST((byte) 0x04),
-    INVOCATION_RESPONSE((byte) 0x05),
+    void start(DataOutput output) throws IOException;
 
-    ;
+    void writeObject(final Object object) throws IOException;
 
-    private final byte header;
-
-    private MessageType(byte header) {
-        this.header = header;
-    }
-
-    public byte getHeader() {
-        return this.header;
-    }
+    void finish() throws IOException;
 }

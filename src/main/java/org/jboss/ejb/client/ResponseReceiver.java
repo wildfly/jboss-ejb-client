@@ -22,12 +22,14 @@
 
 package org.jboss.ejb.client;
 
-import org.jboss.ejb.client.protocol.InvocationResponse;
-import org.jboss.ejb.client.protocol.Version0ProtocolHandler;
-import org.jboss.marshalling.Unmarshaller;
+import org.jboss.ejb.client.protocol.MessageType;
+import org.jboss.ejb.client.protocol.MethodInvocationResponse;
+import org.jboss.ejb.client.protocol.ProtocolHandler;
+import org.jboss.logging.Logger;
 import org.jboss.remoting3.Channel;
 import org.jboss.remoting3.MessageInputStream;
 
+import java.io.DataInputStream;
 import java.io.IOException;
 
 /**
@@ -35,11 +37,13 @@ import java.io.IOException;
  */
 public class ResponseReceiver implements Channel.Receiver {
 
+    private static final Logger logger = Logger.getLogger(ResponseReceiver.class);
+
     private final InvocationResponseManager invocationResponseManager;
 
-    private final Version0ProtocolHandler protocolHandler;
+    private final ProtocolHandler protocolHandler;
 
-    public ResponseReceiver(final Version0ProtocolHandler protocolHandler, final InvocationResponseManager manager) {
+    public ResponseReceiver(final ProtocolHandler protocolHandler, final InvocationResponseManager manager) {
         this.invocationResponseManager = manager;
         this.protocolHandler = protocolHandler;
     }
@@ -56,18 +60,22 @@ public class ResponseReceiver implements Channel.Receiver {
 
     @Override
     public void handleMessage(Channel channel, MessageInputStream messageInputStream) {
-        // register for the next message
-        channel.receiveMessage(this);
-
+        
+        final DataInputStream inputStream = new DataInputStream(messageInputStream);
         try {
-            final Unmarshaller unmarshaller = this.protocolHandler.createUnMarshaller(messageInputStream);
-            final InvocationResponse invocationResponse = this.protocolHandler.readInvocationResponse(unmarshaller);
-            this.invocationResponseManager.onResponse(invocationResponse);
+            MessageType messageType = this.protocolHandler.getMessageType(inputStream);
+            logger.info("Received response with header 0x" + messageType.getHeader());
+            switch (messageType) {
+                case INVOCATION_RESPONSE:
+                    final MethodInvocationResponse invocationResponse = this.protocolHandler.readMethodInvocationResponse(inputStream);
+                    logger.info("Response for invocation id " + invocationResponse.getInvocationId() + " received");
+                    this.invocationResponseManager.onResponse(invocationResponse);
+                    break;
+                    default:
+                        throw new RuntimeException("Unsupported response header 0x" + Integer.toHexString(messageType.getHeader()));
+            }
         } catch (IOException e) {
-            // TODO: Handle
             throw new RuntimeException(e);
         }
-
-
     }
 }
