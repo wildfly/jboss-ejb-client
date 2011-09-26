@@ -37,7 +37,7 @@ import java.util.Hashtable;
  * @author <a href="mailto:cdewolf@redhat.com">Carlo de Wolf</a>
  */
 public class ServerObjectFactory implements ObjectFactory {
-    private static final Logger log = Logger.getLogger(EJBObjectFactory.class);
+    private static final Logger log = Logger.getLogger(ServerObjectFactory.class);
 
     public static final String URI = "org.jboss.ejb.URI";
 
