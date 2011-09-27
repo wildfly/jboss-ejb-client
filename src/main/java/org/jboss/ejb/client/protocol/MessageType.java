@@ -27,21 +27,12 @@ package org.jboss.ejb.client.protocol;
  */
 public enum MessageType {
 
-    SESSION_OPEN_REQUEST((byte) 0x01),
-    SESSION_OPEN_RESPONSE((byte) 0x02),
-    INVOCATION_REQUEST((byte) 0x03),
-    INVOCATION_CANCEL_REQUEST((byte) 0x04),
-    INVOCATION_RESPONSE((byte) 0x05),
+    SESSION_OPEN_REQUEST,
+    SESSION_OPEN_RESPONSE,
+    INVOCATION_REQUEST,
+    INVOCATION_CANCEL_REQUEST,
+    INVOCATION_RESPONSE,
+    MODULE_AVAILABLE,
+    MODULE_UNAVAILABLE,
 
-    ;
-
-    private final byte header;
-
-    private MessageType(byte header) {
-        this.header = header;
-    }
-
-    public byte getHeader() {
-        return this.header;
-    }
 }

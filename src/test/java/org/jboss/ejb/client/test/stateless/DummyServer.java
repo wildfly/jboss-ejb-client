@@ -1,6 +1,6 @@
 /*
  * JBoss, Home of Professional Open Source.
- * Copyright (c) 2011, Red Hat, Inc., and individual contributors
+ * Copyright 2011, Red Hat, Inc., and individual contributors
  * as indicated by the @author tags. See the copyright.txt file in the
  * distribution for a full listing of individual contributors.
  *
@@ -120,7 +120,7 @@ class DummyServer {
                 // read the first byte to see what type of a message it is
                 final MessageType messageType = this.protocolHandler.getMessageType(inputStream);
                 if (messageType != MessageType.INVOCATION_REQUEST) {
-                    throw new RuntimeException("Unsupported message type 0x" + Integer.toHexString(messageType.getHeader()));
+                    throw new RuntimeException("Unsupported message type " + messageType);
                 }/*
                 //final MethodInvocationRequest invocationRequest = this.protocolHandler.readMethodInvocationRequest(inputStream, new DummyEJBViewResolver());
                 // in this dummy server we process the request within the remoting thread, this is not

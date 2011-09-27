@@ -25,13 +25,13 @@ package org.jboss.ejb.client;
 /**
  * @author <a href="mailto:david.lloyd@redhat.com">David M. Lloyd</a>
  */
-final class ModuleID {
+public final class ModuleID {
     private final String appName;
     private final String moduleName;
     private final String distinctName;
     private final int hashCode;
 
-    ModuleID(final String appName, final String moduleName, final String distinctName) {
+    public ModuleID(final String appName, final String moduleName, final String distinctName) {
         if (moduleName == null) {
             throw new IllegalArgumentException("moduleName is null");
         }

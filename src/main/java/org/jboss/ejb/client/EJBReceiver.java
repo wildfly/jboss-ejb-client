@@ -22,6 +22,7 @@
 
 package org.jboss.ejb.client;
 
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.Set;
@@ -46,11 +47,11 @@ public abstract class EJBReceiver<A> extends Attachable {
      * @param distinctName the distinct name
      * @return {@code true} if this is a previously-unknown registration
      */
-    protected final boolean registerModule(String appName, String moduleName, String distinctName) {
+    public final boolean registerModule(String appName, String moduleName, String distinctName) {
         return accessibleModules.add(new ModuleID(appName, moduleName, distinctName));
     }
 
-    final boolean verifyModule(String appName, String moduleName, String distinctName) {
+    final boolean acceptsModule(String appName, String moduleName, String distinctName) {
         return accessibleModules.contains(new ModuleID(appName, moduleName, distinctName));
     }
 

@@ -22,8 +22,8 @@
 
 package org.jboss.ejb.client.remoting;
 
+import org.jboss.ejb.client.ModuleID;
 import org.jboss.ejb.client.protocol.MessageType;
-import org.jboss.ejb.client.protocol.MethodInvocationResponse;
 import org.jboss.ejb.client.protocol.ProtocolHandler;
 import org.jboss.logging.Logger;
 import org.jboss.remoting3.Channel;
@@ -40,10 +40,10 @@ class ResponseReceiver implements Channel.Receiver {
     private static final Logger logger = Logger.getLogger(ResponseReceiver.class);
 
 
-    private final ProtocolHandler protocolHandler;
+    private final RemotingConnectionEJBReceiver ejbReceiver;
 
-    public ResponseReceiver(final ProtocolHandler protocolHandler) {
-        this.protocolHandler = protocolHandler;
+    public ResponseReceiver(final RemotingConnectionEJBReceiver ejbReceiver) {
+        this.ejbReceiver = ejbReceiver;
     }
 
     @Override
@@ -61,18 +61,25 @@ class ResponseReceiver implements Channel.Receiver {
 
         final DataInputStream inputStream = new DataInputStream(messageInputStream);
         try {
-            MessageType messageType = this.protocolHandler.getMessageType(inputStream);
-            logger.info("Received response with header 0x" + messageType.getHeader());
+            final ProtocolHandler protocolHandler = this.ejbReceiver.getProtocolHandler();
+            final MessageType messageType = protocolHandler.getMessageType(inputStream);
+            logger.info("Received message of type " + messageType);
             switch (messageType) {
-                case INVOCATION_RESPONSE:
-                    final MethodInvocationResponse invocationResponse = this.protocolHandler.readMethodInvocationResponse(inputStream);
-                    logger.info("Response for invocation id " + invocationResponse.getInvocationId() + " received");
+                case MODULE_AVAILABLE:
+                    final ModuleID[] availableModules = protocolHandler.readModuleAvailability(inputStream);
+                    for (int i = 0; i < availableModules.length; i++) {
+                        final ModuleID moduleID = availableModules[i];
+                        this.ejbReceiver.registerModule(moduleID.getAppName(), moduleID.getModuleName(), moduleID.getDistinctName());
+                    }
                     break;
-                    default:
-                        throw new RuntimeException("Unsupported response header 0x" + Integer.toHexString(messageType.getHeader()));
+                default:
+                    logger.warn("Unsupported message type " + messageType);
             }
         } catch (IOException e) {
             throw new RuntimeException(e);
+        } finally {
+            // receive next message
+            channel.receiveMessage(this);
         }
     }
 }

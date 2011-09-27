@@ -22,39 +22,112 @@
 
 package org.jboss.ejb.client.protocol;
 
+import org.jboss.ejb.client.ModuleID;
+
 import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
 import java.lang.reflect.Method;
 
 /**
- * User: jpai
+ * A {@link ProtocolHandler} is responsible for managing the EJB remote protocol format. The {@link ProtocolHandler}
+ * with the help of {@link org.jboss.ejb.client.protocol.marshalling.Marshaller} and {@link org.jboss.ejb.client.protocol.marshalling.UnMarshaller}
+ * is the sole authority while dealing with read/write opeartions into the data stream(s) which will be used for communication
+ * between the EJB server and the client
+ * <p/>
+ * User: Jaikiran Pai
  */
 public interface ProtocolHandler {
 
+    /**
+     * Writes out a version message packet to the passed {@link DataOutput output}. The version message written
+     * out will include the version number of the protocol which this {@link ProtocolHandler} can handle and also
+     * the passed <code>marshallerType</code>. This version message is supposed to be sent from the client to the
+     * server to establish a contract for the subsequent communication between the server and the client
+     *
+     * @param output         The {@link DataOutput} to which the version message has to be written
+     * @param marshallerType The type of marshaller that the protocol handler will use for marshalling/unmarshalling
+     *                       data while writting/reading from the streams
+     * @throws IOException If there's a problem while writing out the message
+     */
     void writeVersionMessage(final DataOutput output, final String marshallerType) throws IOException;
 
+    /**
+     * Writes out a session open request into the passed {@link DataOutput output}. The session open request
+     * will contain the EJB view identifiers and the invocation id, along with any attachments.
+     * <p/>
+     * The client will  use to this method to send a session open request to the server. A session open request is
+     * applicable for  stateful session beans identified by the passed app, module, bean name.
+     *
+     * @param output        The {@link DataOutput} to which the message has to be written
+     * @param invocationId  The invocation id to be associated with this messsage
+     * @param appName       The app name used to identify the EJB
+     * @param moduleName    The module name used to identify the EJB
+     * @param beanName      The name of the bean
+     * @param viewClassName The fully qualified classname of the remote view of the EJB
+     * @param attachments   Any attachments which need to be passed along with the message. Can be null.
+     * @throws IOException If there's a problem while writing out the messsage
+     */
     void writeSessionOpenRequest(final DataOutput output, final short invocationId, final String appName,
                                  final String moduleName, final String beanName, final String viewClassName,
                                  final Attachment[] attachments) throws IOException;
 
-    void writeSessionOpenResponse(final DataOutput output, final short invocationId, final byte[] sessionId,
-                                  final Attachment[] attachments) throws IOException;
-
+    /**
+     * Writes out a invocation request messsage for a method of the remote view of a EJB, into the {@link DataOutput output}.
+     * The message will contain an <code>invocationId</code> and the EJB view identifiers, along with the method name
+     * and parameters to be passed to the method during invocation.
+     * <p/>
+     * The client uses this method to invoke a EJB method exposed by a remote view of the EJB on the server.
+     *
+     * @param output        The {@link DataOutput} to which the message has to be written
+     * @param invocationId  The invocation id to be associated with this message
+     * @param appName       The app name used to identify the EJB
+     * @param moduleName    The module name used to identify the EJB
+     * @param beanName      The EJB name
+     * @param viewClassName The fully qualified class name of the remote view of the EJB
+     * @param method        The method to be invoked on the remote view of the bean
+     * @param methodParams  The parameters to be passed to the EJB method upon invocation
+     * @param attachments   Any attachments that need to be passed along with the message. Can be null.
+     * @throws IOException If there's a problem while writing out the messsage
+     */
     void writeMethodInvocationRequest(final DataOutput output, final short invocationId, final String appName,
                                       final String moduleName, final String beanName, final String viewClassName,
                                       final Method method, final Object[] methodParams,
                                       final Attachment[] attachments) throws IOException;
 
+    /**
+     * Writes out a messsage into the {@link DataOutput output} to cancel a (previous) invocation request. The
+     * written message will contain the invocation id corresponding to the invocation which needs to be cancelled.
+     * <p/>
+     * s
+     * The client sends this message to the server to indicate that the it wants an invocation request associated
+     * with the <code>invocationId</code> to be cancelled.
+     *
+     * @param output       The {@link DataOutput} to which the message has to be written
+     * @param invocationId The invocation id corresponding to the invocation to be cancelled
+     * @throws IOException If there's a problem while writing out the message
+     */
     void writeInvocationCancelRequest(final DataOutput output, final short invocationId) throws IOException;
 
-    void writeMethodInvocationResponse(final DataOutput output, final short invocationId, final Object result,
-                                       final Throwable error, final Attachment[] attachments) throws IOException;
-
-
+    /**
+     * Returns the {@link MessageType} associated with the data contained in the {@link DataInput input}. Each {@link MessageType}
+     * has an unique byte header assoicated with this. This method looks for the byte header to identify the {@link MessageType}
+     *
+     * @param input The {@link DataInput} from which the message type has to be identified
+     * @return The {@link MessageType} associated with the message in the {@link DataInput input}
+     * @throws IOException If there's a problem while reading the message in the {@link DataInput} or if the byte header in the
+     *                     {@link DataInput input} doesn't correspond to any known {@link MessageType}s
+     */
     MessageType getMessageType(final DataInput input) throws IOException;
 
-    //MethodInvocationRequest readMethodInvocationRequest(final DataInput input, final EJBViewResolver ejbViewResolver) throws IOException;
 
-    MethodInvocationResponse readMethodInvocationResponse(final DataInput input) throws IOException;
+    /**
+     * Reads the {@link ModuleID}s from the passed {@link DataInput input}. The server sends a message containing
+     * the EJB module available on the server and the client uses this method to get that information
+     *
+     * @param input The {@link DataInput} from which the message has to be read
+     * @return Returns the {@link ModuleID}s
+     * @throws IOException If there's a problem reading the {@link DataInput input}
+     */
+    ModuleID[] readModuleAvailability(final DataInput input) throws IOException;
 }

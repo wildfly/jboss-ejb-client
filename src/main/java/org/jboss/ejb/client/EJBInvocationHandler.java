@@ -37,18 +37,14 @@ final class EJBInvocationHandler extends Attachable implements InvocationHandler
 
     private static final long serialVersionUID = 946555285095057230L;
 
-    private final String appName;
-    private final String moduleName;
-    private final String distinctName;
     private final String beanName;
+    private final ModuleID moduleID;
     private final Class<?> viewClass;
     private final transient boolean async;
 
     EJBInvocationHandler(final Class<?> viewClass, final String appName, final String moduleName, final String distinctName, final String beanName) {
         this.viewClass = viewClass;
-        this.appName = appName;
-        this.moduleName = moduleName;
-        this.distinctName = distinctName;
+        this.moduleID = new ModuleID(appName, moduleName, distinctName);
         this.beanName = beanName;
         async = false;
     }
@@ -56,17 +52,15 @@ final class EJBInvocationHandler extends Attachable implements InvocationHandler
     private EJBInvocationHandler(final EJBInvocationHandler twin) {
         super(twin);
         viewClass = twin.viewClass;
-        appName = twin.appName;
-        moduleName = twin.moduleName;
-        distinctName = twin.distinctName;
+        this.moduleID = twin.moduleID;
         beanName = twin.beanName;
         async = true;
     }
 
     public Object invoke(final Object proxy, final Method method, final Object[] args) throws Throwable {
         final EJBClientContext context = EJBClientContext.requireCurrent();
-        final EJBReceiver<?> receiver = context.getEJBReceiver(appName, moduleName, distinctName);
-        return doInvoke(proxy, method, args, receiver, (EJBClientContext) context);
+        final EJBReceiver<?> receiver = context.requireEJBReceiver(moduleID.getAppName(), moduleID.getModuleName(), moduleID.getDistinctName());
+        return doInvoke(proxy, method, args, receiver, context);
     }
 
     private <A> Object doInvoke(final Object proxy, final Method method, final Object[] args, final EJBReceiver<A> receiver, EJBClientContext clientContext) throws Throwable {
@@ -95,15 +89,15 @@ final class EJBInvocationHandler extends Attachable implements InvocationHandler
     }
 
     public String getAppName() {
-        return appName;
+        return this.moduleID.getAppName();
     }
 
     public String getModuleName() {
-        return moduleName;
+        return this.moduleID.getModuleName();
     }
 
     public String getDistinctName() {
-        return distinctName;
+        return this.moduleID.getDistinctName();
     }
 
     public String getBeanName() {
@@ -122,4 +116,5 @@ final class EJBInvocationHandler extends Attachable implements InvocationHandler
     EJBInvocationHandler getAsyncHandler() {
         return async ? this : new EJBInvocationHandler(this);
     }
+
 }

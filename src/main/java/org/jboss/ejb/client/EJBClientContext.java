@@ -27,10 +27,12 @@ import org.jboss.remoting3.Connection;
 
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Collections;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.ServiceLoader;
+import java.util.Set;
+import java.util.concurrent.CopyOnWriteArraySet;
 
 /**
  * The public API for an EJB client context.  A thread may be associated with an EJB client context.  An EJB
@@ -52,7 +54,12 @@ public final class EJBClientContext extends Attachable {
         GENERAL_INTERCEPTORS = interceptors.toArray(new GeneralEJBClientInterceptor[interceptors.size()]);
     }
 
-    private volatile EJBReceiver receiver;
+    /**
+     * For thread safe accesss, we use a copy-on-write set since the registration of EJBReceiver (i.e.
+     * an add operation) doesn't happen so often as compared to the iteration over this set, that happens while
+     * selecting a EJBReceiver to handle a invocation.
+     */
+    private final Set<EJBReceiver> ejbReceivers = new CopyOnWriteArraySet<EJBReceiver>();
 
     EJBClientContext() {
     }
@@ -147,7 +154,7 @@ public final class EJBClientContext extends Attachable {
     }
 
     public void registerEJBReceiver(final EJBReceiver<?> receiver) {
-        this.receiver = receiver;
+        this.ejbReceivers.add(receiver);
     }
 
     /**
@@ -160,19 +167,57 @@ public final class EJBClientContext extends Attachable {
     }
 
     protected Collection<EJBReceiver<?>> getEJBReceivers(final String appName, final String moduleName, final String distinctName) {
-        return Collections.<EJBReceiver<?>>singleton(receiver);
+        final Collection<EJBReceiver<?>> eligibleEJBReceivers = new HashSet<EJBReceiver<?>>();
+        for (final EJBReceiver ejbInvoker : ejbReceivers) {
+            if (ejbInvoker.acceptsModule(appName, moduleName, distinctName)) {
+                eligibleEJBReceivers.add(ejbInvoker);
+            }
+        }
+        return eligibleEJBReceivers;
     }
 
     /**
-     * Get the first EJB receiver which matches the given module name.
+     * Get the first EJB receiver which matches the given combination of app, module and distinct name.
      *
-     * @param appName the application name, or {@code null} for a top-level module
-     * @param moduleName the module name
+     * @param appName      the application name, or {@code null} for a top-level module
+     * @param moduleName   the module name
      * @param distinctName the distinct name, or {@code null} for none
      * @return the first EJB receiver to match, or {@code null} if none match
      */
     protected EJBReceiver<?> getEJBReceiver(final String appName, final String moduleName, final String distinctName) {
         final Iterator<EJBReceiver<?>> iterator = getEJBReceivers(appName, moduleName, distinctName).iterator();
         return iterator.hasNext() ? iterator.next() : null;
+    }
+
+    /**
+     * Get the first EJB receiver which matches the given combination of app, module and distinct name. If there's
+     * no such EJB receiver, then this method throws a {@link IllegalStateException}
+     *
+     * @param appName      the application name, or {@code null} for a top-level module
+     * @param moduleName   the module name
+     * @param distinctName the distinct name, or {@code null} for none
+     * @return the first EJB receiver to match
+     * @throws IllegalArgumentException If there's no {@link EJBReceiver} which can handle a EJB for the passed combination
+     *                                  of app, module and distinct name.
+     */
+    protected EJBReceiver<?> requireEJBReceiver(final String appName, final String moduleName, final String distinctName)
+            throws IllegalStateException {
+
+        EJBReceiver ejbReceiver;
+        // This is an "optimization"
+        // if there's just one EJBReceiver, then we don't check whether it can handle the module. We just
+        // assume that it will be able to handle this module (if not, it will throw a NoSuchEJBException anyway)
+        // This comes handy in cases where the EJBReceiver might not yet have received a module inventory messsage
+        // from the server and hence wouldn't know whether it can handle a particular app, module, distinct name combination.
+        if (this.ejbReceivers.size() == 1) {
+            ejbReceiver = ejbReceivers.iterator().next();
+        } else {
+            ejbReceiver = this.getEJBReceiver(appName, moduleName, distinctName);
+        }
+        if (ejbReceiver == null) {
+            throw new IllegalStateException("No EJB receiver available for handling [appName:" + appName + ",modulename:"
+                    + moduleName + ",distinctname:" + distinctName + "] combination");
+        }
+        return ejbReceiver;
     }
 }
