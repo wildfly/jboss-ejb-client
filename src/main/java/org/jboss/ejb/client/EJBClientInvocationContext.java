@@ -214,4 +214,16 @@ public final class EJBClientInvocationContext<A> extends Attachable {
     protected EJBReceiver<A> getReceiver() {
         return receiver;
     }
+
+    public Object getInvokedProxy() {
+        return invokedProxy;
+    }
+
+    public Method getInvokedMethod() {
+        return invokedMethod;
+    }
+
+    public Object[] getParameters() {
+        return parameters;
+    }
 }

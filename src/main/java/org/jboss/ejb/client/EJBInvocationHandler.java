@@ -41,9 +41,11 @@ final class EJBInvocationHandler extends Attachable implements InvocationHandler
     private final String moduleName;
     private final String distinctName;
     private final String beanName;
+    private final Class<?> viewClass;
     private final transient boolean async;
 
-    EJBInvocationHandler(final String appName, final String moduleName, final String distinctName, final String beanName) {
+    EJBInvocationHandler(final Class<?> viewClass, final String appName, final String moduleName, final String distinctName, final String beanName) {
+        this.viewClass = viewClass;
         this.appName = appName;
         this.moduleName = moduleName;
         this.distinctName = distinctName;
@@ -51,12 +53,13 @@ final class EJBInvocationHandler extends Attachable implements InvocationHandler
         async = false;
     }
 
-    private EJBInvocationHandler(final EJBInvocationHandler twin, final String appName, final String moduleName, final String distinctName, final String beanName) {
+    private EJBInvocationHandler(final EJBInvocationHandler twin) {
         super(twin);
-        this.appName = appName;
-        this.moduleName = moduleName;
-        this.distinctName = distinctName;
-        this.beanName = beanName;
+        viewClass = twin.viewClass;
+        appName = twin.appName;
+        moduleName = twin.moduleName;
+        distinctName = twin.distinctName;
+        beanName = twin.beanName;
         async = true;
     }
 
@@ -107,12 +110,16 @@ final class EJBInvocationHandler extends Attachable implements InvocationHandler
         return beanName;
     }
 
+    public Class<?> getViewClass() {
+        return viewClass;
+    }
+
     private void writeObject(ObjectOutputStream oos) throws IOException {
         if (async) throw new NotSerializableException("Async proxies are not serializable");
         oos.defaultWriteObject();
     }
 
     EJBInvocationHandler getAsyncHandler() {
-        return async ? this : new EJBInvocationHandler(this, appName, moduleName, distinctName, beanName);
+        return async ? this : new EJBInvocationHandler(this);
     }
 }

@@ -169,10 +169,10 @@ public final class EJBClient {
         if (viewType == null) {
             throw new IllegalArgumentException("Bean interface type cannot be null");
         }
-        return viewType.cast(Proxy.newProxyInstance(viewType.getClassLoader(), new Class<?>[]{viewType}, getInvocationHandler(appName, moduleName, extraName, beanName)));
+        return viewType.cast(Proxy.newProxyInstance(viewType.getClassLoader(), new Class<?>[]{viewType}, getInvocationHandler(viewType, appName, moduleName, extraName, beanName)));
     }
 
-    static InvocationHandler getInvocationHandler(final String appName, final String moduleName, final String extraName, final String beanName) {
-        return new EJBInvocationHandler(appName, moduleName, extraName, beanName);
+    static InvocationHandler getInvocationHandler(final Class<?> viewClass, final String appName, final String moduleName, final String extraName, final String beanName) {
+        return new EJBInvocationHandler(viewClass, appName, moduleName, extraName, beanName);
     }
 }
