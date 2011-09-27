@@ -25,7 +25,6 @@ package org.jboss.ejb.client.protocol;
 import org.junit.Before;
 import org.junit.Test;
 
-import javax.ejb.NoSuchEJBException;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.DataInputStream;
@@ -64,25 +63,12 @@ public class ProtocolHandlerTestCase {
         final ByteArrayInputStream inputStreamForProtocolHandler = new ByteArrayInputStream(request);
         final DataInputStream dis = new DataInputStream(inputStreamForProtocolHandler);
         final byte header = dis.readByte();
-        final MethodInvocationRequest methodInvocationRequest = this.protocolHandler.readMethodInvocationRequest(dis, new DummyEjbViewResolver());
+        //final MethodInvocationRequest methodInvocationRequest = this.protocolHandler.readMethodInvocationRequest(dis, new DummyEjbViewResolver());
     }
 
     private class Dummy {
         public String echo(String msg) {
             return msg;
-        }
-    }
-
-    private class DummyEjbViewResolver implements EJBViewResolver {
-
-        @Override
-        public EJBViewResolutionResult resolveEJBView(String appName, String moduleName, String beanName, String viewClassName) throws NoSuchEJBException {
-            return new EJBViewResolutionResult() {
-                @Override
-                public ClassLoader getEJBClassLoader() {
-                    return this.getClass().getClassLoader();
-                }
-            };
         }
     }
 }

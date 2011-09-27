@@ -50,7 +50,7 @@ import static org.xnio.Options.SASL_POLICY_NOANONYMOUS;
 /**
  * User: jpai
  */
-class ChannelCommunicator implements InvocationResponseManager, ProtocolVersionCompatibilityListener {
+class ChannelCommunicator  {
 
     private volatile Channel channel;
     private volatile Connection connection;
@@ -112,7 +112,7 @@ class ChannelCommunicator implements InvocationResponseManager, ProtocolVersionC
 
     private void openChannel() throws IOException {
         final Channel notYetReadyChannel = get(getConnection().openChannel("ejb3", OptionMap.EMPTY), 5, SECONDS);
-        notYetReadyChannel.receiveMessage(new ProtocolVersionChannelReceiver(this.clientVersion, this.clientMarshallingStrategy, this));
+        //notYetReadyChannel.receiveMessage(new ProtocolVersionChannelReceiver(this.clientVersion, this.clientMarshallingStrategy, this));
     }
 
     private synchronized Channel getChannel() throws IOException {
@@ -132,7 +132,7 @@ class ChannelCommunicator implements InvocationResponseManager, ProtocolVersionC
             synchronized (this) {
                 if (connection == null) {
                     final OptionMap clientOptions = OptionMap.create(SASL_POLICY_NOANONYMOUS, Boolean.FALSE);
-                    final IoFuture<Connection> futureConnection = this.endpoint.connect(uri, clientOptions, new EndpointAuthenticationCallbackHandler());
+                    final IoFuture<Connection> futureConnection = this.endpoint.connect(uri, clientOptions,null);
                     this.connection = get(futureConnection, 5, SECONDS);
                 }
             }
@@ -140,6 +140,7 @@ class ChannelCommunicator implements InvocationResponseManager, ProtocolVersionC
         return connection;
     }
 
+/*
     @Override
     public void onResponse(final MethodInvocationResponse invocationResponse) {
         final short invocationId = invocationResponse.getInvocationId();
@@ -175,16 +176,15 @@ class ChannelCommunicator implements InvocationResponseManager, ProtocolVersionC
             }
         });
         // register for receiving messages from the server
-        this.channel.receiveMessage(new ResponseReceiver(this.protocolHandler, this));
+        //this.channel.receiveMessage(new ResponseReceiver(this.protocolHandler, this));
     }
-
     @Override
     public void handleInCompatibleChannel(final Channel channel) {
         this.serverInCompatible = true;
         // notify that the channel was opened and version message exchanged
         this.notifyChannelVersionExchange();
     }
-
+*/
     private void notifyChannelVersionExchange() {
         synchronized (this.channelStartLock) {
             this.channelStartLock.notifyAll();

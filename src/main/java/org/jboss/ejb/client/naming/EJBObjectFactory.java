@@ -21,7 +21,6 @@
  */
 package org.jboss.ejb.client.naming;
 
-import org.jboss.ejb.client.EJBClient;
 import org.jboss.logging.Logger;
 
 import javax.naming.Context;
@@ -86,7 +85,7 @@ public class EJBObjectFactory implements ObjectFactory {
         }
         // TODO: the real viewType is dependent upon the callers CL (/ TCCL)
         final Class<?> viewType = Class.forName(viewName);
-        return EJBClient.proxy(uri, appName, moduleName, beanName, viewType);
+        return null;// EJBClient.getProxy(uri, appName, moduleName,  viewType, beanName);
     }
 
     private static String string(final Reference ref, final String addrType) {

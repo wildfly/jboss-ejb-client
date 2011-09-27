@@ -54,7 +54,7 @@ public interface ProtocolHandler {
 
     MessageType getMessageType(final DataInput input) throws IOException;
 
-    MethodInvocationRequest readMethodInvocationRequest(final DataInput input, final EJBViewResolver ejbViewResolver) throws IOException;
+    //MethodInvocationRequest readMethodInvocationRequest(final DataInput input, final EJBViewResolver ejbViewResolver) throws IOException;
 
     MethodInvocationResponse readMethodInvocationResponse(final DataInput input) throws IOException;
 }

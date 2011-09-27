@@ -22,18 +22,18 @@
 
 package org.jboss.ejb.client.remoting;
 
-import java.io.IOException;
-import java.util.concurrent.Future;
 import org.jboss.ejb.client.EJBClientInvocationContext;
 import org.jboss.ejb.client.EJBReceiver;
 import org.jboss.ejb.client.EJBReceiverContext;
-import org.jboss.invocation.InterceptorContext;
 import org.jboss.remoting3.Channel;
 import org.jboss.remoting3.CloseHandler;
 import org.jboss.remoting3.Connection;
 import org.jboss.remoting3.MessageInputStream;
 import org.xnio.IoFuture;
 import org.xnio.OptionMap;
+
+import java.io.IOException;
+import java.util.concurrent.Future;
 
 /**
  * @author <a href="mailto:david.lloyd@redhat.com">David M. Lloyd</a>
@@ -99,7 +99,4 @@ public final class RemotingConnectionEJBReceiver extends EJBReceiver<RemotingAtt
         return new RemotingAttachments();
     }
 
-    public Object processInvocation(final InterceptorContext context) throws Exception {
-        return null;
-    }
 }

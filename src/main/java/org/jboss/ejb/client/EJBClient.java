@@ -22,11 +22,9 @@
 
 package org.jboss.ejb.client;
 
-import java.util.concurrent.Future;
-import org.jboss.ejb.client.proxy.RemoteInvocationHandler;
 import java.lang.reflect.InvocationHandler;
-
 import java.lang.reflect.Proxy;
+import java.util.concurrent.Future;
 
 /**
  * The main EJB client API class.  This class contains helper methods which may be used to create proxies, open sessions,
@@ -73,7 +71,7 @@ public final class EJBClient {
     @SuppressWarnings("unchecked")
     public static <T> T asynchronous(final T proxy) throws IllegalArgumentException {
         final InvocationHandler invocationHandler = Proxy.getInvocationHandler(proxy);
-        if (invocationHandler instanceof RemoteInvocationHandler) {
+        if (invocationHandler instanceof EJBInvocationHandler) {
             final EJBInvocationHandler remoteInvocationHandler = (EJBInvocationHandler) invocationHandler;
             // determine proxy "type", return existing instance if it's already async
             if (true) {

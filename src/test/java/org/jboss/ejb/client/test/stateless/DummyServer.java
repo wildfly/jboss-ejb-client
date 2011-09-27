@@ -22,7 +22,6 @@
 package org.jboss.ejb.client.test.stateless;
 
 import org.jboss.ejb.client.protocol.MessageType;
-import org.jboss.ejb.client.protocol.MethodInvocationRequest;
 import org.jboss.ejb.client.protocol.PackedInteger;
 import org.jboss.ejb.client.protocol.ProtocolHandler;
 import org.jboss.ejb.client.protocol.VersionZeroProtocolHandler;
@@ -48,11 +47,9 @@ import org.xnio.Xnio;
 import org.xnio.channels.AcceptingChannel;
 import org.xnio.channels.ConnectedStreamChannel;
 
-import javax.ejb.NoSuchEJBException;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
-import java.lang.reflect.Method;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
@@ -124,8 +121,8 @@ class DummyServer {
                 final MessageType messageType = this.protocolHandler.getMessageType(inputStream);
                 if (messageType != MessageType.INVOCATION_REQUEST) {
                     throw new RuntimeException("Unsupported message type 0x" + Integer.toHexString(messageType.getHeader()));
-                }
-                final MethodInvocationRequest invocationRequest = this.protocolHandler.readMethodInvocationRequest(inputStream, new DummyEJBViewResolver());
+                }/*
+                //final MethodInvocationRequest invocationRequest = this.protocolHandler.readMethodInvocationRequest(inputStream, new DummyEJBViewResolver());
                 // in this dummy server we process the request within the remoting thread, this is not
                 // how it is supposed to work in the real server
                 final String fqBeanName = invocationRequest.getAppName() + "/" + invocationRequest.getModuleName() + "/"
@@ -144,7 +141,7 @@ class DummyServer {
                 } finally {
                     IoUtils.safeClose(outputStream);
                 }
-
+*/
             } catch (IOException e) {
                 // log it
                 logger.errorf(e, "Exception on channel %s from message %s", channel, message);
@@ -234,18 +231,5 @@ class DummyServer {
             }
 
         }, OptionMap.EMPTY);
-    }
-
-    class DummyEJBViewResolver implements EJBViewResolver {
-
-        @Override
-        public EJBViewResolutionResult resolveEJBView(String appName, String moduleName, String beanName, String viewClassName) throws NoSuchEJBException {
-            return new EJBViewResolutionResult() {
-                @Override
-                public ClassLoader getEJBClassLoader() {
-                    return DummyServer.class.getClassLoader();
-                }
-            };
-        }
     }
 }

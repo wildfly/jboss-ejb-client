@@ -58,4 +58,9 @@ public final class RemotingTransactionInterceptor implements RemotingEJBClientIn
 
     public void postDeserialize(final EJBClientProxyContext<? extends RemotingAttachments> context) {
     }
+
+    @Override
+    public void postDeserialize(final EJBClientProxyContext<? extends Object> ejbClientProxyContext) {
+
+    }
 }

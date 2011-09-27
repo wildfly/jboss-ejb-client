@@ -24,7 +24,6 @@ package org.jboss.ejb.client.test.stateless;
 import org.jboss.ejb.client.EJBClient;
 import org.jboss.ejb.client.naming.EJBObjectFactory;
 import org.jboss.ejb.client.naming.ServerObjectFactory;
-import org.jnp.server.SingletonNamingServer;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -46,18 +45,14 @@ import static org.junit.Assert.assertEquals;
  * @author <a href="mailto:cdewolf@redhat.com">Carlo de Wolf</a>
  */
 public class StatelessTestCase {
-    private static SingletonNamingServer namingServer;
     private static DummyServer server;
 
     @AfterClass
     public static void afterClass() {
-        namingServer.destroy();
     }
 
     @BeforeClass
     public static void beforeClass() throws Exception {
-        namingServer = new SingletonNamingServer();
-
         final InitialContext ctx = new InitialContext();
         final URI uri = new URI("remote://localhost:6999");
         final Reference refInfo = EJBObjectFactory.createReference(uri, "my-app", "my-module", "GreeterBean", GreeterRemote.class);
@@ -73,8 +68,7 @@ public class StatelessTestCase {
 
     @Test
     public void testGreeting() throws Exception {
-        final URI uri = new URI("remote://localhost:6999");
-        GreeterRemote remote = EJBClient.getProxy("my-app", "my-module", uri, GreeterRemote.class, "GreeterBean");
+        GreeterRemote remote = EJBClient.getProxy("my-app", "my-module", "dn", GreeterRemote.class, "GreeterBean");
         String result = remote.greet("test");
         assertEquals("Hi test", result);
     }

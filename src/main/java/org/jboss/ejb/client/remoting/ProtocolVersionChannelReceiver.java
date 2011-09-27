@@ -39,20 +39,18 @@ import java.util.Collection;
 public class ProtocolVersionChannelReceiver implements Channel.Receiver {
 
     private static final Logger logger = Logger.getLogger(ProtocolVersionChannelReceiver.class);
-    
+
     private final byte clientVersion;
 
     private final String clientMarshallingStrategy;
 
-    private final ProtocolVersionCompatibilityListener versionCompatibilityListener;
+    //private final ProtocolVersionCompatibilityListener versionCompatibilityListener;
 
-    public ProtocolVersionChannelReceiver(final byte clientVersion, final String clientMarshallingStrategy,
-                                          final ProtocolVersionCompatibilityListener versionCompatibilityListener) {
+    public ProtocolVersionChannelReceiver(final byte clientVersion, final String clientMarshallingStrategy) {
         this.clientVersion = clientVersion;
         this.clientMarshallingStrategy = clientMarshallingStrategy;
-        this.versionCompatibilityListener = versionCompatibilityListener;
     }
-    
+
     @Override
     public void handleError(Channel channel, IOException error) {
         //To change body of implemented methods use File | Settings | File Templates.
@@ -77,7 +75,7 @@ public class ProtocolVersionChannelReceiver implements Channel.Receiver {
 
             for (int i = 0; i < serverMarshallerCount; i++) {
                 serverMarshallerStrategies[i] = simpleDataInput.readUTF();
-            }
+            }/*
             if (this.checkCompatibility(serverVersion, serverMarshallerStrategies)) {
                 if (this.versionCompatibilityListener != null) {
                     this.versionCompatibilityListener.handleCompatibleChannel(channel, serverVersion, serverMarshallerStrategies);
@@ -86,7 +84,7 @@ public class ProtocolVersionChannelReceiver implements Channel.Receiver {
                 if (this.versionCompatibilityListener != null) {
                     this.versionCompatibilityListener.handleInCompatibleChannel(channel);
                 }
-            }
+            }*/
         } catch (IOException e) {
             throw new RuntimeException(e);
         }

@@ -184,7 +184,7 @@ public class VersionZeroProtocolHandler implements ProtocolHandler {
         }
         throw new IOException("Unidentified message header 0x" + Integer.toHexString(header));
     }
-
+/*
     @Override
     public MethodInvocationRequest readMethodInvocationRequest(final DataInput input, final EJBViewResolver ejbViewResolver) throws IOException {
         // read the invocation id
@@ -228,7 +228,7 @@ public class VersionZeroProtocolHandler implements ProtocolHandler {
         return new MethodInvocationRequest(invocationId, appName, moduleName, beanName,
                 viewClassName, methodName, methodParamTypes, methodParams, attachments);
     }
-
+*/
     @Override
     public void writeMethodInvocationResponse(final DataOutput output, final short invocationId, final Object result,
                                               final Throwable error, final Attachment[] attachments) throws IOException {

@@ -79,4 +79,8 @@ public final class EJBClientProxyContext<A> {
     protected EJBReceiver<A> getReceiver() {
         return receiver;
     }
+
+    public EJBInvocationHandler getInvocationHandler() {
+        return invocationHandler;
+    }
 }

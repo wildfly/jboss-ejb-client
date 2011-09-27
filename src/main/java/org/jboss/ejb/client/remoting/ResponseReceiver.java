@@ -39,15 +39,13 @@ class ResponseReceiver implements Channel.Receiver {
 
     private static final Logger logger = Logger.getLogger(ResponseReceiver.class);
 
-    private final InvocationResponseManager invocationResponseManager;
 
     private final ProtocolHandler protocolHandler;
 
-    public ResponseReceiver(final ProtocolHandler protocolHandler, final InvocationResponseManager manager) {
-        this.invocationResponseManager = manager;
+    public ResponseReceiver(final ProtocolHandler protocolHandler) {
         this.protocolHandler = protocolHandler;
     }
-    
+
     @Override
     public void handleError(Channel channel, IOException error) {
         //To change body of implemented methods use File | Settings | File Templates.
@@ -60,7 +58,7 @@ class ResponseReceiver implements Channel.Receiver {
 
     @Override
     public void handleMessage(Channel channel, MessageInputStream messageInputStream) {
-        
+
         final DataInputStream inputStream = new DataInputStream(messageInputStream);
         try {
             MessageType messageType = this.protocolHandler.getMessageType(inputStream);
@@ -69,7 +67,6 @@ class ResponseReceiver implements Channel.Receiver {
                 case INVOCATION_RESPONSE:
                     final MethodInvocationResponse invocationResponse = this.protocolHandler.readMethodInvocationResponse(inputStream);
                     logger.info("Response for invocation id " + invocationResponse.getInvocationId() + " received");
-                    this.invocationResponseManager.onResponse(invocationResponse);
                     break;
                     default:
                         throw new RuntimeException("Unsupported response header 0x" + Integer.toHexString(messageType.getHeader()));
