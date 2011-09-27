@@ -67,15 +67,17 @@ public abstract class EJBReceiver<A> extends Attachable {
     /**
      * Process the invocation.  Implementations of this method should always execute the operation asynchronously.
      *
-     * @param context the interceptor context
+     * @param clientInvocationContext the interceptor clientInvocationContext
+     * @param receiverContext The EJB receiver context
      * @return the future result of this operation
      * @throws Exception if the operation throws an exception
      */
-    protected abstract Future<?> processInvocation(EJBClientInvocationContext<A> context) throws Exception;
+    protected abstract Future<?> processInvocation(EJBClientInvocationContext<A> clientInvocationContext, EJBReceiverContext receiverContext) throws Exception;
 
     /**
      * Open a session.  TODO: determine correct exception types.
      *
+     * @param ejbReceiverContext The EJB receiver context
      * @param appName
      * @param moduleName
      * @param distinctName
@@ -83,7 +85,7 @@ public abstract class EJBReceiver<A> extends Attachable {
      * @return the new session ID
      * @throws Exception if the target is not stateful or does not exist
      */
-    protected abstract byte[] openSession(String appName, String moduleName, String distinctName, String beanName) throws Exception;
+    protected abstract byte[] openSession(EJBReceiverContext ejbReceiverContext, String appName, String moduleName, String distinctName, String beanName) throws Exception;
 
     /**
      * Verify the existence of a remote EJB.

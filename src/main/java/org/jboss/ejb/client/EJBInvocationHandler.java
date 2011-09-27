@@ -64,27 +64,28 @@ final class EJBInvocationHandler extends Attachable implements InvocationHandler
     }
 
     private <A> Object doInvoke(final Object proxy, final Method method, final Object[] args, final EJBReceiver<A> receiver, EJBClientContext clientContext) throws Throwable {
-        final EJBClientInvocationContext<A> context = new EJBClientInvocationContext<A>(this, clientContext, receiver.createReceiverSpecific(), receiver, proxy, method, args);
+        final EJBClientInvocationContext<A> invocationContext = new EJBClientInvocationContext<A>(this, clientContext, receiver.createReceiverSpecific(), receiver, proxy, method, args);
         for (EJBClientInterceptor<Object> interceptor : EJBClientContext.GENERAL_INTERCEPTORS) {
-            interceptor.handleInvocation(context);
+            interceptor.handleInvocation(invocationContext);
         }
+        final EJBReceiverContext ejbReceiverContext = clientContext.requireEJBReceiverContext(receiver);
         if (async) {
             // force async...
             if (method.getReturnType() == Future.class) {
                 // use the existing future, assuming that the result is properly set
-                return receiver.processInvocation(context);
+                return receiver.processInvocation(invocationContext, ejbReceiverContext);
             } else if (method.getReturnType() == void.class) {
                 // no return type necessary
-                receiver.processInvocation(context);
+                receiver.processInvocation(invocationContext, ejbReceiverContext);
                 return null;
             } else {
                 // wrap return always
-                EJBClient.setFutureResult(receiver.processInvocation(context));
+                EJBClient.setFutureResult(receiver.processInvocation(invocationContext, ejbReceiverContext));
                 return null;
             }
         } else {
             // wait for invocation to complete
-            return receiver.processInvocation(context).get();
+            return receiver.processInvocation(invocationContext, ejbReceiverContext).get();
         }
     }
 

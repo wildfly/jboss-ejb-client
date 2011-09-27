@@ -44,6 +44,8 @@ import java.io.DataOutputStream;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.IdentityHashMap;
+import java.util.Map;
 import java.util.concurrent.Future;
 
 /**
@@ -57,7 +59,7 @@ public final class RemotingConnectionEJBReceiver extends EJBReceiver<RemotingAtt
 
     private final ProtocolHandler protocolHandler;
 
-    private volatile Channel functionalChannel;
+    private final Map<EJBReceiverContext, Channel> perAssociationChannels = new IdentityHashMap<EJBReceiverContext, Channel>();
 
     // TODO: The version and the marshalling strategy shouldn't be hardcoded here
     private final byte clientProtocolVersion = 0x00;
@@ -98,10 +100,8 @@ public final class RemotingConnectionEJBReceiver extends EJBReceiver<RemotingAtt
         }, context);
     }
 
-    public Future<?> processInvocation(final EJBClientInvocationContext<RemotingAttachments> context) throws Exception {
-        if (this.functionalChannel == null) {
-            throw new IllegalStateException(this.getClass().getName() + " isn't yet ready to serve EJB invocations");
-        }
+    @Override
+    public Future<?> processInvocation(final EJBClientInvocationContext<RemotingAttachments> clientInvocationContext, final EJBReceiverContext ejbReceiverContext) throws Exception {
         // TODO: Implement this - Check receiver status and then send out a method invocation request
         // via the channel to the server
         FutureResult futureResult = new FutureResult();
@@ -109,7 +109,8 @@ public final class RemotingConnectionEJBReceiver extends EJBReceiver<RemotingAtt
         return IoFutureHelper.future(futureResult.getIoFuture());
     }
 
-    public byte[] openSession(final String appName, final String moduleName, final String distinctName, final String beanName) throws Exception {
+    @Override
+    public byte[] openSession(final EJBReceiverContext receiverContext, final String appName, final String moduleName, final String distinctName, final String beanName) throws Exception {
         return new byte[0];
     }
 
@@ -173,7 +174,10 @@ public final class RemotingConnectionEJBReceiver extends EJBReceiver<RemotingAtt
                 this.sendVersionMessage(channel);
                 // version message sent, now wait for a module inventory report from the server
                 channel.receiveMessage(new ResponseReceiver(RemotingConnectionEJBReceiver.this));
-                //
+                // associate the channel with the context
+                synchronized (RemotingConnectionEJBReceiver.this.perAssociationChannels) {
+                    RemotingConnectionEJBReceiver.this.perAssociationChannels.put(this.receiverContext, channel);
+                }
             } catch (IOException ioe) {
                 // TODO: re-evaluate
                 throw new RuntimeException(ioe);
