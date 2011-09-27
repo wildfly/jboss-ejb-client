@@ -55,7 +55,7 @@ public final class EJBClientContext extends Attachable {
     }
 
     /**
-     * For thread safe accesss, we use a copy-on-write set since the registration of EJBReceiver (i.e.
+     * For thread safe accesses, we use a copy-on-write set since the registration of EJBReceiver (i.e.
      * an add operation) doesn't happen so often as compared to the iteration over this set, that happens while
      * selecting a EJBReceiver to handle a invocation.
      */
