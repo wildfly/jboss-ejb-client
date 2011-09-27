@@ -174,7 +174,7 @@ public final class EJBClientContext extends Attachable {
         final Collection<EJBReceiver<?>> eligibleEJBReceivers = new HashSet<EJBReceiver<?>>();
         synchronized (this.ejbReceiverAssociations) {
             for (final EJBReceiver ejbReceiver : this.ejbReceiverAssociations.keySet()) {
-                if (ejbReceiver.verifyModule(appName, moduleName, distinctName)) {
+                if (ejbReceiver.acceptsModule(appName, moduleName, distinctName)) {
                     eligibleEJBReceivers.add(ejbReceiver);
                 }
             }
