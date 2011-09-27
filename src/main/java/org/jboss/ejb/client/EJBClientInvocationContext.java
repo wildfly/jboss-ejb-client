@@ -143,6 +143,42 @@ public final class EJBClientInvocationContext<A> extends Attachable {
     }
 
     /**
+     * Get the invocation application name.
+     *
+     * @return the app name
+     */
+    public String getAppName() {
+        return invocationHandler.getAppName();
+    }
+
+    /**
+     * Get the invocation module name.
+     *
+     * @return the module name
+     */
+    public String getModuleName() {
+        return invocationHandler.getModuleName();
+    }
+
+    /**
+     * Get the invocation distinct name.
+     *
+     * @return the distinct name
+     */
+    public String getDistinctName() {
+        return invocationHandler.getDistinctName();
+    }
+
+    /**
+     * Get the invocation bean name.
+     *
+     * @return the bean name
+     */
+    public String getBeanName() {
+        return invocationHandler.getBeanName();
+    }
+
+    /**
      * Get the receiver-specific attachment for protocol-specific interceptors.
      *
      * @return the receiver attachment
