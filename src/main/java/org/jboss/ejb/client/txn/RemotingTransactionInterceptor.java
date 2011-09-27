@@ -25,7 +25,8 @@ package org.jboss.ejb.client.txn;
 import org.jboss.ejb.client.AttachmentKey;
 import org.jboss.ejb.client.EJBClientInvocationContext;
 import org.jboss.ejb.client.EJBClientProxyContext;
-import org.jboss.ejb.client.GeneralEJBClientInterceptor;
+import org.jboss.ejb.client.remoting.RemotingAttachments;
+import org.jboss.ejb.client.remoting.RemotingEJBClientInterceptor;
 
 import javax.transaction.Transaction;
 import javax.transaction.TransactionManager;
@@ -34,29 +35,27 @@ import javax.transaction.xa.XAResource;
 /**
  * @author <a href="mailto:david.lloyd@redhat.com">David M. Lloyd</a>
  */
-public final class TransactionGeneralInterceptor implements GeneralEJBClientInterceptor {
-
-    static final AttachmentKey<XAResource> XA_RESOURCE_KEY = new AttachmentKey<XAResource>();
+public final class RemotingTransactionInterceptor implements RemotingEJBClientInterceptor {
 
     private final TransactionManager transactionManager;
 
-    public TransactionGeneralInterceptor(final TransactionManager transactionManager) {
+    public RemotingTransactionInterceptor(final TransactionManager transactionManager) {
         this.transactionManager = transactionManager;
     }
 
-    public void handleInvocation(final EJBClientInvocationContext<?> context) throws Throwable {
+    public void handleInvocation(final EJBClientInvocationContext<? extends RemotingAttachments> context) throws Throwable {
         final Transaction transaction = transactionManager.getTransaction();
-        XAResource xaResource = context.getReceiverAttachment(XA_RESOURCE_KEY);
-        if (xaResource == null) {
-            context.putReceiverAttachment(XA_RESOURCE_KEY, xaResource = new RemoteXAResource());
-        }
+        XAResource xaResource = context.getReceiverSpecific().getXAResourceInstance();
         transaction.enlistResource(xaResource);
     }
 
-    public Object handleInvocationResult(final EJBClientInvocationContext<?> context) throws Throwable {
+    public Object handleInvocationResult(final EJBClientInvocationContext<? extends RemotingAttachments> context) throws Throwable {
         return null;
     }
 
-    public void prepareSerialization(final EJBClientProxyContext<?> context) {
+    public void prepareSerialization(final EJBClientProxyContext<? extends RemotingAttachments> context) {
+    }
+
+    public void postDeserialize(final EJBClientProxyContext<? extends RemotingAttachments> context) {
     }
 }

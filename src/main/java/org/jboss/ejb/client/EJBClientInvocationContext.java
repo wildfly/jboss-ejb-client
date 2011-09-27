@@ -226,4 +226,8 @@ public final class EJBClientInvocationContext<A> extends Attachable {
     public Object[] getParameters() {
         return parameters;
     }
+
+    public Class<?> getViewClass() {
+        return invocationHandler.getViewClass();
+    }
 }

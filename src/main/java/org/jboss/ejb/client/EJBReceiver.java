@@ -101,4 +101,16 @@ public abstract class EJBReceiver<A> extends Attachable {
      * @return the attachment
      */
     protected abstract A createReceiverSpecific();
+
+    public <T> T getAttachment(final AttachmentKey<T> key) {
+        return super.getAttachment(key);
+    }
+
+    public <T> T putAttachment(final AttachmentKey<T> key, final T value) {
+        return super.putAttachment(key, value);
+    }
+
+    public <T> T removeAttachment(final AttachmentKey<T> key) {
+        return super.removeAttachment(key);
+    }
 }

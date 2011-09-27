@@ -100,7 +100,7 @@ public abstract class EJBGenericHandle<T> implements Serializable {
      * @return the invocation handler
      */
     protected EJBInvocationHandler getInvocationHandler() {
-        return new EJBInvocationHandler(viewClass, appName, moduleName, distinctName, beanName);
+        return new EJBInvocationHandler(type, appName, moduleName, distinctName, beanName);
     }
 
     public int hashCode() {

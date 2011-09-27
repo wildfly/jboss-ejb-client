@@ -22,6 +22,9 @@
 
 package org.jboss.ejb.client.txn;
 
+import org.jboss.ejb.client.EJBReceiver;
+import org.jboss.ejb.client.remoting.RemotingAttachments;
+
 import javax.transaction.xa.XAException;
 import javax.transaction.xa.XAResource;
 import javax.transaction.xa.Xid;
@@ -29,40 +32,49 @@ import javax.transaction.xa.Xid;
 /**
  * @author <a href="mailto:david.lloyd@redhat.com">David M. Lloyd</a>
  */
-public final class RemoteXAResource implements XAResource {
+final class RemoteXAResource implements XAResource {
+    private final EJBReceiver<RemotingAttachments> remotingReceiver;
 
-    public void commit(final Xid xid, final boolean b) throws XAException {
+    RemoteXAResource(final EJBReceiver<RemotingAttachments> remotingReceiver) {
+        this.remotingReceiver = remotingReceiver;
+    }
+
+    public void start(final Xid xid, final int i) throws XAException {
     }
 
     public void end(final Xid xid, final int i) throws XAException {
     }
 
-    public void forget(final Xid xid) throws XAException {
-    }
-
-    public int getTransactionTimeout() throws XAException {
-        return 0;
-    }
-
-    public boolean isSameRM(final XAResource resource) throws XAException {
-        return false;
+    public void rollback(final Xid xid) throws XAException {
     }
 
     public int prepare(final Xid xid) throws XAException {
         return 0;
     }
 
+    public void commit(final Xid xid, final boolean b) throws XAException {
+    }
+
+    public void forget(final Xid xid) throws XAException {
+    }
+
     public Xid[] recover(final int i) throws XAException {
         return new Xid[0];
     }
 
-    public void rollback(final Xid xid) throws XAException {
+    public int getTransactionTimeout() throws XAException {
+        return 0;
     }
 
     public boolean setTransactionTimeout(final int i) throws XAException {
         return false;
     }
 
-    public void start(final Xid xid, final int i) throws XAException {
+    public boolean isSameRM(final XAResource resource) throws XAException {
+        return resource instanceof RemoteXAResource && isSameRM((RemoteXAResource) resource);
+    }
+
+    public boolean isSameRM(final RemoteXAResource resource) throws XAException {
+        return resource.remotingReceiver == remotingReceiver;
     }
 }
