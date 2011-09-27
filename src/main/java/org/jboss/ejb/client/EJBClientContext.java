@@ -28,11 +28,11 @@ import org.jboss.remoting3.Connection;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashSet;
+import java.util.IdentityHashMap;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 import java.util.ServiceLoader;
-import java.util.Set;
-import java.util.concurrent.CopyOnWriteArraySet;
 
 /**
  * The public API for an EJB client context.  A thread may be associated with an EJB client context.  An EJB
@@ -54,12 +54,7 @@ public final class EJBClientContext extends Attachable {
         GENERAL_INTERCEPTORS = interceptors.toArray(new GeneralEJBClientInterceptor[interceptors.size()]);
     }
 
-    /**
-     * For thread safe accesses, we use a copy-on-write set since the registration of EJBReceiver (i.e.
-     * an add operation) doesn't happen so often as compared to the iteration over this set, that happens while
-     * selecting a EJBReceiver to handle a invocation.
-     */
-    private final Set<EJBReceiver> ejbReceivers = new CopyOnWriteArraySet<EJBReceiver>();
+    private final Map<EJBReceiver, EJBReceiverContext> ejbReceiverAssociations = new IdentityHashMap<EJBReceiver, EJBReceiverContext>();
 
     EJBClientContext() {
     }
@@ -154,7 +149,16 @@ public final class EJBClientContext extends Attachable {
     }
 
     public void registerEJBReceiver(final EJBReceiver<?> receiver) {
-        this.ejbReceivers.add(receiver);
+        EJBReceiverContext ejbReceiverContext = null;
+        synchronized (this.ejbReceiverAssociations) {
+            if (this.ejbReceiverAssociations.containsKey(receiver)) {
+                // nothing to do
+                return;
+            }
+            ejbReceiverContext = new EJBReceiverContext(this);
+            this.ejbReceiverAssociations.put(receiver, ejbReceiverContext);
+        }
+        receiver.associate(ejbReceiverContext);
     }
 
     /**
@@ -168,9 +172,11 @@ public final class EJBClientContext extends Attachable {
 
     protected Collection<EJBReceiver<?>> getEJBReceivers(final String appName, final String moduleName, final String distinctName) {
         final Collection<EJBReceiver<?>> eligibleEJBReceivers = new HashSet<EJBReceiver<?>>();
-        for (final EJBReceiver ejbInvoker : ejbReceivers) {
-            if (ejbInvoker.acceptsModule(appName, moduleName, distinctName)) {
-                eligibleEJBReceivers.add(ejbInvoker);
+        synchronized (this.ejbReceiverAssociations) {
+            for (final EJBReceiver ejbReceiver : this.ejbReceiverAssociations.keySet()) {
+                if (ejbReceiver.verifyModule(appName, moduleName, distinctName)) {
+                    eligibleEJBReceivers.add(ejbReceiver);
+                }
             }
         }
         return eligibleEJBReceivers;
@@ -203,21 +209,45 @@ public final class EJBClientContext extends Attachable {
     protected EJBReceiver<?> requireEJBReceiver(final String appName, final String moduleName, final String distinctName)
             throws IllegalStateException {
 
-        EJBReceiver ejbReceiver;
+        EJBReceiver ejbReceiver = null;
         // This is an "optimization"
         // if there's just one EJBReceiver, then we don't check whether it can handle the module. We just
         // assume that it will be able to handle this module (if not, it will throw a NoSuchEJBException anyway)
         // This comes handy in cases where the EJBReceiver might not yet have received a module inventory messsage
         // from the server and hence wouldn't know whether it can handle a particular app, module, distinct name combination.
-        if (this.ejbReceivers.size() == 1) {
-            ejbReceiver = ejbReceivers.iterator().next();
-        } else {
-            ejbReceiver = this.getEJBReceiver(appName, moduleName, distinctName);
+        synchronized (this.ejbReceiverAssociations) {
+            if (this.ejbReceiverAssociations.size() == 1) {
+                ejbReceiver = this.ejbReceiverAssociations.keySet().iterator().next();
+            }
         }
+        if (ejbReceiver != null) {
+            return ejbReceiver;
+        }
+        // try and find a receiver which can handle this combination
+        ejbReceiver = this.getEJBReceiver(appName, moduleName, distinctName);
         if (ejbReceiver == null) {
             throw new IllegalStateException("No EJB receiver available for handling [appName:" + appName + ",modulename:"
                     + moduleName + ",distinctname:" + distinctName + "] combination");
         }
         return ejbReceiver;
+    }
+
+    /**
+     * Returns a {@link EJBReceiverContext} for the passed <code>receiver</code>. If the <code>receiver</code>
+     * hasn't been registered with this {@link EJBClientContext}, either through a call to {@link #registerConnection(org.jboss.remoting3.Connection)}
+     * or to {@link #requireEJBReceiver(String, String, String)}, then this method throws an {@link IllegalStateException}
+     *
+     * @param receiver The {@link EJBReceiver} for which the {@link EJBReceiverContext} is being requested
+     * @return The {@link EJBReceiverContext}
+     * @throws IllegalStateException If the passed <code>receiver</code> hasn't been registered with this {@link EJBClientContext}
+     */
+    protected EJBReceiverContext requireEJBReceiverContext(final EJBReceiver receiver) throws IllegalStateException {
+        synchronized (this.ejbReceiverAssociations) {
+            final EJBReceiverContext receiverContext = this.ejbReceiverAssociations.get(receiver);
+            if (receiverContext == null) {
+                throw new IllegalStateException(receiver + " has not been associated with " + this);
+            }
+            return receiverContext;
+        }
     }
 }
