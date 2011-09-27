@@ -39,10 +39,10 @@ final class RemoteXAResource implements XAResource {
         this.remotingReceiver = remotingReceiver;
     }
 
-    public void start(final Xid xid, final int i) throws XAException {
+    public void start(final Xid xid, final int flags) throws XAException {
     }
 
-    public void end(final Xid xid, final int i) throws XAException {
+    public void end(final Xid xid, final int flags) throws XAException {
     }
 
     public void rollback(final Xid xid) throws XAException {
@@ -52,13 +52,13 @@ final class RemoteXAResource implements XAResource {
         return 0;
     }
 
-    public void commit(final Xid xid, final boolean b) throws XAException {
+    public void commit(final Xid xid, final boolean onePhase) throws XAException {
     }
 
     public void forget(final Xid xid) throws XAException {
     }
 
-    public Xid[] recover(final int i) throws XAException {
+    public Xid[] recover(final int flags) throws XAException {
         return new Xid[0];
     }
 
@@ -66,7 +66,7 @@ final class RemoteXAResource implements XAResource {
         return 0;
     }
 
-    public boolean setTransactionTimeout(final int i) throws XAException {
+    public boolean setTransactionTimeout(final int seconds) throws XAException {
         return false;
     }
 

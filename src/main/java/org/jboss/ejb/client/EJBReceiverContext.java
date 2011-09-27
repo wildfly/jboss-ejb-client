@@ -22,15 +22,28 @@
 
 package org.jboss.ejb.client;
 
+import java.io.Closeable;
+
 /**
  * The context used by receivers to communicate state changes with the EJB client context.
  *
  * @author <a href="mailto:david.lloyd@redhat.com">David M. Lloyd</a>
  */
-public interface EJBReceiverContext {
+public final class EJBReceiverContext implements Closeable {
+    private final EJBClientContext clientContext;
+
+    EJBReceiverContext(final EJBClientContext clientContext) {
+        this.clientContext = clientContext;
+    }
+
+    EJBClientContext getClientContext() {
+        return clientContext;
+    }
 
     /**
      * Inform the EJB client context that this receiver is no longer available.
      */
-    void close();
+    public void close() {
+        // todo
+    }
 }
