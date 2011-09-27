@@ -61,12 +61,15 @@ public final class EJBClientContext extends Attachable {
 
     /**
      * Create a new client context and associate it with the current thread.
+     * @return Returns the newly created context
      */
-    public static void create() {
+    public static EJBClientContext create() {
         if (CURRENT.get() != null) {
             throw new IllegalStateException("The current EJB client context is already set");
         }
-        CURRENT.set(new EJBClientContext());
+        final EJBClientContext ejbClientContext = new EJBClientContext();
+        CURRENT.set(ejbClientContext);
+        return ejbClientContext;
     }
 
     /**
@@ -167,7 +170,11 @@ public final class EJBClientContext extends Attachable {
      * @param connection the connection to register
      */
     public void registerConnection(Connection connection) {
-        registerEJBReceiver(new RemotingConnectionEJBReceiver(connection));
+        final EJBReceiver ejbReceiver = new RemotingConnectionEJBReceiver(connection);
+        registerEJBReceiver(ejbReceiver);
+        // associate a context with the EJBReceiver
+        final EJBReceiverContext ejbReceiverContext = new EJBReceiverContext(this);
+        ejbReceiver.associate(ejbReceiverContext);
     }
 
     protected Collection<EJBReceiver<?>> getEJBReceivers(final String appName, final String moduleName, final String distinctName) {
