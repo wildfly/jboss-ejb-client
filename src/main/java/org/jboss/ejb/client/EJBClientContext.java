@@ -22,13 +22,15 @@
 
 package org.jboss.ejb.client;
 
+import org.jboss.ejb.client.remoting.RemotingConnectionEJBReceiver;
+import org.jboss.remoting3.Connection;
+
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.ServiceLoader;
-import org.jboss.ejb.client.remoting.RemotingConnectionEJBReceiver;
-import org.jboss.remoting3.Connection;
 
 /**
  * The public API for an EJB client context.  A thread may be associated with an EJB client context.  An EJB
@@ -49,6 +51,8 @@ public final class EJBClientContext extends Attachable {
         }
         GENERAL_INTERCEPTORS = interceptors.toArray(new GeneralEJBClientInterceptor[interceptors.size()]);
     }
+
+    private volatile EJBReceiver receiver;
 
     EJBClientContext() {
     }
@@ -143,6 +147,7 @@ public final class EJBClientContext extends Attachable {
     }
 
     public void registerEJBReceiver(final EJBReceiver<?> receiver) {
+        this.receiver = receiver;
     }
 
     /**
@@ -155,7 +160,7 @@ public final class EJBClientContext extends Attachable {
     }
 
     protected Collection<EJBReceiver<?>> getEJBReceivers(final String appName, final String moduleName, final String distinctName) {
-        return null;
+        return Collections.<EJBReceiver<?>>singleton(receiver);
     }
 
     /**

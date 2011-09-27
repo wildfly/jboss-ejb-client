@@ -22,6 +22,8 @@
 
 package org.jboss.ejb.client.remoting;
 
+import javax.transaction.xa.XAResource;
+
 /**
  * @author <a href="mailto:david.lloyd@redhat.com">David M. Lloyd</a>
  */
@@ -58,5 +60,9 @@ public final class RemotingAttachments {
 
     Iterable<IntKeyMap.Entry<byte[]>> entries() {
         return payloadAttachments;
+    }
+
+    public XAResource getXAResourceInstance() {
+        throw new RuntimeException("not impl");
     }
 }
