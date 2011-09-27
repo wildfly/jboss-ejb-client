@@ -29,7 +29,7 @@ import java.io.Closeable;
  *
  * @author <a href="mailto:david.lloyd@redhat.com">David M. Lloyd</a>
  */
-public final class EJBReceiverContext implements Closeable {
+public final class EJBReceiverContext extends Attachable implements Closeable {
     private final EJBClientContext clientContext;
 
     EJBReceiverContext(final EJBClientContext clientContext) {
@@ -45,5 +45,17 @@ public final class EJBReceiverContext implements Closeable {
      */
     public void close() {
         // todo
+    }
+
+    public <T> T getAttachment(final AttachmentKey<T> key) {
+        return super.getAttachment(key);
+    }
+
+    public <T> T putAttachment(final AttachmentKey<T> key, final T value) {
+        return super.putAttachment(key, value);
+    }
+
+    public <T> T removeAttachment(final AttachmentKey<T> key) {
+        return super.removeAttachment(key);
     }
 }
