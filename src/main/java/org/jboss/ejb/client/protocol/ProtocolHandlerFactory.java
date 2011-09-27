@@ -28,7 +28,7 @@ package org.jboss.ejb.client.protocol;
  */
 public class ProtocolHandlerFactory {
 
-    public static ProtocolHandler getProtocolHandler(byte protocolVersion, String marshallingStrategy) {
+    public static ClientProtocolHandler getProtocolHandler(byte protocolVersion, String marshallingStrategy) {
         switch (protocolVersion) {
             case 0x00 :
                 return new VersionZeroProtocolHandler(marshallingStrategy);

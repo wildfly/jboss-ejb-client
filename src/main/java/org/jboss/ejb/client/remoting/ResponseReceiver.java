@@ -24,7 +24,7 @@ package org.jboss.ejb.client.remoting;
 
 import org.jboss.ejb.client.ModuleID;
 import org.jboss.ejb.client.protocol.MessageType;
-import org.jboss.ejb.client.protocol.ProtocolHandler;
+import org.jboss.ejb.client.protocol.ClientProtocolHandler;
 import org.jboss.logging.Logger;
 import org.jboss.remoting3.Channel;
 import org.jboss.remoting3.MessageInputStream;
@@ -61,7 +61,7 @@ class ResponseReceiver implements Channel.Receiver {
 
         final DataInputStream inputStream = new DataInputStream(messageInputStream);
         try {
-            final ProtocolHandler protocolHandler = this.ejbReceiver.getProtocolHandler();
+            final ClientProtocolHandler protocolHandler = this.ejbReceiver.getProtocolHandler();
             final MessageType messageType = protocolHandler.getMessageType(inputStream);
             logger.info("Received message of type " + messageType);
             switch (messageType) {

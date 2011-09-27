@@ -24,10 +24,9 @@ package org.jboss.ejb.client.remoting;
 
 import org.jboss.ejb.client.protocol.Attachment;
 import org.jboss.ejb.client.protocol.MethodInvocationResponse;
-import org.jboss.ejb.client.protocol.ProtocolHandler;
+import org.jboss.ejb.client.protocol.ClientProtocolHandler;
 import org.jboss.ejb.client.protocol.ProtocolHandlerFactory;
 import org.jboss.remoting3.Channel;
-import org.jboss.remoting3.CloseHandler;
 import org.jboss.remoting3.Connection;
 import org.jboss.remoting3.Endpoint;
 import org.xnio.FutureResult;
@@ -56,7 +55,7 @@ class ChannelCommunicator  {
     private volatile Connection connection;
     private final Endpoint endpoint;
     private final URI uri;
-    private final ProtocolHandler protocolHandler;
+    private final ClientProtocolHandler protocolHandler;
     private final Map<Short, FutureResult<MethodInvocationResponse>> waitingInvocations = new ConcurrentHashMap<Short, FutureResult<MethodInvocationResponse>>();
 
 

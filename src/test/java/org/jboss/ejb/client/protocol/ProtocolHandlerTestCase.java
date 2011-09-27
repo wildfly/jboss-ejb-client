@@ -36,7 +36,7 @@ import java.lang.reflect.Method;
  */
 public class ProtocolHandlerTestCase {
 
-    private ProtocolHandler protocolHandler;
+    private ClientProtocolHandler protocolHandler;
 
     @Before
     public void beforeTest() {

@@ -30,18 +30,19 @@ import java.io.IOException;
 import java.lang.reflect.Method;
 
 /**
- * A {@link ProtocolHandler} is responsible for managing the EJB remote protocol format. The {@link ProtocolHandler}
+ * A {@link ClientProtocolHandler} is responsible for writing out the underlying raw messages that need to be sent
+ * to the server and for reading the incoming messages from the server. The {@link ClientProtocolHandler}
  * with the help of {@link org.jboss.ejb.client.protocol.marshalling.Marshaller} and {@link org.jboss.ejb.client.protocol.marshalling.UnMarshaller}
- * is the sole authority while dealing with read/write opeartions into the data stream(s) which will be used for communication
- * between the EJB server and the client
+ * is the sole authority (on the client side) while dealing with read/write opeartions into the data stream(s) which will be used for communication
+ * between the client and the server
  * <p/>
  * User: Jaikiran Pai
  */
-public interface ProtocolHandler {
+public interface ClientProtocolHandler {
 
     /**
      * Writes out a version message packet to the passed {@link DataOutput output}. The version message written
-     * out will include the version number of the protocol which this {@link ProtocolHandler} can handle and also
+     * out will include the version number of the protocol which this {@link ClientProtocolHandler} can handle and also
      * the passed <code>marshallerType</code>. This version message is supposed to be sent from the client to the
      * server to establish a contract for the subsequent communication between the server and the client
      *

@@ -37,7 +37,7 @@ import java.util.Map;
 /**
  * User: jpai
  */
-public class VersionZeroProtocolHandler implements ProtocolHandler {
+public class VersionZeroProtocolHandler implements ClientProtocolHandler {
 
     private static final Logger logger = Logger.getLogger(VersionZeroProtocolHandler.class);
 

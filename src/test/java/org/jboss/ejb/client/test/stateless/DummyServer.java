@@ -23,7 +23,7 @@ package org.jboss.ejb.client.test.stateless;
 
 import org.jboss.ejb.client.protocol.MessageType;
 import org.jboss.ejb.client.protocol.PackedInteger;
-import org.jboss.ejb.client.protocol.ProtocolHandler;
+import org.jboss.ejb.client.protocol.ClientProtocolHandler;
 import org.jboss.ejb.client.protocol.VersionZeroProtocolHandler;
 import org.jboss.logging.Logger;
 import org.jboss.marshalling.Marshalling;
@@ -106,7 +106,7 @@ class DummyServer {
 
         private String marshallingType;
 
-        private ProtocolHandler protocolHandler;
+        private ClientProtocolHandler protocolHandler;
 
         Version0Receiver(final String marshallingType) {
             this.marshallingType = marshallingType;

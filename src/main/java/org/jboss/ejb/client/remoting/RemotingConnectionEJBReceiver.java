@@ -26,7 +26,7 @@ import org.jboss.ejb.client.EJBClientInvocationContext;
 import org.jboss.ejb.client.EJBReceiver;
 import org.jboss.ejb.client.EJBReceiverContext;
 import org.jboss.ejb.client.protocol.PackedInteger;
-import org.jboss.ejb.client.protocol.ProtocolHandler;
+import org.jboss.ejb.client.protocol.ClientProtocolHandler;
 import org.jboss.ejb.client.protocol.ProtocolHandlerFactory;
 import org.jboss.logging.Logger;
 import org.jboss.marshalling.Marshalling;
@@ -53,7 +53,7 @@ public final class RemotingConnectionEJBReceiver extends EJBReceiver<RemotingAtt
 
     private final Connection connection;
 
-    private final ProtocolHandler protocolHandler;
+    private final ClientProtocolHandler protocolHandler;
 
     // TODO: The version and the marshalling strategy shouldn't be hardcoded here
     private final byte clientProtocolVersion = 0x00;
@@ -109,7 +109,7 @@ public final class RemotingConnectionEJBReceiver extends EJBReceiver<RemotingAtt
         return new RemotingAttachments();
     }
 
-    ProtocolHandler getProtocolHandler() {
+    ClientProtocolHandler getProtocolHandler() {
         return this.protocolHandler;
     }
 
