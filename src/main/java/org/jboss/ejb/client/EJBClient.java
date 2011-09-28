@@ -63,7 +63,8 @@ public final class EJBClient {
         try {
             final byte[] sessionId = ejbReceiver.openSession(ejbClientContext.requireEJBReceiverContext(ejbReceiver),
                     ejbInvocationHandler.getAppName(), ejbInvocationHandler.getModuleName(), ejbInvocationHandler.getDistinctName(), ejbInvocationHandler.getBeanName());
-            ejbInvocationHandler.putAttachment(RemotingSessionInterceptor.SESSION_KEY, sessionId);
+            // TODO: associate the session ID generically
+//            ejbInvocationHandler.putAttachment(RemotingSessionInterceptor.SESSION_KEY, sessionId);
         } catch (Exception e) {
             // TODO: Handle this correctly
             logger.error("Error while generating session id for proxy " + proxy, e);

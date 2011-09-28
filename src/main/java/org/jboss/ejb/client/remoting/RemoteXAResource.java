@@ -20,10 +20,9 @@
  * 02110-1301 USA, or see the FSF site: http://www.fsf.org.
  */
 
-package org.jboss.ejb.client.txn;
+package org.jboss.ejb.client.remoting;
 
 import org.jboss.ejb.client.EJBReceiver;
-import org.jboss.ejb.client.remoting.RemotingAttachments;
 
 import javax.transaction.xa.XAException;
 import javax.transaction.xa.XAResource;

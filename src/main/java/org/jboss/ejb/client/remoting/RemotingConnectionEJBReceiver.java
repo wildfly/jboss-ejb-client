@@ -25,7 +25,6 @@ package org.jboss.ejb.client.remoting;
 import org.jboss.ejb.client.EJBClientInvocationContext;
 import org.jboss.ejb.client.EJBReceiver;
 import org.jboss.ejb.client.EJBReceiverContext;
-import org.jboss.ejb.client.proxy.IoFutureHelper;
 import org.jboss.logging.Logger;
 import org.jboss.remoting3.Channel;
 import org.jboss.remoting3.CloseHandler;

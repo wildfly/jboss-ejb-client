@@ -102,7 +102,8 @@ public final class SessionEJBHandle<T extends EJBObject> extends EJBHandle<T> {
     /** {@inheritDoc} */
     protected EJBInvocationHandler getInvocationHandler() {
         final EJBInvocationHandler invocationHandler = super.getInvocationHandler();
-        invocationHandler.putAttachment(RemotingSessionInterceptor.SESSION_KEY, sessionId);
+        // TODO set session ID in a transport-agnostic way
+        // invocationHandler.putAttachment(RemotingSessionInterceptor.SESSION_KEY, sessionId);
         return invocationHandler;
     }
 

@@ -42,11 +42,10 @@ import org.xnio.Options;
 import org.xnio.Xnio;
 
 import java.net.URI;
-import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
-import static org.jboss.ejb.client.proxy.IoFutureHelper.get;
+import static org.jboss.ejb.client.remoting.IoFutureHelper.get;
 
 /**
  * User: jpai

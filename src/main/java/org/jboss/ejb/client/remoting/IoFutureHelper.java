@@ -19,7 +19,8 @@
  * Software Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
  * 02110-1301 USA, or see the FSF site: http://www.fsf.org.
  */
-package org.jboss.ejb.client.proxy;
+
+package org.jboss.ejb.client.remoting;
 
 import org.xnio.IoFuture;
 

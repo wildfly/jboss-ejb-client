@@ -20,35 +20,45 @@
  * 02110-1301 USA, or see the FSF site: http://www.fsf.org.
  */
 
-package org.jboss.ejb.client;
+package org.jboss.ejb.client.remoting;
 
+import org.jboss.ejb.client.AttachmentKey;
+import org.jboss.ejb.client.EJBClientInvocationContext;
+import org.jboss.ejb.client.EJBClientProxyContext;
 import org.jboss.ejb.client.remoting.RemotingAttachments;
+import org.jboss.ejb.client.remoting.RemotingEJBClientInterceptor;
+
+import javax.transaction.Transaction;
+import javax.transaction.TransactionManager;
+import javax.transaction.xa.XAResource;
 
 /**
  * @author <a href="mailto:david.lloyd@redhat.com">David M. Lloyd</a>
  */
-final class RemotingSessionInterceptor implements EJBClientInterceptor<RemotingAttachments> {
+public final class RemotingTransactionInterceptor implements RemotingEJBClientInterceptor {
 
-    public static final AttachmentKey<byte[]> SESSION_KEY = new AttachmentKey<byte[]>();
+    private final TransactionManager transactionManager;
+
+    public RemotingTransactionInterceptor(final TransactionManager transactionManager) {
+        this.transactionManager = transactionManager;
+    }
 
     public void handleInvocation(final EJBClientInvocationContext<? extends RemotingAttachments> context) throws Throwable {
-        context.getReceiverSpecific().putPayloadAttachment(0x0000, context.getProxyAttachment(SESSION_KEY));
+        final Transaction transaction = transactionManager.getTransaction();
+        XAResource xaResource = context.getReceiverSpecific().getXAResourceInstance();
+        transaction.enlistResource(xaResource);
     }
 
     public Object handleInvocationResult(final EJBClientInvocationContext<? extends RemotingAttachments> context) throws Throwable {
-        final byte[] attachment = context.getReceiverSpecific().getPayloadAttachment(0x0000);
-        if (attachment != null && attachment.length > 0 && attachment[0] != 0) {
-            // session was removed
-            context.removeProxyAttachment(SESSION_KEY);
-        }
-        return context.getResult();
+        return null;
     }
 
     public void prepareSerialization(final EJBClientProxyContext<? extends RemotingAttachments> context) {
-        context.getReceiverSpecific().putPayloadAttachment(0x0000, context.getProxyAttachment(SESSION_KEY));
     }
 
-    public void postDeserialize(final EJBClientProxyContext<? extends RemotingAttachments> context) {
-        context.putProxyAttachment(SESSION_KEY, context.getReceiverSpecific().getPayloadAttachment(0x0000));
+    @Override
+    public void postDeserialize(final EJBClientProxyContext<? extends RemotingAttachments> ejbClientProxyContext) {
+
     }
+
 }
