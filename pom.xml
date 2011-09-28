@@ -35,7 +35,7 @@
 
     <groupId>org.jboss</groupId>
     <artifactId>jboss-ejb-client</artifactId>
-    <version>1.0.0-SNAPSHOT</version>
+    <version>1.0.0.Beta1</version>
 
     <name>JBoss EJB client</name>
     <description>Client library for EJB applications working against JBoss AS</description>
