@@ -40,6 +40,7 @@ import java.util.ServiceLoader;
  *
  * @author <a href="mailto:david.lloyd@redhat.com">David M. Lloyd</a>
  */
+@SuppressWarnings({ "UnnecessaryThis" })
 public final class EJBClientContext extends Attachable {
 
     private static final InheritableThreadLocal<EJBClientContext> CURRENT = new InheritableThreadLocal<EJBClientContext>();
@@ -54,7 +55,7 @@ public final class EJBClientContext extends Attachable {
         GENERAL_INTERCEPTORS = interceptors.toArray(new GeneralEJBClientInterceptor[interceptors.size()]);
     }
 
-    private final Map<EJBReceiver, EJBReceiverContext> ejbReceiverAssociations = new IdentityHashMap<EJBReceiver, EJBReceiverContext>();
+    private final Map<EJBReceiver<?>, EJBReceiverContext> ejbReceiverAssociations = new IdentityHashMap<EJBReceiver<?>, EJBReceiverContext>();
 
     EJBClientContext() {
     }
@@ -151,6 +152,11 @@ public final class EJBClientContext extends Attachable {
         return clientContext;
     }
 
+    /**
+     * Register an EJB receiver with this client context.
+     *
+     * @param receiver the receiver to register
+     */
     public void registerEJBReceiver(final EJBReceiver<?> receiver) {
         EJBReceiverContext ejbReceiverContext = null;
         synchronized (this.ejbReceiverAssociations) {
@@ -170,17 +176,13 @@ public final class EJBClientContext extends Attachable {
      * @param connection the connection to register
      */
     public void registerConnection(Connection connection) {
-        final EJBReceiver ejbReceiver = new RemotingConnectionEJBReceiver(connection);
-        registerEJBReceiver(ejbReceiver);
-        // associate a context with the EJBReceiver
-        final EJBReceiverContext ejbReceiverContext = new EJBReceiverContext(this);
-        ejbReceiver.associate(ejbReceiverContext);
+        registerEJBReceiver(new RemotingConnectionEJBReceiver(connection));
     }
 
-    protected Collection<EJBReceiver<?>> getEJBReceivers(final String appName, final String moduleName, final String distinctName) {
+    Collection<EJBReceiver<?>> getEJBReceivers(final String appName, final String moduleName, final String distinctName) {
         final Collection<EJBReceiver<?>> eligibleEJBReceivers = new HashSet<EJBReceiver<?>>();
         synchronized (this.ejbReceiverAssociations) {
-            for (final EJBReceiver ejbReceiver : this.ejbReceiverAssociations.keySet()) {
+            for (final EJBReceiver<?> ejbReceiver : this.ejbReceiverAssociations.keySet()) {
                 if (ejbReceiver.acceptsModule(appName, moduleName, distinctName)) {
                     eligibleEJBReceivers.add(ejbReceiver);
                 }
@@ -197,7 +199,7 @@ public final class EJBClientContext extends Attachable {
      * @param distinctName the distinct name, or {@code null} for none
      * @return the first EJB receiver to match, or {@code null} if none match
      */
-    protected EJBReceiver<?> getEJBReceiver(final String appName, final String moduleName, final String distinctName) {
+    EJBReceiver<?> getEJBReceiver(final String appName, final String moduleName, final String distinctName) {
         final Iterator<EJBReceiver<?>> iterator = getEJBReceivers(appName, moduleName, distinctName).iterator();
         return iterator.hasNext() ? iterator.next() : null;
     }
@@ -213,10 +215,10 @@ public final class EJBClientContext extends Attachable {
      * @throws IllegalArgumentException If there's no {@link EJBReceiver} which can handle a EJB for the passed combination
      *                                  of app, module and distinct name.
      */
-    protected EJBReceiver<?> requireEJBReceiver(final String appName, final String moduleName, final String distinctName)
+    EJBReceiver<?> requireEJBReceiver(final String appName, final String moduleName, final String distinctName)
             throws IllegalStateException {
 
-        EJBReceiver ejbReceiver = null;
+        EJBReceiver<?> ejbReceiver = null;
         // This is an "optimization"
         // if there's just one EJBReceiver, then we don't check whether it can handle the module. We just
         // assume that it will be able to handle this module (if not, it will throw a NoSuchEJBException anyway)
@@ -248,7 +250,7 @@ public final class EJBClientContext extends Attachable {
      * @return The {@link EJBReceiverContext}
      * @throws IllegalStateException If the passed <code>receiver</code> hasn't been registered with this {@link EJBClientContext}
      */
-    protected EJBReceiverContext requireEJBReceiverContext(final EJBReceiver receiver) throws IllegalStateException {
+    EJBReceiverContext requireEJBReceiverContext(final EJBReceiver<?> receiver) throws IllegalStateException {
         synchronized (this.ejbReceiverAssociations) {
             final EJBReceiverContext receiverContext = this.ejbReceiverAssociations.get(receiver);
             if (receiverContext == null) {
