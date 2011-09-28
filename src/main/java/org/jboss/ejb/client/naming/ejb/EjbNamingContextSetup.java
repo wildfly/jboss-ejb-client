@@ -24,7 +24,7 @@ package org.jboss.ejb.client.naming.ejb;
 import javax.naming.Context;
 
 /**
- * static class that sets up the ejb: JNDI namespace
+ * Static class that sets up the ejb: JNDI namespace.
  *
  * @author Stuart Douglas
  */
@@ -34,7 +34,10 @@ public class EjbNamingContextSetup {
 
     private static final String PACKAGE = "org.jboss.ejb.client.naming";
 
-    public synchronized static void setupEjbNamespace() {
+    /**
+     * Set up the EJB namespace by editing the {@code java.naming.factory.url.pkgs} system property.
+     */
+    public static synchronized void setupEjbNamespace() {
         if (setup) {
             return;
         }
