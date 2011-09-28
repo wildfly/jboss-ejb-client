@@ -97,7 +97,7 @@ class EjbJndiNameParser {
         if (remaining.charAt(pos) == '/') {
             return parse(applicationName, moduleName, part, remaining.substring(pos + 1));
         }
-        return parse(applicationName, moduleName, null, part, remaining.substring(pos + 1));
+        return parse(applicationName, moduleName, "", part, remaining.substring(pos + 1));
     }
 
     /**
