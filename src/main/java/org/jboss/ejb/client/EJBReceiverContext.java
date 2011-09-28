@@ -46,16 +46,4 @@ public final class EJBReceiverContext extends Attachable implements Closeable {
     public void close() {
         // todo
     }
-
-    public <T> T getAttachment(final AttachmentKey<T> key) {
-        return super.getAttachment(key);
-    }
-
-    public <T> T putAttachment(final AttachmentKey<T> key, final T value) {
-        return super.putAttachment(key, value);
-    }
-
-    public <T> T removeAttachment(final AttachmentKey<T> key) {
-        return super.removeAttachment(key);
-    }
 }

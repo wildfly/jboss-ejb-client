@@ -22,46 +22,170 @@
 
 package org.jboss.ejb.client;
 
-import java.util.Collections;
 import java.util.IdentityHashMap;
 import java.util.Map;
 
 /**
+ * An object which may have attachments.
+ *
  * @author <a href="mailto:david.lloyd@redhat.com">David M. Lloyd</a>
  */
-abstract class Attachable {
+public abstract class Attachable {
     private final Map<Object, Object> attachments;
 
-    protected Attachable(Map<Object, Object> attachments) {
-        // for now the attachments map has to be a synchronized identity hash map
-        assert attachments.getClass() == Collections.synchronizedMap(Collections.emptyMap()).getClass();
+    private Attachable(Map<Object, Object> attachments) {
         this.attachments = attachments;
     }
 
-    protected Attachable() {
-        this(Collections.synchronizedMap(new IdentityHashMap<Object, Object>()));
+    Attachable() {
+        this(new IdentityHashMap<Object, Object>());
     }
 
-    protected Attachable(final Attachable attachable) {
+    /**
+     * Construct a new instance, sharing attachments with another instance.
+     *
+     * @param attachable the attachments to share
+     */
+    Attachable(final Attachable attachable) {
         this(attachable.attachments);
     }
 
+    /**
+     * Get an attachment from this object.
+     *
+     * @param key the attachment key
+     * @param <T> the attachment type
+     * @return the attachment value
+     */
     @SuppressWarnings("unchecked")
-    <T> T getAttachment(AttachmentKey<T> key) {
-        return (T) attachments.get(key);
+    public <T> T getAttachment(AttachmentKey<T> key) {
+        if (key == null) return null;
+        final Map<Object, Object> attachments = this.attachments;
+        synchronized (attachments) {
+            return (T) attachments.get(key);
+        }
     }
 
+    /**
+     * Set an attachment on this object.
+     *
+     * @param key the attachment key
+     * @param value the attachment's new value (may not be {@code null})
+     * @param <T> the attachment type
+     * @return the previous attachment value, or {@code null} if there was none
+     */
     @SuppressWarnings("unchecked")
-    <T> T putAttachment(AttachmentKey<T> key, T value) {
+    public <T> T putAttachment(AttachmentKey<T> key, T value) {
+        if (key == null) {
+            throw new IllegalArgumentException("key is null");
+        }
         if (value == null) {
             throw new IllegalArgumentException("value is null");
         }
-        return (T) attachments.put(key, value);
+        final Map<Object, Object> attachments = this.attachments;
+        synchronized (attachments) {
+            return (T) attachments.put(key, value);
+        }
     }
 
+    /**
+     * Set an attachment on this object if an existing attachment does not already exist.
+     *
+     * @param key the attachment key
+     * @param value the attachment's new value (may not be {@code null})
+     * @param <T> the attachment type
+     * @return the previous attachment value, or {@code null} if there was none
+     */
     @SuppressWarnings("unchecked")
-    <T> T removeAttachment(AttachmentKey<T> key) {
-        return (T) attachments.remove(key);
+    public <T> T putAttachmentIfAbsent(AttachmentKey<T> key, T value) {
+        if (key == null) {
+            throw new IllegalArgumentException("key is null");
+        }
+        if (value == null) {
+            throw new IllegalArgumentException("value is null");
+        }
+        final Map<Object, Object> attachments = this.attachments;
+        synchronized (attachments) {
+            return (T) (attachments.containsKey(key) ? attachments.get(key) : attachments.put(key, value));
+        }
+    }
+
+    /**
+     * Replace an attachment on this object if an existing attachment exists.
+     *
+     * @param key the attachment key
+     * @param value the attachment's new value (may not be {@code null})
+     * @param <T> the attachment type
+     * @return the previous attachment value, or {@code null} if there was none
+     */
+    @SuppressWarnings("unchecked")
+    public <T> T replaceAttachment(AttachmentKey<T> key, T value) {
+        if (key == null) return null;
+        if (value == null) {
+            throw new IllegalArgumentException("value is null");
+        }
+        final Map<Object, Object> attachments = this.attachments;
+        synchronized (attachments) {
+            return (T) (attachments.containsKey(key) ? attachments.put(key, value) : null);
+        }
+    }
+
+    /**
+     * Replace an attachment on this object if an existing attachment exists with a certain value.
+     *
+     * @param key the attachment key
+     * @param oldValue the attachment's expected value (may not be {@code null})
+     * @param newValue the attachment's new value (may not be {@code null})
+     * @param <T> the attachment type
+     * @return {@code true} if the old value matched and the value was replaced; {@code false} otherwise
+     */
+    @SuppressWarnings("unchecked")
+    public <T> boolean replaceAttachment(AttachmentKey<T> key, T oldValue, T newValue) {
+        if (key == null) return false;
+        if (oldValue == null) return false;
+        if (newValue == null) {
+            throw new IllegalArgumentException("newValue is null");
+        }
+        final Map<Object, Object> attachments = this.attachments;
+        synchronized (attachments) {
+            Object lhs = attachments.get(key);
+            return attachments.containsKey(key) && oldValue.equals(lhs) && attachments.put(key, newValue) != null;
+        }
+    }
+
+    /**
+     * Remove and return an attachment value.
+     *
+     * @param key the attachment key
+     * @param <T> the attachment type
+     * @return the previous value of the attachment, or {@code null} if there was none
+     */
+    @SuppressWarnings("unchecked")
+    public <T> T removeAttachment(AttachmentKey<T> key) {
+        if (key == null) return null;
+        final Map<Object, Object> attachments = this.attachments;
+        synchronized (attachments) {
+            return (T) attachments.remove(key);
+        }
+    }
+
+    /**
+     * Remove an attachment if it has a certain value.
+     *
+     * @param key the attachment key
+     * @param value the attachment's expected value (may not be {@code null})
+     * @param <T> the attachment type
+     * @return {@code true} if the value was removed, {@code false} if there was no attachment
+     */
+    @SuppressWarnings("unchecked")
+    public <T> boolean removeAttachment(AttachmentKey<T> key, T value) {
+        if (key == null) return false;
+        if (value == null) return false;
+        final Map<Object, Object> attachments = this.attachments;
+        synchronized (attachments) {
+            Object lhs = attachments.get(key);
+            return attachments.containsKey(key) && value.equals(lhs) && attachments.remove(key) != null;
+        }
     }
 
     void clearAttachments() {

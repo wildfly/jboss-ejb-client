@@ -109,40 +109,6 @@ public final class EJBClientInvocationContext<A> extends Attachable {
     }
 
     /**
-     * Get a value attached to this context.
-     *
-     * @param key the attachment key
-     * @param <T> the value type
-     * @return the value, or {@code null} if there is none
-     */
-    public <T> T getAttachment(AttachmentKey<T> key) {
-        return super.getAttachment(key);
-    }
-
-    /**
-     * Set a value to be attached to this context.
-     *
-     * @param key the attachment key
-     * @param value the new value
-     * @param <T> the value type
-     * @return the previous value or {@code null} for none
-     */
-    public <T> T putAttachment(final AttachmentKey<T> key, final T value) {
-        return super.putAttachment(key, value);
-    }
-
-    /**
-     * Remove a value attached to this context.
-     *
-     * @param key the attachment key
-     * @param <T> the value type
-     * @return the old value, or {@code null} if there was none
-     */
-    public <T> T removeAttachment(final AttachmentKey<T> key) {
-        return super.removeAttachment(key);
-    }
-
-    /**
      * Get the invocation application name.
      *
      * @return the app name
