@@ -148,8 +148,19 @@ public final class RemotingConnectionEJBReceiver extends EJBReceiver<RemotingAtt
         channel.receiveMessage(new ResponseReceiver(this, receiverContext));
     }
 
+    void onModuleAvailable(final String appName, final String moduleName, final String distinctName) {
+        this.registerModule(appName, moduleName, distinctName);
+    }
+
     ProtocolMessageHandler getProtocolMessageHandler(final EJBReceiverContext ejbReceiverContext, final byte header) {
-        return null;
+        // TODO: We need to move this out of the EJBReceiver to allow different versions of protocol
+        // to be used
+        switch (header) {
+            case 0x08:
+                return new ModuleAvailabilityMessageHandler(this, ejbReceiverContext);
+            default:
+                return null;
+        }
     }
 
 
