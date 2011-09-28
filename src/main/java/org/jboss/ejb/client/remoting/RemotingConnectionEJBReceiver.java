@@ -25,8 +25,8 @@ package org.jboss.ejb.client.remoting;
 import org.jboss.ejb.client.EJBClientInvocationContext;
 import org.jboss.ejb.client.EJBReceiver;
 import org.jboss.ejb.client.EJBReceiverContext;
+import org.jboss.ejb.client.protocol.ClientProtocolHandler;
 import org.jboss.ejb.client.protocol.PackedInteger;
-import org.jboss.ejb.client.protocol.ProtocolHandler;
 import org.jboss.ejb.client.protocol.ProtocolHandlerFactory;
 import org.jboss.ejb.client.proxy.IoFutureHelper;
 import org.jboss.logging.Logger;
@@ -57,7 +57,7 @@ public final class RemotingConnectionEJBReceiver extends EJBReceiver<RemotingAtt
 
     private final Connection connection;
 
-    private final ProtocolHandler protocolHandler;
+    private final ClientProtocolHandler protocolHandler;
 
     private final Map<EJBReceiverContext, Channel> perAssociationChannels = new IdentityHashMap<EJBReceiverContext, Channel>();
 
@@ -121,11 +121,11 @@ public final class RemotingConnectionEJBReceiver extends EJBReceiver<RemotingAtt
         return new RemotingAttachments();
     }
 
-    ProtocolHandler getProtocolHandler() {
+    ClientProtocolHandler getProtocolHandler() {
         return this.protocolHandler;
     }
 
-    
+
     private class VersionReceiver implements Channel.Receiver {
 
         private final EJBReceiverContext receiverContext;

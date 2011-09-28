@@ -41,8 +41,6 @@ public class VersionZeroProtocolHandler implements ClientProtocolHandler {
 
     private static final Logger logger = Logger.getLogger(VersionZeroProtocolHandler.class);
 
-    private static final Logger logger = Logger.getLogger(VersionZeroProtocolHandler.class);
-
     private final byte VERSION = 0x00;
 
     private static final char METHOD_PARAM_TYPE_SEPARATOR = ',';
