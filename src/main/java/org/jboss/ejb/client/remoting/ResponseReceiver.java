@@ -22,12 +22,11 @@
 
 package org.jboss.ejb.client.remoting;
 
-import org.jboss.ejb.client.ModuleID;
-import org.jboss.ejb.client.protocol.ClientProtocolHandler;
-import org.jboss.ejb.client.protocol.MessageType;
+import org.jboss.ejb.client.EJBReceiverContext;
 import org.jboss.logging.Logger;
 import org.jboss.remoting3.Channel;
 import org.jboss.remoting3.MessageInputStream;
+import org.xnio.IoUtils;
 
 import java.io.DataInputStream;
 import java.io.IOException;
@@ -42,8 +41,11 @@ class ResponseReceiver implements Channel.Receiver {
 
     private final RemotingConnectionEJBReceiver ejbReceiver;
 
-    public ResponseReceiver(final RemotingConnectionEJBReceiver ejbReceiver) {
+    private final EJBReceiverContext ejbReceiverContext;
+
+    ResponseReceiver(final RemotingConnectionEJBReceiver ejbReceiver, final EJBReceiverContext ejbReceiverContext) {
         this.ejbReceiver = ejbReceiver;
+        this.ejbReceiverContext = ejbReceiverContext;
     }
 
     @Override
@@ -60,26 +62,31 @@ class ResponseReceiver implements Channel.Receiver {
     public void handleMessage(Channel channel, MessageInputStream messageInputStream) {
 
         final DataInputStream inputStream = new DataInputStream(messageInputStream);
+        ProtocolMessageHandler messageHandler = null;
         try {
-            final ClientProtocolHandler protocolHandler = this.ejbReceiver.getProtocolHandler();
-            final MessageType messageType = protocolHandler.getMessageType(inputStream);
-            logger.info("Received message of type " + messageType);
-            switch (messageType) {
-                case MODULE_AVAILABLE:
-                    final ModuleID[] availableModules = protocolHandler.readModuleAvailability(inputStream);
-                    for (int i = 0; i < availableModules.length; i++) {
-                        final ModuleID moduleID = availableModules[i];
-                        this.ejbReceiver.registerModule(moduleID.getAppName(), moduleID.getModuleName(), moduleID.getDistinctName());
-                    }
-                    break;
-                default:
-                    logger.warn("Unsupported message type " + messageType);
+            final byte header = inputStream.readByte();
+            // TODO: Log at a lower level (once we have a bit of stability in the impl)
+            logger.info("Received message with header 0x" + Integer.toHexString(header));
+            messageHandler = this.ejbReceiver.getProtocolMessageHandler(this.ejbReceiverContext, header);
+            if (messageHandler == null) {
+                logger.warn("Unsupported message received with header 0x" + Integer.toHexString(header));
+                return;
             }
+            // let the message handler read the message
+            messageHandler.readMessage(inputStream);
+
         } catch (IOException e) {
             throw new RuntimeException(e);
         } finally {
             // receive next message
             channel.receiveMessage(this);
+            IoUtils.safeClose(inputStream);
+        }
+
+        // Let the message handler process the message
+        if (messageHandler != null) {
+            messageHandler.processMessage();
         }
     }
+
 }

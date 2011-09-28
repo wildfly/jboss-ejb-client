@@ -21,8 +21,7 @@
  */
 package org.jboss.ejb.client.test.common;
 
-import org.jboss.ejb.client.ModuleID;
-import org.jboss.ejb.client.protocol.PackedInteger;
+import org.jboss.ejb.client.remoting.PackedInteger;
 import org.jboss.logging.Logger;
 import org.jboss.marshalling.Marshalling;
 import org.jboss.marshalling.SimpleDataInput;
@@ -45,6 +44,7 @@ import org.xnio.Xnio;
 import org.xnio.channels.AcceptingChannel;
 import org.xnio.channels.ConnectedStreamChannel;
 
+import java.io.DataOutput;
 import java.io.DataOutputStream;
 import java.io.IOException;
 import java.net.InetAddress;
@@ -55,6 +55,7 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CopyOnWriteArraySet;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -78,9 +79,9 @@ public class DummyServer {
 
 
     private AcceptingChannel<? extends ConnectedStreamChannel> server;
-    private Map<ModuleID, Map<String, Object>> registeredEJBs = new ConcurrentHashMap<ModuleID, Map<String, Object>>();
+    private Map<EJBModuleIdentifier, Map<String, Object>> registeredEJBs = new ConcurrentHashMap<EJBModuleIdentifier, Map<String, Object>>();
 
-    private final Map<Channel, DummyVersionZeroServerProtocolHandler> openChannels = new ConcurrentHashMap<Channel, DummyVersionZeroServerProtocolHandler>();
+    private final Collection<Channel> openChannels = new CopyOnWriteArraySet<Channel>();
 
     public DummyServer(final String host, final int port) {
         this.host = host;
@@ -150,13 +151,9 @@ public class DummyServer {
     }
 
 
-
     class Version0Receiver implements Channel.Receiver {
 
-        private final DummyVersionZeroServerProtocolHandler protocolHandler;
-
         Version0Receiver(final String marshallingType) {
-            this.protocolHandler = new DummyVersionZeroServerProtocolHandler(marshallingType);
         }
 
         @Override
@@ -187,7 +184,7 @@ public class DummyServer {
             sb.append(distinctName).append("/");
         }
         sb.append(beanName);
-        final ModuleID moduleID = new ModuleID(appName, moduleName, distinctName);
+        final EJBModuleIdentifier moduleID = new EJBModuleIdentifier(appName, moduleName, distinctName);
         Map<String, Object> ejbs = this.registeredEJBs.get(moduleID);
         if (ejbs == null) {
             ejbs = new HashMap<String, Object>();
@@ -195,31 +192,63 @@ public class DummyServer {
         }
         ejbs.put(beanName, instance);
         try {
-            this.sendNewModuleAvailabilityToClients(new ModuleID[]{moduleID});
+            this.sendNewModuleAvailabilityToClients(new EJBModuleIdentifier[]{moduleID});
         } catch (IOException e) {
             logger.warn("Could not send EJB module availability message to clients, for module " + moduleID, e);
         }
     }
 
-    private void sendNewModuleAvailabilityToClients(final ModuleID[] newModules) throws IOException {
+    private void sendNewModuleAvailabilityToClients(final EJBModuleIdentifier[] newModules) throws IOException {
         if (newModules == null) {
             return;
         }
         if (this.openChannels.isEmpty()) {
             logger.debug("No open channels to send EJB module availability");
         }
-        for (Map.Entry<Channel, DummyVersionZeroServerProtocolHandler> entry : this.openChannels.entrySet()) {
-            final Channel channel = entry.getKey();
-            final DummyVersionZeroServerProtocolHandler protocolHandler = entry.getValue();
+        for (final Channel channel : this.openChannels) {
             final DataOutputStream dataOutputStream = new DataOutputStream(channel.writeMessage());
             try {
-                protocolHandler.writeModuleAvailability(dataOutputStream, newModules);
+                this.writeModuleAvailability(dataOutputStream, newModules);
             } catch (IOException e) {
                 logger.warn("Could not send module availability message to client", e);
             } finally {
                 dataOutputStream.close();
             }
 
+        }
+    }
+
+    private void writeModuleAvailability(final DataOutput output, final EJBModuleIdentifier[] ejbModuleIdentifiers) throws IOException {
+        if (output == null) {
+            throw new IllegalArgumentException("Cannot write to null output");
+        }
+        if (ejbModuleIdentifiers == null) {
+            throw new IllegalArgumentException("EJB module identifiers cannot be null");
+        }
+        // write the header
+        output.write(0x08);
+        // write the count
+        PackedInteger.writePackedInteger(output, ejbModuleIdentifiers.length);
+        // write the app/module names
+        for (int i = 0; i < ejbModuleIdentifiers.length; i++) {
+            // write the app name
+            final String appName = ejbModuleIdentifiers[i].getAppName();
+            if (appName == null) {
+                // write out a empty string
+                output.writeUTF("");
+            } else {
+                output.writeUTF(appName);
+            }
+            // write the module name
+            output.writeUTF(ejbModuleIdentifiers[i].getModuleName());
+            // write the distinct name
+            final String distinctName = ejbModuleIdentifiers[i].getDistinctName();
+            if (distinctName == null) {
+                // write out an empty string
+                output.writeUTF("");
+            } else {
+                output.writeUTF(distinctName);
+            }
         }
     }
 
@@ -254,11 +283,11 @@ public class DummyServer {
                 switch (version) {
                     case 0x00:
                         final Version0Receiver receiver = new Version0Receiver(clientMarshallingType);
-                        DummyServer.this.openChannels.put(channel, receiver.protocolHandler);
+                        DummyServer.this.openChannels.add(channel);
                         channel.receiveMessage(receiver);
                         // send module availability report to clients
-                        final Collection<ModuleID> availableModules = DummyServer.this.registeredEJBs.keySet();
-                        DummyServer.this.sendNewModuleAvailabilityToClients(availableModules.toArray(new ModuleID[availableModules.size()]));
+                        final Collection<EJBModuleIdentifier> availableModules = DummyServer.this.registeredEJBs.keySet();
+                        DummyServer.this.sendNewModuleAvailabilityToClients(availableModules.toArray(new EJBModuleIdentifier[availableModules.size()]));
                         break;
                     default:
                         logger.info("Received unsupported version 0x" + Integer.toHexString(version) + " from client, on channel " + channel);
@@ -280,4 +309,52 @@ public class DummyServer {
         }
     }
 
+    private class EJBModuleIdentifier {
+        private final String appName;
+
+        private final String moduleName;
+
+        private final String distinctName;
+
+        EJBModuleIdentifier(final String appname, final String moduleName, final String distinctName) {
+            this.appName = appname;
+            this.moduleName = moduleName;
+            this.distinctName = distinctName;
+        }
+
+        String getAppName() {
+            return this.appName;
+        }
+
+        String getModuleName() {
+            return this.moduleName;
+        }
+
+        String getDistinctName() {
+            return this.distinctName;
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) return true;
+            if (o == null || getClass() != o.getClass()) return false;
+
+            EJBModuleIdentifier that = (EJBModuleIdentifier) o;
+
+            if (appName != null ? !appName.equals(that.appName) : that.appName != null) return false;
+            if (distinctName != null ? !distinctName.equals(that.distinctName) : that.distinctName != null)
+                return false;
+            if (!moduleName.equals(that.moduleName)) return false;
+
+            return true;
+        }
+
+        @Override
+        public int hashCode() {
+            int result = appName != null ? appName.hashCode() : 0;
+            result = 31 * result + moduleName.hashCode();
+            result = 31 * result + (distinctName != null ? distinctName.hashCode() : 0);
+            return result;
+        }
+    }
 }

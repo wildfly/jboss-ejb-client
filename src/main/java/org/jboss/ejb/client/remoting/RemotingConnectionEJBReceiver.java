@@ -25,25 +25,16 @@ package org.jboss.ejb.client.remoting;
 import org.jboss.ejb.client.EJBClientInvocationContext;
 import org.jboss.ejb.client.EJBReceiver;
 import org.jboss.ejb.client.EJBReceiverContext;
-import org.jboss.ejb.client.protocol.ClientProtocolHandler;
-import org.jboss.ejb.client.protocol.PackedInteger;
-import org.jboss.ejb.client.protocol.ProtocolHandlerFactory;
 import org.jboss.ejb.client.proxy.IoFutureHelper;
 import org.jboss.logging.Logger;
-import org.jboss.marshalling.Marshalling;
-import org.jboss.marshalling.SimpleDataInput;
 import org.jboss.remoting3.Channel;
 import org.jboss.remoting3.CloseHandler;
 import org.jboss.remoting3.Connection;
-import org.jboss.remoting3.MessageInputStream;
 import org.xnio.FutureResult;
 import org.xnio.IoFuture;
 import org.xnio.OptionMap;
 
-import java.io.DataOutputStream;
 import java.io.IOException;
-import java.util.Arrays;
-import java.util.Collection;
 import java.util.IdentityHashMap;
 import java.util.Map;
 import java.util.concurrent.Future;
@@ -57,9 +48,7 @@ public final class RemotingConnectionEJBReceiver extends EJBReceiver<RemotingAtt
 
     private final Connection connection;
 
-    private final ClientProtocolHandler protocolHandler;
-
-    private final Map<EJBReceiverContext, Channel> perAssociationChannels = new IdentityHashMap<EJBReceiverContext, Channel>();
+    private final Map<EJBReceiverContext, Channel> perReceiverContextChannels = new IdentityHashMap<EJBReceiverContext, Channel>();
 
     // TODO: The version and the marshalling strategy shouldn't be hardcoded here
     private final byte clientProtocolVersion = 0x00;
@@ -72,7 +61,6 @@ public final class RemotingConnectionEJBReceiver extends EJBReceiver<RemotingAtt
      */
     public RemotingConnectionEJBReceiver(final Connection connection) {
         this.connection = connection;
-        this.protocolHandler = ProtocolHandlerFactory.getProtocolHandler(clientProtocolVersion, clientMarshallingStrategy);
     }
 
     @Override
@@ -95,7 +83,8 @@ public final class RemotingConnectionEJBReceiver extends EJBReceiver<RemotingAtt
                     }
                 });
                 // receive version message from server
-                channel.receiveMessage(new VersionReceiver(context));
+                channel.receiveMessage(new VersionReceiver(RemotingConnectionEJBReceiver.this, context,
+                        RemotingConnectionEJBReceiver.this.clientProtocolVersion, RemotingConnectionEJBReceiver.this.clientMarshallingStrategy));
             }
         }, context);
     }
@@ -121,91 +110,19 @@ public final class RemotingConnectionEJBReceiver extends EJBReceiver<RemotingAtt
         return new RemotingAttachments();
     }
 
-    ClientProtocolHandler getProtocolHandler() {
-        return this.protocolHandler;
+    void onSuccessfulVersionHandshake(final EJBReceiverContext receiverContext, final Channel channel) {
+        // TODO: Handle the case where the receiver context might already be associated with a
+        // channel previously.
+        synchronized (this.perReceiverContextChannels) {
+            this.perReceiverContextChannels.put(receiverContext, channel);
+        }
+        // register a receiver for messages from the server on this channel
+        channel.receiveMessage(new ResponseReceiver(this, receiverContext));
     }
 
-
-    private class VersionReceiver implements Channel.Receiver {
-
-        private final EJBReceiverContext receiverContext;
-
-        VersionReceiver(EJBReceiverContext receiverContext) {
-            this.receiverContext = receiverContext;
-        }
-
-        public void handleError(final Channel channel, final IOException error) {
-        }
-
-        public void handleEnd(final Channel channel) {
-        }
-
-        public void handleMessage(final Channel channel, final MessageInputStream message) {
-            // TODO: handle incoming greeting, send our own, set up the connection state,
-            // and query the module list
-            final SimpleDataInput simpleDataInput = new SimpleDataInput(Marshalling.createByteInput(message));
-            byte serverVersion;
-            String[] serverMarshallerStrategies;
-            try {
-                serverVersion = simpleDataInput.readByte();
-                final int serverMarshallerCount = PackedInteger.readPackedInteger(simpleDataInput);
-                if (serverMarshallerCount <= 0) {
-                    // TODO: Handle this
-                }
-                serverMarshallerStrategies = new String[serverMarshallerCount];
-                logger.info("Received server version " + serverVersion + " and marshalling strategies " + serverMarshallerStrategies);
-
-                for (int i = 0; i < serverMarshallerCount; i++) {
-                    serverMarshallerStrategies[i] = simpleDataInput.readUTF();
-                }
-            } catch (IOException e) {
-                throw new RuntimeException(e);
-            }
-
-            if (!this.checkCompatibility(serverVersion, serverMarshallerStrategies)) {
-                logger.error("EJB receiver cannot communicate with server, due to version incompatibility");
-                // close the context
-                this.receiverContext.close();
-                return;
-            }
-
-            try {
-                // send a version message to the server
-                this.sendVersionMessage(channel);
-                // version message sent, now wait for a module inventory report from the server
-                channel.receiveMessage(new ResponseReceiver(RemotingConnectionEJBReceiver.this));
-                // associate the channel with the context
-                synchronized (RemotingConnectionEJBReceiver.this.perAssociationChannels) {
-                    RemotingConnectionEJBReceiver.this.perAssociationChannels.put(this.receiverContext, channel);
-                }
-            } catch (IOException ioe) {
-                // TODO: re-evaluate
-                throw new RuntimeException(ioe);
-            }
-
-
-        }
-
-        private boolean checkCompatibility(final byte serverVersion, final String[] serverMarshallingStrategies) {
-            if (serverVersion < RemotingConnectionEJBReceiver.this.clientProtocolVersion) {
-                return false;
-            }
-            final Collection<String> supportedStrategies = Arrays.asList(serverMarshallingStrategies);
-            if (!supportedStrategies.contains(RemotingConnectionEJBReceiver.this.clientMarshallingStrategy)) {
-                return false;
-            }
-            return true;
-        }
-
-        private void sendVersionMessage(final Channel channel) throws IOException {
-            final DataOutputStream dataOutputStream = new DataOutputStream(channel.writeMessage());
-            try {
-                RemotingConnectionEJBReceiver.this.protocolHandler.writeVersionMessage(dataOutputStream, RemotingConnectionEJBReceiver.this.clientMarshallingStrategy);
-            } finally {
-                dataOutputStream.close();
-            }
-        }
-
+    ProtocolMessageHandler getProtocolMessageHandler(final EJBReceiverContext ejbReceiverContext, final byte header) {
+        return null;
     }
+
 
 }

@@ -20,20 +20,18 @@
  * 02110-1301 USA, or see the FSF site: http://www.fsf.org.
  */
 
-package org.jboss.ejb.client.protocol;
+package org.jboss.ejb.client.remoting;
+
+import java.io.DataInput;
+import java.io.IOException;
 
 /**
- * TODO: This factory needs to be implemented correctly
  * User: jpai
  */
-public class ProtocolHandlerFactory {
+interface ProtocolMessageHandler {
 
-    public static ClientProtocolHandler getProtocolHandler(byte protocolVersion, String marshallingStrategy) {
-        switch (protocolVersion) {
-            case 0x00 :
-                return new VersionZeroProtocolHandler(marshallingStrategy);
-            default:
-                throw new RuntimeException("Unsupported protocol version 0x" + Integer.toHexString(protocolVersion));
-        }
-    }
+    void readMessage(final DataInput input) throws IOException;
+
+    void processMessage();
+
 }

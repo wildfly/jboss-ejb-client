@@ -23,11 +23,12 @@
 package org.jboss.ejb.client;
 
 /**
- * TODO: this class must not be public, else we can never change our identification criteria...
+ *
  *
  * @author <a href="mailto:david.lloyd@redhat.com">David M. Lloyd</a>
  */
-public final class ModuleID {
+// Implementation note : This class must not be public, else we can never change our identification criteria...
+final class ModuleID {
     private final String appName;
     private final String moduleName;
     private final String distinctName;

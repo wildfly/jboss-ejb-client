@@ -19,8 +19,9 @@
  * Software Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
  * 02110-1301 USA, or see the FSF site: http://www.fsf.org.
  */
-package org.jboss.ejb.client.protocol;
+package org.jboss.ejb.client.remoting.protocol;
 
+import org.jboss.ejb.client.remoting.PackedInteger;
 import org.junit.Test;
 
 import java.io.DataInputStream;
@@ -54,6 +55,7 @@ public class PackedIntegerTestCase {
 
         final int result = PackedInteger.readPackedInteger(new DataInputStream(new InputStream() {
             private int count = 0;
+
             @Override
             public int read() throws IOException {
                 return array[count++] & 0xFF;

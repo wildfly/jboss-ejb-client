@@ -46,7 +46,7 @@ public abstract class EJBReceiver<A> extends Attachable {
      * @param distinctName the distinct name
      * @return {@code true} if this is a previously-unknown registration
      */
-    public final boolean registerModule(String appName, String moduleName, String distinctName) {
+    protected final boolean registerModule(String appName, String moduleName, String distinctName) {
         return accessibleModules.add(new ModuleID(appName, moduleName, distinctName));
     }
 
