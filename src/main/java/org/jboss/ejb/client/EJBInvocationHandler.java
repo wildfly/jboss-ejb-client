@@ -37,14 +37,18 @@ final class EJBInvocationHandler extends Attachable implements InvocationHandler
 
     private static final long serialVersionUID = 946555285095057230L;
 
+    private final String appName;
+    private final String moduleName;
+    private final String distinctName;
     private final String beanName;
-    private final ModuleID moduleID;
     private final Class<?> viewClass;
     private final transient boolean async;
 
     EJBInvocationHandler(final Class<?> viewClass, final String appName, final String moduleName, final String distinctName, final String beanName) {
         this.viewClass = viewClass;
-        this.moduleID = new ModuleID(appName, moduleName, distinctName);
+        this.appName = appName;
+        this.moduleName = moduleName;
+        this.distinctName = distinctName;
         this.beanName = beanName;
         async = false;
     }
@@ -52,14 +56,16 @@ final class EJBInvocationHandler extends Attachable implements InvocationHandler
     private EJBInvocationHandler(final EJBInvocationHandler twin) {
         super(twin);
         viewClass = twin.viewClass;
-        this.moduleID = twin.moduleID;
+        appName = twin.appName;
+        moduleName = twin.moduleName;
+        distinctName = twin.distinctName;
         beanName = twin.beanName;
         async = true;
     }
 
     public Object invoke(final Object proxy, final Method method, final Object[] args) throws Throwable {
         final EJBClientContext context = EJBClientContext.requireCurrent();
-        final EJBReceiver<?> receiver = context.requireEJBReceiver(moduleID.getAppName(), moduleID.getModuleName(), moduleID.getDistinctName());
+        final EJBReceiver<?> receiver = context.requireEJBReceiver(appName, moduleName, distinctName);
         return doInvoke(proxy, method, args, receiver, context);
     }
 
@@ -90,15 +96,15 @@ final class EJBInvocationHandler extends Attachable implements InvocationHandler
     }
 
     public String getAppName() {
-        return this.moduleID.getAppName();
+        return appName;
     }
 
     public String getModuleName() {
-        return this.moduleID.getModuleName();
+        return moduleName;
     }
 
     public String getDistinctName() {
-        return this.moduleID.getDistinctName();
+        return distinctName;
     }
 
     public String getBeanName() {
@@ -117,5 +123,4 @@ final class EJBInvocationHandler extends Attachable implements InvocationHandler
     EJBInvocationHandler getAsyncHandler() {
         return async ? this : new EJBInvocationHandler(this);
     }
-
 }

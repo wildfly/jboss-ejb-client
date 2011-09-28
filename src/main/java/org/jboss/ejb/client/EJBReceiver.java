@@ -22,7 +22,6 @@
 
 package org.jboss.ejb.client;
 
-import java.util.Collection;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.Set;
@@ -104,4 +103,45 @@ public abstract class EJBReceiver<A> extends Attachable {
      * @return the attachment
      */
     protected abstract A createReceiverSpecific();
+
+    static class ModuleID {
+        private final String appName;
+        private final String moduleName;
+        private final String distinctName;
+        private final int hashCode;
+
+        ModuleID(final String appName, final String moduleName, final String distinctName) {
+            if (moduleName == null) {
+                throw new IllegalArgumentException("moduleName is null");
+            }
+            this.appName = appName == null ? moduleName : appName;
+            this.moduleName = moduleName;
+            this.distinctName = distinctName == null ? "" : distinctName;
+            hashCode = this.appName.hashCode() + 31 * (this.moduleName.hashCode() + 31 * (this.distinctName.hashCode()));
+        }
+
+        public String getAppName() {
+            return appName;
+        }
+
+        public String getModuleName() {
+            return moduleName;
+        }
+
+        public String getDistinctName() {
+            return distinctName;
+        }
+
+        public boolean equals(Object other) {
+            return other instanceof ModuleID && equals((ModuleID)other);
+        }
+
+        public boolean equals(ModuleID other) {
+            return this == other || other != null && appName.equals(other.appName) && moduleName.equals(other.moduleName) && distinctName.equals(other.distinctName);
+        }
+
+        public int hashCode() {
+            return hashCode;
+        }
+    }
 }
