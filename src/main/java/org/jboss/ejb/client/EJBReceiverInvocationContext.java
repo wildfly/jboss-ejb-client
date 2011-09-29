@@ -22,8 +22,6 @@
 
 package org.jboss.ejb.client;
 
-import java.util.concurrent.Callable;
-
 /**
  * The context used for an EJB receiver to return the result of an invocation.
  *
@@ -44,7 +42,33 @@ public final class EJBReceiverInvocationContext {
      *
      * @param resultProducer the result producer
      */
-    public void resultReady(Callable<?> resultProducer) {
+    public void resultReady(ResultProducer resultProducer) {
         clientInvocationContext.resultReady(resultProducer);
+    }
+
+    /**
+     * Indicate that the request was successfully cancelled and that no result is forthcoming.
+     */
+    public void requestCancelled() {
+        clientInvocationContext.requestCancelled();
+    }
+
+    /**
+     * A result producer for invocation.
+     */
+    public interface ResultProducer {
+
+        /**
+         * Get the result.
+         *
+         * @return the result
+         * @throws Exception if the result could not be acquired or the operation failed
+         */
+        Object getResult() throws Exception;
+
+        /**
+         * Discard the result, indicating that it will not be used.
+         */
+        void discardResult();
     }
 }

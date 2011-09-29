@@ -33,14 +33,14 @@ import org.jboss.ejb.client.SessionID;
  */
 public final class RemotingSessionInterceptor implements RemotingEJBClientInterceptor {
 
-    public void handleInvocation(final EJBClientInvocationContext<? extends RemotingAttachments> context) throws Throwable {
+    public void handleInvocation(final EJBClientInvocationContext<? extends RemotingAttachments> context) throws Exception {
         final SessionID sessionID = context.getProxyAttachment(SessionID.SESSION_ID_KEY);
         if (sessionID != null) {
             context.getReceiverSpecific().putPayloadAttachment(0x0000, sessionID.getEncodedForm());
         }
     }
 
-    public Object handleInvocationResult(final EJBClientInvocationContext<? extends RemotingAttachments> context) throws Throwable {
+    public Object handleInvocationResult(final EJBClientInvocationContext<? extends RemotingAttachments> context) throws Exception {
         final byte[] attachment = context.getReceiverSpecific().getPayloadAttachment(0x0000);
         if (attachment != null && attachment.length > 0 && attachment[0] != 0) {
             // session was removed

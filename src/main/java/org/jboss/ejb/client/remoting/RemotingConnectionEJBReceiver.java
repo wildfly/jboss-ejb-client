@@ -22,9 +22,12 @@
 
 package org.jboss.ejb.client.remoting;
 
+import java.lang.reflect.UndeclaredThrowableException;
+import java.util.concurrent.CancellationException;
 import org.jboss.ejb.client.EJBClientInvocationContext;
 import org.jboss.ejb.client.EJBReceiver;
 import org.jboss.ejb.client.EJBReceiverContext;
+import org.jboss.ejb.client.EJBReceiverInvocationContext;
 import org.jboss.ejb.client.NoSessionID;
 import org.jboss.ejb.client.SessionID;
 import org.jboss.logging.Logger;
@@ -38,7 +41,6 @@ import org.xnio.OptionMap;
 import java.io.IOException;
 import java.util.IdentityHashMap;
 import java.util.Map;
-import java.util.concurrent.Future;
 
 /**
  * @author <a href="mailto:david.lloyd@redhat.com">David M. Lloyd</a>
@@ -91,12 +93,36 @@ public final class RemotingConnectionEJBReceiver extends EJBReceiver<RemotingAtt
     }
 
     @Override
-    public Future<?> processInvocation(final EJBClientInvocationContext<RemotingAttachments> clientInvocationContext, final EJBReceiverContext ejbReceiverContext) throws Exception {
+    public void processInvocation(final EJBClientInvocationContext<RemotingAttachments> clientInvocationContext, final EJBReceiverInvocationContext ejbReceiverContext) throws Exception {
         // TODO: Implement this - Check receiver status and then send out a method invocation request
         // via the channel to the server
         FutureResult futureResult = new FutureResult();
         futureResult.setResult(null);
-        return IoFutureHelper.future(futureResult.getIoFuture());
+        futureResult.getIoFuture().addNotifier(new IoFuture.Notifier<Object, EJBReceiverInvocationContext>() {
+            public void notify(final IoFuture<?> future, final EJBReceiverInvocationContext attachment) {
+                attachment.resultReady(new EJBReceiverInvocationContext.ResultProducer() {
+                    public Object getResult() throws Exception {
+                        switch (future.getStatus()) {
+                            case DONE: return null; // TODO actually return the deserialized object from the stream
+                            case CANCELLED: throw new CancellationException(); // todo better message
+                            case FAILED:
+                                try {
+                                    throw future.getException().getCause();
+                                } catch (Error e) {
+                                    throw e;
+                                } catch (Throwable throwable) {
+                                    throw new UndeclaredThrowableException(throwable);
+                                }
+                            default: throw new IllegalStateException();
+                        }
+                    }
+
+                    public void discardResult() {
+                        // TODO close the stream without reading it
+                    }
+                });
+            }
+        }, ejbReceiverContext);
     }
 
     @Override

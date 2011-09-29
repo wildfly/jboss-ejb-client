@@ -33,6 +33,7 @@ import java.util.concurrent.Future;
 /**
  * @author <a href="mailto:david.lloyd@redhat.com">David M. Lloyd</a>
  */
+@SuppressWarnings({ "SerializableClassWithUnconstructableAncestor" })
 final class EJBInvocationHandler extends Attachable implements InvocationHandler, Serializable {
 
     private static final long serialVersionUID = 946555285095057230L;
@@ -70,28 +71,28 @@ final class EJBInvocationHandler extends Attachable implements InvocationHandler
     }
 
     private <A> Object doInvoke(final Object proxy, final Method method, final Object[] args, final EJBReceiver<A> receiver, EJBClientContext clientContext) throws Throwable {
-        final EJBClientInvocationContext<A> invocationContext = new EJBClientInvocationContext<A>(this, clientContext, receiver.createReceiverSpecific(), receiver, proxy, method, args);
-        for (EJBClientInterceptor<Object> interceptor : EJBClientContext.GENERAL_INTERCEPTORS) {
-            interceptor.handleInvocation(invocationContext);
-        }
-        final EJBReceiverContext ejbReceiverContext = clientContext.requireEJBReceiverContext(receiver);
+        // todo - concatenate receiver chain too
+        final EJBClientInvocationContext<A> invocationContext = new EJBClientInvocationContext<A>(this, clientContext, receiver.createReceiverSpecific(), receiver, proxy, method, args, EJBClientContext.GENERAL_INTERCEPTORS);
         if (async) {
             // force async...
             if (method.getReturnType() == Future.class) {
-                // use the existing future, assuming that the result is properly set
-                return receiver.processInvocation(invocationContext, ejbReceiverContext);
+                invocationContext.sendRequest();
+                return invocationContext.getFutureResponse();
             } else if (method.getReturnType() == void.class) {
-                // no return type necessary
-                receiver.processInvocation(invocationContext, ejbReceiverContext);
+                // todo indicate that the result shall be discarded
+                invocationContext.sendRequest();
+                // Void return
                 return null;
             } else {
+                invocationContext.sendRequest();
                 // wrap return always
-                EJBClient.setFutureResult(receiver.processInvocation(invocationContext, ejbReceiverContext));
+                EJBClient.setFutureResult(invocationContext.getFutureResponse());
                 return null;
             }
         } else {
             // wait for invocation to complete
-            return receiver.processInvocation(invocationContext, ejbReceiverContext).get();
+            invocationContext.sendRequest();
+            return invocationContext.awaitResponse();
         }
     }
 

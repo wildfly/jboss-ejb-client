@@ -23,7 +23,11 @@
 package org.jboss.ejb.client;
 
 import java.lang.reflect.Method;
-import java.util.concurrent.Callable;
+import java.util.concurrent.CancellationException;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 /**
  * An interceptor context for EJB client interceptors.
@@ -39,10 +43,16 @@ public final class EJBClientInvocationContext<A> extends Attachable {
 
     private final Object invokedProxy;
     private final Method invokedMethod;
+    private final EJBClientInterceptor<? super A>[] interceptorChain;
+    private int idx;
+    private boolean requestDone;
+    private boolean resultDone;
     private Object[] parameters;
-    private Callable<?> resultProducer;
+    private EJBReceiverInvocationContext.ResultProducer resultProducer;
+    private final EJBReceiverInvocationContext receiverInvocationContext = new EJBReceiverInvocationContext(this);
+    private final FutureResponse futureResponse = new FutureResponse();
 
-    EJBClientInvocationContext(final EJBInvocationHandler invocationHandler, final EJBClientContext ejbClientContext, final A receiverSpecific, final EJBReceiver<A> receiver, final Object invokedProxy, final Method invokedMethod, final Object[] parameters) {
+    EJBClientInvocationContext(final EJBInvocationHandler invocationHandler, final EJBClientContext ejbClientContext, final A receiverSpecific, final EJBReceiver<A> receiver, final Object invokedProxy, final Method invokedMethod, final Object[] parameters, final EJBClientInterceptor<? super A>[] chain) {
         this.invocationHandler = invocationHandler;
         this.ejbClientContext = ejbClientContext;
         this.receiverSpecific = receiverSpecific;
@@ -50,6 +60,7 @@ public final class EJBClientInvocationContext<A> extends Attachable {
         this.invokedProxy = invokedProxy;
         this.invokedMethod = invokedMethod;
         this.parameters = parameters;
+        interceptorChain = chain;
     }
 
     /**
@@ -154,27 +165,77 @@ public final class EJBClientInvocationContext<A> extends Attachable {
     }
 
     /**
-     * Get the invocation result from {@link #handleInvocationResult(R)}.
+     * Proceed with sending the request normally.
+     *
+     * @throws Exception if the request was not successfully sent
+     */
+    public void sendRequest() throws Exception {
+        if (requestDone) {
+            throw new IllegalStateException("sendRequest() called during wrong phase");
+        }
+        final int idx = this.idx++;
+        final EJBClientInterceptor<? super A>[] chain = interceptorChain;
+        try {
+            if (chain.length == idx) {
+                receiver.processInvocation(this, receiverInvocationContext);
+            } else {
+                chain[idx].handleInvocation(this);
+            }
+        } finally {
+            requestDone = true;
+        }
+    }
+
+    /**
+     * Get the invocation result from this request.  The result is not actually acquired unless all interceptors
+     * call this method.  Should only be called from {@link EJBClientInterceptor#handleInvocationResult(EJBClientInvocationContext)}.
      *
      * @return the invocation result
      * @throws Exception if the invocation did not succeed
      */
     public Object getResult() throws Exception {
-        // Step 1.  See if any interceptors are left in the chain; if so call the next one and return the result.
+        final EJBReceiverInvocationContext.ResultProducer resultProducer = this.resultProducer;
 
-        // Step 2.  Actually return the result from the underlying transport.
-        return resultProducer.call();
+        if (resultDone || resultProducer == null) {
+            throw new IllegalStateException("getResult() called during wrong phase");
+        }
+
+        final int idx = this.idx++;
+        final EJBClientInterceptor<? super A>[] chain = interceptorChain;
+        try {
+            if (chain.length == idx) {
+                return resultProducer.getResult();
+            } else {
+                return chain[idx].handleInvocationResult(this);
+            }
+        } finally {
+            resultDone = true;
+        }
     }
 
-    void resultReady(Callable<?> resultProducer) {
-        this.resultProducer = resultProducer;
-        try {
-            // Now, call the first interceptor chain member.
-            final Object result = getResult();
-            // invocation success.
-        } catch (Exception e) {
-            // invocation failed.
+    /**
+     * Discard the result from this request.  Should only be called from {@link EJBClientInterceptor#handleInvocationResult(EJBClientInvocationContext)}.
+     *
+     * @throws IllegalStateException if there is no result to discard
+     */
+    public void discardResult() throws IllegalStateException {
+        final EJBReceiverInvocationContext.ResultProducer resultProducer = this.resultProducer;
+
+        if (resultProducer == null) {
+            throw new IllegalStateException("discardResult() called during request phase");
         }
+
+        resultProducer.discardResult();
+    }
+
+    void resultReady(EJBReceiverInvocationContext.ResultProducer resultProducer) {
+        synchronized (futureResponse) {
+            this.resultProducer = resultProducer;
+            futureResponse.notifyAll();
+        }
+    }
+
+    void requestCancelled() {
     }
 
     protected EJBReceiver<A> getReceiver() {
@@ -195,5 +256,102 @@ public final class EJBClientInvocationContext<A> extends Attachable {
 
     public Class<?> getViewClass() {
         return invocationHandler.getViewClass();
+    }
+
+    Future<?> getFutureResponse() {
+        return futureResponse;
+    }
+
+    Object awaitResponse() throws Exception {
+        boolean intr = false;
+        try {
+            synchronized (futureResponse) {
+                while (resultProducer == null) try {
+                    wait();
+                } catch (InterruptedException e) {
+                    intr = true;
+                }
+            }
+            return getResult();
+        } finally {
+            if (intr) Thread.currentThread().interrupt();
+        }
+    }
+
+    final class FutureResponse implements Future<Object> {
+        private boolean cancelled;
+        private boolean done;
+        private Object result;
+        private Throwable exception;
+
+        synchronized void cancelled() {
+            cancelled = true;
+            notifyAll();
+        }
+
+        synchronized void failed(Throwable exception) {
+            done = true;
+            this.exception = exception;
+            notifyAll();
+        }
+
+        public synchronized boolean cancel(final boolean mayInterruptIfRunning) {
+            // todo - deliver to receiver
+            return false;
+        }
+
+        public synchronized boolean isCancelled() {
+            return cancelled;
+        }
+
+        public synchronized boolean isDone() {
+            return done;
+        }
+
+        public synchronized Object get() throws InterruptedException, ExecutionException {
+            while (! done) {
+                wait();
+            }
+            if (cancelled) {
+                throw new CancellationException("Request was cancelled");
+            }
+            if (exception != null) {
+                throw new ExecutionException("Remote execution failed", exception);
+            }
+            return result;
+        }
+
+        public synchronized Object get(final long timeout, final TimeUnit unit) throws InterruptedException, ExecutionException, TimeoutException {
+            if (! done) {
+                long now = System.nanoTime();
+                final long end = Math.max(now, now + unit.toNanos(timeout));
+                do {
+                    if (resultProducer != null) try {
+                        idx = 0;
+                        return result = getResult();
+                    } catch (Throwable e) {
+                        exception = e;
+                        break; // fall thru to exception
+                    } finally {
+                        done = true;
+                    }
+                    final long remaining = end - now;
+                    if (remaining <= 0L) {
+                        throw new TimeoutException("Timed out");
+                    }
+                    // wait at least 1ms
+                    long millis = (remaining + 999999L) / 1000000L;
+                    wait(millis);
+                    now = System.nanoTime();
+                } while (! done);
+            }
+            if (cancelled) {
+                throw new CancellationException("Request was cancelled");
+            }
+            if (exception != null) {
+                throw new ExecutionException("Remote execution failed", exception);
+            }
+            return result;
+        }
     }
 }

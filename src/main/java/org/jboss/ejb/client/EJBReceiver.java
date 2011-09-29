@@ -64,14 +64,14 @@ public abstract class EJBReceiver<A> extends Attachable {
     protected abstract void associate(EJBReceiverContext context);
 
     /**
-     * Process the invocation.  Implementations of this method should always execute the operation asynchronously.
+     * Process the invocation.  Implementations of this method should always execute the operation asynchronously.  The
+     * operation result should be passed in to the receiver invocation context.
      *
      * @param clientInvocationContext the interceptor clientInvocationContext
-     * @param receiverContext The EJB receiver context
-     * @return the future result of this operation
+     * @param receiverContext The EJB receiver invocation context
      * @throws Exception if the operation throws an exception
      */
-    protected abstract Future<?> processInvocation(EJBClientInvocationContext<A> clientInvocationContext, EJBReceiverContext receiverContext) throws Exception;
+    protected abstract void processInvocation(EJBClientInvocationContext<A> clientInvocationContext, EJBReceiverInvocationContext receiverContext) throws Exception;
 
     /**
      * Open a session.  TODO: determine correct exception types.

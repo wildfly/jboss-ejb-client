@@ -38,9 +38,9 @@ public interface EJBClientInterceptor<A> {
      * should process any per-interceptor state and return.
      *
      * @param context the invocation context
-     * @throws Throwable if an invocation error occurs
+     * @throws Exception if an invocation error occurs
      */
-    void handleInvocation(EJBClientInvocationContext<? extends A> context) throws Throwable;
+    void handleInvocation(EJBClientInvocationContext<? extends A> context) throws Exception;
 
     /**
      * Handle the invocation result.  The implementation should generally call {@link EJBClientInvocationContext#getResult()}
@@ -48,9 +48,9 @@ public interface EJBClientInterceptor<A> {
      *
      * @param context the invocation context
      * @return the invocation result, if any
-     * @throws Throwable if an invocation error occurred
+     * @throws Exception if an invocation error occurred
      */
-    Object handleInvocationResult(EJBClientInvocationContext<? extends A> context) throws Throwable;
+    Object handleInvocationResult(EJBClientInvocationContext<? extends A> context) throws Exception;
 
     /**
      * Prepare a client proxy for serialization by adding interceptor data to the protocol-specific attachment.

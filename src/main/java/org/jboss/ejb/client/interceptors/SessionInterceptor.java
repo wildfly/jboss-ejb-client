@@ -20,37 +20,36 @@
  * 02110-1301 USA, or see the FSF site: http://www.fsf.org.
  */
 
-package org.jboss.ejb.client.remoting;
+package org.jboss.ejb.client.interceptors;
 
 import org.jboss.ejb.client.EJBClientInvocationContext;
 import org.jboss.ejb.client.EJBClientProxyContext;
-import org.jboss.ejb.client.TransactionID;
+import org.jboss.ejb.client.GeneralEJBClientInterceptor;
+import org.jboss.ejb.client.NodeAssociatedSessionID;
+import org.jboss.ejb.client.SessionID;
 
 /**
- * The receiver-specific interceptor for transaction propagation.
- *
  * @author <a href="mailto:david.lloyd@redhat.com">David M. Lloyd</a>
  */
-public final class RemotingTransactionInterceptor implements RemotingEJBClientInterceptor {
+public final class SessionInterceptor implements GeneralEJBClientInterceptor {
 
-    public void handleInvocation(final EJBClientInvocationContext<? extends RemotingAttachments> context) throws Exception {
-        final TransactionID transactionID = context.getAttachment(TransactionID.TRANSACTION_ID_KEY);
-        if (transactionID != null) {
-            context.getReceiverSpecific().putPayloadAttachment(0x0001, transactionID.getEncodedForm());
+    public void handleInvocation(final EJBClientInvocationContext<?> context) throws Exception {
+        final SessionID sessionID = context.getProxyAttachment(SessionID.SESSION_ID_KEY);
+        if (sessionID instanceof NodeAssociatedSessionID) {
+            final NodeAssociatedSessionID associatedSessionID = (NodeAssociatedSessionID) sessionID;
+            final String name = associatedSessionID.getNodeName();
+            final boolean cluster = associatedSessionID.isCluster();
+            // TODO: store affinity information on the invocation context
         }
     }
 
-    public Object handleInvocationResult(final EJBClientInvocationContext<? extends RemotingAttachments> context) throws Exception {
-        // nothing to do with result
+    public Object handleInvocationResult(final EJBClientInvocationContext<?> context) throws Exception {
         return context.getResult();
     }
 
-    public void prepareSerialization(final EJBClientProxyContext<? extends RemotingAttachments> context) {
-        // nothing to do; proxies are not inherently associated with a transaction
+    public void prepareSerialization(final EJBClientProxyContext<?> context) {
     }
 
-    @Override
-    public void postDeserialize(final EJBClientProxyContext<? extends RemotingAttachments> ejbClientProxyContext) {
-        // nothing to do; proxies are not inherently associated with a transaction
+    public void postDeserialize(final EJBClientProxyContext<?> context) {
     }
 }
