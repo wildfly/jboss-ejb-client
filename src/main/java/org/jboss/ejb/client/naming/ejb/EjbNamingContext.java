@@ -21,8 +21,10 @@
  */
 package org.jboss.ejb.client.naming.ejb;
 
+import java.util.Map;
 import org.jboss.ejb.client.EJBClient;
 
+import javax.ejb.EJBHome;
 import javax.naming.Binding;
 import javax.naming.CompositeName;
 import javax.naming.Context;
@@ -32,11 +34,14 @@ import javax.naming.NameParser;
 import javax.naming.NamingEnumeration;
 import javax.naming.NamingException;
 import java.util.Hashtable;
+import org.jboss.logging.Logger;
 
 /**
  * @author Stuart Douglas
  */
 class EjbNamingContext implements Context {
+
+    private static final Logger log = Logger.getLogger("org.jboss.ejb.client.naming");
 
     public static final EjbNamingContext ROOT = new EjbNamingContext();
 
@@ -101,7 +106,19 @@ class EjbNamingContext implements Context {
             throw naming;
         }
 
-        return EJBClient.getProxy(identifier.getApplication(), identifier.getModule(), identifier.getDistinctName(), identifier.getEjbName(), viewClass);
+        final Object proxy = EJBClient.getProxy(identifier.getApplication(), identifier.getModule(), identifier.getDistinctName(), identifier.getEjbName(), viewClass);
+
+        final Map<String,String> options = identifier.getOptions();
+        final boolean stateful = options.containsKey("stateful") && ! "false".equalsIgnoreCase(options.get("stateful"));
+        if (stateful) {
+            if (proxy instanceof EJBHome) {
+                log.warnf("Ignoring 'stateful' option on lookup of home %s", viewClass);
+            } else {
+                EJBClient.createSession(proxy);
+            }
+        }
+
+        return proxy;
     }
 
     @Override
