@@ -201,7 +201,7 @@ public final class EJBClientInvocationContext<A> extends Attachable {
             throw new IllegalStateException("getResult() called during wrong phase");
         }
 
-        final int idx = --this.idx;
+        final int idx = this.idx++;
         final EJBClientInterceptor<? super A>[] chain = interceptorChain;
         try {
             if (chain.length == idx) {
@@ -231,6 +231,7 @@ public final class EJBClientInvocationContext<A> extends Attachable {
 
     void resultReady(EJBReceiverInvocationContext.ResultProducer resultProducer) {
         synchronized (futureResponse) {
+            idx = 0;
             this.resultProducer = resultProducer;
             futureResponse.notifyAll();
         }
