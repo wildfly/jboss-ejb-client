@@ -23,18 +23,15 @@
 package org.jboss.ejb.client.remoting;
 
 import org.jboss.ejb.client.EJBReceiverContext;
+import org.jboss.ejb.client.EJBReceiverInvocationContext;
 import org.jboss.logging.Logger;
 import org.jboss.remoting3.Channel;
 import org.jboss.remoting3.MessageInputStream;
-import org.xnio.FutureResult;
-import org.xnio.IoUtils;
 
-import java.io.DataInputStream;
 import java.io.IOException;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
@@ -56,7 +53,7 @@ class ChannelAssociation {
 
     private final AtomicInteger nextInvocationId = new AtomicInteger(0);
 
-    private Map<Short, FutureResult<?>> waitingInvocations = Collections.synchronizedMap(new HashMap<Short, FutureResult<?>>());
+    private Map<Short, EJBReceiverInvocationContext> waitingInvocations = Collections.synchronizedMap(new HashMap<Short, EJBReceiverInvocationContext>());
 
     ChannelAssociation(final RemotingConnectionEJBReceiver ejbReceiver, final EJBReceiverContext ejbReceiverContext,
                        final Channel channel, final byte protocolVersion, final String marshallingType) {
@@ -77,25 +74,19 @@ class ChannelAssociation {
         return (short) nextInvocationId.getAndIncrement();
     }
 
-    Future<?> receiveResponse(short invocationId) {
-        final FutureResult futureResult = new FutureResult();
-        this.waitingInvocations.put(invocationId, futureResult);
-        return IoFutureHelper.future(futureResult.getIoFuture());
+    void receiveResponse(final short invocationId, final EJBReceiverInvocationContext ejbReceiverInvocationContext) {
+        this.waitingInvocations.put(invocationId, ejbReceiverInvocationContext);
+
     }
 
-    void handleInvocationResponse(final short invocationId, final Object result) {
-        final FutureResult futureResult = this.waitingInvocations.get(invocationId);
-        if (futureResult == null) {
-            logger.debug("No one waiting for a response for invocation id " + invocationId + ". Discarding result " + result);
-            return;
-        }
-        futureResult.setResult(result);
+    EJBReceiverInvocationContext getEJBReceiverInvocationContext(short invocationId) {
+        return this.waitingInvocations.get(invocationId);
     }
 
     private ProtocolMessageHandler getProtocolMessageHandler(final byte header) {
         switch (header) {
             case 0x08:
-                return new ModuleAvailabilityMessageHandler(this.ejbReceiver, this.ejbReceiverContext);
+                return new ModuleAvailabilityMessageHandler(this.ejbReceiver);
             case 0x05:
                 return new MethodInvocationResponseHandler(this, this.marshallingType);
             default:
@@ -119,31 +110,22 @@ class ChannelAssociation {
         @Override
         public void handleMessage(Channel channel, MessageInputStream messageInputStream) {
 
-            final DataInputStream inputStream = new DataInputStream(messageInputStream);
-            ProtocolMessageHandler messageHandler = null;
             try {
-                final byte header = inputStream.readByte();
+                final int header = messageInputStream.read();
                 // TODO: Log at a lower level (once we have a bit of stability in the impl)
                 logger.info("Received message with header 0x" + Integer.toHexString(header));
-                messageHandler = ChannelAssociation.this.getProtocolMessageHandler(header);
+                final ProtocolMessageHandler messageHandler = ChannelAssociation.this.getProtocolMessageHandler((byte) header);
                 if (messageHandler == null) {
                     logger.warn("Unsupported message received with header 0x" + Integer.toHexString(header));
                     return;
                 }
-                // let the message handler read the message
-                messageHandler.readMessage(inputStream);
+                messageHandler.processMessage(messageInputStream);
 
             } catch (IOException e) {
                 throw new RuntimeException(e);
             } finally {
                 // receive next message
                 channel.receiveMessage(this);
-                IoUtils.safeClose(inputStream);
-            }
-
-            // Let the message handler process the message
-            if (messageHandler != null) {
-                messageHandler.processMessage();
             }
         }
 

@@ -23,6 +23,7 @@
 package org.jboss.ejb.client.remoting;
 
 import java.lang.reflect.UndeclaredThrowableException;
+import java.security.PrivateKey;
 import java.util.concurrent.CancellationException;
 import org.jboss.ejb.client.EJBClientInvocationContext;
 import org.jboss.ejb.client.EJBReceiver;
@@ -42,6 +43,8 @@ import java.io.DataOutputStream;
 import java.io.IOException;
 import java.util.IdentityHashMap;
 import java.util.Map;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 
 /**
  * @author <a href="mailto:david.lloyd@redhat.com">David M. Lloyd</a>
@@ -69,6 +72,8 @@ public final class RemotingConnectionEJBReceiver extends EJBReceiver<RemotingAtt
 
     @Override
     public void associate(final EJBReceiverContext context) {
+        final CountDownLatch versionHandshakeLatch = new CountDownLatch(1);
+        final VersionReceiver versionReceiver = new VersionReceiver(versionHandshakeLatch, this.clientProtocolVersion, this.clientMarshallingStrategy);
         final IoFuture<Channel> futureChannel = connection.openChannel("jboss.ejb", OptionMap.EMPTY);
         futureChannel.addNotifier(new IoFuture.HandlingNotifier<Channel, EJBReceiverContext>() {
             public void handleCancelled(final EJBReceiverContext context) {
@@ -87,43 +92,50 @@ public final class RemotingConnectionEJBReceiver extends EJBReceiver<RemotingAtt
                     }
                 });
                 // receive version message from server
-                channel.receiveMessage(new VersionReceiver(RemotingConnectionEJBReceiver.this, context,
-                        RemotingConnectionEJBReceiver.this.clientProtocolVersion, RemotingConnectionEJBReceiver.this.clientMarshallingStrategy));
+                channel.receiveMessage(versionReceiver);
             }
         }, context);
+
+        try {
+            // wait for the handshake to complete
+            // TODO: Think about externalizing this timeout
+            final boolean successfulHandshake = versionHandshakeLatch.await(5, TimeUnit.SECONDS);
+            if (successfulHandshake) {
+                final Channel compatibleChannel = versionReceiver.getCompatibleChannel();
+                final ChannelAssociation channelAssociation = new ChannelAssociation(this, context, compatibleChannel, this.clientProtocolVersion, this.clientMarshallingStrategy);
+                synchronized (this.channelAssociation) {
+                    this.channelAssociation.put(context, channelAssociation);
+                }
+                logger.info("Successful version handshake completed for receiver context " + context + " on channel " + compatibleChannel);
+            } else {
+                // no version handshake done. close the context
+                logger.info("Version handshake not completed for recevier context " + context + " by receiver " + this + " . Closing the receiver context");
+                context.close();
+            }
+        } catch (InterruptedException e) {
+            context.close();
+        }
     }
 
     @Override
-    public void processInvocation(final EJBClientInvocationContext<RemotingAttachments> clientInvocationContext, final EJBReceiverInvocationContext ejbReceiverContext) throws Exception {
-        // TODO: Implement this - Check receiver status and then send out a method invocation request
-        // via the channel to the server
-        FutureResult futureResult = new FutureResult();
-        futureResult.setResult(null);
-        futureResult.getIoFuture().addNotifier(new IoFuture.Notifier<Object, EJBReceiverInvocationContext>() {
-            public void notify(final IoFuture<?> future, final EJBReceiverInvocationContext attachment) {
-                attachment.resultReady(new EJBReceiverInvocationContext.ResultProducer() {
-                    public Object getResult() throws Exception {
-                        switch (future.getStatus()) {
-                            case DONE: return null; // TODO actually return the deserialized object from the stream
-                            case CANCELLED: throw new CancellationException(); // todo better message
-                            case FAILED:
-                                try {
-                                    throw future.getException().getCause();
-                                } catch (Error e) {
-                                    throw e;
-                                } catch (Throwable throwable) {
-                                    throw new UndeclaredThrowableException(throwable);
-                                }
-                            default: throw new IllegalStateException();
-                        }
-                    }
-
-                    public void discardResult() {
-                        // TODO close the stream without reading it
-                    }
-                });
-            }
-        }, ejbReceiverContext);
+    public void processInvocation(final EJBClientInvocationContext<RemotingAttachments> clientInvocationContext, final EJBReceiverInvocationContext ejbReceiverInvocationContext) throws Exception {
+        ChannelAssociation channelAssociation;
+        synchronized (this.channelAssociation) {
+            channelAssociation = this.channelAssociation.get(ejbReceiverInvocationContext.getEjbReceiverContext());
+        }
+        if (channelAssociation == null) {
+            throw new IllegalStateException("EJB receiver " + this + " is not yet ready to process invocations for receiver context " + ejbReceiverInvocationContext);
+        }
+        final MethodInvocationMessageWriter messageWriter = new MethodInvocationMessageWriter(this, this.clientProtocolVersion, this.clientMarshallingStrategy);
+        final Channel channel = channelAssociation.getChannel();
+        final DataOutputStream dataOutputStream = new DataOutputStream(channel.writeMessage());
+        final short invocationId = channelAssociation.getNextInvocationId();
+        try {
+            messageWriter.writeMessage(dataOutputStream, invocationId, clientInvocationContext);
+        } finally {
+            dataOutputStream.close();
+        }
+        channelAssociation.receiveResponse(invocationId, ejbReceiverInvocationContext);
     }
 
     @Override
@@ -139,18 +151,8 @@ public final class RemotingConnectionEJBReceiver extends EJBReceiver<RemotingAtt
         return new RemotingAttachments();
     }
 
-    void onSuccessfulVersionHandshake(final EJBReceiverContext receiverContext, final Channel channel) {
-        // TODO: Handle the case where the receiver context might already be associated with a
-        // channel previously.
-        synchronized (this.channelAssociation) {
-            final ChannelAssociation channelAssociation = new ChannelAssociation(this, receiverContext, channel, this.clientProtocolVersion, this.clientMarshallingStrategy);
-            this.channelAssociation.put(receiverContext, channelAssociation);
-        }
-        logger.debug("Successful version handshake completed for receiver context " + receiverContext + " on channel " + channel);
-    }
-
     void onModuleAvailable(final String appName, final String moduleName, final String distinctName) {
-        logger.debug("Received module availability message for appName: " + appName + " moduleName: " + moduleName + " distinctName: " + distinctName);
+        logger.info("Received module availability message for appName: " + appName + " moduleName: " + moduleName + " distinctName: " + distinctName);
 
         this.registerModule(appName, moduleName, distinctName);
     }

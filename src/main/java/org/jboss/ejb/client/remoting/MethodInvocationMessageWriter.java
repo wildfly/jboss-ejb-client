@@ -40,17 +40,13 @@ class MethodInvocationMessageWriter {
 
     private final RemotingConnectionEJBReceiver ejbReceiver;
 
-    private final EJBReceiverContext ejbReceiverContext;
-
     private final byte protocolVersion;
 
     private final String marshallingStrategy;
 
-    MethodInvocationMessageWriter(final RemotingConnectionEJBReceiver ejbReceiver, final EJBReceiverContext ejbReceiverContext,
-                                  final byte protocolVersion, final String marshallingStrategy) {
+    MethodInvocationMessageWriter(final RemotingConnectionEJBReceiver ejbReceiver, final byte protocolVersion, final String marshallingStrategy) {
 
         this.ejbReceiver = ejbReceiver;
-        this.ejbReceiverContext = ejbReceiverContext;
         this.protocolVersion = protocolVersion;
         this.marshallingStrategy = marshallingStrategy;
     }

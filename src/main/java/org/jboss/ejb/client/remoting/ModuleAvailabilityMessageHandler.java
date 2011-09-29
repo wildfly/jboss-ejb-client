@@ -22,9 +22,10 @@
 
 package org.jboss.ejb.client.remoting;
 
-import org.jboss.ejb.client.EJBReceiverContext;
+import org.jboss.remoting3.MessageInputStream;
 
 import java.io.DataInput;
+import java.io.DataInputStream;
 import java.io.IOException;
 
 /**
@@ -34,48 +35,41 @@ class ModuleAvailabilityMessageHandler extends ProtocolMessageHandler {
 
     private final RemotingConnectionEJBReceiver ejbReceiver;
 
-    private final EJBReceiverContext ejbReceiverContext;
-
-    private EJBModuleIdentifier[] ejbModules;
-
-    ModuleAvailabilityMessageHandler(final RemotingConnectionEJBReceiver ejbReceiver, final EJBReceiverContext ejbReceiverContext) {
+    ModuleAvailabilityMessageHandler(final RemotingConnectionEJBReceiver ejbReceiver) {
         this.ejbReceiver = ejbReceiver;
-        this.ejbReceiverContext = ejbReceiverContext;
     }
 
 
     @Override
-    public void readMessage(DataInput input) throws IOException {
-        if (input == null) {
-            throw new IllegalArgumentException("Cannot read from null input");
+    public void processMessage(final MessageInputStream messageInputStream) throws IOException {
+        if (messageInputStream == null) {
+            throw new IllegalArgumentException("Cannot read from null stream");
         }
-        // read the count
-        final int count = PackedInteger.readPackedInteger(input);
-        ejbModules = new EJBModuleIdentifier[count];
-        for (int i = 0; i < ejbModules.length; i++) {
-            // read the app name
-            String appName = input.readUTF();
-            if (appName.isEmpty()) {
-                appName = null;
+        try {
+            final DataInput input = new DataInputStream(messageInputStream);
+            // read the count
+            final int count = PackedInteger.readPackedInteger(input);
+            final EJBModuleIdentifier ejbModules[] = new EJBModuleIdentifier[count];
+            for (int i = 0; i < ejbModules.length; i++) {
+                // read the app name
+                String appName = input.readUTF();
+                if (appName.isEmpty()) {
+                    appName = null;
+                }
+                // read the module name
+                final String moduleName = input.readUTF();
+                // read distinct name
+                String distinctName = input.readUTF();
+                if (distinctName.isEmpty()) {
+                    distinctName = null;
+                }
+                ejbModules[i] = new EJBModuleIdentifier(appName, moduleName, distinctName);
             }
-            // read the module name
-            final String moduleName = input.readUTF();
-            // read distinct name
-            String distinctName = input.readUTF();
-            if (distinctName.isEmpty()) {
-                distinctName = null;
+            for (final EJBModuleIdentifier ejbModule : ejbModules) {
+                this.ejbReceiver.onModuleAvailable(ejbModule.appName, ejbModule.moduleName, ejbModule.distinctName);
             }
-            ejbModules[i] = new EJBModuleIdentifier(appName, moduleName, distinctName);
-        }
-    }
-
-    @Override
-    public void processMessage() {
-        if (this.ejbModules == null) {
-            return;
-        }
-        for (final EJBModuleIdentifier ejbModule : this.ejbModules) {
-            this.ejbReceiver.onModuleAvailable(ejbModule.appName, ejbModule.moduleName, ejbModule.distinctName);
+        } finally {
+            messageInputStream.close();
         }
 
     }

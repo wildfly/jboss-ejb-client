@@ -22,7 +22,11 @@
 
 package org.jboss.ejb.client.remoting;
 
-import java.io.DataInput;
+import org.jboss.ejb.client.EJBReceiverInvocationContext;
+import org.jboss.logging.Logger;
+import org.jboss.remoting3.MessageInputStream;
+
+import java.io.DataInputStream;
 import java.io.IOException;
 
 /**
@@ -31,11 +35,9 @@ import java.io.IOException;
 class MethodInvocationResponseHandler extends ProtocolMessageHandler {
 
 
+    private static final Logger logger = Logger.getLogger(MethodInvocationResponseHandler.class);
+
     private final String marshallingType;
-
-    private Object methodInvocationResult;
-
-    private short invocationId;
 
     private final ChannelAssociation channelAssociation;
 
@@ -44,31 +46,54 @@ class MethodInvocationResponseHandler extends ProtocolMessageHandler {
         this.channelAssociation = channelAssociation;
     }
 
-    @Override
-    public void readMessage(DataInput input) throws IOException {
-        if (input == null) {
-            throw new IllegalArgumentException("Cannot read from null input");
-        }
 
-        // read the invocation id
-        this.invocationId = input.readShort();
-        final UnMarshaller unMarshaller = MarshallerFactory.createUnMarshaller(this.marshallingType);
-        // read the attachments
-        this.readAttachments(input);
-        // TODO: Read Jason's module CL wiki and other aspects of CL w.r.t EJB remoting and fix this
-        final ClassLoader classLoader = Thread.currentThread().getContextClassLoader();
-        unMarshaller.start(input, classLoader);
-        // read the result
-        try {
-            this.methodInvocationResult = unMarshaller.readObject();
-        } catch (ClassNotFoundException e) {
-            throw new RuntimeException(e);
+    @Override
+    public void processMessage(MessageInputStream messageInputStream) throws IOException {
+        if (messageInputStream == null) {
+            throw new IllegalArgumentException("Cannot read from null stream");
         }
-        unMarshaller.finish();
+        final DataInputStream input = new DataInputStream(messageInputStream);
+        // read the invocation id
+        final short invocationId = input.readShort();
+        final EJBReceiverInvocationContext context = this.channelAssociation.getEJBReceiverInvocationContext(invocationId);
+        if (context == null) {
+            logger.debug("No context available for invocation id: " + invocationId + ". Discarding result");
+            return;
+        }
+        // create a ResultProducer which can unmarshal and return the result, later
+        final EJBReceiverInvocationContext.ResultProducer resultProducer = new MethodInvocationResultProducer(input);
+        context.resultReady(resultProducer);
+
     }
 
-    @Override
-    public void processMessage() {
-        this.channelAssociation.handleInvocationResponse(this.invocationId, this.methodInvocationResult);
+    private class MethodInvocationResultProducer implements EJBReceiverInvocationContext.ResultProducer {
+
+        private final DataInputStream input;
+
+        MethodInvocationResultProducer(final DataInputStream input) {
+            this.input = input;
+        }
+
+        @Override
+        public Object getResult() throws Exception {
+            try {
+                // read the attachments
+                MethodInvocationResponseHandler.this.readAttachments(input);
+                final UnMarshaller unMarshaller = MarshallerFactory.createUnMarshaller(MethodInvocationResponseHandler.this.marshallingType);
+                final ClassLoader classLoader = Thread.currentThread().getContextClassLoader();
+                unMarshaller.start(this.input, classLoader);
+                // read the result
+                final Object result = unMarshaller.readObject();
+                unMarshaller.finish();
+                return result;
+            } finally {
+                this.input.close();
+            }
+        }
+
+        @Override
+        public void discardResult() {
+            //To change body of implemented methods use File | Settings | File Templates.
+        }
     }
 }

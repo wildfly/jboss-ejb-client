@@ -22,7 +22,6 @@
 
 package org.jboss.ejb.client.remoting;
 
-import org.jboss.ejb.client.EJBReceiverContext;
 import org.jboss.logging.Logger;
 import org.jboss.marshalling.Marshalling;
 import org.jboss.marshalling.SimpleDataInput;
@@ -34,6 +33,7 @@ import java.io.DataOutputStream;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.concurrent.CountDownLatch;
 
 /**
  * User: jpai
@@ -42,17 +42,15 @@ class VersionReceiver implements Channel.Receiver {
 
     private static final Logger logger = Logger.getLogger(VersionReceiver.class);
 
-    private final EJBReceiverContext receiverContext;
-    private final RemotingConnectionEJBReceiver ejbReceiver;
     private final byte clientVersion;
     private final String clientMarshallingStrategy;
+    private final CountDownLatch latch;
+    private Channel compatibleChannel;
 
-    VersionReceiver(final RemotingConnectionEJBReceiver ejbReceiver, final EJBReceiverContext receiverContext,
-                    final byte clientVersion, final String marshallingStrategy) {
-        this.ejbReceiver = ejbReceiver;
-        this.receiverContext = receiverContext;
+    VersionReceiver(final CountDownLatch latch, final byte clientVersion, final String marshallingStrategy) {
         this.clientVersion = clientVersion;
         this.clientMarshallingStrategy = marshallingStrategy;
+        this.latch = latch;
     }
 
     public void handleError(final Channel channel, final IOException error) {
@@ -85,8 +83,6 @@ class VersionReceiver implements Channel.Receiver {
 
         if (!this.checkCompatibility(serverVersion, serverMarshallerStrategies)) {
             logger.error("EJB receiver cannot communicate with server, due to version incompatibility");
-            // close the context
-            this.receiverContext.close();
             return;
         }
 
@@ -95,7 +91,8 @@ class VersionReceiver implements Channel.Receiver {
             this.sendVersionMessage(channel);
             // we had a successful version handshake with the server and our job is done, let the
             // EJBReceiver take it from here
-            this.ejbReceiver.onSuccessfulVersionHandshake(this.receiverContext, channel);
+            this.compatibleChannel = channel;
+            this.latch.countDown();
 
         } catch (IOException ioe) {
             // TODO: re-evaluate
@@ -103,6 +100,10 @@ class VersionReceiver implements Channel.Receiver {
         }
 
 
+    }
+
+    Channel getCompatibleChannel() {
+        return this.compatibleChannel;
     }
 
     private boolean checkCompatibility(final byte serverVersion, final String[] serverMarshallingStrategies) {

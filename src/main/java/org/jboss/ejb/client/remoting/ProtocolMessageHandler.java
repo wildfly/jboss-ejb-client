@@ -22,6 +22,8 @@
 
 package org.jboss.ejb.client.remoting;
 
+import org.jboss.remoting3.MessageInputStream;
+
 import java.io.DataInput;
 import java.io.IOException;
 
@@ -30,9 +32,7 @@ import java.io.IOException;
  */
 abstract class ProtocolMessageHandler {
 
-    protected abstract void readMessage(final DataInput input) throws IOException;
-
-    protected abstract void processMessage();
+    protected abstract void processMessage(final MessageInputStream messageInputStream) throws IOException;
 
     protected RemotingAttachments readAttachments(final DataInput input) throws IOException {
         int numAttachments = input.readByte();
@@ -54,5 +54,13 @@ abstract class ProtocolMessageHandler {
         return attachments;
     }
 
+    short getInvocationId(final DataInput input) throws IOException {
+        if (input == null) {
+            throw new IllegalArgumentException("Cannot read from null input");
+        }
+
+        // read the invocation id
+        return input.readShort();
+    }
 
 }
