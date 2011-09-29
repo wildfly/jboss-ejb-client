@@ -22,37 +22,44 @@
 
 package org.jboss.ejb.client.remoting;
 
-import org.jboss.ejb.client.AttachmentKey;
-import org.jboss.ejb.client.EJBClientInterceptor;
 import org.jboss.ejb.client.EJBClientInvocationContext;
 import org.jboss.ejb.client.EJBClientProxyContext;
-import org.jboss.ejb.client.remoting.RemotingAttachments;
+import org.jboss.ejb.client.SessionID;
 
 /**
+ * The Remoting-specific interceptor for session ID propagation.
+ *
  * @author <a href="mailto:david.lloyd@redhat.com">David M. Lloyd</a>
  */
-final class RemotingSessionInterceptor implements EJBClientInterceptor<RemotingAttachments> {
-
-    public static final AttachmentKey<byte[]> SESSION_KEY = new AttachmentKey<byte[]>();
+public final class RemotingSessionInterceptor implements RemotingEJBClientInterceptor {
 
     public void handleInvocation(final EJBClientInvocationContext<? extends RemotingAttachments> context) throws Throwable {
-        context.getReceiverSpecific().putPayloadAttachment(0x0000, context.getProxyAttachment(SESSION_KEY));
+        final SessionID sessionID = context.getProxyAttachment(SessionID.SESSION_ID_KEY);
+        if (sessionID != null) {
+            context.getReceiverSpecific().putPayloadAttachment(0x0000, sessionID.getEncodedForm());
+        }
     }
 
     public Object handleInvocationResult(final EJBClientInvocationContext<? extends RemotingAttachments> context) throws Throwable {
         final byte[] attachment = context.getReceiverSpecific().getPayloadAttachment(0x0000);
         if (attachment != null && attachment.length > 0 && attachment[0] != 0) {
             // session was removed
-            context.removeProxyAttachment(SESSION_KEY);
+            context.removeProxyAttachment(SessionID.SESSION_ID_KEY);
         }
         return context.getResult();
     }
 
     public void prepareSerialization(final EJBClientProxyContext<? extends RemotingAttachments> context) {
-        context.getReceiverSpecific().putPayloadAttachment(0x0000, context.getProxyAttachment(SESSION_KEY));
+        final SessionID sessionID = context.getProxyAttachment(SessionID.SESSION_ID_KEY);
+        if (sessionID != null) {
+            context.getReceiverSpecific().putPayloadAttachment(0x0000, sessionID.getEncodedForm());
+        }
     }
 
     public void postDeserialize(final EJBClientProxyContext<? extends RemotingAttachments> context) {
-        context.putProxyAttachment(SESSION_KEY, context.getReceiverSpecific().getPayloadAttachment(0x0000));
+        final byte[] sessionIdBytes = context.getReceiverSpecific().getPayloadAttachment(0x0000);
+        if (sessionIdBytes != null) {
+            context.putProxyAttachment(SessionID.SESSION_ID_KEY, SessionID.createSessionID(sessionIdBytes));
+        }
     }
 }

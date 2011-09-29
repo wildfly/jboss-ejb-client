@@ -22,43 +22,35 @@
 
 package org.jboss.ejb.client.remoting;
 
-import org.jboss.ejb.client.AttachmentKey;
 import org.jboss.ejb.client.EJBClientInvocationContext;
 import org.jboss.ejb.client.EJBClientProxyContext;
-import org.jboss.ejb.client.remoting.RemotingAttachments;
-import org.jboss.ejb.client.remoting.RemotingEJBClientInterceptor;
-
-import javax.transaction.Transaction;
-import javax.transaction.TransactionManager;
-import javax.transaction.xa.XAResource;
+import org.jboss.ejb.client.TransactionID;
 
 /**
+ * The receiver-specific interceptor for transaction propagation.
+ *
  * @author <a href="mailto:david.lloyd@redhat.com">David M. Lloyd</a>
  */
 public final class RemotingTransactionInterceptor implements RemotingEJBClientInterceptor {
 
-    private final TransactionManager transactionManager;
-
-    public RemotingTransactionInterceptor(final TransactionManager transactionManager) {
-        this.transactionManager = transactionManager;
-    }
-
     public void handleInvocation(final EJBClientInvocationContext<? extends RemotingAttachments> context) throws Throwable {
-        final Transaction transaction = transactionManager.getTransaction();
-        XAResource xaResource = context.getReceiverSpecific().getXAResourceInstance();
-        transaction.enlistResource(xaResource);
+        final TransactionID transactionID = context.getAttachment(TransactionID.TRANSACTION_ID_KEY);
+        if (transactionID != null) {
+            context.getReceiverSpecific().putPayloadAttachment(0x0001, transactionID.getEncodedForm());
+        }
     }
 
     public Object handleInvocationResult(final EJBClientInvocationContext<? extends RemotingAttachments> context) throws Throwable {
-        return null;
+        // nothing to do with result
+        return context.getResult();
     }
 
     public void prepareSerialization(final EJBClientProxyContext<? extends RemotingAttachments> context) {
+        // nothing to do; proxies are not inherently associated with a transaction
     }
 
     @Override
     public void postDeserialize(final EJBClientProxyContext<? extends RemotingAttachments> ejbClientProxyContext) {
-
+        // nothing to do; proxies are not inherently associated with a transaction
     }
-
 }

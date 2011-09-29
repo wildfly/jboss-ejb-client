@@ -20,43 +20,19 @@
  * 02110-1301 USA, or see the FSF site: http://www.fsf.org.
  */
 
-package org.jboss.ejb.client.remoting;
+package org.jboss.ejb.client;
 
 /**
+ * The transaction context for an EJB client.
+ *
  * @author <a href="mailto:david.lloyd@redhat.com">David M. Lloyd</a>
  */
-public final class RemotingAttachments {
-    private final IntKeyMap<byte[]> payloadAttachments = new IntKeyMap<byte[]>();
+public final class EJBClientTransactionContext extends Attachable {
 
-    public byte[] getPayloadAttachment(int key) {
-        if (key < 0 || key > 0xFFFF) {
-            return null;
-        }
-        return payloadAttachments.get(key);
-    }
+    /**
+     * The attachment key for the EJB client transaction context.
+     */
+    public static final AttachmentKey<EJBClientTransactionContext> TRANSACTION_CONTEXT_KEY = new AttachmentKey<EJBClientTransactionContext>();
 
-    public byte[] putPayloadAttachment(int key, byte[] newValue) {
-        if (newValue == null) {
-            throw new IllegalArgumentException("newValue is null");
-        }
-        if (key < 0 || key > 0xFFFF) {
-            throw new IllegalArgumentException("Attachment key is out of range (must be 0-65535)");
-        }
-        return payloadAttachments.put(key, newValue);
-    }
 
-    public byte[] removePayloadAttachment(int key) {
-        if (key < 0 || key > 0xFFFF) {
-            return null;
-        }
-        return payloadAttachments.remove(key);
-    }
-
-    void clearPayloadAttachments() {
-        payloadAttachments.clear();
-    }
-
-    Iterable<IntKeyMap.Entry<byte[]>> entries() {
-        return payloadAttachments;
-    }
 }
