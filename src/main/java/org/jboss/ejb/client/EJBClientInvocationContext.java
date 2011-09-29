@@ -49,14 +49,15 @@ public final class EJBClientInvocationContext<A> extends Attachable {
     private boolean resultDone;
     private Object[] parameters;
     private EJBReceiverInvocationContext.ResultProducer resultProducer;
-    private final EJBReceiverInvocationContext receiverInvocationContext = new EJBReceiverInvocationContext(this);
+    private final EJBReceiverInvocationContext receiverInvocationContext;
     private final FutureResponse futureResponse = new FutureResponse();
 
-    EJBClientInvocationContext(final EJBInvocationHandler invocationHandler, final EJBClientContext ejbClientContext, final A receiverSpecific, final EJBReceiver<A> receiver, final Object invokedProxy, final Method invokedMethod, final Object[] parameters, final EJBClientInterceptor<? super A>[] chain) {
+    EJBClientInvocationContext(final EJBInvocationHandler invocationHandler, final EJBClientContext ejbClientContext, final A receiverSpecific, final EJBReceiver<A> receiver, final EJBReceiverContext ejbReceiverContext, final Object invokedProxy, final Method invokedMethod, final Object[] parameters, final EJBClientInterceptor<? super A>[] chain) {
         this.invocationHandler = invocationHandler;
         this.ejbClientContext = ejbClientContext;
         this.receiverSpecific = receiverSpecific;
         this.receiver = receiver;
+        this.receiverInvocationContext =  new EJBReceiverInvocationContext(this, ejbReceiverContext);
         this.invokedProxy = invokedProxy;
         this.invokedMethod = invokedMethod;
         this.parameters = parameters;
@@ -200,7 +201,7 @@ public final class EJBClientInvocationContext<A> extends Attachable {
             throw new IllegalStateException("getResult() called during wrong phase");
         }
 
-        final int idx = this.idx++;
+        final int idx = --this.idx;
         final EJBClientInterceptor<? super A>[] chain = interceptorChain;
         try {
             if (chain.length == idx) {
@@ -267,7 +268,7 @@ public final class EJBClientInvocationContext<A> extends Attachable {
         try {
             synchronized (futureResponse) {
                 while (resultProducer == null) try {
-                    wait();
+                    futureResponse.wait();
                 } catch (InterruptedException e) {
                     intr = true;
                 }
