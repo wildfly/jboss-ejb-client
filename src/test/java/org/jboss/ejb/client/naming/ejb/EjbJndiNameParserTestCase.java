@@ -21,8 +21,6 @@
  */
 package org.jboss.ejb.client.naming.ejb;
 
-import org.jboss.ejb.client.naming.ejb.EjbJndiIdentifier;
-import org.jboss.ejb.client.naming.ejb.EjbJndiNameParser;
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -79,7 +77,7 @@ public class EjbJndiNameParserTestCase {
         EjbJndiIdentifier result = EjbJndiNameParser.parse("ejb:appName/moduleName/ejbName!com.myView");
         Assert.assertEquals("appName", result.getApplication());
         Assert.assertEquals("moduleName", result.getModule());
-        Assert.assertNull(result.getDistinctName());
+        Assert.assertEquals("", result.getDistinctName());
         Assert.assertEquals("ejbName", result.getEjbName());
         Assert.assertEquals("com.myView", result.getViewName());
         Assert.assertEquals(0, result.getOptions().size());

@@ -76,7 +76,7 @@ public class EjbNamespaceTestCase {
         final EJBInvocationHandler handler = (EJBInvocationHandler) Proxy.getInvocationHandler(result);
         Assert.assertEquals("app", handler.getAppName());
         Assert.assertEquals("module", handler.getModuleName());
-        Assert.assertEquals(null, handler.getDistinctName());
+        Assert.assertEquals("", handler.getDistinctName());
         Assert.assertEquals("MyEjb", handler.getBeanName());
     }
 }
