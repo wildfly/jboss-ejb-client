@@ -22,37 +22,18 @@
 
 package org.jboss.ejb.client.remoting;
 
-import java.io.DataInput;
+import java.io.DataOutput;
 import java.io.IOException;
+import java.io.ObjectOutput;
 
 /**
  * User: jpai
  */
-abstract class ProtocolMessageHandler {
+interface Marshaller {
 
-    protected abstract void readMessage(final DataInput input) throws IOException;
+    void start(DataOutput output) throws IOException;
 
-    protected abstract void processMessage();
+    void writeObject(final Object object) throws IOException;
 
-    protected RemotingAttachments readAttachments(final DataInput input) throws IOException {
-        int numAttachments = input.readByte();
-        if (numAttachments == 0) {
-            return null;
-        }
-        final RemotingAttachments attachments = new RemotingAttachments();
-        for (int i = 0; i < numAttachments; i++) {
-            // read attachment id
-            final short attachmentId = input.readShort();
-            // read attachment data length
-            final int dataLength = PackedInteger.readPackedInteger(input);
-            // read the data
-            final byte[] data = new byte[dataLength];
-            input.readFully(data);
-
-            attachments.putPayloadAttachment(attachmentId, data);
-        }
-        return attachments;
-    }
-
-
+    void finish() throws IOException;
 }

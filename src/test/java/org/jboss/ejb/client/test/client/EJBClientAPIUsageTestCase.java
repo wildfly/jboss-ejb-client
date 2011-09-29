@@ -86,7 +86,7 @@ public class EJBClientAPIUsageTestCase {
     }
 
     @Test
-    @Ignore
+    //@Ignore
     public void testProxyInvocation() throws Exception {
         final EchoRemote proxy = EJBClient.getProxy("my-app", "my-module", null, EchoBean.class.getSimpleName(), EchoRemote.class);
         Assert.assertNotNull("Received a null proxy", proxy);
@@ -94,6 +94,7 @@ public class EJBClientAPIUsageTestCase {
         EJBClientContext ejbClientContext = EJBClientContext.create();
         try {
             ejbClientContext.registerConnection(connection);
+            Thread.sleep(2000);
             final String echo = proxy.echo(message);
             Assert.assertEquals("Unexpected echo message", message, echo);
         } finally {

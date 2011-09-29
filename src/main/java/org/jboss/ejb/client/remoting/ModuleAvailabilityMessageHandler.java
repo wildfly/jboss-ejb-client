@@ -30,7 +30,7 @@ import java.io.IOException;
 /**
  * User: jpai
  */
-class ModuleAvailabilityMessageHandler implements ProtocolMessageHandler {
+class ModuleAvailabilityMessageHandler extends ProtocolMessageHandler {
 
     private final RemotingConnectionEJBReceiver ejbReceiver;
 

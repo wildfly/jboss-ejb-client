@@ -74,11 +74,11 @@ class VersionReceiver implements Channel.Receiver {
                 // TODO: Handle this
             }
             serverMarshallerStrategies = new String[serverMarshallerCount];
-            logger.info("Received server version " + serverVersion + " and marshalling strategies " + serverMarshallerStrategies);
-
             for (int i = 0; i < serverMarshallerCount; i++) {
                 serverMarshallerStrategies[i] = simpleDataInput.readUTF();
             }
+            logger.info("Received server version " + serverVersion + " and marshalling strategies " + Arrays.toString(serverMarshallerStrategies));
+
         } catch (IOException e) {
             throw new RuntimeException(e);
         }

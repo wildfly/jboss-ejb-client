@@ -59,4 +59,9 @@ public final class RemotingAttachments {
     Iterable<IntKeyMap.Entry<byte[]>> entries() {
         return payloadAttachments;
     }
+
+    int size() {
+        return this.payloadAttachments.size();
+    }
+    
 }

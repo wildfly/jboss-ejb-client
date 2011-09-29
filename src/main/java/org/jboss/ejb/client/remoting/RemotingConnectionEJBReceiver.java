@@ -38,6 +38,7 @@ import org.xnio.FutureResult;
 import org.xnio.IoFuture;
 import org.xnio.OptionMap;
 
+import java.io.DataOutputStream;
 import java.io.IOException;
 import java.util.IdentityHashMap;
 import java.util.Map;
@@ -51,7 +52,7 @@ public final class RemotingConnectionEJBReceiver extends EJBReceiver<RemotingAtt
 
     private final Connection connection;
 
-    private final Map<EJBReceiverContext, Channel> perReceiverContextChannels = new IdentityHashMap<EJBReceiverContext, Channel>();
+    private final Map<EJBReceiverContext, ChannelAssociation> channelAssociation = new IdentityHashMap<EJBReceiverContext, ChannelAssociation>();
 
     // TODO: The version and the marshalling strategy shouldn't be hardcoded here
     private final byte clientProtocolVersion = 0x00;
@@ -141,27 +142,17 @@ public final class RemotingConnectionEJBReceiver extends EJBReceiver<RemotingAtt
     void onSuccessfulVersionHandshake(final EJBReceiverContext receiverContext, final Channel channel) {
         // TODO: Handle the case where the receiver context might already be associated with a
         // channel previously.
-        synchronized (this.perReceiverContextChannels) {
-            this.perReceiverContextChannels.put(receiverContext, channel);
+        synchronized (this.channelAssociation) {
+            final ChannelAssociation channelAssociation = new ChannelAssociation(this, receiverContext, channel, this.clientProtocolVersion, this.clientMarshallingStrategy);
+            this.channelAssociation.put(receiverContext, channelAssociation);
         }
-        // register a receiver for messages from the server on this channel
-        channel.receiveMessage(new ResponseReceiver(this, receiverContext));
+        logger.debug("Successful version handshake completed for receiver context " + receiverContext + " on channel " + channel);
     }
 
     void onModuleAvailable(final String appName, final String moduleName, final String distinctName) {
+        logger.debug("Received module availability message for appName: " + appName + " moduleName: " + moduleName + " distinctName: " + distinctName);
+
         this.registerModule(appName, moduleName, distinctName);
     }
-
-    ProtocolMessageHandler getProtocolMessageHandler(final EJBReceiverContext ejbReceiverContext, final byte header) {
-        // TODO: We need to move this out of the EJBReceiver to allow different versions of protocol
-        // to be used
-        switch (header) {
-            case 0x08:
-                return new ModuleAvailabilityMessageHandler(this, ejbReceiverContext);
-            default:
-                return null;
-        }
-    }
-
 
 }

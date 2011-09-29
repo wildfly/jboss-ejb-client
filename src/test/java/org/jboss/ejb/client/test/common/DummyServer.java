@@ -21,6 +21,8 @@
  */
 package org.jboss.ejb.client.test.common;
 
+import org.jboss.ejb.client.remoting.DummyProtocolHandler;
+import org.jboss.ejb.client.remoting.MethodInvocationRequest;
 import org.jboss.ejb.client.remoting.PackedInteger;
 import org.jboss.logging.Logger;
 import org.jboss.marshalling.Marshalling;
@@ -44,9 +46,13 @@ import org.xnio.Xnio;
 import org.xnio.channels.AcceptingChannel;
 import org.xnio.channels.ConnectedStreamChannel;
 
+import javax.ejb.NoSuchEJBException;
+import java.io.DataInputStream;
 import java.io.DataOutput;
 import java.io.DataOutputStream;
 import java.io.IOException;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
@@ -153,7 +159,10 @@ public class DummyServer {
 
     class Version0Receiver implements Channel.Receiver {
 
+        private final DummyProtocolHandler dummyProtocolHandler;
+
         Version0Receiver(final String marshallingType) {
+            this.dummyProtocolHandler = new DummyProtocolHandler(marshallingType);
         }
 
         @Override
@@ -167,23 +176,51 @@ public class DummyServer {
         }
 
         @Override
-        public void handleMessage(Channel channel, MessageInputStream message) {
-            logger.info("TODO: message handling not yet implemented");
+        public void handleMessage(Channel channel, MessageInputStream messageInputStream) {
+            final DataInputStream inputStream = new DataInputStream(messageInputStream);
+            try {
+                final byte header = inputStream.readByte();
+                logger.info("Received message with header 0x" + Integer.toHexString(header));
+                switch (header) {
+                    case 0x03:
+                        final MethodInvocationRequest methodInvocationRequest = this.dummyProtocolHandler.readMethodInvocationRequest(inputStream, this.getClass().getClassLoader());
+                        Object methodInvocationResult = null;
+                        try {
+                            methodInvocationResult = DummyServer.this.handleMethodInvocationRequest(methodInvocationRequest);
+                        } catch (Exception e) {
+                            logger.error("Error while invoking method", e);
+                            // TODO: Convey this error back to client
+                            throw new RuntimeException(e);
+                        }
+                        logger.info("Method invocation result on server " + methodInvocationResult);
+                        // write the method invocation result
+                        final DataOutputStream outputStream = new DataOutputStream(channel.writeMessage());
+                        try {
+                            this.dummyProtocolHandler.writeMethodInvocationResponse(outputStream, methodInvocationRequest.getInvocationId(), methodInvocationResult, methodInvocationRequest.getAttachments());
+                        } finally {
+                            outputStream.close();
+                        }
+
+                        break;
+                    default:
+                        logger.warn("Not supported message header 0x" + Integer.toHexString(header) + " received by " + this);
+                        return;
+                }
+
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            } finally {
+                // receive next message
+                channel.receiveMessage(this);
+                IoUtils.safeClose(inputStream);
+            }
+
         }
 
     }
 
     public void register(final String appName, final String moduleName, final String distinctName, final String beanName, final Object instance) {
 
-        final StringBuilder sb = new StringBuilder();
-        if (appName != null) {
-            sb.append(appName).append("/");
-        }
-        sb.append(moduleName).append("/");
-        if (distinctName != null) {
-            sb.append(distinctName).append("/");
-        }
-        sb.append(beanName);
         final EJBModuleIdentifier moduleID = new EJBModuleIdentifier(appName, moduleName, distinctName);
         Map<String, Object> ejbs = this.registeredEJBs.get(moduleID);
         if (ejbs == null) {
@@ -250,6 +287,34 @@ public class DummyServer {
                 output.writeUTF(distinctName);
             }
         }
+    }
+
+    private Object handleMethodInvocationRequest(final MethodInvocationRequest methodInvocationRequest) throws InvocationTargetException, IllegalAccessException {
+        final EJBModuleIdentifier ejbModuleIdentifier = new EJBModuleIdentifier(methodInvocationRequest.getAppName(), methodInvocationRequest.getModuleName(), methodInvocationRequest.getDistinctName());
+        final Map<String, Object> ejbs = this.registeredEJBs.get(ejbModuleIdentifier);
+        final Object beanInstance = ejbs.get(methodInvocationRequest.getBeanName());
+        if (beanInstance == null) {
+            throw new NoSuchEJBException(methodInvocationRequest.getBeanName() + " EJB not available");
+        }
+        Method method = null;
+        try {
+            method = this.getRequiredMethod(beanInstance.getClass(), methodInvocationRequest.getMethodName(), methodInvocationRequest.getParamTypes());
+        } catch (NoSuchMethodException e) {
+            throw new RuntimeException(e);
+        }
+        return method.invoke(beanInstance, methodInvocationRequest.getParams());
+    }
+
+    private Method getRequiredMethod(final Class<?> klass, final String methodName, final String[] paramTypes) throws NoSuchMethodException {
+        final Class<?>[] types = new Class<?>[paramTypes.length];
+        for (int i = 0; i < paramTypes.length; i++) {
+            try {
+                types[i] = Class.forName(paramTypes[i], false, klass.getClassLoader());
+            } catch (ClassNotFoundException e) {
+                throw new RuntimeException(e);
+            }
+        }
+        return klass.getMethod(methodName, types);
     }
 
     class VersionReceiver implements Channel.Receiver {
