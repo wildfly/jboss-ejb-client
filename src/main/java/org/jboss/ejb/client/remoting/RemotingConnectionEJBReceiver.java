@@ -25,6 +25,8 @@ package org.jboss.ejb.client.remoting;
 import org.jboss.ejb.client.EJBClientInvocationContext;
 import org.jboss.ejb.client.EJBReceiver;
 import org.jboss.ejb.client.EJBReceiverContext;
+import org.jboss.ejb.client.NoSessionID;
+import org.jboss.ejb.client.SessionID;
 import org.jboss.logging.Logger;
 import org.jboss.remoting3.Channel;
 import org.jboss.remoting3.CloseHandler;
@@ -98,8 +100,9 @@ public final class RemotingConnectionEJBReceiver extends EJBReceiver<RemotingAtt
     }
 
     @Override
-    public byte[] openSession(final EJBReceiverContext receiverContext, final String appName, final String moduleName, final String distinctName, final String beanName) throws Exception {
-        return new byte[0];
+    public SessionID openSession(final EJBReceiverContext receiverContext, final String appName, final String moduleName, final String distinctName, final String beanName) throws Exception {
+        // todo
+        return NoSessionID.INSTANCE;
     }
 
     public void verify(final String appName, final String moduleName, final String distinctName, final String beanName) throws Exception {

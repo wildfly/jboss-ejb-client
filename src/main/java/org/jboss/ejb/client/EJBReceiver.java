@@ -84,7 +84,7 @@ public abstract class EJBReceiver<A> extends Attachable {
      * @return the new session ID
      * @throws Exception if the target is not stateful or does not exist
      */
-    protected abstract byte[] openSession(EJBReceiverContext ejbReceiverContext, String appName, String moduleName, String distinctName, String beanName) throws Exception;
+    protected abstract SessionID openSession(EJBReceiverContext ejbReceiverContext, String appName, String moduleName, String distinctName, String beanName) throws Exception;
 
     /**
      * Verify the existence of a remote EJB.

@@ -59,12 +59,13 @@ public final class EJBClient {
         }
         final EJBInvocationHandler ejbInvocationHandler = (EJBInvocationHandler) invocationHandler;
         final EJBClientContext ejbClientContext = EJBClientContext.requireCurrent();
-        final EJBReceiver<?> ejbReceiver = ejbClientContext.requireEJBReceiver(ejbInvocationHandler.getAppName(), ejbInvocationHandler.getModuleName(), ejbInvocationHandler.getDistinctName());
+        final String appName = ejbInvocationHandler.getAppName();
+        final String moduleName = ejbInvocationHandler.getModuleName();
+        final String distinctName = ejbInvocationHandler.getDistinctName();
+        final EJBReceiver<?> ejbReceiver = ejbClientContext.requireEJBReceiver(appName, moduleName, distinctName);
         try {
-            final byte[] sessionId = ejbReceiver.openSession(ejbClientContext.requireEJBReceiverContext(ejbReceiver),
-                    ejbInvocationHandler.getAppName(), ejbInvocationHandler.getModuleName(), ejbInvocationHandler.getDistinctName(), ejbInvocationHandler.getBeanName());
-            // TODO: associate the session ID generically
-//            ejbInvocationHandler.putAttachment(RemotingSessionInterceptor.SESSION_KEY, sessionId);
+            final SessionID sessionId = ejbReceiver.openSession(ejbClientContext.requireEJBReceiverContext(ejbReceiver), appName, moduleName, distinctName, ejbInvocationHandler.getBeanName());
+            ejbInvocationHandler.putAttachment(SessionID.SESSION_ID_KEY, sessionId);
         } catch (Exception e) {
             // TODO: Handle this correctly
             logger.error("Error while generating session id for proxy " + proxy, e);

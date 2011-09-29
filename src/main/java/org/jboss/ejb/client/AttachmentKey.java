@@ -29,5 +29,12 @@ package org.jboss.ejb.client;
  *
  * @author <a href="mailto:david.lloyd@redhat.com">David M. Lloyd</a>
  */
+@SuppressWarnings({ "unused", "UtilityClassWithoutPrivateConstructor", "UtilityClassWithPublicConstructor" })
 public final class AttachmentKey<T> {
+
+    /**
+     * Construct a new instance.
+     */
+    public AttachmentKey() {
+    }
 }

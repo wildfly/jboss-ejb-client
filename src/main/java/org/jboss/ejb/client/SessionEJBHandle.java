@@ -24,14 +24,13 @@ package org.jboss.ejb.client;
 
 import java.io.IOException;
 import java.io.ObjectInputStream;
-import java.util.Arrays;
 import org.jboss.marshalling.FieldSetter;
 
 import javax.ejb.EJBObject;
 
 /**
  * A handle for a session EJB.  A session EJB's uniqueness depends not only on its identity but also its session ID.
- * Stateless session EJBs have a session ID of {@link #NO_SESSION}.
+ * Stateless session EJBs have a session ID which is {@code ==} to {@link NoSessionID#INSTANCE}.
  *
  * @param <T> the EJB type
  * @author <a href="mailto:david.lloyd@redhat.com">David M. Lloyd</a>
@@ -97,8 +96,7 @@ public final class SessionEJBHandle<T extends EJBObject> extends EJBHandle<T> {
     /** {@inheritDoc} */
     protected EJBInvocationHandler getInvocationHandler() {
         final EJBInvocationHandler invocationHandler = super.getInvocationHandler();
-        // TODO set session ID in a transport-agnostic way
-        // invocationHandler.putAttachment(RemotingSessionInterceptor.SESSION_KEY, sessionId);
+        invocationHandler.putAttachment(SessionID.SESSION_ID_KEY, sessionId);
         return invocationHandler;
     }
 
