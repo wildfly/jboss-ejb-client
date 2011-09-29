@@ -40,23 +40,18 @@ public final class SessionEJBHandle<T extends EJBObject> extends EJBHandle<T> {
 
     private static final long serialVersionUID = 5811526405102776623L;
 
-    /**
-     * The session identifier for an EJB which is not stateful.
-     */
-    public static final byte[] NO_SESSION = new byte[0];
-
-    private final byte[] sessionId;
+    private final SessionID sessionId;
     private final transient int hashCode;
 
     private static final FieldSetter hashCodeSetter = FieldSetter.get(SessionEJBHandle.class, "hashCode");
 
-    SessionEJBHandle(final Class<T> type, final String appName, final String moduleName, final String distinctName, final String beanName, final byte[] sessionId) {
+    SessionEJBHandle(final Class<T> type, final String appName, final String moduleName, final String distinctName, final String beanName, final SessionID sessionId) {
         super(type, appName, moduleName, distinctName, beanName);
         if (sessionId == null) {
             throw new IllegalArgumentException("sessionId is null");
         }
         this.sessionId = sessionId;
-        hashCode = super.hashCode() * 13 + Arrays.hashCode(sessionId);
+        hashCode = super.hashCode() * 13 + sessionId.hashCode();
     }
 
     /**
@@ -96,7 +91,7 @@ public final class SessionEJBHandle<T extends EJBObject> extends EJBHandle<T> {
      * @return {@code true} if they are equal, {@code false} otherwise
      */
     public boolean equals(final SessionEJBHandle<?> other) {
-        return this == other || other != null && super.equals(other) && Arrays.equals(sessionId, other.sessionId);
+        return this == other || other != null && super.equals(other) && sessionId.equals(other.sessionId);
     }
 
     /** {@inheritDoc} */
@@ -113,6 +108,6 @@ public final class SessionEJBHandle<T extends EJBObject> extends EJBHandle<T> {
 
     private void readObject(ObjectInputStream ois) throws ClassNotFoundException, IOException {
         ois.defaultReadObject();
-        hashCodeSetter.setInt(this, super.hashCode() * 13 + Arrays.hashCode(sessionId));
+        hashCodeSetter.setInt(this, super.hashCode() * 13 + sessionId.hashCode());
     }
 }
