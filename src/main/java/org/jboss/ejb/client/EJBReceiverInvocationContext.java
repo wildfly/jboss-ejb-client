@@ -30,8 +30,15 @@ package org.jboss.ejb.client;
 public final class EJBReceiverInvocationContext {
     private final EJBClientInvocationContext<?> clientInvocationContext;
 
-    EJBReceiverInvocationContext(final EJBClientInvocationContext<?> clientInvocationContext) {
+    private final EJBReceiverContext ejbReceiverContext;
+
+    EJBReceiverInvocationContext(final EJBClientInvocationContext<?> clientInvocationContext, final EJBReceiverContext ejbReceiverContext) {
         this.clientInvocationContext = clientInvocationContext;
+        this.ejbReceiverContext = ejbReceiverContext;
+    }
+
+    public EJBReceiverContext getEjbReceiverContext() {
+        return this.ejbReceiverContext;
     }
 
     /**
