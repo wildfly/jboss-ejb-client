@@ -62,6 +62,7 @@ public final class EJBClient {
         final String appName = ejbInvocationHandler.getAppName();
         final String moduleName = ejbInvocationHandler.getModuleName();
         final String distinctName = ejbInvocationHandler.getDistinctName();
+        // todo: this should consider the current node affinity of the calling thread first (JBAS-6056)
         final EJBReceiver<?> ejbReceiver = ejbClientContext.requireEJBReceiver(appName, moduleName, distinctName);
         try {
             final SessionID sessionId = ejbReceiver.openSession(ejbClientContext.requireEJBReceiverContext(ejbReceiver), appName, moduleName, distinctName, ejbInvocationHandler.getBeanName());

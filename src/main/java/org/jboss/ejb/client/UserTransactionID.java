@@ -53,10 +53,36 @@ public final class UserTransactionID extends TransactionID {
         } catch (UnsupportedEncodingException e) {
             throw wrongFormat();
         }
-        if (encLen < end + 16) {
+        if (encLen < end + 4) {
             throw wrongFormat();
         }
         // the rest is the unique ID
+    }
+
+    UserTransactionID(final String name, final int uniqueId) {
+        this(encode(name, uniqueId));
+    }
+
+    private static byte[] encode(final String name, final int uniqueId) {
+        final byte[] nameBytes;
+        try {
+            nameBytes = name.getBytes("UTF-8");
+        } catch (UnsupportedEncodingException e) {
+            throw wrongFormat();
+        }
+        final int length = nameBytes.length;
+        if (length > 255) {
+            throw wrongFormat();
+        }
+        final byte[] target = new byte[5 + length];
+        target[0] = 0x01;
+        target[1] = (byte) length;
+        System.arraycopy(nameBytes, 0, target, 2, length);
+        target[3 + length] = (byte) (uniqueId >> 24);
+        target[4 + length] = (byte) (uniqueId >> 16);
+        target[5 + length] = (byte) (uniqueId >> 8);
+        target[6 + length] = (byte) uniqueId;
+        return target;
     }
 
     private static IllegalArgumentException wrongFormat() {

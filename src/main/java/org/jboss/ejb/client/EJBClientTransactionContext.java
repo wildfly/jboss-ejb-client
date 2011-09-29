@@ -22,17 +22,42 @@
 
 package org.jboss.ejb.client;
 
+import javax.transaction.TransactionManager;
+import javax.transaction.TransactionSynchronizationRegistry;
+import javax.transaction.UserTransaction;
+
 /**
  * The transaction context for an EJB client.
  *
  * @author <a href="mailto:david.lloyd@redhat.com">David M. Lloyd</a>
  */
-public final class EJBClientTransactionContext extends Attachable {
+public abstract class EJBClientTransactionContext extends Attachable {
 
     /**
-     * The attachment key for the EJB client transaction context.
+     * Get the transaction ID to associate with the invocation.
+     *
+     * @param invocationContext the invocation context
+     * @return the transaction ID to associate, or {@code null} for none
      */
-    public static final AttachmentKey<EJBClientTransactionContext> TRANSACTION_CONTEXT_KEY = new AttachmentKey<EJBClientTransactionContext>();
+    protected abstract TransactionID associate(EJBClientInvocationContext<?> invocationContext);
 
+    /**
+     * Create a local client transaction context which is controlled directly via {@link UserTransaction} methods.
+     *
+     * @return the local transaction context
+     */
+    public static EJBClientTransactionContext createLocal() {
+        return null;
+    }
 
+    /**
+     * Create a transaction context which is controlled by an actual transaction manager.
+     *
+     * @param transactionManager the transaction manager
+     * @param synchronizationRegistry the transaction synchronization registry
+     * @return the transaction context
+     */
+    public static EJBClientTransactionContext create(TransactionManager transactionManager, TransactionSynchronizationRegistry synchronizationRegistry) {
+        return null;
+    }
 }

@@ -259,4 +259,8 @@ public final class EJBClientContext extends Attachable {
             return receiverContext;
         }
     }
+
+    EJBReceiver<?> getNodeEJBReceiver(final String nodeName) {
+        return null;
+    }
 }
