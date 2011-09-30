@@ -37,8 +37,20 @@ public final class EJBReceiverInvocationContext {
         this.ejbReceiverContext = ejbReceiverContext;
     }
 
+    /**
+     * Get the associated EJB receiver context.
+     *
+     * @return the EJB receiver context
+     */
     public EJBReceiverContext getEjbReceiverContext() {
-        return this.ejbReceiverContext;
+        return ejbReceiverContext;
+    }
+
+    /**
+     * Indicate that the invocation should proceed asynchronously, if it isn't already.
+     */
+    public void proceedAsynchronously() {
+        clientInvocationContext.proceedAsynchronously();
     }
 
     /**
@@ -57,7 +69,7 @@ public final class EJBReceiverInvocationContext {
      * Indicate that the request was successfully cancelled and that no result is forthcoming.
      */
     public void requestCancelled() {
-        clientInvocationContext.requestCancelled();
+        clientInvocationContext.cancelled();
     }
 
     /**

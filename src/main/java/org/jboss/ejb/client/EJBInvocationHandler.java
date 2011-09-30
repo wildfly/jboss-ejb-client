@@ -74,26 +74,28 @@ final class EJBInvocationHandler extends Attachable implements InvocationHandler
         // todo - concatenate receiver chain too
         final EJBReceiverContext ejbReceiverContext = clientContext.requireEJBReceiverContext(receiver);
         final EJBClientInvocationContext<A> invocationContext = new EJBClientInvocationContext<A>(this, clientContext, receiver.createReceiverSpecific(), receiver, ejbReceiverContext, proxy, method, args, EJBClientContext.GENERAL_INTERCEPTORS);
-        if (async) {
-            // force async...
-            if (method.getReturnType() == Future.class) {
-                invocationContext.sendRequest();
-                return invocationContext.getFutureResponse();
-            } else if (method.getReturnType() == void.class) {
-                // todo indicate that the result shall be discarded
-                invocationContext.sendRequest();
-                // Void return
-                return null;
-            } else {
-                invocationContext.sendRequest();
-                // wrap return always
-                EJBClient.setFutureResult(invocationContext.getFutureResponse());
-                return null;
-            }
-        } else {
+
+        invocationContext.sendRequest();
+
+        if (! async) {
             // wait for invocation to complete
-            invocationContext.sendRequest();
-            return invocationContext.awaitResponse();
+            final Object value = invocationContext.awaitResponse();
+            if (value != EJBClientInvocationContext.PROCEED_ASYNC) {
+                return value;
+            }
+            // proceed asynchronously
+        }
+        // force async...
+        if (method.getReturnType() == Future.class) {
+            return invocationContext.getFutureResponse();
+        } else if (method.getReturnType() == void.class) {
+            invocationContext.setDiscardResult();
+            // Void return
+            return null;
+        } else {
+            // wrap return always
+            EJBClient.setFutureResult(invocationContext.getFutureResponse());
+            return null;
         }
     }
 

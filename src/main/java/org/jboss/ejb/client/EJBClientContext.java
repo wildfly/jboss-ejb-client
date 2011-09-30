@@ -215,7 +215,7 @@ public final class EJBClientContext extends Attachable {
      * @param moduleName   the module name
      * @param distinctName the distinct name, or {@code null} for none
      * @return the first EJB receiver to match
-     * @throws IllegalArgumentException If there's no {@link EJBReceiver} which can handle a EJB for the passed combination
+     * @throws IllegalStateException If there's no {@link EJBReceiver} which can handle a EJB for the passed combination
      *                                  of app, module and distinct name.
      */
     EJBReceiver<?> requireEJBReceiver(final String appName, final String moduleName, final String distinctName)

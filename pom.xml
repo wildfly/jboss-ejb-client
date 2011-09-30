@@ -45,6 +45,12 @@
                 <artifactId>maven-surefire-plugin</artifactId>
                 <configuration>
                     <redirectTestOutputToFile>true</redirectTestOutputToFile>
+                    <systemProperties>
+                        <property>
+                            <name>java.util.logging.manager</name>
+                            <value>org.jboss.logmanager.LogManager</value>
+                        </property>
+                    </systemProperties>
                 </configuration>
             </plugin>
             <plugin>
@@ -137,6 +143,13 @@
             <artifactId>jboss-logging-generator</artifactId>
             <version>1.0.0.CR1</version>
             <scope>provided</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>org.jboss.logmanager</groupId>
+            <artifactId>jboss-logmanager</artifactId>
+            <version>1.2.0.GA</version>
+            <scope>test</scope>
         </dependency>
 
         <dependency>

@@ -29,6 +29,8 @@ import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
+import static java.lang.Thread.holdsLock;
+
 /**
  * An interceptor context for EJB client interceptors.
  *
@@ -36,32 +38,62 @@ import java.util.concurrent.TimeoutException;
  * @author <a href="mailto:david.lloyd@redhat.com">David M. Lloyd</a>
  */
 public final class EJBClientInvocationContext<A> extends Attachable {
+
+    private static final Logs log = Logs.MAIN;
+
+    // Contextual stuff
+    private final EJBReceiverInvocationContext receiverInvocationContext;
     private final EJBInvocationHandler invocationHandler;
     private final EJBClientContext ejbClientContext;
-    private final A receiverSpecific;
     private final EJBReceiver<A> receiver;
+    private final A receiverSpecific;
 
+    // Invocation data
     private final Object invokedProxy;
     private final Method invokedMethod;
+    private final Object[] parameters;
+
+    // Invocation state
+    private final Object lock = new Object();
+    private EJBReceiverInvocationContext.ResultProducer resultProducer;
+    private State state = State.WAITING;
+    private AsyncState asyncState = AsyncState.SYNCHRONOUS;
+    private Object cachedResult;
+
+    // Interceptor state
     private final EJBClientInterceptor<? super A>[] interceptorChain;
     private int idx;
     private boolean requestDone;
     private boolean resultDone;
-    private Object[] parameters;
-    private EJBReceiverInvocationContext.ResultProducer resultProducer;
-    private final EJBReceiverInvocationContext receiverInvocationContext;
-    private final FutureResponse futureResponse = new FutureResponse();
 
-    EJBClientInvocationContext(final EJBInvocationHandler invocationHandler, final EJBClientContext ejbClientContext, final A receiverSpecific, final EJBReceiver<A> receiver, final EJBReceiverContext ejbReceiverContext, final Object invokedProxy, final Method invokedMethod, final Object[] parameters, final EJBClientInterceptor<? super A>[] chain) {
+    EJBClientInvocationContext(final EJBInvocationHandler invocationHandler, final EJBClientContext ejbClientContext, final A receiverSpecific, final EJBReceiver<A> receiver, final EJBReceiverContext ejbReceiverContext, final Object invokedProxy, final Method invokedMethod, final Object[] parameters, final EJBClientInterceptor<? super A>[] interceptorChain) {
         this.invocationHandler = invocationHandler;
         this.ejbClientContext = ejbClientContext;
         this.receiverSpecific = receiverSpecific;
         this.receiver = receiver;
-        this.receiverInvocationContext =  new EJBReceiverInvocationContext(this, ejbReceiverContext);
         this.invokedProxy = invokedProxy;
         this.invokedMethod = invokedMethod;
         this.parameters = parameters;
-        interceptorChain = chain;
+        this.interceptorChain = interceptorChain;
+        //noinspection ThisEscapedInObjectConstruction
+        receiverInvocationContext = new EJBReceiverInvocationContext(this, ejbReceiverContext);
+    }
+
+    enum AsyncState {
+        SYNCHRONOUS,
+        ASYNCHRONOUS,
+        ONE_WAY;
+    }
+
+    enum State {
+        WAITING,
+        CANCEL_REQ,
+        CANCELLED,
+        READY,
+        CONSUMING,
+        FAILED,
+        DONE,
+        DISCARDED;
     }
 
     /**
@@ -230,46 +262,102 @@ public final class EJBClientInvocationContext<A> extends Attachable {
     }
 
     void resultReady(EJBReceiverInvocationContext.ResultProducer resultProducer) {
-        synchronized (futureResponse) {
-            idx = 0;
-            this.resultProducer = resultProducer;
-            futureResponse.notifyAll();
+        synchronized (lock) {
+            switch (state) {
+                case WAITING:
+                case CANCEL_REQ: {
+                    this.resultProducer = resultProducer;
+                    idx = 0;
+                    state = State.READY;
+                    lock.notifyAll();
+                    return;
+                }
+            }
         }
+        // for whatever reason, we don't care
+        resultProducer.discardResult();
+        return;
     }
 
-    void requestCancelled() {
-    }
-
+    /**
+     * Get the EJB receiver associated with this invocation.
+     *
+     * @return the EJB receiver
+     */
     protected EJBReceiver<A> getReceiver() {
         return receiver;
     }
 
+    /**
+     * Get the invoked proxy object.
+     *
+     * @return the invoked proxy
+     */
     public Object getInvokedProxy() {
         return invokedProxy;
     }
 
+    /**
+     * Get the invoked proxy method.
+     *
+     * @return the invoked method
+     */
     public Method getInvokedMethod() {
         return invokedMethod;
     }
 
+    /**
+     * Get the invocation method parameters.
+     *
+     * @return the invocation method parameters
+     */
     public Object[] getParameters() {
         return parameters;
     }
 
+    /**
+     * Get the invoked view class.
+     *
+     * @return the invoked view class
+     */
     public Class<?> getViewClass() {
         return invocationHandler.getViewClass();
     }
 
     Future<?> getFutureResponse() {
-        return futureResponse;
+        return new FutureResponse();
+    }
+
+    static final Object PROCEED_ASYNC = new Object();
+
+    void proceedAsynchronously() {
+        assert ! holdsLock(lock);
+        synchronized (lock) {
+            if (asyncState == AsyncState.SYNCHRONOUS) {
+                asyncState = AsyncState.ASYNCHRONOUS;
+                notifyAll();
+            }
+        }
     }
 
     Object awaitResponse() throws Exception {
+        assert ! holdsLock(lock);
         boolean intr = false;
         try {
-            synchronized (futureResponse) {
-                while (resultProducer == null) try {
-                    futureResponse.wait();
+            synchronized (lock) {
+                if (asyncState == AsyncState.ASYNCHRONOUS) {
+                    return PROCEED_ASYNC;
+                } else if (asyncState == AsyncState.ONE_WAY) {
+                    throw log.oneWayInvocation();
+                }
+                while (state == State.WAITING) try {
+                    lock.wait();
+                    if (asyncState == AsyncState.ASYNCHRONOUS) {
+                        // It's an asynchronous invocation; proceed asynchronously.
+                        return PROCEED_ASYNC;
+                    } else if (asyncState == AsyncState.ONE_WAY) {
+                        throw log.oneWayInvocation();
+                    }
                 } catch (InterruptedException e) {
                     intr = true;
                 }
@@ -280,80 +368,235 @@ public final class EJBClientInvocationContext<A> extends Attachable {
         }
     }
 
+    void setDiscardResult() {
+        assert ! holdsLock(lock);
+        final EJBReceiverInvocationContext.ResultProducer resultProducer;
+        synchronized (lock) {
+            if (asyncState != AsyncState.ONE_WAY) {
+                asyncState = AsyncState.ONE_WAY;
+                notifyAll();
+            }
+            if (state != State.DONE) {
+                return;
+            }
+            // result is waiting, discard it
+            state = State.DISCARDED;
+            resultProducer = this.resultProducer;
+            notifyAll();
+            // fall out of the lock to discard the result
+        }
+        resultProducer.discardResult();
+    }
+
+    void cancelled() {
+        assert ! holdsLock(lock);
+        synchronized (lock) {
+            switch (state) {
+                case WAITING:
+                case CANCEL_REQ: {
+                    state = State.CANCELLED;
+                    notifyAll();
+                    break;
+                }
+            }
+        }
+    }
+
+    void failed(Throwable exception) {
+        assert ! holdsLock(lock);
+        synchronized (lock) {
+            switch (state) {
+                case WAITING:
+                case CANCEL_REQ: {
+                    state = State.FAILED;
+                    cachedResult = exception;
+                    notifyAll();
+                    break;
+                }
+            }
+        }
+    }
+
     final class FutureResponse implements Future<Object> {
-        private boolean cancelled;
-        private boolean done;
-        private Object result;
-        private Throwable exception;
 
-        synchronized void cancelled() {
-            cancelled = true;
-            notifyAll();
-        }
-
-        synchronized void failed(Throwable exception) {
-            done = true;
-            this.exception = exception;
-            notifyAll();
-        }
-
-        public synchronized boolean cancel(final boolean mayInterruptIfRunning) {
-            // todo - deliver to receiver
-            return false;
-        }
-
-        public synchronized boolean isCancelled() {
-            return cancelled;
-        }
-
-        public synchronized boolean isDone() {
-            return done;
-        }
-
-        public synchronized Object get() throws InterruptedException, ExecutionException {
-            while (! done) {
-                wait();
+        public boolean cancel(final boolean mayInterruptIfRunning) {
+            assert ! holdsLock(lock);
+            synchronized (lock) {
+                if (state != State.WAITING) {
+                    return false;
+                }
+                state = State.CANCEL_REQ;
             }
-            if (cancelled) {
-                throw new CancellationException("Request was cancelled");
+            return receiver.cancelInvocation(EJBClientInvocationContext.this, receiverInvocationContext);
+        }
+
+        public boolean isCancelled() {
+            assert ! holdsLock(lock);
+            synchronized (lock) {
+                return state == State.CANCELLED;
             }
-            if (exception != null) {
-                throw new ExecutionException("Remote execution failed", exception);
+        }
+
+        public boolean isDone() {
+            assert ! holdsLock(lock);
+            synchronized (lock) {
+                switch (state) {
+                    case WAITING:
+                    case CANCEL_REQ: {
+                        return false;
+                    }
+                    case READY:
+                    case FAILED:
+                    case CANCELLED:
+                    case DONE:
+                    case CONSUMING:
+                    case DISCARDED: {
+                        return true;
+                    }
+                    default: throw new IllegalStateException();
+                }
+            }
+        }
+
+        public Object get() throws InterruptedException, ExecutionException {
+            assert ! holdsLock(lock);
+            final EJBReceiverInvocationContext.ResultProducer resultProducer;
+            synchronized (lock) {
+                while (state == State.WAITING || state == State.CANCEL_REQ || state == State.CONSUMING) lock.wait();
+                switch (state) {
+                    case READY: {
+                        // Change state to consuming, but don't notify since nobody but us can act on it.
+                        // Instead we'll notify after the result is consumed.
+                        state = State.CONSUMING;
+                        resultProducer = EJBClientInvocationContext.this.resultProducer;
+                        // we have to get the result, so break out of here.
+                        break;
+                    }
+                    case FAILED: {
+                        throw log.remoteInvFailed((Throwable) cachedResult);
+                    }
+                    case CANCELLED: {
+                        throw log.requestCancelled();
+                    }
+                    case DONE: {
+                        return cachedResult;
+                    }
+                    case DISCARDED: {
+                        throw log.oneWayInvocation();
+                    }
+                    default: throw new IllegalStateException();
+                }
+            }
+            // extract the result from the producer.
+            Object result;
+            try {
+                result = resultProducer.getResult();
+            } catch (Exception e) {
+                synchronized (lock) {
+                    assert state == State.CONSUMING;
+                    state = State.FAILED;
+                    cachedResult = e;
+                    lock.notifyAll();
+                }
+                throw log.remoteInvFailed(e);
+            }
+            synchronized (lock) {
+                assert state == State.CONSUMING;
+                state = State.DONE;
+                cachedResult = result;
+                lock.notifyAll();
             }
             return result;
         }
 
-        public synchronized Object get(final long timeout, final TimeUnit unit) throws InterruptedException, ExecutionException, TimeoutException {
-            if (! done) {
-                long now = System.nanoTime();
-                final long end = Math.max(now, now + unit.toNanos(timeout));
-                do {
-                    if (resultProducer != null) try {
-                        idx = 0;
-                        return result = getResult();
-                    } catch (Throwable e) {
-                        exception = e;
-                        break; // fall thru to exception
-                    } finally {
-                        done = true;
+        public Object get(final long timeout, final TimeUnit unit) throws InterruptedException, ExecutionException, TimeoutException {
+            assert ! holdsLock(lock);
+            final EJBReceiverInvocationContext.ResultProducer resultProducer;
+            synchronized (lock) {
+                if (state == State.WAITING || state == State.CANCEL_REQ || state == State.CONSUMING) {
+                    long now = System.nanoTime();
+                    final long end = Math.max(now, now + unit.toNanos(timeout));
+                    do {
+                        final long remaining = end - now;
+                        if (remaining <= 0L) {
+                            throw log.timedOut();
+                        }
+                        // wait at least 1ms
+                        long millis = (remaining + 999999L) / 1000000L;
+                        wait(millis);
+                        now = System.nanoTime();
+                    } while (state == State.WAITING || state == State.CANCEL_REQ || state == State.CONSUMING);
+                }
+                switch (state) {
+                    case READY: {
+                        // Change state to consuming, but don't notify since nobody but us can act on it.
+                        // Instead we'll notify after the result is consumed.
+                        state = State.CONSUMING;
+                        resultProducer = EJBClientInvocationContext.this.resultProducer;
+                        // we have to get the result, so break out of here.
+                        break;
                     }
-                    final long remaining = end - now;
-                    if (remaining <= 0L) {
-                        throw new TimeoutException("Timed out");
+                    case FAILED: {
+                        throw log.remoteInvFailed((Throwable) cachedResult);
                     }
-                    // wait at least 1ms
-                    long millis = (remaining + 999999L) / 1000000L;
-                    wait(millis);
-                    now = System.nanoTime();
-                } while (! done);
+                    case CANCELLED: {
+                        throw log.requestCancelled();
+                    }
+                    case DONE: {
+                        return cachedResult;
+                    }
+                    case DISCARDED: {
+                        throw log.oneWayInvocation();
+                    }
+                    default: throw new IllegalStateException();
+                }
             }
-            if (cancelled) {
-                throw new CancellationException("Request was cancelled");
+            // extract the result from the producer.
+            Object result;
+            try {
+                result = resultProducer.getResult();
+            } catch (Exception e) {
+                synchronized (lock) {
+                    assert state == State.CONSUMING;
+                    state = State.FAILED;
+                    cachedResult = e;
+                    lock.notifyAll();
+                }
+                throw log.remoteInvFailed(e);
             }
-            if (exception != null) {
-                throw new ExecutionException("Remote execution failed", exception);
+            synchronized (lock) {
+                assert state == State.CONSUMING;
+                state = State.DONE;
+                cachedResult = result;
+                lock.notifyAll();
             }
             return result;
         }
+    }
+
+    protected void finalize() throws Throwable {
+        assert ! holdsLock(lock);
+        final EJBReceiverInvocationContext.ResultProducer resultProducer;
+        synchronized (lock) {
+            switch (state) {
+                case WAITING:
+                case CANCEL_REQ: {
+                    // the receiver lost its reference to us AND no callers actually seem to care.
+                    // There's not a whole lot to do at this point.
+                    return;
+                }
+                case READY: {
+                    // there's a result waiting.  We shall simply discard it (outside of the lock though), to make
+                    // sure that the transport layer doesn't have resources (like sockets) which are held up.
+                    resultProducer = this.resultProducer;
+                    break;
+                }
+                default: {
+                    // situation normal, or close enough.
+                    return;
+                }
+            }
+        }
+        resultProducer.discardResult();
     }
 }
