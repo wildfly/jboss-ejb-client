@@ -110,4 +110,10 @@
             <scope>test</scope>
         </dependency>
     </dependencies>
+
+    <scm>
+        <connection>scm:git:git@github.com:jbossas/jboss-ejb-client.git</connection>
+        <developerConnection>scm:git:git@github.com:jbossas/jboss-ejb-client.git</developerConnection>
+        <url>https://github.com/jbossas/jboss-ejb-client</url>
+    </scm>
 </project>
