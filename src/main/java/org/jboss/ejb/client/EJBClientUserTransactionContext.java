@@ -55,14 +55,8 @@ public final class EJBClientUserTransactionContext extends EJBClientTransactionC
         return state == null ? null : state.currentId;
     }
 
-    /**
-     * Get a {@link UserTransaction} instance affiliated with a specific remote node to control the transaction
-     * state.  The instance is only usable while there is an active connection with the given peer.
-     *
-     * @param nodeName the remote node name
-     * @return the user transaction instance
-     */
-    public UserTransaction getUserTransaction(String nodeName) {
+    /** {@inheritDoc} */
+    protected UserTransaction getUserTransaction(String nodeName) {
         return new UserTransactionImpl(nodeName);
     }
 

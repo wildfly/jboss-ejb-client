@@ -78,6 +78,20 @@ public abstract class EJBClientTransactionContext extends Attachable {
     }
 
     /**
+     * Get the current client transaction context, throwing an exception if one is not available.
+     *
+     * @return the transaction context
+     * @throws IllegalStateException if no context is available
+     */
+    public static EJBClientTransactionContext requireCurrent() throws IllegalStateException {
+        final EJBClientTransactionContext current = getCurrent();
+        if (current == null) {
+            throw new IllegalStateException("No transaction context available");
+        }
+        return current;
+    }
+
+    /**
      * Get the current client transaction context.
      *
      * @return the current client transaction context
@@ -104,5 +118,16 @@ public abstract class EJBClientTransactionContext extends Attachable {
      */
     public static EJBClientTransactionContext create(TransactionManager transactionManager, TransactionSynchronizationRegistry synchronizationRegistry) {
         return new EJBClientManagedTransactionContext(transactionManager, synchronizationRegistry);
+    }
+
+    /**
+     * Get a {@link javax.transaction.UserTransaction} instance affiliated with a specific remote node to control the transaction
+     * state.  The instance is only usable while there is an active connection with the given peer.
+     *
+     * @param nodeName the remote node name
+     * @return the user transaction instance
+     */
+    protected UserTransaction getUserTransaction(String nodeName) {
+        throw new IllegalStateException("User transactions not supported by this context");
     }
 }

@@ -26,6 +26,8 @@ import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Proxy;
 import java.util.concurrent.Future;
 
+import javax.transaction.UserTransaction;
+
 /**
  * The main EJB client API class.  This class contains helper methods which may be used to create proxies, open sessions,
  * and associate the current invocation context.
@@ -189,5 +191,16 @@ public final class EJBClient {
 
     static InvocationHandler getInvocationHandler(final Class<?> viewClass, final String appName, final String moduleName, final String distinctName, final String beanName) {
         return new EJBInvocationHandler(viewClass, appName, moduleName, distinctName, beanName);
+    }
+
+    /**
+     * Get a {@code UserTransaction} object instance which can be used to control transactions on a specific node.
+     *
+     * @param targetNodeName the node name
+     * @return the {@code UserTransaction} instance
+     * @throws IllegalStateException if the transaction context isn't set or cannot provide a {@code UserTransaction} instance
+     */
+    public static UserTransaction getUserTransaction(String targetNodeName) {
+        return EJBClientTransactionContext.requireCurrent().getUserTransaction(targetNodeName);
     }
 }
