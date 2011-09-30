@@ -22,34 +22,41 @@
 
 package org.jboss.ejb.client;
 
-import java.io.Closeable;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 /**
- * The context used by receivers to communicate state changes with the EJB client context.
+ * A finished future.
  *
+ * @param <T> the value type
  * @author <a href="mailto:david.lloyd@redhat.com">David M. Lloyd</a>
  */
-public final class EJBReceiverContext extends Attachable implements Closeable {
-    private final EJBReceiver<?> receiver;
-    private final EJBClientContext clientContext;
+final class FinishedFuture<T> implements Future<T> {
+    private final T result;
 
-    EJBReceiverContext(final EJBReceiver<?> receiver, final EJBClientContext clientContext) {
-        this.receiver = receiver;
-        this.clientContext = clientContext;
+    FinishedFuture(final T result) {
+        this.result = result;
     }
 
-    EJBClientContext getClientContext() {
-        return clientContext;
+    public boolean cancel(final boolean mayInterruptIfRunning) {
+        return false;
     }
 
-    EJBReceiver<?> getReceiver() {
-        return receiver;
+    public boolean isCancelled() {
+        return false;
     }
 
-    /**
-     * Inform the EJB client context that this receiver is no longer available.
-     */
-    public void close() {
-        // todo
+    public boolean isDone() {
+        return true;
+    }
+
+    public T get() throws InterruptedException, ExecutionException {
+        return result;
+    }
+
+    public T get(final long timeout, final TimeUnit unit) throws InterruptedException, ExecutionException, TimeoutException {
+        return result;
     }
 }

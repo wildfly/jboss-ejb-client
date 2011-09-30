@@ -27,6 +27,8 @@ import java.util.HashSet;
 import java.util.Set;
 import java.util.concurrent.Future;
 
+import javax.transaction.xa.XAException;
+
 /**
  * A receiver for EJB invocations.  Receivers can be associated with one or more client contexts.  This interface is
  * implemented by providers for EJB invocation services.
@@ -103,6 +105,80 @@ public abstract class EJBReceiver<A> extends Attachable {
      * @return the attachment
      */
     protected abstract A createReceiverSpecific();
+
+    /**
+     * Send a transaction-prepare message for the given transaction ID.
+     *
+     * @param context the receiver context
+     * @param transactionID the transaction ID
+     * @return a value indicating the resource manager's vote on the outcome of the transaction; the possible values are: {@code XA_RDONLY}
+     *         or {@code XA_OK}
+     * @throws XAException to roll back the transaction
+     */
+    @SuppressWarnings("unused")
+    protected int sendPrepare(final EJBReceiverContext context, final TransactionID transactionID) throws XAException {
+        throw new XAException(XAException.XA_RBOTHER);
+    }
+
+    /**
+     * Send a transaction-commit message for the given transaction ID.
+     *
+     * @param context the receiver context
+     * @param transactionID the transaction ID
+     * @param onePhase {@code true} to perform a one-phase commit
+     * @throws XAException if the transaction commit failed
+     */
+    @SuppressWarnings("unused")
+    protected void sendCommit(final EJBReceiverContext context, final TransactionID transactionID, final boolean onePhase) throws XAException {
+        throw new XAException(XAException.XA_RBOTHER);
+    }
+
+    /**
+     * Send a transaction-rollback message for the given transaction ID.
+     *
+     * @param context the receiver context
+     * @param transactionID the transaction ID
+     * @throws XAException if the transaction rollback failed
+     */
+    @SuppressWarnings("unused")
+    protected void sendRollback(final EJBReceiverContext context, final TransactionID transactionID) throws XAException {
+        throw new XAException(XAException.XA_RBOTHER);
+    }
+
+    /**
+     * Send a transaction-forget message for the given transaction ID.
+     *
+     * @param context the receiver context
+     * @param transactionID the transaction ID
+     * @throws XAException if the forget message failed
+     */
+    @SuppressWarnings("unused")
+    protected void sendForget(final EJBReceiverContext context, final TransactionID transactionID) throws XAException {
+        throw new XAException(XAException.XA_RBOTHER);
+    }
+
+    /**
+     * The before-completion hook.  Cause all connected subordinate transaction managers to invoke their beforeCompletion
+     * methods.  This method should not return until all remote beforeCompletions have been called.
+     *
+     * @param context the receiver context
+     * @param transactionID the transaction ID
+     */
+    @SuppressWarnings("unused")
+    protected void beforeCompletion(final EJBReceiverContext context, final TransactionID transactionID) {
+    }
+
+    /**
+     * The after-completion hook.  Cause all connected subordinate transaction managers to invoke their afterCompletion
+     * methods.  This method should not return until all remote afterCompletions have been called.
+     *
+     * @param context the receiver context
+     * @param transactionID the transaction ID
+     * @param status the transaction status
+     */
+    @SuppressWarnings("unused")
+    protected void afterCompletion(final EJBReceiverContext context, final TransactionID transactionID, final int status) {
+    }
 
     static class ModuleID {
         private final String appName;

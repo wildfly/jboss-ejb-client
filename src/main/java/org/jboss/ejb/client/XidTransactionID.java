@@ -22,6 +22,8 @@
 
 package org.jboss.ejb.client;
 
+import java.util.Arrays;
+
 import javax.transaction.xa.Xid;
 
 /**
@@ -30,12 +32,13 @@ import javax.transaction.xa.Xid;
  *
  * @author <a href="mailto:david.lloyd@redhat.com">David M. Lloyd</a>
  */
-public final class XidTransactionID extends TransactionID implements Xid {
+public final class XidTransactionID extends TransactionID {
 
     private static final long serialVersionUID = -1895745528459825578L;
 
     private final int formatId;
     private final byte gtidLen;
+    private final Xid xid = new XidImpl();
 
     XidTransactionID(final byte[] encodedBytes) {
         super(encodedBytes);
@@ -70,20 +73,62 @@ public final class XidTransactionID extends TransactionID implements Xid {
         return target;
     }
 
-    public int getFormatId() {
-        return formatId;
+    /**
+     * Get the corresponding XID for this transaction.
+     *
+     * @return the XID
+     */
+    public Xid getXid() {
+        return xid;
     }
 
-    public byte[] getGlobalTransactionId() {
-        final byte[] target = new byte[gtidLen];
-        System.arraycopy(getEncodedFormRaw(), 6, target, 0, gtidLen);
-        return target;
+    /**
+     * Determine whether the given Xid is the same as this Xid.
+     *
+     * @param xid the xid to test
+     * @return {@code true} if it is the same Xid
+     */
+    public boolean isSameXid(Xid xid) {
+        return this.xid.equals(xid);
     }
 
-    public byte[] getBranchQualifier() {
-        final byte[] raw = getEncodedFormRaw();
-        final byte[] target = new byte[raw.length - gtidLen - 6];
-        System.arraycopy(raw, 6, target, 0, gtidLen);
-        return target;
+    final class XidImpl implements Xid {
+
+        public int getFormatId() {
+            return formatId;
+        }
+
+        public byte[] getGlobalTransactionId() {
+            final byte[] target = new byte[gtidLen];
+            System.arraycopy(getEncodedFormRaw(), 6, target, 0, gtidLen);
+            return target;
+        }
+
+        public byte[] getBranchQualifier() {
+            final byte[] raw = getEncodedFormRaw();
+            final byte[] target = new byte[raw.length - gtidLen - 6];
+            System.arraycopy(raw, 6, target, 0, gtidLen);
+            return target;
+        }
+
+        public boolean equals(Object other) {
+            return other instanceof XidImpl && equals((XidImpl)other) || other instanceof Xid && equals((Xid)other);
+        }
+
+        private boolean equals(XidImpl other) {
+            return this == other || other != null && XidTransactionID.this.equals(other.getXidTransactionID());
+        }
+
+        private boolean equals(Xid other) {
+            return other != null && Arrays.equals(encode(other), getEncodedFormRaw());
+        }
+
+        public int hashCode() {
+            return XidTransactionID.this.hashCode();
+        }
+
+        XidTransactionID getXidTransactionID() {
+            return XidTransactionID.this;
+        }
     }
 }

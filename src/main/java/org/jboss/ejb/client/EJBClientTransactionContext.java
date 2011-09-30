@@ -34,12 +34,57 @@ import javax.transaction.UserTransaction;
 public abstract class EJBClientTransactionContext extends Attachable {
 
     /**
-     * Get the transaction ID to associate with the invocation.
+     * Get the transaction ID to associate with the invocation.  The transaction ID typically comes from the current
+     * thread's transaction context.
      *
      * @param invocationContext the invocation context
      * @return the transaction ID to associate, or {@code null} for none
+     * @throws Exception if an exception occurs
      */
-    protected abstract TransactionID associate(EJBClientInvocationContext<?> invocationContext);
+    protected abstract TransactionID getAssociatedTransactionID(EJBClientInvocationContext<?> invocationContext) throws Exception;
+
+    private static volatile ContextSelector<EJBClientTransactionContext> SELECTOR = new ConstantContextSelector<EJBClientTransactionContext>(createLocal());
+
+    private static final RuntimePermission SET_SELECTOR_PERMISSION = new RuntimePermission("setClientTransactionContextSelector");
+
+    /**
+     * Set the client transaction context selector.
+     *
+     * @param selector the selector to set
+     * @throws SecurityException if a security manager is installed and you do not have the {@code setClientTransactionContextSelector} {@link RuntimePermission}
+     */
+    public static void setSelector(final ContextSelector<EJBClientTransactionContext> selector) throws SecurityException {
+        if (selector == null) {
+            throw new IllegalArgumentException("selector is null");
+        }
+        final SecurityManager sm = System.getSecurityManager();
+        if (sm != null) {
+            sm.checkPermission(SET_SELECTOR_PERMISSION);
+        }
+        EJBClientTransactionContext.SELECTOR = selector;
+    }
+
+    /**
+     * Set the singleton, global transaction context.  Replaces any selector which was set via {@link #setSelector(ContextSelector)}.
+     *
+     * @param context the context to set
+     * @throws SecurityException if a security manager is installed and you do not have the {@code setClientTransactionContextSelector} {@link RuntimePermission}
+     */
+    public static void setGlobalContext(final EJBClientTransactionContext context) throws SecurityException {
+        if (context == null) {
+            throw new IllegalArgumentException("context is null");
+        }
+        setSelector(new ConstantContextSelector<EJBClientTransactionContext>(context));
+    }
+
+    /**
+     * Get the current client transaction context.
+     *
+     * @return the current client transaction context
+     */
+    public static EJBClientTransactionContext getCurrent() {
+        return SELECTOR.getCurrent();
+    }
 
     /**
      * Create a local client transaction context which is controlled directly via {@link UserTransaction} methods.
@@ -47,7 +92,7 @@ public abstract class EJBClientTransactionContext extends Attachable {
      * @return the local transaction context
      */
     public static EJBClientTransactionContext createLocal() {
-        return null;
+        return EJBClientUserTransactionContext.INSTANCE;
     }
 
     /**
@@ -58,6 +103,6 @@ public abstract class EJBClientTransactionContext extends Attachable {
      * @return the transaction context
      */
     public static EJBClientTransactionContext create(TransactionManager transactionManager, TransactionSynchronizationRegistry synchronizationRegistry) {
-        return null;
+        return new EJBClientManagedTransactionContext(transactionManager, synchronizationRegistry);
     }
 }

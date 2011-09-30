@@ -158,13 +158,16 @@ public final class EJBClientContext extends Attachable {
      * @param receiver the receiver to register
      */
     public void registerEJBReceiver(final EJBReceiver<?> receiver) {
+        if (receiver == null) {
+            throw new IllegalArgumentException("receiver is null");
+        }
         EJBReceiverContext ejbReceiverContext = null;
         synchronized (this.ejbReceiverAssociations) {
             if (this.ejbReceiverAssociations.containsKey(receiver)) {
                 // nothing to do
                 return;
             }
-            ejbReceiverContext = new EJBReceiverContext(this);
+            ejbReceiverContext = new EJBReceiverContext(receiver, this);
             this.ejbReceiverAssociations.put(receiver, ejbReceiverContext);
         }
         receiver.associate(ejbReceiverContext);
@@ -260,7 +263,7 @@ public final class EJBClientContext extends Attachable {
         }
     }
 
-    EJBReceiver<?> getNodeEJBReceiver(final String nodeName) {
+    EJBReceiverContext getNodeEJBReceiver(final String nodeName) {
         return null;
     }
 }

@@ -22,34 +22,30 @@
 
 package org.jboss.ejb.client;
 
-import java.io.Closeable;
-
 /**
- * The context used by receivers to communicate state changes with the EJB client context.
+ * A context selector which uses thread-local storage.
+ *
+ * @param <T> the context type
  *
  * @author <a href="mailto:david.lloyd@redhat.com">David M. Lloyd</a>
  */
-public final class EJBReceiverContext extends Attachable implements Closeable {
-    private final EJBReceiver<?> receiver;
-    private final EJBClientContext clientContext;
-
-    EJBReceiverContext(final EJBReceiver<?> receiver, final EJBClientContext clientContext) {
-        this.receiver = receiver;
-        this.clientContext = clientContext;
-    }
-
-    EJBClientContext getClientContext() {
-        return clientContext;
-    }
-
-    EJBReceiver<?> getReceiver() {
-        return receiver;
-    }
+public final class ThreadLocalContextSelector<T> implements ContextSelector<T> {
+    private final ThreadLocal<T> storage;
 
     /**
-     * Inform the EJB client context that this receiver is no longer available.
+     * Construct a new instance.
+     *
+     * @param storage the thread-local from which the value should be selected
      */
-    public void close() {
-        // todo
+    public ThreadLocalContextSelector(final ThreadLocal<T> storage) {
+        this.storage = storage;
+    }
+
+    public T getCurrent() {
+        return storage.get();
+    }
+
+    void setCurrent(T newValue) {
+        storage.set(newValue);
     }
 }

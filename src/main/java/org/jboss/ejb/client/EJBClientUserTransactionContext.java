@@ -32,6 +32,7 @@ import javax.transaction.RollbackException;
 import javax.transaction.Status;
 import javax.transaction.SystemException;
 import javax.transaction.UserTransaction;
+import javax.transaction.xa.XAException;
 
 /**
  * The transaction context for manual control of transactions on a remote node.
@@ -40,6 +41,8 @@ import javax.transaction.UserTransaction;
  */
 public final class EJBClientUserTransactionContext extends EJBClientTransactionContext {
 
+    static final EJBClientUserTransactionContext INSTANCE = new EJBClientUserTransactionContext();
+
     /**
      * User transaction objects are bound to a single source thread; we do not support suspending or resuming
      * transactions in this simple mode.  Asynchronous invocations use the value from the source thread.
@@ -47,7 +50,7 @@ public final class EJBClientUserTransactionContext extends EJBClientTransactionC
     private static final ThreadLocal<State> CURRENT_TRANSACTION_STATE = new ThreadLocal<State>();
 
     /** {@inheritDoc} */
-    protected UserTransactionID associate(final EJBClientInvocationContext<?> invocationContext) {
+    protected UserTransactionID getAssociatedTransactionID(final EJBClientInvocationContext<?> invocationContext) {
         final State state = CURRENT_TRANSACTION_STATE.get();
         return state == null ? null : state.currentId;
     }
@@ -89,19 +92,9 @@ public final class EJBClientUserTransactionContext extends EJBClientTransactionC
             if (state.currentId != null) {
                 throw new NotSupportedException("A transaction is already associated with this thread");
             }
-            boolean ok = false;
             final UserTransactionID transactionID = new UserTransactionID(nodeName, idCounter.getAndAdd(127));
-            final int timeout = state.timeout;
-            try {
-                final EJBClientContext clientContext = EJBClientContext.requireCurrent();
-                final EJBReceiver<?> receiver = clientContext.getNodeEJBReceiver(nodeName);
-                // receiver.sendBegin(transactionID, timeout);
-            } finally {
-                if (ok) {
-                    state.currentId = transactionID;
-                    state.status = Status.STATUS_ACTIVE;
-                }
-            }
+            state.currentId = transactionID;
+            state.status = Status.STATUS_ACTIVE;
         }
 
         public void commit() throws RollbackException, HeuristicMixedException, HeuristicRollbackException, SecurityException, IllegalStateException, SystemException {
@@ -115,18 +108,32 @@ public final class EJBClientUserTransactionContext extends EJBClientTransactionC
             final UserTransactionID transactionID = new UserTransactionID(nodeName, idCounter.getAndAdd(127));
             try {
                 final EJBClientContext clientContext = EJBClientContext.requireCurrent();
-                final EJBReceiver<?> receiver = clientContext.getNodeEJBReceiver(nodeName);
+                final EJBReceiverContext receiverContext = clientContext.getNodeEJBReceiver(nodeName);
+                final EJBReceiver<?> receiver = receiverContext.getReceiver();
                 if (state.status == Status.STATUS_MARKED_ROLLBACK) {
                     state.status = Status.STATUS_ROLLING_BACK;
                     try {
-                        // receiver.sendRollback(transactionID);
+                        receiver.sendRollback(receiverContext, transactionID);
                     } catch (Throwable ignored) {
                         // log it maybe?
                     }
                     throw new RollbackException("Transaction marked for rollback only");
                 } else {
                     state.status = Status.STATUS_COMMITTING;
-                    // receiver.sendCommit(transactionID);
+                    try {
+                        receiver.sendCommit(receiverContext, transactionID, true);
+                    } catch (XAException e) {
+                        if (e.errorCode >= XAException.XA_RBBASE && e.errorCode <= XAException.XA_RBEND) {
+                            throw new RollbackException(e.getMessage());
+                        }
+                        if (e.errorCode == XAException.XA_HEURMIX) {
+                            throw new HeuristicMixedException(e.getMessage());
+                        }
+                        if (e.errorCode == XAException.XA_HEURRB) {
+                            throw new HeuristicRollbackException(e.getMessage());
+                        }
+                        throw new SystemException(e.getMessage());
+                    }
                 }
             } finally {
                 state.currentId = null;
@@ -145,9 +152,14 @@ public final class EJBClientUserTransactionContext extends EJBClientTransactionC
             final UserTransactionID transactionID = new UserTransactionID(nodeName, idCounter.getAndAdd(127));
             try {
                 final EJBClientContext clientContext = EJBClientContext.requireCurrent();
-                final EJBReceiver<?> receiver = clientContext.getNodeEJBReceiver(nodeName);
+                final EJBReceiverContext receiverContext = clientContext.getNodeEJBReceiver(nodeName);
+                final EJBReceiver<?> receiver = receiverContext.getReceiver();
                 state.status = Status.STATUS_ROLLING_BACK;
-                // receiver.sendRollback(transactionID);
+                try {
+                    receiver.sendRollback(receiverContext, transactionID);
+                } catch (XAException e) {
+                    throw new SystemException(e.getMessage());
+                }
             } finally {
                 state.currentId = null;
                 state.status = Status.STATUS_NO_TRANSACTION;

@@ -22,34 +22,32 @@
 
 package org.jboss.ejb.client;
 
-import java.io.Closeable;
-
 /**
- * The context used by receivers to communicate state changes with the EJB client context.
- *
  * @author <a href="mailto:david.lloyd@redhat.com">David M. Lloyd</a>
  */
-public final class EJBReceiverContext extends Attachable implements Closeable {
-    private final EJBReceiver<?> receiver;
-    private final EJBClientContext clientContext;
+public final class Version {
+    private Version() {}
 
-    EJBReceiverContext(final EJBReceiver<?> receiver, final EJBClientContext clientContext) {
-        this.receiver = receiver;
-        this.clientContext = clientContext;
-    }
+    /**
+     * The current version.
+     */
+    public static final String VERSION = getVersionString();
 
-    EJBClientContext getClientContext() {
-        return clientContext;
-    }
-
-    EJBReceiver<?> getReceiver() {
-        return receiver;
+    /**
+     * Get the version string.
+     *
+     * @return the version string
+     */
+    public static String getVersionString() {
+        return "TRUNK SNAPSHOT";
     }
 
     /**
-     * Inform the EJB client context that this receiver is no longer available.
+     * Print out the current version on {@code System.out}.
+     *
+     * @param args ignored
      */
-    public void close() {
-        // todo
+    public static void main(String[] args) {
+        System.out.printf("JBoss EJB Client version %s\n", VERSION);
     }
 }
