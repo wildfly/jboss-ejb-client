@@ -75,7 +75,6 @@ public class DummyProtocolHandler {
         // read the invocation id
         final short invocationId = input.readShort();
         // read the ejb identifier info
-        // first read a flag to check whether app name is included
         String appName = input.readUTF();
         if (appName.isEmpty()) {
             appName = null;

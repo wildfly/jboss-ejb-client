@@ -23,7 +23,6 @@
 package org.jboss.ejb.client.remoting;
 
 import org.jboss.ejb.client.EJBClientInvocationContext;
-import org.jboss.ejb.client.EJBReceiverContext;
 
 import java.io.DataOutput;
 import java.io.IOException;
@@ -32,21 +31,17 @@ import java.lang.reflect.Method;
 /**
  * User: jpai
  */
-class MethodInvocationMessageWriter {
+class MethodInvocationMessageWriter extends AbstractMessageWriter {
 
     private static final byte METHOD_INVOCATION_HEADER = 0x03;
 
     private static final char METHOD_PARAM_TYPE_SEPARATOR = ',';
 
-    private final RemotingConnectionEJBReceiver ejbReceiver;
-
     private final byte protocolVersion;
 
     private final String marshallingStrategy;
 
-    MethodInvocationMessageWriter(final RemotingConnectionEJBReceiver ejbReceiver, final byte protocolVersion, final String marshallingStrategy) {
-
-        this.ejbReceiver = ejbReceiver;
+    MethodInvocationMessageWriter(final byte protocolVersion, final String marshallingStrategy) {
         this.protocolVersion = protocolVersion;
         this.marshallingStrategy = marshallingStrategy;
     }
@@ -100,32 +95,15 @@ class MethodInvocationMessageWriter {
         // write out the attachments
         this.writeAttachments(output, invocationContext.getReceiverSpecific());
 
-        // marshall the method params
-        final Marshaller marshaller = MarshallerFactory.createMarshaller(this.marshallingStrategy);
-        marshaller.start(output);
-        for (int i = 0; i < methodParams.length; i++) {
-            marshaller.writeObject(methodParams[i]);
+        if (methodParams != null && methodParams.length > 0) {
+            // marshall the method params
+            final Marshaller marshaller = MarshallerFactory.createMarshaller(this.marshallingStrategy);
+            marshaller.start(output);
+            for (int i = 0; i < methodParams.length; i++) {
+                marshaller.writeObject(methodParams[i]);
+            }
+            marshaller.finish();
         }
-        marshaller.finish();
 
-    }
-
-    private void writeAttachments(final DataOutput output, final RemotingAttachments attachments) throws IOException {
-        if (attachments == null) {
-            output.writeByte(0);
-            return;
-        }
-        // write attachment count
-        output.writeByte(attachments.size());
-        for (IntKeyMap.Entry<byte[]> attachment : attachments.entries()) {
-            // write attachment id
-            output.writeShort(attachment.getKey());
-            final byte[] data = attachment.getValue();
-            // write data length
-            PackedInteger.writePackedInteger(output, data.length);
-            // write the data
-            output.write(data);
-
-        }
     }
 }

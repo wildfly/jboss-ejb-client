@@ -23,6 +23,7 @@
 package org.jboss.ejb.client.remoting;
 
 import org.jboss.ejb.client.EJBReceiverInvocationContext;
+import org.jboss.ejb.client.SessionID;
 import org.jboss.logging.Logger;
 import org.jboss.remoting3.MessageInputStream;
 
@@ -32,60 +33,48 @@ import java.io.IOException;
 /**
  * User: jpai
  */
-class MethodInvocationResponseHandler extends ProtocolMessageHandler {
+class SessionOpenResponseHandler extends ProtocolMessageHandler {
 
-
-    private static final Logger logger = Logger.getLogger(MethodInvocationResponseHandler.class);
-
-    private final String marshallingType;
+    private static final Logger logger = Logger.getLogger(SessionOpenResponseHandler.class);
 
     private final ChannelAssociation channelAssociation;
 
-    MethodInvocationResponseHandler(final ChannelAssociation channelAssociation, final String marshallingType) {
-        this.marshallingType = marshallingType;
+    SessionOpenResponseHandler(final ChannelAssociation channelAssociation) {
         this.channelAssociation = channelAssociation;
     }
 
-
     @Override
-    public void processMessage(MessageInputStream messageInputStream) throws IOException {
+    protected void processMessage(final MessageInputStream messageInputStream) throws IOException {
         if (messageInputStream == null) {
             throw new IllegalArgumentException("Cannot read from null stream");
         }
         final DataInputStream input = new DataInputStream(messageInputStream);
         // read the invocation id
         final short invocationId = input.readShort();
-        final EJBReceiverInvocationContext context = this.channelAssociation.getEJBReceiverInvocationContext(invocationId);
-        if (context == null) {
-            logger.debug("No receiver invocation context available for invocation id: " + invocationId + ". Discarding result");
-            return;
-        }
-        // create a ResultProducer which can unmarshal and return the result, later
-        final EJBReceiverInvocationContext.ResultProducer resultProducer = new MethodInvocationResultProducer(input);
-        context.resultReady(resultProducer);
-
+        // create a ResultProducer which can be used to get the session id result
+        final EJBReceiverInvocationContext.ResultProducer resultProducer = new SessionIDResultProducer(input);
+        this.channelAssociation.resultReady(invocationId, resultProducer);
     }
 
-    private class MethodInvocationResultProducer implements EJBReceiverInvocationContext.ResultProducer {
+    private class SessionIDResultProducer implements EJBReceiverInvocationContext.ResultProducer {
 
         private final DataInputStream input;
 
-        MethodInvocationResultProducer(final DataInputStream input) {
+        SessionIDResultProducer(final DataInputStream input) {
             this.input = input;
         }
 
         @Override
         public Object getResult() throws Exception {
             try {
+                // read the session id length
+                final int sessionIdLength = PackedInteger.readPackedInteger(input);
+                final byte[] sessionIdBytes = new byte[sessionIdLength];
+                // read the session id
+                this.input.read(sessionIdBytes);
                 // read the attachments
-                MethodInvocationResponseHandler.this.readAttachments(input);
-                final UnMarshaller unMarshaller = MarshallerFactory.createUnMarshaller(MethodInvocationResponseHandler.this.marshallingType);
-                final ClassLoader classLoader = Thread.currentThread().getContextClassLoader();
-                unMarshaller.start(this.input, classLoader);
-                // read the result
-                final Object result = unMarshaller.readObject();
-                unMarshaller.finish();
-                return result;
+                final RemotingAttachments attachments = SessionOpenResponseHandler.this.readAttachments(input);
+                return SessionID.createSessionID(sessionIdBytes);
             } finally {
                 this.input.close();
             }

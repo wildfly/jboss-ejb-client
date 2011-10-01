@@ -22,9 +22,6 @@
 
 package org.jboss.ejb.client.remoting;
 
-import java.lang.reflect.UndeclaredThrowableException;
-import java.security.PrivateKey;
-import java.util.concurrent.CancellationException;
 import org.jboss.ejb.client.EJBClientInvocationContext;
 import org.jboss.ejb.client.EJBReceiver;
 import org.jboss.ejb.client.EJBReceiverContext;
@@ -35,7 +32,6 @@ import org.jboss.logging.Logger;
 import org.jboss.remoting3.Channel;
 import org.jboss.remoting3.CloseHandler;
 import org.jboss.remoting3.Connection;
-import org.xnio.FutureResult;
 import org.xnio.IoFuture;
 import org.xnio.OptionMap;
 
@@ -44,6 +40,7 @@ import java.io.IOException;
 import java.util.IdentityHashMap;
 import java.util.Map;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -55,7 +52,7 @@ public final class RemotingConnectionEJBReceiver extends EJBReceiver<RemotingAtt
 
     private final Connection connection;
 
-    private final Map<EJBReceiverContext, ChannelAssociation> channelAssociation = new IdentityHashMap<EJBReceiverContext, ChannelAssociation>();
+    private final Map<EJBReceiverContext, ChannelAssociation> channelAssociations = new IdentityHashMap<EJBReceiverContext, ChannelAssociation>();
 
     // TODO: The version and the marshalling strategy shouldn't be hardcoded here
     private final byte clientProtocolVersion = 0x00;
@@ -103,8 +100,8 @@ public final class RemotingConnectionEJBReceiver extends EJBReceiver<RemotingAtt
             if (successfulHandshake) {
                 final Channel compatibleChannel = versionReceiver.getCompatibleChannel();
                 final ChannelAssociation channelAssociation = new ChannelAssociation(this, context, compatibleChannel, this.clientProtocolVersion, this.clientMarshallingStrategy);
-                synchronized (this.channelAssociation) {
-                    this.channelAssociation.put(context, channelAssociation);
+                synchronized (this.channelAssociations) {
+                    this.channelAssociations.put(context, channelAssociation);
                 }
                 logger.info("Successful version handshake completed for receiver context " + context + " on channel " + compatibleChannel);
             } else {
@@ -119,15 +116,9 @@ public final class RemotingConnectionEJBReceiver extends EJBReceiver<RemotingAtt
 
     @Override
     public void processInvocation(final EJBClientInvocationContext<RemotingAttachments> clientInvocationContext, final EJBReceiverInvocationContext ejbReceiverInvocationContext) throws Exception {
-        ChannelAssociation channelAssociation;
-        synchronized (this.channelAssociation) {
-            channelAssociation = this.channelAssociation.get(ejbReceiverInvocationContext.getEjbReceiverContext());
-        }
-        if (channelAssociation == null) {
-            throw new IllegalStateException("EJB receiver " + this + " is not yet ready to process invocations for receiver context " + ejbReceiverInvocationContext);
-        }
-        final MethodInvocationMessageWriter messageWriter = new MethodInvocationMessageWriter(this, this.clientProtocolVersion, this.clientMarshallingStrategy);
+        final ChannelAssociation channelAssociation = this.requireChannelAssociation(ejbReceiverInvocationContext.getEjbReceiverContext());
         final Channel channel = channelAssociation.getChannel();
+        final MethodInvocationMessageWriter messageWriter = new MethodInvocationMessageWriter(this.clientProtocolVersion, this.clientMarshallingStrategy);
         final DataOutputStream dataOutputStream = new DataOutputStream(channel.writeMessage());
         final short invocationId = channelAssociation.getNextInvocationId();
         try {
@@ -140,8 +131,21 @@ public final class RemotingConnectionEJBReceiver extends EJBReceiver<RemotingAtt
 
     @Override
     public SessionID openSession(final EJBReceiverContext receiverContext, final String appName, final String moduleName, final String distinctName, final String beanName) throws Exception {
-        // todo
-        return NoSessionID.INSTANCE;
+        final ChannelAssociation channelAssociation = this.requireChannelAssociation(receiverContext);
+        final Channel channel = channelAssociation.getChannel();
+        final SessionOpenRequestWriter sessionOpenRequestWriter = new SessionOpenRequestWriter(this.clientProtocolVersion, this.clientMarshallingStrategy);
+        final DataOutputStream dataOutputStream = new DataOutputStream(channel.writeMessage());
+        final short invocationId = channelAssociation.getNextInvocationId();
+        try {
+            // TODO: Do we need to send along some attachments?
+            sessionOpenRequestWriter.writeMessage(dataOutputStream, invocationId, appName, moduleName, distinctName, beanName, null);
+        } finally {
+            dataOutputStream.close();
+        }
+        final Future<EJBReceiverInvocationContext.ResultProducer> futureResultProducer = channelAssociation.receiveResponse(invocationId);
+        final EJBReceiverInvocationContext.ResultProducer resultProducer = futureResultProducer.get();
+        final SessionID sessionId = (SessionID) resultProducer.getResult();
+        return sessionId;
     }
 
     public void verify(final String appName, final String moduleName, final String distinctName, final String beanName) throws Exception {
@@ -155,6 +159,17 @@ public final class RemotingConnectionEJBReceiver extends EJBReceiver<RemotingAtt
         logger.info("Received module availability message for appName: " + appName + " moduleName: " + moduleName + " distinctName: " + distinctName);
 
         this.registerModule(appName, moduleName, distinctName);
+    }
+
+    private ChannelAssociation requireChannelAssociation(final EJBReceiverContext ejbReceiverContext) {
+        ChannelAssociation channelAssociation;
+        synchronized (this.channelAssociations) {
+            channelAssociation = this.channelAssociations.get(ejbReceiverContext);
+        }
+        if (channelAssociation == null) {
+            throw new IllegalStateException("EJB receiver " + this + " is not yet ready to process invocations for receiver context " + ejbReceiverContext);
+        }
+        return channelAssociation;
     }
 
 }

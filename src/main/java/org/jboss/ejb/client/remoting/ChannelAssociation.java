@@ -27,11 +27,13 @@ import org.jboss.ejb.client.EJBReceiverInvocationContext;
 import org.jboss.logging.Logger;
 import org.jboss.remoting3.Channel;
 import org.jboss.remoting3.MessageInputStream;
+import org.xnio.FutureResult;
 
 import java.io.IOException;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
@@ -53,7 +55,9 @@ class ChannelAssociation {
 
     private final AtomicInteger nextInvocationId = new AtomicInteger(0);
 
-    private Map<Short, EJBReceiverInvocationContext> waitingInvocations = Collections.synchronizedMap(new HashMap<Short, EJBReceiverInvocationContext>());
+    private Map<Short, EJBReceiverInvocationContext> waitingMethodInvocations = Collections.synchronizedMap(new HashMap<Short, EJBReceiverInvocationContext>());
+
+    private Map<Short, FutureResult<EJBReceiverInvocationContext.ResultProducer>> waitingFutureResults = Collections.synchronizedMap(new HashMap<Short, FutureResult<EJBReceiverInvocationContext.ResultProducer>>());
 
     ChannelAssociation(final RemotingConnectionEJBReceiver ejbReceiver, final EJBReceiverContext ejbReceiverContext,
                        final Channel channel, final byte protocolVersion, final String marshallingType) {
@@ -75,16 +79,31 @@ class ChannelAssociation {
     }
 
     void receiveResponse(final short invocationId, final EJBReceiverInvocationContext ejbReceiverInvocationContext) {
-        this.waitingInvocations.put(invocationId, ejbReceiverInvocationContext);
+        this.waitingMethodInvocations.put(invocationId, ejbReceiverInvocationContext);
 
     }
 
+    Future<EJBReceiverInvocationContext.ResultProducer> receiveResponse(final short invocationId) {
+        final FutureResult<EJBReceiverInvocationContext.ResultProducer> futureResult = new FutureResult<EJBReceiverInvocationContext.ResultProducer>();
+        this.waitingFutureResults.put(invocationId, futureResult);
+        return IoFutureHelper.future(futureResult.getIoFuture());
+    }
+
     EJBReceiverInvocationContext getEJBReceiverInvocationContext(short invocationId) {
-        return this.waitingInvocations.get(invocationId);
+        return this.waitingMethodInvocations.get(invocationId);
+    }
+
+    void resultReady(final short invocationId, final EJBReceiverInvocationContext.ResultProducer resultProducer) {
+        final FutureResult<EJBReceiverInvocationContext.ResultProducer> future = this.waitingFutureResults.remove(invocationId);
+        if (future != null) {
+            future.setResult(resultProducer);
+        }
     }
 
     private ProtocolMessageHandler getProtocolMessageHandler(final byte header) {
         switch (header) {
+            case 0x02:
+                return new SessionOpenResponseHandler(this);
             case 0x08:
                 return new ModuleAvailabilityMessageHandler(this.ejbReceiver);
             case 0x05:
