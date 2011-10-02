@@ -22,12 +22,10 @@
 
 package org.jboss.ejb.client;
 
+import javax.transaction.xa.XAException;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.Set;
-import java.util.concurrent.Future;
-
-import javax.transaction.xa.XAException;
 
 /**
  * A receiver for EJB invocations.  Receivers can be associated with one or more client contexts.  This interface is
@@ -50,6 +48,18 @@ public abstract class EJBReceiver<A> extends Attachable {
      */
     protected final boolean registerModule(String appName, String moduleName, String distinctName) {
         return accessibleModules.add(new ModuleID(appName, moduleName, distinctName));
+    }
+
+    /**
+     * De-registers a module for this reciever
+     *
+     * @param appName the app name
+     * @param moduleName the module name
+     * @param distinctName the distinct name
+     * @return {@code true} if the registration was present
+     */
+    protected final boolean deRegisterModule(String appName, String moduleName, String distinctName) {
+        return accessibleModules.remove(new ModuleID(appName, moduleName, distinctName));
     }
 
     final boolean acceptsModule(String appName, String moduleName, String distinctName) {
