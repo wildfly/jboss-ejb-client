@@ -30,7 +30,10 @@ import java.io.DataInputStream;
 import java.io.IOException;
 
 /**
- * User: jpai
+ * Responsible for processing a message and parsing the method invocation response from it, as per the
+ * EJB remoting client protocol specification
+ * 
+ * User: Jaikiran Pai
  */
 class MethodInvocationResponseHandler extends ProtocolMessageHandler {
 
@@ -47,25 +50,33 @@ class MethodInvocationResponseHandler extends ProtocolMessageHandler {
     }
 
 
+    /**
+     * Reads the passed <code>messageInputStream</code> and parses it for a method invocation response.
+     * This method doesn't fully parse the stream and instead just parses enough so that it is able to
+     * create a {@link EJBReceiverInvocationContext.ResultProducer} which can further parse the rest of the
+     * stream in its {@link org.jboss.ejb.client.EJBReceiverInvocationContext.ResultProducer#getResult()} (whenever that
+     * gets invoked)
+     *
+     * @param messageInputStream The message input stream
+     * @throws IOException If there is a problem reading from the stream
+     */
     @Override
-    public void processMessage(MessageInputStream messageInputStream) throws IOException {
+    protected void processMessage(MessageInputStream messageInputStream) throws IOException {
         if (messageInputStream == null) {
             throw new IllegalArgumentException("Cannot read from null stream");
         }
         final DataInputStream input = new DataInputStream(messageInputStream);
         // read the invocation id
         final short invocationId = input.readShort();
-        final EJBReceiverInvocationContext context = this.channelAssociation.getEJBReceiverInvocationContext(invocationId);
-        if (context == null) {
-            logger.debug("No receiver invocation context available for invocation id: " + invocationId + ". Discarding result");
-            return;
-        }
         // create a ResultProducer which can unmarshal and return the result, later
         final EJBReceiverInvocationContext.ResultProducer resultProducer = new MethodInvocationResultProducer(input);
-        context.resultReady(resultProducer);
-
+        // make it known that the result is available
+        this.channelAssociation.resultReady(invocationId, resultProducer);
     }
 
+    /**
+     * A result producer which parses a input stream and returns a method invocation response as a result
+     */
     private class MethodInvocationResultProducer implements EJBReceiverInvocationContext.ResultProducer {
 
         private final DataInputStream input;

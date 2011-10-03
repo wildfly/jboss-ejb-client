@@ -26,7 +26,9 @@ import java.io.DataOutput;
 import java.io.IOException;
 
 /**
- * User: jpai
+ * Responsible for writing out a session open request message, as per the EJB remoting client protocol specification to a stream.
+ * <p/>
+ * User: Jaikiran Pai
  */
 class SessionOpenRequestWriter extends AbstractMessageWriter {
 
@@ -40,6 +42,18 @@ class SessionOpenRequestWriter extends AbstractMessageWriter {
         this.marshallingStrategy = marshallingStrategy;
     }
 
+    /**
+     * Writes out a session open request message, corresponding to the EJB identified by the passed parameters, to the passed <code>output</code>.
+     *
+     * @param output       The {@link DataOutput} to which the message will be written
+     * @param invocationId The invocation id
+     * @param appName      The application name of the EJB for which the session is to be opened. Can be null
+     * @param moduleName   The module name of the EJB. Cannot be null.
+     * @param distinctName The distinct name of the EJB. Can be null.
+     * @param beanName     The EJB name. Cannot be null.
+     * @param attachments  Any {@link RemotingAttachments attachments} that have to be passed along with the messages
+     * @throws IOException If there's a problem while writing to the {@link DataOutput}
+     */
     void writeMessage(final DataOutput output, final short invocationId, final String appName, final String moduleName, final String distinctName, final String beanName, final RemotingAttachments attachments) throws IOException {
         // write the header
         output.writeByte(HEADER_SESSION_OPEN_REQUEST);

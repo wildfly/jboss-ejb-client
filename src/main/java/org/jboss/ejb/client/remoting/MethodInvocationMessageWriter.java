@@ -29,7 +29,9 @@ import java.io.IOException;
 import java.lang.reflect.Method;
 
 /**
- * User: jpai
+ * Responsible for writing out a method invocation message, as per the EJB remoting client protocol specification to a stream.
+ * <p/>
+ * User: Jaikiran Pai
  */
 class MethodInvocationMessageWriter extends AbstractMessageWriter {
 
@@ -46,7 +48,15 @@ class MethodInvocationMessageWriter extends AbstractMessageWriter {
         this.marshallingStrategy = marshallingStrategy;
     }
 
-    public void writeMessage(final DataOutput output, final short invocationId, final EJBClientInvocationContext<RemotingAttachments> invocationContext) throws IOException {
+    /**
+     * Writes out a message invocation request to the passed <code>output</code>
+     *
+     * @param output            The {@link DataOutput} to which the message will be written
+     * @param invocationId      The invocation id
+     * @param invocationContext The EJB client invocation context
+     * @throws IOException If there's a problem writing out to the {@link DataOutput}
+     */
+    void writeMessage(final DataOutput output, final short invocationId, final EJBClientInvocationContext<RemotingAttachments> invocationContext) throws IOException {
         if (output == null) {
             throw new IllegalArgumentException("Cannot write to null output");
         }

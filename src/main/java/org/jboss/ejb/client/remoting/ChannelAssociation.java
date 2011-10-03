@@ -37,7 +37,14 @@ import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
- * User: jpai
+ * A {@link ChannelAssociation} keeps track of the association between the {@link EJBReceiverContext}
+ * of a {@link RemotingConnectionEJBReceiver} and the {@link Channel} on which the communication is going to
+ * happen for that particular association.
+ * <p/>
+ * The {@link RemotingConnectionEJBReceiver} uses a {@link ChannelAssociation} to send/receive messages to/from
+ * the remote server
+ * <p/>
+ * User: Jaikiran Pai
  */
 class ChannelAssociation {
 
@@ -51,7 +58,7 @@ class ChannelAssociation {
 
     private final byte protocolVersion;
 
-    private final String marshallingType;
+    private final String marshallingStrategy;
 
     private final AtomicInteger nextInvocationId = new AtomicInteger(0);
 
@@ -59,53 +66,109 @@ class ChannelAssociation {
 
     private Map<Short, FutureResult<EJBReceiverInvocationContext.ResultProducer>> waitingFutureResults = Collections.synchronizedMap(new HashMap<Short, FutureResult<EJBReceiverInvocationContext.ResultProducer>>());
 
+    /**
+     * Creates a channel association for the passed {@link EJBReceiverContext} and the {@link Channel}
+     *
+     * @param ejbReceiver         The EJB receiver
+     * @param ejbReceiverContext  The receiver context
+     * @param channel             The channel that will be used for remoting communication
+     * @param protocolVersion     The protocol version
+     * @param marshallingStrategy The marshalling strategy
+     */
     ChannelAssociation(final RemotingConnectionEJBReceiver ejbReceiver, final EJBReceiverContext ejbReceiverContext,
-                       final Channel channel, final byte protocolVersion, final String marshallingType) {
+                       final Channel channel, final byte protocolVersion, final String marshallingStrategy) {
         this.ejbReceiver = ejbReceiver;
         this.ejbReceiverContext = ejbReceiverContext;
         this.channel = channel;
         this.protocolVersion = protocolVersion;
-        this.marshallingType = marshallingType;
+        this.marshallingStrategy = marshallingStrategy;
         // register a receiver for receiving messages on the channel
         this.channel.receiveMessage(new ResponseReceiver());
     }
 
+    /**
+     * Returns the channel on which the communication for this {@link ChannelAssociation association}
+     * takes places
+     *
+     * @return
+     */
     Channel getChannel() {
         return this.channel;
     }
 
+    /**
+     * Returns the next invocation id that can be used for invocations on the channel corresponding to
+     * this {@link ChannelAssociation association}
+     *
+     * @return
+     */
     short getNextInvocationId() {
         return (short) nextInvocationId.getAndIncrement();
     }
 
+    /**
+     * Enroll a {@link EJBReceiverInvocationContext} to receive (an inherently asynchronous) response for a
+     * invocation corresponding to the passed <code>invocationId</code>. This method does <b>not</b> block.
+     * Whenever a result is available for the <code>invocationId</code>, the {@link EJBReceiverInvocationContext#resultReady(org.jboss.ejb.client.EJBReceiverInvocationContext.ResultProducer)}
+     * will be invoked.
+     *
+     * @param invocationId                 The invocation id
+     * @param ejbReceiverInvocationContext The receiver invocation context which will be used to send back a result when it's available
+     */
     void receiveResponse(final short invocationId, final EJBReceiverInvocationContext ejbReceiverInvocationContext) {
         this.waitingMethodInvocations.put(invocationId, ejbReceiverInvocationContext);
 
     }
 
+    /**
+     * Returns a {@link Future} {@link EJBReceiverInvocationContext.ResultProducer result producer} for the
+     * passed <code>invocationId</code>. This method does <b>not</b> block. The caller can use the returned
+     * {@link Future} to {@link java.util.concurrent.Future#get() wait} for a {@link org.jboss.ejb.client.EJBReceiverInvocationContext.ResultProducer}
+     * to be available. Once available, the {@link org.jboss.ejb.client.EJBReceiverInvocationContext.ResultProducer#getResult()}
+     * can be used to obtain the result for the invocation corresponding to the passed <code>invocationId</code>
+     *
+     * @param invocationId The invocation id
+     * @return
+     */
     Future<EJBReceiverInvocationContext.ResultProducer> receiveResponse(final short invocationId) {
         final FutureResult<EJBReceiverInvocationContext.ResultProducer> futureResult = new FutureResult<EJBReceiverInvocationContext.ResultProducer>();
         this.waitingFutureResults.put(invocationId, futureResult);
         return IoFutureHelper.future(futureResult.getIoFuture());
     }
 
-    EJBReceiverInvocationContext getEJBReceiverInvocationContext(short invocationId) {
-        return this.waitingMethodInvocations.get(invocationId);
-    }
-
+    /**
+     * Invoked when a result is ready for a (prior) invocation corresponding to the passed <code>invocationId</code>.
+     *
+     * @param invocationId   The invocation id
+     * @param resultProducer The result producer which will be used to get hold of the result
+     */
     void resultReady(final short invocationId, final EJBReceiverInvocationContext.ResultProducer resultProducer) {
-        final FutureResult<EJBReceiverInvocationContext.ResultProducer> future = this.waitingFutureResults.remove(invocationId);
-        if (future != null) {
-            future.setResult(resultProducer);
+        if (this.waitingMethodInvocations.containsKey(invocationId)) {
+            final EJBReceiverInvocationContext ejbReceiverInvocationContext = this.waitingMethodInvocations.remove(invocationId);
+            if (ejbReceiverInvocationContext != null) {
+                ejbReceiverInvocationContext.resultReady(resultProducer);
+            }
+        } else if (this.waitingFutureResults.containsKey(invocationId)) {
+            final FutureResult<EJBReceiverInvocationContext.ResultProducer> future = this.waitingFutureResults.remove(invocationId);
+            if (future != null) {
+                future.setResult(resultProducer);
+            }
         }
     }
 
+    /**
+     * Returns a {@link ProtocolMessageHandler} for the passed message <code>header</code>. Returns
+     * null if there's no such {@link ProtocolMessageHandler}.
+     *
+     * @param header The message header
+     * @return
+     */
     private ProtocolMessageHandler getProtocolMessageHandler(final byte header) {
         switch (header) {
             case 0x02:
                 return new SessionOpenResponseHandler(this);
             case 0x05:
-                return new MethodInvocationResponseHandler(this, this.marshallingType);
+                return new MethodInvocationResponseHandler(this, this.marshallingStrategy);
             case 0x08:
                 return new ModuleAvailabilityMessageHandler(this.ejbReceiver, ModuleAvailabilityMessageHandler.ModuleReportType.MODULE_AVAILABLE);
             case 0x09:
@@ -117,6 +180,9 @@ class ChannelAssociation {
     }
 
 
+    /**
+     * A {@link Channel.Receiver} for receiving message on the remoting channel
+     */
     private class ResponseReceiver implements Channel.Receiver {
 
         @Override

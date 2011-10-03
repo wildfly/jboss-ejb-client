@@ -29,7 +29,10 @@ import java.io.DataInputStream;
 import java.io.IOException;
 
 /**
- * User: jpai
+ * Responsible for parsing module availability and unavailability messages from a stream, as per the EJB remoting client
+ * protocol specification
+ * <p/>
+ * User: Jaikiran Pai
  */
 class ModuleAvailabilityMessageHandler extends ProtocolMessageHandler {
 
@@ -48,8 +51,15 @@ class ModuleAvailabilityMessageHandler extends ProtocolMessageHandler {
     }
 
 
+    /**
+     * Processes the passed <code>messageInputStream</code> for module availability and/or module unavailability
+     * report. This method then let's the {@link RemotingConnectionEJBReceiver} know about the module availability/unavailability
+     *
+     * @param messageInputStream The message input stream
+     * @throws IOException If there's a problem while reading the stream
+     */
     @Override
-    public void processMessage(final MessageInputStream messageInputStream) throws IOException {
+    protected void processMessage(final MessageInputStream messageInputStream) throws IOException {
         if (messageInputStream == null) {
             throw new IllegalArgumentException("Cannot read from null stream");
         }

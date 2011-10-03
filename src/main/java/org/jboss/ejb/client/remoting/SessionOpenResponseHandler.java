@@ -31,7 +31,9 @@ import java.io.DataInputStream;
 import java.io.IOException;
 
 /**
- * User: jpai
+ * Responsible for parsing a stream for a (prior) session open request's response, as per the EJB remote client protocol
+ * <p/>
+ * User: Jaikiran Pai
  */
 class SessionOpenResponseHandler extends ProtocolMessageHandler {
 
@@ -43,6 +45,14 @@ class SessionOpenResponseHandler extends ProtocolMessageHandler {
         this.channelAssociation = channelAssociation;
     }
 
+    /**
+     * Processes the passed <code>MessageInputStream</code> for a session id response, for a (prior) session open request
+     * This method does <i>not</i> fully read the passed stream, instead it reads enough to create a {@link org.jboss.ejb.client.EJBReceiverInvocationContext.ResultProducer}
+     * which can then read the rest of the stream when the {@link org.jboss.ejb.client.EJBReceiverInvocationContext.ResultProducer#getResult()} is called
+     *
+     * @param messageInputStream The message input stream
+     * @throws IOException If there's a problem reading the stream
+     */
     @Override
     protected void processMessage(final MessageInputStream messageInputStream) throws IOException {
         if (messageInputStream == null) {
@@ -56,6 +66,9 @@ class SessionOpenResponseHandler extends ProtocolMessageHandler {
         this.channelAssociation.resultReady(invocationId, resultProducer);
     }
 
+    /**
+     * A result producer which reads a input stream to return a session id as a result
+     */
     private class SessionIDResultProducer implements EJBReceiverInvocationContext.ResultProducer {
 
         private final DataInputStream input;

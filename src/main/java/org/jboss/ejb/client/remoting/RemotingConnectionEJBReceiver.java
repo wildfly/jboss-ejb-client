@@ -26,7 +26,6 @@ import org.jboss.ejb.client.EJBClientInvocationContext;
 import org.jboss.ejb.client.EJBReceiver;
 import org.jboss.ejb.client.EJBReceiverContext;
 import org.jboss.ejb.client.EJBReceiverInvocationContext;
-import org.jboss.ejb.client.NoSessionID;
 import org.jboss.ejb.client.SessionID;
 import org.jboss.logging.Logger;
 import org.jboss.remoting3.Channel;
@@ -44,18 +43,22 @@ import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 
 /**
+ * A {@link EJBReceiver} which uses JBoss Remoting to communicate with the server for EJB invocations
+ *
  * @author <a href="mailto:david.lloyd@redhat.com">David M. Lloyd</a>
  */
 public final class RemotingConnectionEJBReceiver extends EJBReceiver<RemotingAttachments> {
 
     private static final Logger logger = Logger.getLogger(RemotingConnectionEJBReceiver.class);
 
+    private static final String EJB_CHANNEL_NAME = "jboss.ejb";
+
     private final Connection connection;
 
     private final Map<EJBReceiverContext, ChannelAssociation> channelAssociations = new IdentityHashMap<EJBReceiverContext, ChannelAssociation>();
 
     // TODO: The version and the marshalling strategy shouldn't be hardcoded here
-    private final byte clientProtocolVersion = 0x00;
+    private final byte clientProtocolVersion = 0x01;
     private final String clientMarshallingStrategy = "river";
 
     /**
@@ -71,7 +74,7 @@ public final class RemotingConnectionEJBReceiver extends EJBReceiver<RemotingAtt
     public void associate(final EJBReceiverContext context) {
         final CountDownLatch versionHandshakeLatch = new CountDownLatch(1);
         final VersionReceiver versionReceiver = new VersionReceiver(versionHandshakeLatch, this.clientProtocolVersion, this.clientMarshallingStrategy);
-        final IoFuture<Channel> futureChannel = connection.openChannel("jboss.ejb", OptionMap.EMPTY);
+        final IoFuture<Channel> futureChannel = connection.openChannel(EJB_CHANNEL_NAME, OptionMap.EMPTY);
         futureChannel.addNotifier(new IoFuture.HandlingNotifier<Channel, EJBReceiverContext>() {
             public void handleCancelled(final EJBReceiverContext context) {
                 context.close();
@@ -149,6 +152,8 @@ public final class RemotingConnectionEJBReceiver extends EJBReceiver<RemotingAtt
     }
 
     public void verify(final String appName, final String moduleName, final String distinctName, final String beanName) throws Exception {
+        // TODO: Implement
+        logger.warn("Not yet implemented RemotingConnectionEJBReceiver#verify");
     }
 
     public RemotingAttachments createReceiverSpecific() {
@@ -156,14 +161,12 @@ public final class RemotingConnectionEJBReceiver extends EJBReceiver<RemotingAtt
     }
 
     void moduleAvailable(final String appName, final String moduleName, final String distinctName) {
-        logger.info("Received module availability message for appName: " + appName + " moduleName: " + moduleName + " distinctName: " + distinctName);
-
+        logger.debug("Received module availability message for appName: " + appName + " moduleName: " + moduleName + " distinctName: " + distinctName);
         this.registerModule(appName, moduleName, distinctName);
     }
 
     void moduleUnavailable(final String appName, final String moduleName, final String distinctName) {
-        logger.info("Received module un-availability message for appName: " + appName + " moduleName: " + moduleName + " distinctName: " + distinctName);
-
+        logger.debug("Received module un-availability message for appName: " + appName + " moduleName: " + moduleName + " distinctName: " + distinctName);
         this.deRegisterModule(appName, moduleName, distinctName);
     }
 
