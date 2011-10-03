@@ -35,8 +35,16 @@ class ModuleAvailabilityMessageHandler extends ProtocolMessageHandler {
 
     private final RemotingConnectionEJBReceiver ejbReceiver;
 
-    ModuleAvailabilityMessageHandler(final RemotingConnectionEJBReceiver ejbReceiver) {
+    enum ModuleReportType {
+        MODULE_AVAILABLE,
+        MODULE_UNAVAILABLE
+    }
+
+    private final ModuleReportType type;
+
+    ModuleAvailabilityMessageHandler(final RemotingConnectionEJBReceiver ejbReceiver, final ModuleReportType type) {
         this.ejbReceiver = ejbReceiver;
+        this.type = type;
     }
 
 
@@ -45,11 +53,12 @@ class ModuleAvailabilityMessageHandler extends ProtocolMessageHandler {
         if (messageInputStream == null) {
             throw new IllegalArgumentException("Cannot read from null stream");
         }
+        EJBModuleIdentifier ejbModules[] = null;
         try {
             final DataInput input = new DataInputStream(messageInputStream);
             // read the count
             final int count = PackedInteger.readPackedInteger(input);
-            final EJBModuleIdentifier ejbModules[] = new EJBModuleIdentifier[count];
+            ejbModules = new EJBModuleIdentifier[count];
             for (int i = 0; i < ejbModules.length; i++) {
                 // read the app name
                 String appName = input.readUTF();
@@ -65,12 +74,22 @@ class ModuleAvailabilityMessageHandler extends ProtocolMessageHandler {
                 }
                 ejbModules[i] = new EJBModuleIdentifier(appName, moduleName, distinctName);
             }
-            for (final EJBModuleIdentifier ejbModule : ejbModules) {
-                this.ejbReceiver.onModuleAvailable(ejbModule.appName, ejbModule.moduleName, ejbModule.distinctName);
-            }
         } finally {
             messageInputStream.close();
         }
+        switch (this.type) {
+            case MODULE_AVAILABLE:
+                for (final EJBModuleIdentifier ejbModule : ejbModules) {
+                    this.ejbReceiver.moduleAvailable(ejbModule.appName, ejbModule.moduleName, ejbModule.distinctName);
+                }
+                break;
+            case MODULE_UNAVAILABLE:
+                for (final EJBModuleIdentifier ejbModule : ejbModules) {
+                    this.ejbReceiver.moduleUnavailable(ejbModule.appName, ejbModule.moduleName, ejbModule.distinctName);
+                }
+                break;
+        }
+
 
     }
 

@@ -155,10 +155,16 @@ public final class RemotingConnectionEJBReceiver extends EJBReceiver<RemotingAtt
         return new RemotingAttachments();
     }
 
-    void onModuleAvailable(final String appName, final String moduleName, final String distinctName) {
+    void moduleAvailable(final String appName, final String moduleName, final String distinctName) {
         logger.info("Received module availability message for appName: " + appName + " moduleName: " + moduleName + " distinctName: " + distinctName);
 
         this.registerModule(appName, moduleName, distinctName);
+    }
+
+    void moduleUnavailable(final String appName, final String moduleName, final String distinctName) {
+        logger.info("Received module un-availability message for appName: " + appName + " moduleName: " + moduleName + " distinctName: " + distinctName);
+
+        this.deRegisterModule(appName, moduleName, distinctName);
     }
 
     private ChannelAssociation requireChannelAssociation(final EJBReceiverContext ejbReceiverContext) {

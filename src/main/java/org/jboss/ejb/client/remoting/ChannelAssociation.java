@@ -104,10 +104,13 @@ class ChannelAssociation {
         switch (header) {
             case 0x02:
                 return new SessionOpenResponseHandler(this);
-            case 0x08:
-                return new ModuleAvailabilityMessageHandler(this.ejbReceiver);
             case 0x05:
                 return new MethodInvocationResponseHandler(this, this.marshallingType);
+            case 0x08:
+                return new ModuleAvailabilityMessageHandler(this.ejbReceiver, ModuleAvailabilityMessageHandler.ModuleReportType.MODULE_AVAILABLE);
+            case 0x09:
+                return new ModuleAvailabilityMessageHandler(this.ejbReceiver, ModuleAvailabilityMessageHandler.ModuleReportType.MODULE_UNAVAILABLE);
+
             default:
                 return null;
         }
