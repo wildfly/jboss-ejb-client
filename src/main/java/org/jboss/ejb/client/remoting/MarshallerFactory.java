@@ -79,30 +79,13 @@ class MarshallerFactory {
 
         @Override
         public void start(final DataOutput output) throws IOException {
-            ByteOutput byteOutput = new ByteOutput() {
+            final OutputStream outputStream = new OutputStream() {
                 @Override
                 public void write(int b) throws IOException {
                     output.write(b);
                 }
-
-                @Override
-                public void write(byte[] b) throws IOException {
-                    output.write(b);
-                }
-
-                @Override
-                public void write(byte[] b, int off, int len) throws IOException {
-                    output.write(b, off, len);
-                }
-
-                @Override
-                public void close() throws IOException {
-                }
-
-                @Override
-                public void flush() throws IOException {
-                }
             };
+            final ByteOutput byteOutput = Marshalling.createByteOutput(outputStream);
             this.delegate.start(byteOutput);
         }
 

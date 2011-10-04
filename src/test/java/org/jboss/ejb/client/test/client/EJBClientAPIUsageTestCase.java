@@ -34,7 +34,6 @@ import org.jboss.remoting3.remote.RemoteConnectionProviderFactory;
 import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.BeforeClass;
-import org.junit.Ignore;
 import org.junit.Test;
 import org.xnio.IoFuture;
 import org.xnio.OptionMap;

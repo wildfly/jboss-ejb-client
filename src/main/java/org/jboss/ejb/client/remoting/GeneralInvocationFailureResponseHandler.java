@@ -36,7 +36,7 @@ import java.io.IOException;
  * <p/>
  * User: Jaikiran Pai
  */
-class InvocationFailureResponseHandler extends ProtocolMessageHandler {
+class GeneralInvocationFailureResponseHandler extends ProtocolMessageHandler {
 
     /**
      * Failure types
@@ -51,7 +51,7 @@ class InvocationFailureResponseHandler extends ProtocolMessageHandler {
     private final ChannelAssociation channelAssociation;
     private final FailureType failureType;
 
-    InvocationFailureResponseHandler(final ChannelAssociation channelAssociation, final FailureType failureType) {
+    GeneralInvocationFailureResponseHandler(final ChannelAssociation channelAssociation, final FailureType failureType) {
         this.failureType = failureType;
         this.channelAssociation = channelAssociation;
     }

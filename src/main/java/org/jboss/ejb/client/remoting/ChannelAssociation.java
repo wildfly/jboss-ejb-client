@@ -171,16 +171,18 @@ class ChannelAssociation {
                 return new SessionOpenResponseHandler(this);
             case 0x05:
                 return new MethodInvocationResponseHandler(this, this.marshallingStrategy);
+            case 0x06:
+                return new MethodInvocationApplicationExceptionResponseHandler(this, this.marshallingStrategy);
             case 0x08:
                 return new ModuleAvailabilityMessageHandler(this.ejbReceiver, ModuleAvailabilityMessageHandler.ModuleReportType.MODULE_AVAILABLE);
             case 0x09:
                 return new ModuleAvailabilityMessageHandler(this.ejbReceiver, ModuleAvailabilityMessageHandler.ModuleReportType.MODULE_UNAVAILABLE);
             case 0x0A:
-                return new InvocationFailureResponseHandler(this, InvocationFailureResponseHandler.FailureType.NO_SUCH_EJB);
+                return new GeneralInvocationFailureResponseHandler(this, GeneralInvocationFailureResponseHandler.FailureType.NO_SUCH_EJB);
             case 0x0B:
-                return new InvocationFailureResponseHandler(this, InvocationFailureResponseHandler.FailureType.NO_SUCH_METHOD);
+                return new GeneralInvocationFailureResponseHandler(this, GeneralInvocationFailureResponseHandler.FailureType.NO_SUCH_METHOD);
             case 0x0C:
-                return new InvocationFailureResponseHandler(this, InvocationFailureResponseHandler.FailureType.SESSION_NOT_ACTIVE);
+                return new GeneralInvocationFailureResponseHandler(this, GeneralInvocationFailureResponseHandler.FailureType.SESSION_NOT_ACTIVE);
 
             default:
                 return null;
