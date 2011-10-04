@@ -153,6 +153,8 @@ class ChannelAssociation {
             if (future != null) {
                 future.setResult(resultProducer);
             }
+        } else {
+            logger.info("Discarding result for invocation id " + invocationId + " since no waiting context found");
         }
     }
 
@@ -173,6 +175,12 @@ class ChannelAssociation {
                 return new ModuleAvailabilityMessageHandler(this.ejbReceiver, ModuleAvailabilityMessageHandler.ModuleReportType.MODULE_AVAILABLE);
             case 0x09:
                 return new ModuleAvailabilityMessageHandler(this.ejbReceiver, ModuleAvailabilityMessageHandler.ModuleReportType.MODULE_UNAVAILABLE);
+            case 0x0A:
+                return new InvocationFailureResponseHandler(this, InvocationFailureResponseHandler.FailureType.NO_SUCH_EJB);
+            case 0x0B:
+                return new InvocationFailureResponseHandler(this, InvocationFailureResponseHandler.FailureType.NO_SUCH_METHOD);
+            case 0x0C:
+                return new InvocationFailureResponseHandler(this, InvocationFailureResponseHandler.FailureType.SESSION_NOT_ACTIVE);
 
             default:
                 return null;

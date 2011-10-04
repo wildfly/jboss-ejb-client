@@ -124,12 +124,13 @@ public final class RemotingConnectionEJBReceiver extends EJBReceiver<RemotingAtt
         final MethodInvocationMessageWriter messageWriter = new MethodInvocationMessageWriter(this.clientProtocolVersion, this.clientMarshallingStrategy);
         final DataOutputStream dataOutputStream = new DataOutputStream(channel.writeMessage());
         final short invocationId = channelAssociation.getNextInvocationId();
+        channelAssociation.receiveResponse(invocationId, ejbReceiverInvocationContext);
+
         try {
             messageWriter.writeMessage(dataOutputStream, invocationId, clientInvocationContext);
         } finally {
             dataOutputStream.close();
         }
-        channelAssociation.receiveResponse(invocationId, ejbReceiverInvocationContext);
     }
 
     @Override
@@ -139,13 +140,13 @@ public final class RemotingConnectionEJBReceiver extends EJBReceiver<RemotingAtt
         final SessionOpenRequestWriter sessionOpenRequestWriter = new SessionOpenRequestWriter(this.clientProtocolVersion, this.clientMarshallingStrategy);
         final DataOutputStream dataOutputStream = new DataOutputStream(channel.writeMessage());
         final short invocationId = channelAssociation.getNextInvocationId();
+        final Future<EJBReceiverInvocationContext.ResultProducer> futureResultProducer = channelAssociation.receiveResponse(invocationId);
         try {
             // TODO: Do we need to send along some attachments?
             sessionOpenRequestWriter.writeMessage(dataOutputStream, invocationId, appName, moduleName, distinctName, beanName, null);
         } finally {
             dataOutputStream.close();
         }
-        final Future<EJBReceiverInvocationContext.ResultProducer> futureResultProducer = channelAssociation.receiveResponse(invocationId);
         final EJBReceiverInvocationContext.ResultProducer resultProducer = futureResultProducer.get();
         final SessionID sessionId = (SessionID) resultProducer.getResult();
         return sessionId;
