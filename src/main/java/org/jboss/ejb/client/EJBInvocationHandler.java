@@ -28,12 +28,13 @@ import java.io.ObjectOutputStream;
 import java.io.Serializable;
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
+import java.lang.reflect.Proxy;
 import java.util.concurrent.Future;
 
 /**
  * @author <a href="mailto:david.lloyd@redhat.com">David M. Lloyd</a>
  */
-@SuppressWarnings({ "SerializableClassWithUnconstructableAncestor" })
+@SuppressWarnings({"SerializableClassWithUnconstructableAncestor"})
 final class EJBInvocationHandler extends Attachable implements InvocationHandler, Serializable {
 
     private static final long serialVersionUID = 946555285095057230L;
@@ -65,10 +66,19 @@ final class EJBInvocationHandler extends Attachable implements InvocationHandler
     }
 
     public Object invoke(final Object proxy, final Method method, final Object[] args) throws Throwable {
+        if (method.getName().equals("toString") && method.getParameterTypes().length == 0) {
+            return handleToString();
+        } else if (method.getName().equals("equals") && method.getParameterTypes().length == 1 && method.getParameterTypes()[0] == Object.class) {
+            return handleEquals(args[0]);
+        } else if (method.getName().equals("hashCode") && method.getParameterTypes().length == 0) {
+            return handleHashCode();
+        }
+
         final EJBClientContext context = EJBClientContext.requireCurrent();
         final EJBReceiver<?> receiver = context.requireEJBReceiver(appName, moduleName, distinctName);
         return doInvoke(proxy, method, args, receiver, context);
     }
+
 
     private <A> Object doInvoke(final Object proxy, final Method method, final Object[] args, final EJBReceiver<A> receiver, EJBClientContext clientContext) throws Throwable {
         // todo - concatenate receiver chain too
@@ -77,7 +87,7 @@ final class EJBInvocationHandler extends Attachable implements InvocationHandler
 
         invocationContext.sendRequest();
 
-        if (! async) {
+        if (!async) {
             // wait for invocation to complete
             final Object value = invocationContext.awaitResponse();
             if (value != EJBClientInvocationContext.PROCEED_ASYNC) {
@@ -97,6 +107,68 @@ final class EJBInvocationHandler extends Attachable implements InvocationHandler
             EJBClient.setFutureResult(invocationContext.getFutureResponse());
             return null;
         }
+    }
+
+    private String handleToString() {
+        final StringBuilder builder = new StringBuilder("Proxy For Remote EJB ");
+        builder.append(appName);
+        builder.append('/');
+        builder.append(moduleName);
+        builder.append('/');
+        builder.append(distinctName);
+        builder.append('/');
+        builder.append(beanName);
+        final SessionID sessionID = getAttachment(SessionID.SESSION_ID_KEY);
+        if (sessionID != null) {
+            builder.append(" SessionId(");
+            builder.append(sessionID.toString());
+            builder.append(')');
+        }
+        return builder.toString();
+    }
+
+    private Integer handleHashCode() {
+        final SessionID sessionID = getAttachment(SessionID.SESSION_ID_KEY);
+        if (sessionID != null) {
+            return sessionID.hashCode();
+        } else {
+            int result = appName != null ? appName.hashCode() : 0;
+            result = 31 * result + moduleName.hashCode();
+            result = 31 * result + distinctName.hashCode();
+            result = 31 * result + beanName.hashCode();
+            result = 31 * result + viewClass.hashCode();
+            return result;
+        }
+    }
+
+    private Boolean handleEquals(final Object other) {
+        if (other instanceof Proxy) {
+            final InvocationHandler handler = Proxy.getInvocationHandler(other);
+            if (handler instanceof EJBInvocationHandler) {
+                final EJBInvocationHandler otherHandler = (EJBInvocationHandler) handler;
+                final SessionID thisSession = getAttachment(SessionID.SESSION_ID_KEY);
+                final SessionID otherSession = otherHandler.getAttachment(SessionID.SESSION_ID_KEY);
+                //if there is a session if that is the primary means of determining equality
+                if (thisSession != null) {
+                    return otherSession != null && thisSession.equals(otherSession);
+                } else if (otherSession != null) {
+                    return false;
+                }
+
+                if (!appName.equals(otherHandler.appName))
+                    return false;
+                if (!beanName.equals(otherHandler.beanName))
+                    return false;
+                if (!distinctName.equals(otherHandler.distinctName))
+                    return false;
+                if (!moduleName.equals(otherHandler.moduleName))
+                    return false;
+                if (!viewClass.equals(otherHandler.viewClass))
+                    return false;
+                return true;
+            }
+        }
+        return false;
     }
 
     public String getAppName() {
@@ -127,4 +199,5 @@ final class EJBInvocationHandler extends Attachable implements InvocationHandler
     EJBInvocationHandler getAsyncHandler() {
         return async ? this : new EJBInvocationHandler(this);
     }
+
 }

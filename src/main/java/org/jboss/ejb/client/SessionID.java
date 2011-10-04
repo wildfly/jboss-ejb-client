@@ -83,7 +83,7 @@ public abstract class SessionID implements Serializable {
      * @return {@code true} if they are equal, {@code false} otherwise
      */
     public final boolean equals(Object other) {
-        return other.getClass() == getClass() && equals((SessionID)other);
+        return other.getClass() == getClass() && equals((SessionID) other);
     }
 
     private boolean equals(SessionID other) {
@@ -136,5 +136,10 @@ public abstract class SessionID implements Serializable {
         protected Object readResolve() {
             return createSessionID(id);
         }
+    }
+
+    @Override
+    public String toString() {
+        return "{" + Arrays.toString(encodedForm) + '}';
     }
 }
