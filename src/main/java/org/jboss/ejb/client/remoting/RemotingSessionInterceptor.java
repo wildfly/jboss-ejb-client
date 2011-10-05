@@ -44,7 +44,15 @@ public final class RemotingSessionInterceptor implements RemotingEJBClientInterc
 
     public Object handleInvocationResult(final EJBClientInvocationContext<? extends RemotingAttachments> context) throws Exception {
         final byte[] attachment = context.getReceiverSpecific().getPayloadAttachment(0x0000);
-        if (attachment != null && attachment.length > 0 && attachment[0] != 0) {
+        // TODO: What contract is this? A session id can be of any format (ex: UnknownSessionID and it can
+        // have a 0 for byte[0] which need not mean a session removal. Need to discuss with David
+//        if (attachment != null && attachment.length > 0 && attachment[0] != 0) {
+//            // session was removed
+//            context.removeProxyAttachment(SessionID.SESSION_ID_KEY);
+//        }
+        // This part is added as a replacement to the above commented out code. Once we decide the contract,
+        // this entire method needs a cleanup
+        if (attachment == null || attachment.length == 0) {
             // session was removed
             context.removeProxyAttachment(SessionID.SESSION_ID_KEY);
         }
