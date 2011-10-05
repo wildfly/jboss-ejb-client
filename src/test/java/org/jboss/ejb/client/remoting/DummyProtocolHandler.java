@@ -254,7 +254,7 @@ public class DummyProtocolHandler {
         }
         // write attachment count
         output.writeByte(attachments.size());
-        for (IntKeyMap.Entry<byte[]> attachment : attachments.entries()) {
+        for (RemotingAttachments.RemotingAttachment attachment : attachments.entries()) {
             // write attachment id
             output.writeShort(attachment.getKey());
             final byte[] data = attachment.getValue();

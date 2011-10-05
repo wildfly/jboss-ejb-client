@@ -22,10 +22,12 @@
 
 package org.jboss.ejb.client.remoting;
 
+import java.util.Iterator;
+
 /**
  * @author <a href="mailto:david.lloyd@redhat.com">David M. Lloyd</a>
  */
-public final class RemotingAttachments {
+public final class RemotingAttachments implements Iterable<RemotingAttachments.RemotingAttachment> {
     private final IntKeyMap<byte[]> payloadAttachments = new IntKeyMap<byte[]>();
 
     public byte[] getPayloadAttachment(int key) {
@@ -56,12 +58,65 @@ public final class RemotingAttachments {
         payloadAttachments.clear();
     }
 
-    Iterable<IntKeyMap.Entry<byte[]>> entries() {
-        return payloadAttachments;
+    public Iterable<RemotingAttachment> entries() {
+        return this;
     }
 
-    int size() {
+    public int size() {
         return this.payloadAttachments.size();
     }
-    
+
+    @Override
+    public Iterator<RemotingAttachment> iterator() {
+        return new RemotingAttachmentIterator();
+    }
+
+    public final static class RemotingAttachment {
+
+        private final int key;
+
+        private final byte[] value;
+
+        private RemotingAttachment(final int key, final byte[] value) {
+            this.key = key;
+            this.value = value;
+        }
+
+        public int getKey() {
+            return this.key;
+        }
+
+        public byte[] getValue() {
+            return this.value;
+        }
+    }
+
+    private class RemotingAttachmentIterator implements Iterator<RemotingAttachment> {
+
+        private final Iterator<IntKeyMap.Entry<byte[]>> delegate;
+
+        private RemotingAttachmentIterator() {
+            this.delegate = RemotingAttachments.this.payloadAttachments.iterator();
+        }
+
+        @Override
+        public boolean hasNext() {
+            return this.delegate.hasNext();
+        }
+
+        @Override
+        public RemotingAttachment next() {
+            final IntKeyMap.Entry<byte[]> entry = this.delegate.next();
+            if (entry == null) {
+                return null;
+            }
+            return new RemotingAttachment(entry.getKey(), entry.getValue());
+        }
+
+        @Override
+        public void remove() {
+            throw new UnsupportedOperationException("remove() is not supported on " + this.getClass().getName());
+        }
+    }
+
 }

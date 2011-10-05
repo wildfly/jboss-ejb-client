@@ -37,7 +37,7 @@ class AbstractMessageWriter {
         }
         // write attachment count
         output.writeByte(attachments.size());
-        for (IntKeyMap.Entry<byte[]> attachment : attachments.entries()) {
+        for (final RemotingAttachments.RemotingAttachment attachment : attachments.entries()) {
             // write attachment id
             output.writeShort(attachment.getKey());
             final byte[] data = attachment.getValue();
