@@ -359,7 +359,7 @@ final class IntKeyMap<V> implements Cloneable, Serializable, Iterable<IntKeyMap.
                         return false;
                     }
                 }
-                return false;
+                return true;
             }
 
             public Entry<V> next() {
