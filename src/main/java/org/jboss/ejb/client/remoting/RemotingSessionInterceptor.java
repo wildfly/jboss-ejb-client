@@ -38,6 +38,8 @@ public final class RemotingSessionInterceptor implements RemotingEJBClientInterc
         if (sessionID != null) {
             context.getReceiverSpecific().putPayloadAttachment(0x0000, sessionID.getEncodedForm());
         }
+        // pass on the control to the next in chain
+        context.sendRequest();
     }
 
     public Object handleInvocationResult(final EJBClientInvocationContext<? extends RemotingAttachments> context) throws Exception {
