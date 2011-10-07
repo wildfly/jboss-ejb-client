@@ -307,7 +307,7 @@ public final class EJBClientInvocationContext<A> extends Attachable {
         synchronized (lock) {
             if (asyncState == AsyncState.SYNCHRONOUS) {
                 asyncState = AsyncState.ASYNCHRONOUS;
-                notifyAll();
+                lock.notifyAll();
             }
         }
     }

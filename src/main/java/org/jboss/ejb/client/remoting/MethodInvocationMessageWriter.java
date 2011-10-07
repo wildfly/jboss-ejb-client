@@ -49,7 +49,7 @@ class MethodInvocationMessageWriter extends AbstractMessageWriter {
     }
 
     /**
-     * Writes out a message invocation request to the passed <code>output</code>
+     * Writes out a method invocation request to the passed <code>output</code>
      *
      * @param output            The {@link DataOutput} to which the message will be written
      * @param invocationId      The invocation id

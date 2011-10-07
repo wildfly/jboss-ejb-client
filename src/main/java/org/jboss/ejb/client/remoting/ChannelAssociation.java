@@ -159,6 +159,22 @@ class ChannelAssociation {
     }
 
     /**
+     * Invoked when the server notifies the client that a (prior) method invocation corresponds to a method
+     * marked as asynchronous. This method let's the {@link EJBReceiverInvocationContext} corresponding to the <code>invocationId</code>
+     * know that it can {@link org.jboss.ejb.client.EJBReceiverInvocationContext#proceedAsynchronously() unblock the invocation}
+     *
+     * @param invocationId The invocation id
+     */
+    void handleAsyncMethodNotification(final short invocationId) {
+        final EJBReceiverInvocationContext receiverInvocationContext = this.waitingMethodInvocations.get(invocationId);
+        if (receiverInvocationContext == null) {
+            logger.debug("No waiting context found for async method invocation with id " + invocationId);
+            return;
+        }
+        receiverInvocationContext.proceedAsynchronously();
+    }
+
+    /**
      * Returns a {@link ProtocolMessageHandler} for the passed message <code>header</code>. Returns
      * null if there's no such {@link ProtocolMessageHandler}.
      *
@@ -183,7 +199,8 @@ class ChannelAssociation {
                 return new GeneralInvocationFailureResponseHandler(this, GeneralInvocationFailureResponseHandler.FailureType.NO_SUCH_METHOD);
             case 0x0C:
                 return new GeneralInvocationFailureResponseHandler(this, GeneralInvocationFailureResponseHandler.FailureType.SESSION_NOT_ACTIVE);
-
+            case 0x0E:
+                return new AsyncMethodNotificationHandler(this);
             default:
                 return null;
         }
@@ -210,8 +227,9 @@ class ChannelAssociation {
 
             try {
                 final int header = messageInputStream.read();
-                // TODO: Log at a lower level (once we have a bit of stability in the impl)
-                logger.info("Received message with header 0x" + Integer.toHexString(header));
+                if (logger.isTraceEnabled()) {
+                    logger.trace("Received message with header 0x" + Integer.toHexString(header));
+                }
                 final ProtocolMessageHandler messageHandler = ChannelAssociation.this.getProtocolMessageHandler((byte) header);
                 if (messageHandler == null) {
                     logger.warn("Unsupported message received with header 0x" + Integer.toHexString(header));
