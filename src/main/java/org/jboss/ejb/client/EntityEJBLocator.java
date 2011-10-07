@@ -29,28 +29,42 @@ import org.jboss.marshalling.FieldSetter;
 import javax.ejb.EJBObject;
 
 /**
- * A handle for a session EJB.  A session EJB's uniqueness depends not only on its identity but also its session ID.
- * Stateless session EJBs have a session ID which is {@code ==} to {@link NoSessionID#INSTANCE}.
+ * A locator for an entity EJB.
  *
- * @param <T> the EJB type
- * @author <a href="mailto:david.lloyd@redhat.com">David M. Lloyd</a>
+ * @param <T> the remote view type
  */
-public final class SessionEJBHandle<T extends EJBObject> extends EJBHandle<T> {
+public class EntityEJBLocator<T extends EJBObject> extends EJBLocator<T> {
 
-    private static final long serialVersionUID = 5811526405102776623L;
+    private static final long serialVersionUID = 6674116259124568398L;
 
-    private final SessionID sessionId;
+    private final Object primaryKey;
     private final transient int hashCode;
 
-    private static final FieldSetter hashCodeSetter = FieldSetter.get(SessionEJBHandle.class, "hashCode");
+    private static final FieldSetter hashCodeSetter = FieldSetter.get(EntityEJBLocator.class, "hashCode");
 
-    SessionEJBHandle(final Class<T> type, final String appName, final String moduleName, final String distinctName, final String beanName, final SessionID sessionId) {
-        super(type, appName, moduleName, distinctName, beanName);
-        if (sessionId == null) {
-            throw new IllegalArgumentException("sessionId is null");
-        }
-        this.sessionId = sessionId;
-        hashCode = super.hashCode() * 13 + sessionId.hashCode();
+    /**
+     * Construct a new instance.
+     *
+     * @param viewType the view type
+     * @param appName the application name
+     * @param moduleName the module name
+     * @param beanName the bean name
+     * @param distinctName the distinct name
+     * @param primaryKey the entity primary key
+     */
+    public EntityEJBLocator(final Class<T> viewType, final String appName, final String moduleName, final String beanName, final String distinctName, final Object primaryKey) {
+        super(viewType, appName, moduleName, beanName, distinctName);
+        this.primaryKey = primaryKey;
+        hashCode = primaryKey.hashCode() * 13 + super.hashCode();
+    }
+
+    /**
+     * Get the primary key for the referenced entity.
+     *
+     * @return the primary key for the referenced entity
+     */
+    public Object getPrimaryKey() {
+        return primaryKey;
     }
 
     /**
@@ -60,7 +74,7 @@ public final class SessionEJBHandle<T extends EJBObject> extends EJBHandle<T> {
      * @return {@code true} if they are equal, {@code false} otherwise
      */
     public boolean equals(final Object other) {
-        return other instanceof SessionEJBHandle && equals((SessionEJBHandle<?> )other);
+        return other instanceof EntityEJBLocator && equals((EntityEJBLocator<?>) other);
     }
 
     /**
@@ -69,8 +83,8 @@ public final class SessionEJBHandle<T extends EJBObject> extends EJBHandle<T> {
      * @param other the other object
      * @return {@code true} if they are equal, {@code false} otherwise
      */
-    public boolean equals(final EJBGenericHandle<?> other) {
-        return other instanceof SessionEJBHandle && equals((SessionEJBHandle<?> )other);
+    public boolean equals(final Locator<?> other) {
+        return other instanceof EntityEJBLocator && equals((EntityEJBLocator<?>) other);
     }
 
     /**
@@ -79,8 +93,8 @@ public final class SessionEJBHandle<T extends EJBObject> extends EJBHandle<T> {
      * @param other the other object
      * @return {@code true} if they are equal, {@code false} otherwise
      */
-    public boolean equals(final EJBHandle<?> other) {
-        return other instanceof SessionEJBHandle && equals((SessionEJBHandle<?>) other);
+    public boolean equals(final EJBLocator<?> other) {
+        return other instanceof EntityEJBLocator && equals((EntityEJBLocator<?>) other);
     }
 
     /**
@@ -89,23 +103,21 @@ public final class SessionEJBHandle<T extends EJBObject> extends EJBHandle<T> {
      * @param other the other object
      * @return {@code true} if they are equal, {@code false} otherwise
      */
-    public boolean equals(final SessionEJBHandle<?> other) {
-        return this == other || other != null && super.equals(other) && sessionId.equals(other.sessionId);
+    public boolean equals(final EntityEJBLocator<?> other) {
+        return super.equals(other) && primaryKey.equals(other.primaryKey);
     }
 
-    /** {@inheritDoc} */
-    protected EJBInvocationHandler getInvocationHandler() {
-        final EJBInvocationHandler invocationHandler = super.getInvocationHandler();
-        invocationHandler.putAttachment(SessionID.SESSION_ID_KEY, sessionId);
-        return invocationHandler;
-    }
-
+    /**
+     * Get the hash code for this instance.
+     *
+     * @return the hash code for this instance
+     */
     public int hashCode() {
         return hashCode;
     }
 
     private void readObject(ObjectInputStream ois) throws ClassNotFoundException, IOException {
         ois.defaultReadObject();
-        hashCodeSetter.setInt(this, super.hashCode() * 13 + sessionId.hashCode());
+        hashCodeSetter.setInt(this, primaryKey.hashCode() * 13 + super.hashCode());
     }
 }

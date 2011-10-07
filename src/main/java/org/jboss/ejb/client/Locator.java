@@ -22,35 +22,35 @@
 
 package org.jboss.ejb.client;
 
-import java.rmi.RemoteException;
-
-import javax.ejb.EJBHome;
-import javax.ejb.HomeHandle;
+import java.io.Serializable;
 
 /**
- * A handle for an EJB home interface.
+ * An identifier for a proxy invocation target instance, suitable for use as a hash key or a serialized token.
  *
- * @param <T> the EJB remote home interface type
- * @author <a href="mailto:david.lloyd@redhat.com">David M. Lloyd</a>
+ * @param <T> the interface type
  */
-public final class EJBHomeHandle<T extends EJBHome> implements HomeHandle {
+public abstract class Locator<T> implements Serializable {
 
-    private static final long serialVersionUID = -4870688692508067759L;
+    private static final long serialVersionUID = -5023698945241978131L;
 
-    private final EJBLocator<T> locator;
+    private final Class<T> interfaceType;
 
     /**
      * Construct a new instance.
      *
-     * @param locator the locator for the home interface
+     * @param interfaceType the interface type
      */
-    public EJBHomeHandle(final EJBLocator<T> locator) {
-        this.locator = locator;
+    protected Locator(final Class<T> interfaceType) {
+        this.interfaceType = interfaceType;
     }
 
-    /** {@inheritDoc} */
-    public T getEJBHome() throws RemoteException {
-        return EJBClient.createProxy(locator);
+    /**
+     * Get the interface type type for this locator.
+     *
+     * @return the interface type class object
+     */
+    public Class<T> getInterfaceType() {
+        return interfaceType;
     }
 
     /**
@@ -60,7 +60,7 @@ public final class EJBHomeHandle<T extends EJBHome> implements HomeHandle {
      * @return {@code true} if they are equal, {@code false} otherwise
      */
     public boolean equals(Object other) {
-        return other instanceof EJBHomeHandle && equals((EJBHomeHandle<?>)other);
+        return other instanceof Locator && equals((Locator<?>)other);
     }
 
     /**
@@ -69,16 +69,44 @@ public final class EJBHomeHandle<T extends EJBHome> implements HomeHandle {
      * @param other the other object
      * @return {@code true} if they are equal, {@code false} otherwise
      */
-    public boolean equals(EJBHomeHandle<?> other) {
-        return this == other || other != null && locator.equals(other.locator);
+    public boolean equals(Locator<?> other) {
+        return this == other || other != null && interfaceType == other.interfaceType;
     }
 
     /**
-     * Get the hash code for this EJB home handle.
+     * Get the hash code for this instance.
      *
-     * @return the hash code
+     * @return the hash code for this instance
      */
     public int hashCode() {
-        return locator.hashCode() ^ 1;
+        return interfaceType.hashCode();
     }
+
+    /**
+     * Get the application name.
+     *
+     * @return the application name
+     */
+    public abstract String getAppName();
+
+    /**
+     * Get the module name.
+     *
+     * @return the module name
+     */
+    public abstract String getModuleName();
+
+    /**
+     * Get the EJB name.
+     *
+     * @return the EJB name
+     */
+    public abstract String getBeanName();
+
+    /**
+     * Get the module distinct name.
+     *
+     * @return the module distinct name
+     */
+    public abstract String getDistinctName();
 }

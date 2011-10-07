@@ -22,61 +22,74 @@
 
 package org.jboss.ejb.client;
 
-import javax.ejb.EJBHome;
-
 /**
- * @param <T> the session EJB home interface type
- * @author <a href="mailto:david.lloyd@redhat.com">David M. Lloyd</a>
+ * A locator for a stateless session EJB.
+ *
+ * @param <T> the remote view type
  */
-public final class SessionEJBHomeHandle<T extends EJBHome> extends EJBHomeHandle<T> {
+public final class StatelessEJBLocator<T> extends EJBLocator<T> {
 
-    private static final long serialVersionUID = 1462779485711047118L;
+    private static final long serialVersionUID = -3040039191221970094L;
 
-    SessionEJBHomeHandle(final Class<T> type, final String appName, final String moduleName, final String distinctName, final String beanName) {
-        super(type, appName, moduleName, distinctName, beanName);
+    /**
+     * Construct a new instance.
+     *
+     * @param viewType the view type
+     * @param appName the application name
+     * @param moduleName the module name
+     * @param beanName the bean name
+     * @param distinctName the distinct name
+     */
+    public StatelessEJBLocator(final Class<T> viewType, final String appName, final String moduleName, final String beanName, final String distinctName) {
+        super(viewType, appName, moduleName, beanName, distinctName);
     }
 
     /**
-     * Determine whether this object is equal to another.
+     * Get the hash code for this instance.
      *
-     * @param other the other object
-     * @return {@code true} if they are equal, {@code false} otherwise
+     * @return the hash code for this instance
      */
-    public boolean equals(Object other) {
-        return other instanceof SessionEJBHomeHandle && equals((SessionEJBHomeHandle<?>)other);
-    }
-
-    /**
-     * Determine whether this object is equal to another.
-     *
-     * @param other the other object
-     * @return {@code true} if they are equal, {@code false} otherwise
-     */
-    public boolean equals(final EJBGenericHandle<?> other) {
-        return other instanceof SessionEJBHomeHandle && equals((SessionEJBHomeHandle<?>)other);
-    }
-
-    /**
-     * Determine whether this object is equal to another.
-     *
-     * @param other the other object
-     * @return {@code true} if they are equal, {@code false} otherwise
-     */
-    public boolean equals(final EJBHomeHandle<?> other) {
-        return other instanceof SessionEJBHomeHandle && equals((SessionEJBHomeHandle<?>)other);
-    }
-
-    /**
-     * Determine whether this object is equal to another.
-     *
-     * @param other the other object
-     * @return {@code true} if they are equal, {@code false} otherwise
-     */
-    public boolean equals(SessionEJBHomeHandle<?> other) {
-        return super.equals(other);
-    }
-
     public int hashCode() {
         return super.hashCode();
+    }
+
+    /**
+     * Determine whether this object is equal to another.
+     *
+     * @param other the other object
+     * @return {@code true} if they are equal, {@code false} otherwise
+     */
+    public boolean equals(final Object other) {
+        return other instanceof StatelessEJBLocator && equals((StatelessEJBLocator<?>) other);
+    }
+
+    /**
+     * Determine whether this object is equal to another.
+     *
+     * @param other the other object
+     * @return {@code true} if they are equal, {@code false} otherwise
+     */
+    public boolean equals(final Locator<?> other) {
+        return other instanceof StatelessEJBLocator && equals((StatelessEJBLocator<?>) other);
+    }
+
+    /**
+     * Determine whether this object is equal to another.
+     *
+     * @param other the other object
+     * @return {@code true} if they are equal, {@code false} otherwise
+     */
+    public boolean equals(final EJBLocator<?> other) {
+        return other instanceof StatelessEJBLocator && equals((StatelessEJBLocator<?>) other);
+    }
+
+    /**
+     * Determine whether this object is equal to another.
+     *
+     * @param other the other object
+     * @return {@code true} if they are equal, {@code false} otherwise
+     */
+    public boolean equals(final StatelessEJBLocator<?> other) {
+        return super.equals(other);
     }
 }

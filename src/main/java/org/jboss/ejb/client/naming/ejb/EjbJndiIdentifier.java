@@ -34,7 +34,7 @@ class EjbJndiIdentifier {
     private final String viewName;
     private final Map<String, String> options;
 
-    public EjbJndiIdentifier(final String application, final String module, final String distinctName, final String ejbName, final String viewName, final Map<String, String> options) {
+    EjbJndiIdentifier(final String application, final String module, final String distinctName, final String ejbName, final String viewName, final Map<String, String> options) {
         this.application = application;
         this.module = module;
         this.distinctName = distinctName;

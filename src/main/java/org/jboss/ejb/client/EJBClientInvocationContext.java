@@ -23,7 +23,6 @@
 package org.jboss.ejb.client;
 
 import java.lang.reflect.Method;
-import java.util.concurrent.CancellationException;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
@@ -43,7 +42,7 @@ public final class EJBClientInvocationContext<A> extends Attachable {
 
     // Contextual stuff
     private final EJBReceiverInvocationContext receiverInvocationContext;
-    private final EJBInvocationHandler invocationHandler;
+    private final EJBInvocationHandler<?> invocationHandler;
     private final EJBClientContext ejbClientContext;
     private final EJBReceiver<A> receiver;
     private final A receiverSpecific;
@@ -66,7 +65,7 @@ public final class EJBClientInvocationContext<A> extends Attachable {
     private boolean requestDone;
     private boolean resultDone;
 
-    EJBClientInvocationContext(final EJBInvocationHandler invocationHandler, final EJBClientContext ejbClientContext, final A receiverSpecific, final EJBReceiver<A> receiver, final EJBReceiverContext ejbReceiverContext, final Object invokedProxy, final Method invokedMethod, final Object[] parameters, final EJBClientInterceptor<? super A>[] interceptorChain) {
+    EJBClientInvocationContext(final EJBInvocationHandler<?> invocationHandler, final EJBClientContext ejbClientContext, final A receiverSpecific, final EJBReceiver<A> receiver, final EJBReceiverContext ejbReceiverContext, final Object invokedProxy, final Method invokedMethod, final Object[] parameters, final EJBClientInterceptor<? super A>[] interceptorChain) {
         this.invocationHandler = invocationHandler;
         this.ejbClientContext = ejbClientContext;
         this.receiverSpecific = receiverSpecific;
@@ -153,39 +152,12 @@ public final class EJBClientInvocationContext<A> extends Attachable {
     }
 
     /**
-     * Get the invocation application name.
+     * Get the locator for the invocation target.
      *
-     * @return the app name
+     * @return the locator
      */
-    public String getAppName() {
-        return invocationHandler.getAppName();
-    }
-
-    /**
-     * Get the invocation module name.
-     *
-     * @return the module name
-     */
-    public String getModuleName() {
-        return invocationHandler.getModuleName();
-    }
-
-    /**
-     * Get the invocation distinct name.
-     *
-     * @return the distinct name
-     */
-    public String getDistinctName() {
-        return invocationHandler.getDistinctName();
-    }
-
-    /**
-     * Get the invocation bean name.
-     *
-     * @return the bean name
-     */
-    public String getBeanName() {
-        return invocationHandler.getBeanName();
+    public Locator<?> getLocator() {
+        return invocationHandler.getLocator();
     }
 
     /**
@@ -321,7 +293,7 @@ public final class EJBClientInvocationContext<A> extends Attachable {
      * @return the invoked view class
      */
     public Class<?> getViewClass() {
-        return invocationHandler.getViewClass();
+        return invocationHandler.getLocator().getInterfaceType();
     }
 
     Future<?> getFutureResponse() {

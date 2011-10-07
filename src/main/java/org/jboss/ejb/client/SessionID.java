@@ -102,9 +102,6 @@ public abstract class SessionID implements Serializable {
      */
     public static SessionID createSessionID(byte[] encoded) {
         final int length = encoded.length;
-        if (length == 0) {
-            return NoSessionID.INSTANCE;
-        }
         if (length >= 19 && encoded[0] == 0x07) {
             return new NodeAssociatedSessionID(encoded.clone());
         }

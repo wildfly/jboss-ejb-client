@@ -28,22 +28,32 @@ import javax.ejb.EJBObject;
 import javax.ejb.Handle;
 
 /**
- * Base class for serializable EJB handles.
+ * A handle for an EJB interface.
  *
  * @param <T> the EJB remote interface type
  * @author <a href="mailto:david.lloyd@redhat.com">David M. Lloyd</a>
  */
-public abstract class EJBHandle<T extends EJBObject> extends EJBGenericHandle<T> implements Handle {
+public final class EJBHandle<T extends EJBObject> implements Handle {
 
     private static final long serialVersionUID = -4870688692508067759L;
 
-    EJBHandle(final Class<T> type, final String appName, final String moduleName, final String distinctName, final String beanName) {
-        super(type, appName, moduleName, distinctName, beanName);
+    private final EJBLocator<T> locator;
+
+    /**
+     * Construct a new instance.
+     *
+     * @param locator the locator for the EJB instance
+     */
+    public EJBHandle(final EJBLocator<T> locator) {
+        if (locator == null) {
+            throw new IllegalArgumentException("locator is null");
+        }
+        this.locator = locator;
     }
 
     /** {@inheritDoc} */
-    public final T getEJBObject() throws RemoteException {
-        return super.getProxy();
+    public T getEJBObject() throws RemoteException {
+        return EJBClient.createProxy(locator);
     }
 
     /**
@@ -62,21 +72,16 @@ public abstract class EJBHandle<T extends EJBObject> extends EJBGenericHandle<T>
      * @param other the other object
      * @return {@code true} if they are equal, {@code false} otherwise
      */
-    public boolean equals(final EJBGenericHandle<?> other) {
-        return other instanceof EJBHandle && equals((EJBHandle<?>)other);
+    public boolean equals(EJBHandle<?> other) {
+        return this == other || other != null && locator.equals(other.locator);
     }
 
     /**
-     * Determine whether this object is equal to another.
+     * Get the hash code for this EJB handle.
      *
-     * @param other the other object
-     * @return {@code true} if they are equal, {@code false} otherwise
+     * @return the hash code
      */
-    public boolean equals(EJBHandle<?> other) {
-        return this == other || other != null && super.equals(other);
-    }
-
     public int hashCode() {
-        return super.hashCode();
+        return locator.hashCode();
     }
 }

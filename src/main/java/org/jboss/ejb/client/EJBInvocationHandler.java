@@ -32,40 +32,37 @@ import java.lang.reflect.Proxy;
 import java.util.concurrent.Future;
 
 /**
+ * @param <T> the proxy view type
+ *
  * @author <a href="mailto:david.lloyd@redhat.com">David M. Lloyd</a>
  */
 @SuppressWarnings({"SerializableClassWithUnconstructableAncestor"})
-final class EJBInvocationHandler extends Attachable implements InvocationHandler, Serializable {
+final class EJBInvocationHandler<T> extends Attachable implements InvocationHandler, Serializable {
 
     private static final long serialVersionUID = 946555285095057230L;
 
-    private final String appName;
-    private final String moduleName;
-    private final String distinctName;
-    private final String beanName;
-    private final Class<?> viewClass;
     private final transient boolean async;
+    private final Locator<T> locator;
 
-    EJBInvocationHandler(final Class<?> viewClass, final String appName, final String moduleName, final String distinctName, final String beanName) {
-        this.viewClass = viewClass;
-        this.appName = appName;
-        this.moduleName = moduleName;
-        this.distinctName = distinctName;
-        this.beanName = beanName;
+    EJBInvocationHandler(final Locator<T> locator) {
+        if (locator == null) {
+            throw new NullPointerException("locator is null");
+        }
+        this.locator = locator;
         async = false;
     }
 
-    private EJBInvocationHandler(final EJBInvocationHandler twin) {
-        super(twin);
-        viewClass = twin.viewClass;
-        appName = twin.appName;
-        moduleName = twin.moduleName;
-        distinctName = twin.distinctName;
-        beanName = twin.beanName;
+    EJBInvocationHandler(final EJBInvocationHandler<T> other) {
+        super(other);
+        locator = other.locator;
         async = true;
     }
 
     public Object invoke(final Object proxy, final Method method, final Object[] args) throws Throwable {
+        return doInvoke(locator.getInterfaceType().cast(proxy), method, args);
+    }
+
+    public Object doInvoke(final T proxy, final Method method, final Object[] args) throws Throwable {
         if (method.getName().equals("toString") && method.getParameterTypes().length == 0) {
             return handleToString();
         } else if (method.getName().equals("equals") && method.getParameterTypes().length == 1 && method.getParameterTypes()[0] == Object.class) {
@@ -75,15 +72,23 @@ final class EJBInvocationHandler extends Attachable implements InvocationHandler
         }
 
         final EJBClientContext context = EJBClientContext.requireCurrent();
-        final EJBReceiver<?> receiver = context.requireEJBReceiver(appName, moduleName, distinctName);
-        return doInvoke(proxy, method, args, receiver, context);
+        final EJBReceiver<?> receiver = context.requireEJBReceiver(locator.getAppName(), locator.getModuleName(), locator.getDistinctName());
+        return doInvoke(this, async, proxy, method, args, receiver, context);
     }
 
+    @SuppressWarnings("unchecked")
+    static <T> EJBInvocationHandler<? extends T> forProxy(T proxy) {
+        InvocationHandler handler = Proxy.getInvocationHandler(proxy);
+        if (handler instanceof EJBInvocationHandler) {
+            return (EJBInvocationHandler<? extends T>) handler;
+        }
+        throw Logs.MAIN.proxyNotOurs(proxy, EJBClient.class.getName());
+    }
 
-    private <A> Object doInvoke(final Object proxy, final Method method, final Object[] args, final EJBReceiver<A> receiver, EJBClientContext clientContext) throws Throwable {
+    private static <T, A> Object doInvoke(final EJBInvocationHandler<T> ejbInvocationHandler, final boolean async, final T proxy, final Method method, final Object[] args, final EJBReceiver<A> receiver, EJBClientContext clientContext) throws Throwable {
         // todo - concatenate receiver chain too
         final EJBReceiverContext ejbReceiverContext = clientContext.requireEJBReceiverContext(receiver);
-        final EJBClientInvocationContext<A> invocationContext = new EJBClientInvocationContext<A>(this, clientContext, receiver.createReceiverSpecific(), receiver, ejbReceiverContext, proxy, method, args, EJBClientContext.GENERAL_INTERCEPTORS);
+        final EJBClientInvocationContext<A> invocationContext = new EJBClientInvocationContext<A>(ejbInvocationHandler, clientContext, receiver.createReceiverSpecific(), receiver, ejbReceiverContext, proxy, method, args, EJBClientContext.GENERAL_INTERCEPTORS);
 
         invocationContext.sendRequest();
 
@@ -110,85 +115,22 @@ final class EJBInvocationHandler extends Attachable implements InvocationHandler
     }
 
     private String handleToString() {
-        final StringBuilder builder = new StringBuilder("Proxy For Remote EJB ");
-        builder.append(appName);
-        builder.append('/');
-        builder.append(moduleName);
-        builder.append('/');
-        builder.append(distinctName);
-        builder.append('/');
-        builder.append(beanName);
-        final SessionID sessionID = getAttachment(SessionID.SESSION_ID_KEY);
-        if (sessionID != null) {
-            builder.append(" SessionId(");
-            builder.append(sessionID.toString());
-            builder.append(')');
-        }
-        return builder.toString();
+        return String.format("Proxy for remote EJB %s", locator);
     }
 
     private Integer handleHashCode() {
-        final SessionID sessionID = getAttachment(SessionID.SESSION_ID_KEY);
-        if (sessionID != null) {
-            return sessionID.hashCode();
-        } else {
-            int result = appName != null ? appName.hashCode() : 0;
-            result = 31 * result + moduleName.hashCode();
-            result = 31 * result + distinctName.hashCode();
-            result = 31 * result + beanName.hashCode();
-            result = 31 * result + viewClass.hashCode();
-            return result;
-        }
+        return Integer.valueOf(locator.hashCode());
     }
 
     private Boolean handleEquals(final Object other) {
         if (other instanceof Proxy) {
             final InvocationHandler handler = Proxy.getInvocationHandler(other);
             if (handler instanceof EJBInvocationHandler) {
-                final EJBInvocationHandler otherHandler = (EJBInvocationHandler) handler;
-                final SessionID thisSession = getAttachment(SessionID.SESSION_ID_KEY);
-                final SessionID otherSession = otherHandler.getAttachment(SessionID.SESSION_ID_KEY);
-                //if there is a session if that is the primary means of determining equality
-                if (thisSession != null) {
-                    return otherSession != null && thisSession.equals(otherSession);
-                } else if (otherSession != null) {
-                    return false;
-                }
-
-                if (!appName.equals(otherHandler.appName))
-                    return false;
-                if (!beanName.equals(otherHandler.beanName))
-                    return false;
-                if (!distinctName.equals(otherHandler.distinctName))
-                    return false;
-                if (!moduleName.equals(otherHandler.moduleName))
-                    return false;
-                if (!viewClass.equals(otherHandler.viewClass))
-                    return false;
-                return true;
+                final EJBInvocationHandler<?> otherHandler = (EJBInvocationHandler<?>) handler;
+                return locator.equals(otherHandler.locator);
             }
         }
         return false;
-    }
-
-    public String getAppName() {
-        return appName;
-    }
-
-    public String getModuleName() {
-        return moduleName;
-    }
-
-    public String getDistinctName() {
-        return distinctName;
-    }
-
-    public String getBeanName() {
-        return beanName;
-    }
-
-    public Class<?> getViewClass() {
-        return viewClass;
     }
 
     private void writeObject(ObjectOutputStream oos) throws IOException {
@@ -196,8 +138,11 @@ final class EJBInvocationHandler extends Attachable implements InvocationHandler
         oos.defaultWriteObject();
     }
 
-    EJBInvocationHandler getAsyncHandler() {
-        return async ? this : new EJBInvocationHandler(this);
+    EJBInvocationHandler<T> getAsyncHandler() {
+        return async ? this : new EJBInvocationHandler<T>(this);
     }
 
+    Locator<T> getLocator() {
+        return locator;
+    }
 }

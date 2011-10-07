@@ -34,6 +34,9 @@ import javax.naming.NameParser;
 import javax.naming.NamingEnumeration;
 import javax.naming.NamingException;
 import java.util.Hashtable;
+import org.jboss.ejb.client.Locator;
+import org.jboss.ejb.client.StatefulEJBLocator;
+import org.jboss.ejb.client.StatelessEJBLocator;
 import org.jboss.logging.Logger;
 
 /**
@@ -61,9 +64,9 @@ class EjbNamingContext implements Context {
     }
 
     protected EjbNamingContext() {
-        this.application = null;
-        this.module = null;
-        this.distinct = null;
+        application = null;
+        module = null;
+        distinct = null;
         root = true;
     }
 
@@ -105,20 +108,30 @@ class EjbNamingContext implements Context {
             naming.setRootCause(e);
             throw naming;
         }
+        try {
+            return doCreateProxy(viewClass, identifier);
+        } catch (Exception e) {
+            NamingException ne = new NamingException("Failed to create proxy");
+            ne.initCause(e);
+            throw ne;
+        }
+    }
 
-        final Object proxy = EJBClient.getProxy(identifier.getApplication(), identifier.getModule(), identifier.getDistinctName(), identifier.getEjbName(), viewClass);
-
+    private <T> T doCreateProxy(Class<T> viewClass, EjbJndiIdentifier identifier) throws Exception {
+        final Locator<T> locator;
         final Map<String,String> options = identifier.getOptions();
         final boolean stateful = options.containsKey("stateful") && ! "false".equalsIgnoreCase(options.get("stateful"));
         if (stateful) {
-            if (proxy instanceof EJBHome) {
-                log.warnf("Ignoring 'stateful' option on lookup of home %s", viewClass);
+            if (! EJBHome.class.isAssignableFrom(viewClass)) {
+                locator = new StatefulEJBLocator<T>(viewClass, identifier.getApplication(), identifier.getModule(), identifier.getEjbName(), identifier.getDistinctName(), EJBClient.createSession(identifier.getApplication(), identifier.getModule(), identifier.getEjbName(), identifier.getDistinctName()));
             } else {
-                EJBClient.createSession(proxy);
+                log.warnf("Ignoring 'stateful' option on lookup of home %s", viewClass);
+                locator = new StatelessEJBLocator<T>(viewClass, identifier.getApplication(), identifier.getModule(), identifier.getEjbName(), identifier.getDistinctName());
             }
+        } else {
+            locator = new StatelessEJBLocator<T>(viewClass, identifier.getApplication(), identifier.getModule(), identifier.getEjbName(), identifier.getDistinctName());
         }
-
-        return proxy;
+        return EJBClient.createProxy(locator);
     }
 
     @Override
