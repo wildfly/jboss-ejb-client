@@ -62,7 +62,7 @@ final class EJBInvocationHandler<T> extends Attachable implements InvocationHand
         return doInvoke(locator.getInterfaceType().cast(proxy), method, args);
     }
 
-    public Object doInvoke(final T proxy, final Method method, final Object[] args) throws Throwable {
+    Object doInvoke(final T proxy, final Method method, final Object[] args) throws Throwable {
         if (method.getName().equals("toString") && method.getParameterTypes().length == 0) {
             return handleToString();
         } else if (method.getName().equals("equals") && method.getParameterTypes().length == 1 && method.getParameterTypes()[0] == Object.class) {
@@ -126,11 +126,14 @@ final class EJBInvocationHandler<T> extends Attachable implements InvocationHand
         if (other instanceof Proxy) {
             final InvocationHandler handler = Proxy.getInvocationHandler(other);
             if (handler instanceof EJBInvocationHandler) {
-                final EJBInvocationHandler<?> otherHandler = (EJBInvocationHandler<?>) handler;
-                return locator.equals(otherHandler.locator);
+                return Boolean.valueOf(locator.equals(((EJBInvocationHandler<?>) handler).locator));
             }
         }
-        return false;
+        return Boolean.FALSE;
+    }
+
+    protected Object writeReplace() {
+        return new SerializedEJBInvocationHandler(locator);
     }
 
     private void writeObject(ObjectOutputStream oos) throws IOException {
