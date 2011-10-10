@@ -68,7 +68,7 @@ public class EJBClientAPIUsageTestCase {
     public static void beforeClass() throws Exception {
         server = new DummyServer("localhost", 6999);
         server.start();
-        server.register("my-app", "my-module", null, EchoBean.class.getSimpleName(), new EchoBean());
+        server.register("my-app", "my-module", "", EchoBean.class.getSimpleName(), new EchoBean());
 
         final Endpoint endpoint = Remoting.createEndpoint("endpoint", Executors.newSingleThreadExecutor(), OptionMap.EMPTY);
         final Xnio xnio = Xnio.getInstance();
