@@ -31,9 +31,15 @@ public class ProxyEqualityTestCase {
 
     @Test
     public void testClientProxyEquality() {
-        SimpleInterface proxyA = EJBClient.getProxy("a","m","d","b", SimpleInterface.class);
-        SimpleInterface proxyB = EJBClient.getProxy("a","m","d","b", SimpleInterface.class);
-        SimpleInterface proxyC = EJBClient.getProxy("a","m","d","other", SimpleInterface.class);
+        final StatelessEJBLocator<SimpleInterface> locatorA = new StatelessEJBLocator<SimpleInterface>(SimpleInterface.class, "a", "m", "b", "d");
+        SimpleInterface proxyA = EJBClient.createProxy(locatorA);
+
+        final StatelessEJBLocator<SimpleInterface> locatorB = new StatelessEJBLocator<SimpleInterface>(SimpleInterface.class, "a", "m", "b", "d");
+        SimpleInterface proxyB = EJBClient.createProxy(locatorB);
+
+        final StatelessEJBLocator<SimpleInterface> locatorC = new StatelessEJBLocator<SimpleInterface>(SimpleInterface.class, "a", "m", "b", "other");
+        SimpleInterface proxyC = EJBClient.createProxy(locatorC);
+
         Assert.assertTrue(proxyA.equals(proxyB));
         Assert.assertEquals(proxyA.hashCode(), proxyB.hashCode());
         Assert.assertFalse(proxyA.equals(proxyC));

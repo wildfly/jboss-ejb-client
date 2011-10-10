@@ -88,7 +88,7 @@ final class EJBInvocationHandler<T> extends Attachable implements InvocationHand
     private static <T, A> Object doInvoke(final EJBInvocationHandler<T> ejbInvocationHandler, final boolean async, final T proxy, final Method method, final Object[] args, final EJBReceiver<A> receiver, EJBClientContext clientContext) throws Throwable {
         // todo - concatenate receiver chain too
         final EJBReceiverContext ejbReceiverContext = clientContext.requireEJBReceiverContext(receiver);
-        final EJBClientInvocationContext<A> invocationContext = new EJBClientInvocationContext<A>(ejbInvocationHandler, clientContext, receiver.createReceiverSpecific(), receiver, ejbReceiverContext, proxy, method, args, EJBClientContext.GENERAL_INTERCEPTORS);
+        final EJBClientInvocationContext<A> invocationContext = new EJBClientInvocationContext<A>(ejbInvocationHandler, clientContext, receiver.createReceiverSpecific(), receiver, ejbReceiverContext, proxy, method, args);
 
         invocationContext.sendRequest();
 

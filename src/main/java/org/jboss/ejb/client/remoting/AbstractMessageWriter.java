@@ -24,6 +24,7 @@ package org.jboss.ejb.client.remoting;
 
 import java.io.DataOutput;
 import java.io.IOException;
+import java.util.Iterator;
 
 /**
  * User: jpai

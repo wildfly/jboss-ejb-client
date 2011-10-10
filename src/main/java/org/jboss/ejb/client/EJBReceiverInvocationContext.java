@@ -32,6 +32,8 @@ public final class EJBReceiverInvocationContext {
 
     private final EJBReceiverContext ejbReceiverContext;
 
+
+
     EJBReceiverInvocationContext(final EJBClientInvocationContext<?> clientInvocationContext, final EJBReceiverContext ejbReceiverContext) {
         this.clientInvocationContext = clientInvocationContext;
         this.ejbReceiverContext = ejbReceiverContext;
@@ -90,4 +92,5 @@ public final class EJBReceiverInvocationContext {
          */
         void discardResult();
     }
+
 }

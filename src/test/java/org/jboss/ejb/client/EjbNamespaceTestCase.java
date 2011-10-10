@@ -48,10 +48,11 @@ public class EjbNamespaceTestCase {
         Object result = new InitialContext().lookup("ejb:app/module/distinct/MyEjb!org.jboss.ejb.client.SimpleInterface");
         Assert.assertTrue(result instanceof SimpleInterface);
         final EJBInvocationHandler handler = (EJBInvocationHandler) Proxy.getInvocationHandler(result);
-        Assert.assertEquals("app", handler.getAppName());
-        Assert.assertEquals("module", handler.getModuleName());
-        Assert.assertEquals("distinct", handler.getDistinctName());
-        Assert.assertEquals("MyEjb", handler.getBeanName());
+        final EJBLocator<SimpleInterface> locator = (EJBLocator<SimpleInterface>) handler.getLocator();
+        Assert.assertEquals("app", locator.getAppName());
+        Assert.assertEquals("module", locator.getModuleName());
+        Assert.assertEquals("distinct", locator.getDistinctName());
+        Assert.assertEquals("MyEjb", locator.getBeanName());
     }
 
     @Test
@@ -63,10 +64,11 @@ public class EjbNamespaceTestCase {
         Object result = context.lookup("MyEjb!org.jboss.ejb.client.SimpleInterface");
         Assert.assertTrue(result instanceof SimpleInterface);
         final EJBInvocationHandler handler = (EJBInvocationHandler) Proxy.getInvocationHandler(result);
-        Assert.assertEquals("app", handler.getAppName());
-        Assert.assertEquals("module", handler.getModuleName());
-        Assert.assertEquals("distinct", handler.getDistinctName());
-        Assert.assertEquals("MyEjb", handler.getBeanName());
+        final EJBLocator<SimpleInterface> locator = (EJBLocator<SimpleInterface>) handler.getLocator();
+        Assert.assertEquals("app", locator.getAppName());
+        Assert.assertEquals("module", locator.getModuleName());
+        Assert.assertEquals("distinct", locator.getDistinctName());
+        Assert.assertEquals("MyEjb", locator.getBeanName());
     }
 
     @Test
@@ -74,9 +76,10 @@ public class EjbNamespaceTestCase {
         Object result = new InitialContext().lookup("ejb:app/module/MyEjb!org.jboss.ejb.client.SimpleInterface");
         Assert.assertTrue(result instanceof SimpleInterface);
         final EJBInvocationHandler handler = (EJBInvocationHandler) Proxy.getInvocationHandler(result);
-        Assert.assertEquals("app", handler.getAppName());
-        Assert.assertEquals("module", handler.getModuleName());
-        Assert.assertEquals("", handler.getDistinctName());
-        Assert.assertEquals("MyEjb", handler.getBeanName());
+        final EJBLocator<SimpleInterface> locator = (EJBLocator<SimpleInterface>) handler.getLocator();
+        Assert.assertEquals("app", locator.getAppName());
+        Assert.assertEquals("module", locator.getModuleName());
+        Assert.assertEquals("", locator.getDistinctName());
+        Assert.assertEquals("MyEjb", locator.getBeanName());
     }
 }

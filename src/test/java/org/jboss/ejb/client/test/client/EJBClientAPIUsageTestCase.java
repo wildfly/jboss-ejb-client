@@ -24,6 +24,8 @@ package org.jboss.ejb.client.test.client;
 
 import org.jboss.ejb.client.EJBClient;
 import org.jboss.ejb.client.EJBClientContext;
+import org.jboss.ejb.client.Locator;
+import org.jboss.ejb.client.StatelessEJBLocator;
 import org.jboss.ejb.client.test.common.AnonymousCallbackHandler;
 import org.jboss.ejb.client.test.common.DummyServer;
 import org.jboss.remoting3.Connection;
@@ -80,13 +82,15 @@ public class EJBClientAPIUsageTestCase {
 
     @Test
     public void testProxyGeneration() throws Exception {
-        final EchoRemote proxy = EJBClient.getProxy("my-app", "my-module", null, EchoBean.class.getSimpleName(), EchoRemote.class);
+        final StatelessEJBLocator<EchoRemote> statelessEJBLocator = new StatelessEJBLocator<EchoRemote>(EchoRemote.class, "my-app", "my-module", EchoBean.class.getSimpleName(), "");
+        final EchoRemote proxy = EJBClient.createProxy(statelessEJBLocator);
         Assert.assertNotNull("Received a null proxy", proxy);
     }
 
     @Test
     public void testProxyInvocation() throws Exception {
-        final EchoRemote proxy = EJBClient.getProxy("my-app", "my-module", null, EchoBean.class.getSimpleName(), EchoRemote.class);
+        final StatelessEJBLocator<EchoRemote> statelessEJBLocator = new StatelessEJBLocator<EchoRemote>(EchoRemote.class, "my-app", "my-module", EchoBean.class.getSimpleName(), "");
+        final EchoRemote proxy = EJBClient.createProxy(statelessEJBLocator);
         Assert.assertNotNull("Received a null proxy", proxy);
         final String message = "Yet another Hello World!!!";
         EJBClientContext ejbClientContext = EJBClientContext.create();

@@ -22,6 +22,7 @@
 
 package org.jboss.ejb.client.remoting;
 
+import org.jboss.ejb.client.EJBClientInterceptor;
 import org.jboss.ejb.client.EJBClientInvocationContext;
 import org.jboss.ejb.client.EJBReceiver;
 import org.jboss.ejb.client.EJBReceiverContext;
@@ -36,8 +37,11 @@ import org.xnio.OptionMap;
 
 import java.io.DataOutputStream;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.IdentityHashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.ServiceLoader;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
@@ -52,6 +56,17 @@ public final class RemotingConnectionEJBReceiver extends EJBReceiver<RemotingAtt
     private static final Logger logger = Logger.getLogger(RemotingConnectionEJBReceiver.class);
 
     private static final String EJB_CHANNEL_NAME = "jboss.ejb";
+
+    private static final RemotingEJBClientInterceptor[] REMOTING_EJB_INTERCEPTORS;
+
+    static {
+        final List<RemotingEJBClientInterceptor> interceptors = new ArrayList<RemotingEJBClientInterceptor>();
+        for (RemotingEJBClientInterceptor interceptor : ServiceLoader.load(RemotingEJBClientInterceptor.class)) {
+            interceptors.add(interceptor);
+        }
+        REMOTING_EJB_INTERCEPTORS = interceptors.toArray(new RemotingEJBClientInterceptor[interceptors.size()]);
+    }
+
 
     private final Connection connection;
 
@@ -68,6 +83,11 @@ public final class RemotingConnectionEJBReceiver extends EJBReceiver<RemotingAtt
      */
     public RemotingConnectionEJBReceiver(final Connection connection) {
         this.connection = connection;
+    }
+
+    @Override
+    protected EJBClientInterceptor<RemotingAttachments>[] getClientInterceptors() {
+        return REMOTING_EJB_INTERCEPTORS;
     }
 
     @Override

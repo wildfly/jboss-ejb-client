@@ -22,6 +22,8 @@
 
 package org.jboss.ejb.client.remoting;
 
+import org.jboss.ejb.client.EJBLocator;
+
 import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
@@ -74,18 +76,6 @@ public class DummyProtocolHandler {
     public MethodInvocationRequest readMethodInvocationRequest(final DataInput input, final ClassLoader cl) throws IOException {
         // read the invocation id
         final short invocationId = input.readShort();
-        // read the ejb identifier info
-        String appName = input.readUTF();
-        if (appName.isEmpty()) {
-            appName = null;
-        }
-        final String moduleName = input.readUTF();
-        String distinctName = input.readUTF();
-        if (distinctName.isEmpty()) {
-            distinctName = null;
-        }
-        final String beanName = input.readUTF();
-        final String viewClassName = input.readUTF();
         final String methodName = input.readUTF();
         // method signature
         String[] methodParamTypes = null;
@@ -102,6 +92,12 @@ public class DummyProtocolHandler {
         final Object[] methodParams = new Object[methodParamTypes.length];
         final UnMarshaller unMarshaller = MarshallerFactory.createUnMarshaller(this.marshallerType);
         unMarshaller.start(input, cl);
+        EJBLocator ejbLocator = null;
+        try {
+            ejbLocator = (EJBLocator) unMarshaller.readObject();
+        } catch (ClassNotFoundException e) {
+            throw new RuntimeException(e);
+        }
         for (int i = 0; i < methodParamTypes.length; i++) {
             try {
                 methodParams[i] = unMarshaller.readObject();
@@ -111,8 +107,8 @@ public class DummyProtocolHandler {
         }
         unMarshaller.finish();
 
-        return new MethodInvocationRequest(invocationId, appName, moduleName, distinctName, beanName,
-                viewClassName, methodName, methodParamTypes, methodParams, attachments);
+        return new MethodInvocationRequest(invocationId, ejbLocator.getAppName(), ejbLocator.getModuleName(), ejbLocator.getDistinctName(), ejbLocator.getBeanName(),
+                ejbLocator.getInterfaceType().getName(), methodName, methodParamTypes, methodParams, attachments);
     }
 
     public void writeMethodInvocationResponse(final DataOutput output, final short invocationId, final Object result,

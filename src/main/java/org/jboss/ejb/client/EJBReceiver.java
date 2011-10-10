@@ -41,8 +41,8 @@ public abstract class EJBReceiver<A> extends Attachable {
     /**
      * Register a new module to this receiver.
      *
-     * @param appName the app name
-     * @param moduleName the module name
+     * @param appName      the app name
+     * @param moduleName   the module name
      * @param distinctName the distinct name
      * @return {@code true} if this is a previously-unknown registration
      */
@@ -53,8 +53,8 @@ public abstract class EJBReceiver<A> extends Attachable {
     /**
      * De-registers a module for this reciever
      *
-     * @param appName the app name
-     * @param moduleName the module name
+     * @param appName      the app name
+     * @param moduleName   the module name
      * @param distinctName the distinct name
      * @return {@code true} if the registration was present
      */
@@ -81,7 +81,7 @@ public abstract class EJBReceiver<A> extends Attachable {
      * receiver should discard any reference to the invocation context(s) once the result producer has been set.
      *
      * @param clientInvocationContext the interceptor clientInvocationContext
-     * @param receiverContext The EJB receiver invocation context
+     * @param receiverContext         The EJB receiver invocation context
      * @throws Exception if the operation throws an exception
      */
     protected abstract void processInvocation(EJBClientInvocationContext<A> clientInvocationContext, EJBReceiverInvocationContext receiverContext) throws Exception;
@@ -92,7 +92,7 @@ public abstract class EJBReceiver<A> extends Attachable {
      * it cannot be discovered.
      *
      * @param clientInvocationContext the original clientInvocationContext
-     * @param receiverContext the EJB receiver invocation context
+     * @param receiverContext         the EJB receiver invocation context
      * @return {@code true} if the operation was definitely cancelled immediately, {@code false} otherwise
      */
     @SuppressWarnings("unused")
@@ -132,9 +132,22 @@ public abstract class EJBReceiver<A> extends Attachable {
     protected abstract A createReceiverSpecific();
 
     /**
+     * Returns receiver specific client interceptors. Protocol specific receivers are expected to return the
+     * protocol specific interceptors.
+     * <p/>
+     * This method returns an empty array. Individual implementations of {@link EJBReceiver} are expected to
+     * override this method to return receiver specific interceptors
+     *
+     * @return
+     */
+    protected EJBClientInterceptor<A>[] getClientInterceptors() {
+        return new EJBClientInterceptor[0];
+    }
+
+    /**
      * Send a transaction-prepare message for the given transaction ID.
      *
-     * @param context the receiver context
+     * @param context       the receiver context
      * @param transactionID the transaction ID
      * @return a value indicating the resource manager's vote on the outcome of the transaction; the possible values are: {@code XA_RDONLY}
      *         or {@code XA_OK}
@@ -148,9 +161,9 @@ public abstract class EJBReceiver<A> extends Attachable {
     /**
      * Send a transaction-commit message for the given transaction ID.
      *
-     * @param context the receiver context
+     * @param context       the receiver context
      * @param transactionID the transaction ID
-     * @param onePhase {@code true} to perform a one-phase commit
+     * @param onePhase      {@code true} to perform a one-phase commit
      * @throws XAException if the transaction commit failed
      */
     @SuppressWarnings("unused")
@@ -161,7 +174,7 @@ public abstract class EJBReceiver<A> extends Attachable {
     /**
      * Send a transaction-rollback message for the given transaction ID.
      *
-     * @param context the receiver context
+     * @param context       the receiver context
      * @param transactionID the transaction ID
      * @throws XAException if the transaction rollback failed
      */
@@ -173,7 +186,7 @@ public abstract class EJBReceiver<A> extends Attachable {
     /**
      * Send a transaction-forget message for the given transaction ID.
      *
-     * @param context the receiver context
+     * @param context       the receiver context
      * @param transactionID the transaction ID
      * @throws XAException if the forget message failed
      */
@@ -186,7 +199,7 @@ public abstract class EJBReceiver<A> extends Attachable {
      * The before-completion hook.  Cause all connected subordinate transaction managers to invoke their beforeCompletion
      * methods.  This method should not return until all remote beforeCompletions have been called.
      *
-     * @param context the receiver context
+     * @param context       the receiver context
      * @param transactionID the transaction ID
      */
     @SuppressWarnings("unused")
@@ -197,9 +210,9 @@ public abstract class EJBReceiver<A> extends Attachable {
      * The after-completion hook.  Cause all connected subordinate transaction managers to invoke their afterCompletion
      * methods.  This method should not return until all remote afterCompletions have been called.
      *
-     * @param context the receiver context
+     * @param context       the receiver context
      * @param transactionID the transaction ID
-     * @param status the transaction status
+     * @param status        the transaction status
      */
     @SuppressWarnings("unused")
     protected void afterCompletion(final EJBReceiverContext context, final TransactionID transactionID, final int status) {
@@ -234,7 +247,7 @@ public abstract class EJBReceiver<A> extends Attachable {
         }
 
         public boolean equals(Object other) {
-            return other instanceof ModuleID && equals((ModuleID)other);
+            return other instanceof ModuleID && equals((ModuleID) other);
         }
 
         public boolean equals(ModuleID other) {
