@@ -61,11 +61,6 @@ class MethodInvocationMessageWriter extends AbstractMessageWriter {
             throw new IllegalArgumentException("Cannot write to null output");
         }
 
-        final String appName = invocationContext.getAppName();
-        final String moduleName = invocationContext.getModuleName();
-        final String distinctName = invocationContext.getDistinctName();
-        final String beanName = invocationContext.getBeanName();
-        final String viewClassName = invocationContext.getViewClass().getName();
         final Method invokedMethod = invocationContext.getInvokedMethod();
         final Object[] methodParams = invocationContext.getParameters();
 
@@ -73,27 +68,11 @@ class MethodInvocationMessageWriter extends AbstractMessageWriter {
         output.writeByte(METHOD_INVOCATION_HEADER);
         // write the invocation id
         output.writeShort(invocationId);
-        // write the ejb identifier info
-        if (appName != null) {
-            output.writeUTF(appName);
-        } else {
-            output.writeUTF("");
-        }
-        output.writeUTF(moduleName);
-        if (distinctName != null) {
-            output.writeUTF(distinctName);
-        } else {
-            output.writeUTF("");
-        }
-        // bean name
-        output.writeUTF(beanName);
-        // view class
-        output.writeUTF(viewClassName);
         // method name
         output.writeUTF(invokedMethod.getName());
         // param types
         final Class<?>[] methodParamTypes = invokedMethod.getParameterTypes();
-        final StringBuffer methodSignature = new StringBuffer();
+        final StringBuilder methodSignature = new StringBuilder();
         for (int i = 0; i < methodParamTypes.length; i++) {
             methodSignature.append(methodParamTypes[i].getName());
             if (i != methodParamTypes.length - 1) {
@@ -103,14 +82,17 @@ class MethodInvocationMessageWriter extends AbstractMessageWriter {
         // write the method signature
         output.writeUTF(methodSignature.toString());
         // write out the attachments
-        this.writeAttachments(output, invocationContext.getReceiverSpecific());
+        writeAttachments(output, invocationContext.getReceiverSpecific());
 
+        // marshall the locator and method params
+        final Marshaller marshaller = MarshallerFactory.createMarshaller(marshallingStrategy);
+        marshaller.start(output);
+        // write the invocation locator
+        marshaller.writeObject(invocationContext.getLocator());
+        // and the parameters
         if (methodParams != null && methodParams.length > 0) {
-            // marshall the method params
-            final Marshaller marshaller = MarshallerFactory.createMarshaller(this.marshallingStrategy);
-            marshaller.start(output);
-            for (int i = 0; i < methodParams.length; i++) {
-                marshaller.writeObject(methodParams[i]);
+            for (final Object methodParam : methodParams) {
+                marshaller.writeObject(methodParam);
             }
             marshaller.finish();
         }
