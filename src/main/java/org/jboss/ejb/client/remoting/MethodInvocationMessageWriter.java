@@ -23,6 +23,7 @@
 package org.jboss.ejb.client.remoting;
 
 import org.jboss.ejb.client.EJBClientInvocationContext;
+import org.jboss.ejb.client.Locator;
 
 import java.io.DataOutput;
 import java.io.IOException;
@@ -87,15 +88,24 @@ class MethodInvocationMessageWriter extends AbstractMessageWriter {
         // marshall the locator and method params
         final Marshaller marshaller = MarshallerFactory.createMarshaller(marshallingStrategy);
         marshaller.start(output);
+        final Locator locator = invocationContext.getLocator();
+        // Write out the app/module/distinctname/bean name combination using the writeObject method
+        // *and* using the objects returned by a call to the locatore.getXXX() methods,
+        // so that later when the locator is written out later, the marshalling impl uses back-references
+        // to prevent duplicating this app/module/bean/distinctname (which is already present in the locator) twice
+        marshaller.writeObject(locator.getAppName());
+        marshaller.writeObject(locator.getModuleName());
+        marshaller.writeObject(locator.getDistinctName());
+        marshaller.writeObject(locator.getBeanName());
         // write the invocation locator
-        marshaller.writeObject(invocationContext.getLocator());
+        marshaller.writeObject(locator);
         // and the parameters
         if (methodParams != null && methodParams.length > 0) {
             for (final Object methodParam : methodParams) {
                 marshaller.writeObject(methodParam);
             }
-            marshaller.finish();
         }
+        marshaller.finish();
 
     }
 }

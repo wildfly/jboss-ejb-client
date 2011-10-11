@@ -54,9 +54,11 @@ class VersionReceiver implements Channel.Receiver {
     }
 
     public void handleError(final Channel channel, final IOException error) {
+        logger.error("Error on channel " + channel, error);
     }
 
     public void handleEnd(final Channel channel) {
+        logger.debug("No more communication will happen on channel " + channel);
     }
 
     public void handleMessage(final Channel channel, final MessageInputStream message) {

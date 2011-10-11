@@ -30,9 +30,20 @@ import java.io.IOException;
  */
 interface UnMarshaller {
 
-    void start(DataInput input, ClassLoader classLoader) throws IOException;
+    void start(DataInput input, ClassLoaderProvider classLoaderProvider) throws IOException;
 
     Object readObject() throws ClassNotFoundException, IOException;
-    
-    void finish() throws  IOException;
+
+    void finish() throws IOException;
+
+    /**
+     * Responsible for providing a {@link ClassLoader} which can be used by the {@link UnMarshaller}
+     * during unmarshalling
+     * <p/>
+     * User: Jaikiran Pai
+     */
+    interface ClassLoaderProvider {
+
+        ClassLoader provideClassLoader();
+    }
 }

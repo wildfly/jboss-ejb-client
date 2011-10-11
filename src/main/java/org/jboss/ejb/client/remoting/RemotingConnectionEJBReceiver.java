@@ -97,20 +97,23 @@ public final class RemotingConnectionEJBReceiver extends EJBReceiver<RemotingAtt
         final IoFuture<Channel> futureChannel = connection.openChannel(EJB_CHANNEL_NAME, OptionMap.EMPTY);
         futureChannel.addNotifier(new IoFuture.HandlingNotifier<Channel, EJBReceiverContext>() {
             public void handleCancelled(final EJBReceiverContext context) {
+                logger.debug("Channel open requested cancelled for context " + context);
                 context.close();
             }
 
             public void handleFailed(final IOException exception, final EJBReceiverContext context) {
-                // todo: log?
+                logger.error("Failed to open channel for context " + context, exception);
                 context.close();
             }
 
             public void handleDone(final Channel channel, final EJBReceiverContext context) {
                 channel.addCloseHandler(new CloseHandler<Channel>() {
                     public void handleClose(final Channel closed, final IOException exception) {
+                        logger.debug("Closing channel" + closed, exception);
                         context.close();
                     }
                 });
+                logger.debug("Channel " + channel + " opened for context " + context + " Waiting for version handshake message from server");
                 // receive version message from server
                 channel.receiveMessage(versionReceiver);
             }
@@ -197,7 +200,7 @@ public final class RemotingConnectionEJBReceiver extends EJBReceiver<RemotingAtt
             channelAssociation = this.channelAssociations.get(ejbReceiverContext);
         }
         if (channelAssociation == null) {
-            throw new IllegalStateException("EJB receiver " + this + " is not yet ready to process invocations for receiver context " + ejbReceiverContext);
+            throw new IllegalStateException("EJB communication channel " + EJB_CHANNEL_NAME + " is not yet ready to receive invocations (perhaps version handshake hasn't been completed), for receiver context " + ejbReceiverContext);
         }
         return channelAssociation;
     }

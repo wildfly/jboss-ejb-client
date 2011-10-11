@@ -26,6 +26,7 @@ import org.jboss.ejb.client.EJBReceiverContext;
 import org.jboss.ejb.client.EJBReceiverInvocationContext;
 import org.jboss.logging.Logger;
 import org.jboss.remoting3.Channel;
+import org.jboss.remoting3.CloseHandler;
 import org.jboss.remoting3.MessageInputStream;
 import org.xnio.FutureResult;
 
@@ -82,6 +83,15 @@ class ChannelAssociation {
         this.channel = channel;
         this.protocolVersion = protocolVersion;
         this.marshallingStrategy = marshallingStrategy;
+        this.channel.addCloseHandler(new CloseHandler<Channel>() {
+            @Override
+            public void handleClose(Channel closed, IOException exception) {
+                logger.debug("Closing channel " + closed, exception);
+                // TODO: We need a re-connect or some similar mechanism to make sure that the EJBReceiver
+                // is either removed from the context or is reconnected to the server
+
+            }
+        });
         // register a receiver for receiving messages on the channel
         this.channel.receiveMessage(new ResponseReceiver());
     }
@@ -214,12 +224,17 @@ class ChannelAssociation {
 
         @Override
         public void handleError(Channel channel, IOException error) {
-            //To change body of implemented methods use File | Settings | File Templates.
+            logger.error("Error on channel " + channel, error);
+            // TODO: We need a re-connect or some similar mechanism to make sure that the EJBReceiver
+            // is either removed from the context or is reconnected to the server
+
         }
 
         @Override
         public void handleEnd(Channel channel) {
-            //To change body of implemented methods use File | Settings | File Templates.
+            logger.info("Channel " + channel + " can no longer process messages");
+            // TODO: We need a re-connect or some similar mechanism to make sure that the EJBReceiver
+            // is either removed from the context or is reconnected to the server
         }
 
         @Override

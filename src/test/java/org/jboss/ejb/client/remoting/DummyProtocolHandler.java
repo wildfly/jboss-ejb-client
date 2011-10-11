@@ -22,7 +22,6 @@
 
 package org.jboss.ejb.client.remoting;
 
-import org.jboss.ejb.client.EJBLocator;
 import org.jboss.ejb.client.Locator;
 
 import java.io.DataInput;
@@ -92,9 +91,22 @@ public class DummyProtocolHandler {
         // un-marshall the method params
         final Object[] methodParams = new Object[methodParamTypes.length];
         final UnMarshaller unMarshaller = MarshallerFactory.createUnMarshaller(this.marshallerType);
-        unMarshaller.start(input, cl);
+        unMarshaller.start(input, new UnMarshaller.ClassLoaderProvider() {
+            @Override
+            public ClassLoader provideClassLoader() {
+                return cl;
+            }
+        });
+        String appName = null;
+        String moduleName = null;
+        String distinctName = null;
+        String beanName = null;
         Locator ejbLocator = null;
         try {
+            appName = (String) unMarshaller.readObject();
+            moduleName = (String) unMarshaller.readObject();
+            distinctName = (String) unMarshaller.readObject();
+            beanName = (String) unMarshaller.readObject();
             ejbLocator = (Locator) unMarshaller.readObject();
         } catch (ClassNotFoundException e) {
             throw new RuntimeException(e);
@@ -108,7 +120,7 @@ public class DummyProtocolHandler {
         }
         unMarshaller.finish();
 
-        return new MethodInvocationRequest(invocationId, ejbLocator.getAppName(), ejbLocator.getModuleName(), ejbLocator.getDistinctName(), ejbLocator.getBeanName(),
+        return new MethodInvocationRequest(invocationId, appName, moduleName, distinctName, beanName,
                 ejbLocator.getInterfaceType().getName(), methodName, methodParamTypes, methodParams, attachments);
     }
 

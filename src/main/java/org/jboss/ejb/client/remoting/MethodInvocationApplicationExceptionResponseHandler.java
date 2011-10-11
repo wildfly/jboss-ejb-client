@@ -78,7 +78,15 @@ class MethodInvocationApplicationExceptionResponseHandler extends ProtocolMessag
                 MethodInvocationApplicationExceptionResponseHandler.this.readAttachments(input);
                 final UnMarshaller unMarshaller = MarshallerFactory.createUnMarshaller(MethodInvocationApplicationExceptionResponseHandler.this.marshallingType);
                 final ClassLoader classLoader = Thread.currentThread().getContextClassLoader();
-                unMarshaller.start(this.input, classLoader);
+                // A ClassLoaderProvider which returns TCCL that was present when this provider
+                // was instantiated
+                final UnMarshaller.ClassLoaderProvider classLoaderProvider = new UnMarshaller.ClassLoaderProvider() {
+                    @Override
+                    public ClassLoader provideClassLoader() {
+                        return classLoader;
+                    }
+                };
+                unMarshaller.start(this.input, classLoaderProvider);
                 Object result = unMarshaller.readObject();
                 unMarshaller.finish();
                 // should never happen if the server implemented the protocol correctly

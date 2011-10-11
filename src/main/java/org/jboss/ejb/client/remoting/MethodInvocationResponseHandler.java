@@ -32,7 +32,7 @@ import java.io.IOException;
 /**
  * Responsible for processing a message and parsing the method invocation response from it, as per the
  * EJB remoting client protocol specification
- * 
+ * <p/>
  * User: Jaikiran Pai
  */
 class MethodInvocationResponseHandler extends ProtocolMessageHandler {
@@ -92,7 +92,15 @@ class MethodInvocationResponseHandler extends ProtocolMessageHandler {
                 MethodInvocationResponseHandler.this.readAttachments(input);
                 final UnMarshaller unMarshaller = MarshallerFactory.createUnMarshaller(MethodInvocationResponseHandler.this.marshallingType);
                 final ClassLoader classLoader = Thread.currentThread().getContextClassLoader();
-                unMarshaller.start(this.input, classLoader);
+                // A ClassLoaderProvider which returns TCCL that was present when this provider
+                // was instantiated
+                final UnMarshaller.ClassLoaderProvider classLoaderProvider = new UnMarshaller.ClassLoaderProvider() {
+                    @Override
+                    public ClassLoader provideClassLoader() {
+                        return classLoader;
+                    }
+                };
+                unMarshaller.start(this.input, classLoaderProvider);
                 // read the result
                 final Object result = unMarshaller.readObject();
                 unMarshaller.finish();
