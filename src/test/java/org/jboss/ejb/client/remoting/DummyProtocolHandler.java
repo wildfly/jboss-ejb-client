@@ -23,6 +23,7 @@
 package org.jboss.ejb.client.remoting;
 
 import org.jboss.ejb.client.EJBLocator;
+import org.jboss.ejb.client.Locator;
 
 import java.io.DataInput;
 import java.io.DataOutput;
@@ -92,9 +93,9 @@ public class DummyProtocolHandler {
         final Object[] methodParams = new Object[methodParamTypes.length];
         final UnMarshaller unMarshaller = MarshallerFactory.createUnMarshaller(this.marshallerType);
         unMarshaller.start(input, cl);
-        EJBLocator ejbLocator = null;
+        Locator ejbLocator = null;
         try {
-            ejbLocator = (EJBLocator) unMarshaller.readObject();
+            ejbLocator = (Locator) unMarshaller.readObject();
         } catch (ClassNotFoundException e) {
             throw new RuntimeException(e);
         }
