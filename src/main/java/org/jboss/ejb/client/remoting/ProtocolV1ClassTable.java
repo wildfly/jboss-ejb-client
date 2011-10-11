@@ -66,7 +66,10 @@ final class ProtocolV1ClassTable implements ClassTable {
 
     public Class<?> readClass(final Unmarshaller unmarshaller) throws IOException, ClassNotFoundException {
         int idx = unmarshaller.readUnsignedByte();
-        return classes.length >= idx ? null : classes[idx];
+        if (idx >= classes.length) {
+            throw new ClassNotFoundException("ClassTable " + this.getClass().getName() + " cannot find a class for class index " + idx);
+        }
+        return classes[idx];
     }
 
     static final class ByteWriter implements Writer {

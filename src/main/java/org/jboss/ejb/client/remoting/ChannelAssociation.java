@@ -159,8 +159,8 @@ class ChannelAssociation {
     }
 
     /**
-     * Invoked when the server notifies the client that a (prior) method invocation corresponds to a method
-     * marked as asynchronous. This method let's the {@link EJBReceiverInvocationContext} corresponding to the <code>invocationId</code>
+     * Invoked when the server notifies the client that a (previous) method invocation corresponds to a method
+     * marked as asynchronous. This method lets the {@link EJBReceiverInvocationContext} corresponding to the <code>invocationId</code>
      * know that it can {@link org.jboss.ejb.client.EJBReceiverInvocationContext#proceedAsynchronously() unblock the invocation}
      *
      * @param invocationId The invocation id

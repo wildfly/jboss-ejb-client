@@ -76,6 +76,7 @@ class MarshallerFactory {
         JBossMarshaller(final String marshallerType) throws IOException {
             final MarshallingConfiguration marshallingConfiguration = new MarshallingConfiguration();
             marshallingConfiguration.setVersion(2);
+            marshallingConfiguration.setClassTable(new ProtocolV1ClassTable());
             org.jboss.marshalling.MarshallerFactory factory = Marshalling.getProvidedMarshallerFactory(marshallerType);
             this.delegate = factory.createMarshaller(marshallingConfiguration);
         }
@@ -119,6 +120,7 @@ class MarshallerFactory {
         public void start(final DataInput input, final ClassLoader classLoader) throws IOException {
             final MarshallingConfiguration marshallingConfiguration = new MarshallingConfiguration();
             marshallingConfiguration.setVersion(2);
+            marshallingConfiguration.setClassTable(new ProtocolV1ClassTable());
             marshallingConfiguration.setClassResolver(new SimpleClassResolver(classLoader));
             org.jboss.marshalling.MarshallerFactory factory = Marshalling.getProvidedMarshallerFactory(marshallerType);
             this.delegate = factory.createUnmarshaller(marshallingConfiguration);
