@@ -50,29 +50,6 @@ public class DummyProtocolHandler {
         this.marshallerType = marshallerType;
     }
 
-
-//  void writeSessionOpenResponse(final DataOutput output, final short invocationId, final byte[] sessionId,
-//                                         final Attachment[] attachments) throws IOException {
-//        if (output == null) {
-//            throw new IllegalArgumentException("Cannot write to null output");
-//        }
-//        if (sessionId == null) {
-//            throw new IllegalArgumentException("Session id cannot be null while writing out session open response");
-//        }
-//        // write the session open response header
-//        output.write(MessageType.SESSION_OPEN_RESPONSE.getHeader());
-//        // write the invocation id
-//        output.writeShort(invocationId);
-//        // write session id length
-//        PackedInteger.writePackedInteger(output, sessionId.length);
-//        // write the session id
-//        output.write(sessionId);
-//        // write the attachments
-//        this.writeAttachments(output, attachments);
-//
-//    }
-
-
     public MethodInvocationRequest readMethodInvocationRequest(final DataInput input, final ClassLoader cl) throws IOException {
         // read the invocation id
         final short invocationId = input.readShort();
@@ -142,99 +119,6 @@ public class DummyProtocolHandler {
         marshaller.writeObject(result);
         marshaller.finish();
     }
-
-//    @Override
-//    public void writeModuleAvailability(final DataOutput output, final EJBModuleIdentifier[] ejbModuleIdentifiers) throws IOException {
-//        if (output == null) {
-//            throw new IllegalArgumentException("Cannot write to null output");
-//        }
-//        if (ejbModuleIdentifiers == null) {
-//            throw new IllegalArgumentException("EJB module identifiers cannot be null");
-//        }
-//        // write the header
-//        output.write(MessageType.MODULE_AVAILABLE.getHeader());
-//        // write the count
-//        PackedInteger.writePackedInteger(output, ejbModuleIdentifiers.length);
-//        // write the app/module names
-//        for (int i = 0; i < ejbModuleIdentifiers.length; i++) {
-//            // write the app name
-//            final String appName = ejbModuleIdentifiers[i].getAppName();
-//            if (appName == null) {
-//                // write out a empty string
-//                output.writeUTF("");
-//            } else {
-//                output.writeUTF(appName);
-//            }
-//            // write the module name
-//            output.writeUTF(ejbModuleIdentifiers[i].getModuleName());
-//            // write the distinct name
-//            final String distinctName = ejbModuleIdentifiers[i].getDistinctName();
-//            if (distinctName == null) {
-//                // write out an empty string
-//                output.writeUTF("");
-//            } else {
-//                output.writeUTF(distinctName);
-//            }
-//        }
-//    }
-
-//    @Override
-//    public MethodInvocationResponse readMethodInvocationResponse(final DataInput input, final InvocationClassLoaderResolver classLoaderResolver) throws IOException {
-//        if (input == null) {
-//            throw new IllegalArgumentException("Cannot read from null input");
-//        }
-//
-//        // read the invocation id
-//        final short invocationId = input.readShort();
-//        final UnMarshaller unMarshaller = MarshallerFactory.createUnMarshaller(this.marshallerType);
-//        // read the attachments
-//        this.readAttachments(input);
-//        // check exception flag
-//        boolean exception = input.readBoolean();
-//        final ClassLoader classLoader = classLoaderResolver.resolveClassLoader(invocationId);
-//        unMarshaller.start(input, classLoader);
-//
-//        Throwable t = null;
-//        Object result = null;
-//        try {
-//            if (exception) {
-//                // read the excption
-//                t = (Throwable) unMarshaller.readObject();
-//            } else {
-//                // read the result
-//                result = unMarshaller.readObject();
-//            }
-//        } catch (ClassNotFoundException e) {
-//            throw new RuntimeException(e);
-//        }
-//        unMarshaller.finish();
-//
-//        return new MethodInvocationResponse(invocationId, result, t);
-//    }
-
-//    @Override
-//    public Message readSessionOpenRequest(DataInput input) throws IOException {
-//        if (input == null) {
-//            throw new IllegalArgumentException("Cannot read from null input");
-//        }
-//
-//        // read the invocation id
-//        final short invocationId = input.readShort();
-//        // read the ejb identifier info
-//        // first read a flag to check whether app name is included
-//        final boolean appNamePresent = input.readBoolean();
-//        String appName = null;
-//        if (appNamePresent) {
-//            appName = input.readUTF();
-//        }
-//        final String moduleName = input.readUTF();
-//        final String beanName = input.readUTF();
-//        final String viewClassName = input.readUTF();
-//        // read the attachments
-//        final Attachment[] attachments = this.readAttachments(input);
-//
-//        return new Message(invocationId, appName, moduleName, beanName, viewClassName, attachments);
-//    }
 
     private RemotingAttachments readAttachments(final DataInput input) throws IOException {
         int numAttachments = input.readByte();
