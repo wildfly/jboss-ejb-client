@@ -23,7 +23,6 @@
 package org.jboss.ejb.client.remoting;
 
 import org.jboss.ejb.client.EJBClientInvocationContext;
-import org.jboss.ejb.client.EJBClientProxyContext;
 import org.jboss.ejb.client.SessionID;
 
 /**
@@ -57,19 +56,5 @@ public final class RemotingSessionInterceptor implements RemotingEJBClientInterc
             context.removeProxyAttachment(SessionID.SESSION_ID_KEY);
         }
         return context.getResult();
-    }
-
-    public void prepareSerialization(final EJBClientProxyContext<? extends RemotingAttachments> context) {
-        final SessionID sessionID = context.getProxyAttachment(SessionID.SESSION_ID_KEY);
-        if (sessionID != null) {
-            context.getReceiverSpecific().putPayloadAttachment(0x0000, sessionID.getEncodedForm());
-        }
-    }
-
-    public void postDeserialize(final EJBClientProxyContext<? extends RemotingAttachments> context) {
-        final byte[] sessionIdBytes = context.getReceiverSpecific().getPayloadAttachment(0x0000);
-        if (sessionIdBytes != null) {
-            context.putProxyAttachment(SessionID.SESSION_ID_KEY, SessionID.createSessionID(sessionIdBytes));
-        }
     }
 }

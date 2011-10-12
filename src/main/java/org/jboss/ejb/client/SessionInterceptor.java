@@ -20,27 +20,29 @@
  * 02110-1301 USA, or see the FSF site: http://www.fsf.org.
  */
 
-package org.jboss.ejb.client.remoting;
-
-import org.jboss.ejb.client.EJBClientInvocationContext;
-import org.jboss.ejb.client.TransactionID;
+package org.jboss.ejb.client;
 
 /**
- * The receiver-specific interceptor for transaction propagation.
- *
  * @author <a href="mailto:david.lloyd@redhat.com">David M. Lloyd</a>
  */
-public final class RemotingTransactionInterceptor implements RemotingEJBClientInterceptor {
+public final class SessionInterceptor implements GeneralEJBClientInterceptor {
 
-    public void handleInvocation(final EJBClientInvocationContext<? extends RemotingAttachments> context) throws Exception {
-        final TransactionID transactionID = context.getAttachment(TransactionID.TRANSACTION_ID_KEY);
-        if (transactionID != null) {
-            context.getReceiverSpecific().putPayloadAttachment(0x0001, transactionID.getEncodedForm());
+    public void handleInvocation(final EJBClientInvocationContext<?> context) throws Exception {
+        final Locator<?> locator = context.getLocator();
+        if (locator instanceof StatefulEJBLocator) {
+            final StatefulEJBLocator<?> ejbLocator = (StatefulEJBLocator<?>) locator;
+            final SessionID sessionID = ejbLocator.getSessionId();
+            if (sessionID instanceof NodeAssociatedSessionID) {
+                final NodeAssociatedSessionID associatedSessionID = (NodeAssociatedSessionID) sessionID;
+                final String name = associatedSessionID.getNodeName();
+                final boolean cluster = associatedSessionID.isCluster();
+                // TODO: store affinity information on the invocation context
+
+            }
         }
     }
 
-    public Object handleInvocationResult(final EJBClientInvocationContext<? extends RemotingAttachments> context) throws Exception {
-        // nothing to do with result
+    public Object handleInvocationResult(final EJBClientInvocationContext<?> context) throws Exception {
         return context.getResult();
     }
 }

@@ -20,36 +20,26 @@
  * 02110-1301 USA, or see the FSF site: http://www.fsf.org.
  */
 
-package org.jboss.ejb.client.interceptors;
-
-import org.jboss.ejb.client.EJBClientInvocationContext;
-import org.jboss.ejb.client.EJBClientProxyContext;
-import org.jboss.ejb.client.GeneralEJBClientInterceptor;
-import org.jboss.ejb.client.NodeAssociatedSessionID;
-import org.jboss.ejb.client.SessionID;
+package org.jboss.ejb.client;
 
 /**
  * @author <a href="mailto:david.lloyd@redhat.com">David M. Lloyd</a>
  */
-public final class SessionInterceptor implements GeneralEJBClientInterceptor {
+public final class TransactionInterceptor implements GeneralEJBClientInterceptor {
 
     public void handleInvocation(final EJBClientInvocationContext<?> context) throws Exception {
-        final SessionID sessionID = context.getProxyAttachment(SessionID.SESSION_ID_KEY);
-        if (sessionID instanceof NodeAssociatedSessionID) {
-            final NodeAssociatedSessionID associatedSessionID = (NodeAssociatedSessionID) sessionID;
-            final String name = associatedSessionID.getNodeName();
-            final boolean cluster = associatedSessionID.isCluster();
-            // TODO: store affinity information on the invocation context
+        final EJBClientTransactionContext current = EJBClientTransactionContext.getCurrent();
+        final TransactionID transactionID = current.getAssociatedTransactionID(context);
+        if (transactionID instanceof UserTransactionID) {
+            final UserTransactionID id = (UserTransactionID) transactionID;
+            final String name = id.getNodeName();
+            // todo affinity
         }
+        context.putAttachment(TransactionID.TRANSACTION_ID_KEY, transactionID);
+        context.sendRequest();
     }
 
     public Object handleInvocationResult(final EJBClientInvocationContext<?> context) throws Exception {
-        return context.getResult();
-    }
-
-    public void prepareSerialization(final EJBClientProxyContext<?> context) {
-    }
-
-    public void postDeserialize(final EJBClientProxyContext<?> context) {
+        return null;
     }
 }

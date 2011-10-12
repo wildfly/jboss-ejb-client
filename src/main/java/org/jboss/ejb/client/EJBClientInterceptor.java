@@ -51,18 +51,4 @@ public interface EJBClientInterceptor<A> {
      * @throws Exception if an invocation error occurred
      */
     Object handleInvocationResult(EJBClientInvocationContext<? extends A> context) throws Exception;
-
-    /**
-     * Prepare a client proxy for serialization by adding interceptor data to the protocol-specific attachment.
-     *
-     * @param context the proxy serialization context
-     */
-    void prepareSerialization(EJBClientProxyContext<? extends A> context);
-
-    /**
-     * Restore a client proxy's state after deserialization.
-     *
-     * @param context the proxy serialization context
-     */
-    void postDeserialize(EJBClientProxyContext<? extends A> context);
 }

@@ -94,6 +94,7 @@ public final class EJBClientManagedTransactionContext extends EJBClientTransacti
         if (transactionID == null) {
             throw new IllegalStateException("Cannot enlist transaction");
         }
+        synchronizationRegistry.registerInterposedSynchronization(new SynchronizationImpl(nodeName, transactionID));
         return transactionID;
     }
 
@@ -117,9 +118,6 @@ public final class EJBClientManagedTransactionContext extends EJBClientTransacti
         }
 
         public void afterCompletion(final int status) {
-            final EJBReceiverContext receiverContext = EJBClientContext.requireCurrent().getNodeEJBReceiver(nodeName);
-            final EJBReceiver<?> receiver = receiverContext.getReceiver();
-            receiver.afterCompletion(receiverContext, transactionID, status); // block for result
         }
     }
 

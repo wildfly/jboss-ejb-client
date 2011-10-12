@@ -36,6 +36,8 @@ import java.util.Set;
  */
 public abstract class EJBReceiver<A> extends Attachable {
 
+    private static final EJBClientInterceptor<?>[] NO_INTERCEPTORS = new EJBClientInterceptor[0];
+
     private final Set<ModuleID> accessibleModules = Collections.synchronizedSet(new HashSet<ModuleID>());
 
     /**
@@ -138,10 +140,11 @@ public abstract class EJBReceiver<A> extends Attachable {
      * This method returns an empty array. Individual implementations of {@link EJBReceiver} are expected to
      * override this method to return receiver specific interceptors
      *
-     * @return
+     * @return the interceptors
      */
+    @SuppressWarnings("unchecked")
     protected EJBClientInterceptor<A>[] getClientInterceptors() {
-        return new EJBClientInterceptor[0];
+        return (EJBClientInterceptor<A>[]) NO_INTERCEPTORS;
     }
 
     /**
@@ -204,18 +207,6 @@ public abstract class EJBReceiver<A> extends Attachable {
      */
     @SuppressWarnings("unused")
     protected void beforeCompletion(final EJBReceiverContext context, final TransactionID transactionID) {
-    }
-
-    /**
-     * The after-completion hook.  Cause all connected subordinate transaction managers to invoke their afterCompletion
-     * methods.  This method should not return until all remote afterCompletions have been called.
-     *
-     * @param context       the receiver context
-     * @param transactionID the transaction ID
-     * @param status        the transaction status
-     */
-    @SuppressWarnings("unused")
-    protected void afterCompletion(final EJBReceiverContext context, final TransactionID transactionID, final int status) {
     }
 
     static class ModuleID {
