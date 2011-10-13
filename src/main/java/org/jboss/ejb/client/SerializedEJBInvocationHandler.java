@@ -48,18 +48,6 @@ public final class SerializedEJBInvocationHandler implements Externalizable {
     public SerializedEJBInvocationHandler(final Locator<?> locator) {
         this.locator = locator;
     }
-
-    /**
-     * Construct a new instance.
-     *
-     * @param in the object input
-     * @throws IOException if a read error occurs
-     * @throws ClassNotFoundException if a class cannot be resolved
-     */
-    public SerializedEJBInvocationHandler(final ObjectInput in) throws IOException, ClassNotFoundException {
-        this((Locator<?>)in.readObject());
-    }
-
     /**
      * Get the invocation locator.
      *
