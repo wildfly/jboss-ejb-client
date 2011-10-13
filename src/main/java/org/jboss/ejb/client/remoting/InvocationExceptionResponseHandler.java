@@ -32,15 +32,15 @@ import java.io.IOException;
 /**
  * User: jpai
  */
-class MethodInvocationApplicationExceptionResponseHandler extends ProtocolMessageHandler {
+class InvocationExceptionResponseHandler extends ProtocolMessageHandler {
 
-    private static final Logger logger = Logger.getLogger(MethodInvocationApplicationExceptionResponseHandler.class);
+    private static final Logger logger = Logger.getLogger(InvocationExceptionResponseHandler.class);
 
     private final String marshallingType;
 
     private final ChannelAssociation channelAssociation;
 
-    MethodInvocationApplicationExceptionResponseHandler(final ChannelAssociation channelAssociation, final String marshallingType) {
+    InvocationExceptionResponseHandler(final ChannelAssociation channelAssociation, final String marshallingType) {
         this.marshallingType = marshallingType;
         this.channelAssociation = channelAssociation;
     }
@@ -75,8 +75,8 @@ class MethodInvocationApplicationExceptionResponseHandler extends ProtocolMessag
         public Object getResult() throws Exception {
             try {
                 // read the attachments
-                MethodInvocationApplicationExceptionResponseHandler.this.readAttachments(input);
-                final UnMarshaller unMarshaller = MarshallerFactory.createUnMarshaller(MethodInvocationApplicationExceptionResponseHandler.this.marshallingType);
+                InvocationExceptionResponseHandler.this.readAttachments(input);
+                final UnMarshaller unMarshaller = MarshallerFactory.createUnMarshaller(InvocationExceptionResponseHandler.this.marshallingType);
                 final ClassLoader classLoader = Thread.currentThread().getContextClassLoader();
                 // A ClassLoaderProvider which returns TCCL that was present when this provider
                 // was instantiated

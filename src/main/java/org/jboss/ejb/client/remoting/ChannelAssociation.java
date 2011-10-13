@@ -198,7 +198,7 @@ class ChannelAssociation {
             case 0x05:
                 return new MethodInvocationResponseHandler(this, this.marshallingStrategy);
             case 0x06:
-                return new MethodInvocationApplicationExceptionResponseHandler(this, this.marshallingStrategy);
+                return new InvocationExceptionResponseHandler(this, this.marshallingStrategy);
             case 0x08:
                 return new ModuleAvailabilityMessageHandler(this.ejbReceiver, ModuleAvailabilityMessageHandler.ModuleReportType.MODULE_AVAILABLE);
             case 0x09:
