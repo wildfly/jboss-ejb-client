@@ -28,9 +28,13 @@ import java.io.ObjectInput;
 import java.io.ObjectOutput;
 
 /**
+ * A serialized EJB invocation handler.
+ *
  * @author <a href="mailto:david.lloyd@redhat.com">David M. Lloyd</a>
  */
 public final class SerializedEJBInvocationHandler implements Externalizable {
+
+    private static final long serialVersionUID = -2370168183054746652L;
 
     private Locator<?> locator;
 
