@@ -36,7 +36,10 @@ import java.util.Collection;
 import java.util.concurrent.CountDownLatch;
 
 /**
- * User: jpai
+ * A Channel receiver which manages the initial server initiated version handshake between the client
+ * and the server
+ * <p/>
+ * User: Jaikiran Pai
  */
 class VersionReceiver implements Channel.Receiver {
 
@@ -47,23 +50,40 @@ class VersionReceiver implements Channel.Receiver {
     private final CountDownLatch latch;
     private Channel compatibleChannel;
 
+    /**
+     * @param latch               The countdown latch which will be used to notify about a successful version handshake between
+     *                            the client and the server
+     * @param clientVersion       The EJB remoting protocol version of the client
+     * @param marshallingStrategy The marshalling strategy which will be used by the client
+     */
     VersionReceiver(final CountDownLatch latch, final byte clientVersion, final String marshallingStrategy) {
         this.clientVersion = clientVersion;
         this.clientMarshallingStrategy = marshallingStrategy;
         this.latch = latch;
     }
 
+    @Override
     public void handleError(final Channel channel, final IOException error) {
         logger.error("Error on channel " + channel, error);
+        try {
+            channel.close();
+        } catch (IOException ioe) {
+            // ignore
+        }
     }
 
+    @Override
     public void handleEnd(final Channel channel) {
-        logger.debug("No more communication will happen on channel " + channel);
+        logger.info("Channel end notification received. No more communication will happen on channel " + channel);
+        try {
+            channel.close();
+        } catch (IOException ioe) {
+            // ignore
+        }
     }
 
+    @Override
     public void handleMessage(final Channel channel, final MessageInputStream message) {
-        // TODO: handle incoming greeting, send our own, set up the connection state,
-        // and query the module list
         final SimpleDataInput simpleDataInput = new SimpleDataInput(Marshalling.createByteInput(message));
         byte serverVersion;
         String[] serverMarshallerStrategies;
@@ -71,7 +91,8 @@ class VersionReceiver implements Channel.Receiver {
             serverVersion = simpleDataInput.readByte();
             final int serverMarshallerCount = PackedInteger.readPackedInteger(simpleDataInput);
             if (serverMarshallerCount <= 0) {
-                // TODO: Handle this
+                throw new RuntimeException("Client cannot communicate with the server since no marshalling strategy has been " +
+                        "configured on server side");
             }
             serverMarshallerStrategies = new String[serverMarshallerCount];
             for (int i = 0; i < serverMarshallerCount; i++) {
@@ -84,6 +105,7 @@ class VersionReceiver implements Channel.Receiver {
         }
 
         if (!this.checkCompatibility(serverVersion, serverMarshallerStrategies)) {
+            // Probably not a good idea to log the exact version of the server, so just print out a generic error message
             logger.error("EJB receiver cannot communicate with server, due to version incompatibility");
             return;
         }
@@ -97,7 +119,6 @@ class VersionReceiver implements Channel.Receiver {
             this.latch.countDown();
 
         } catch (IOException ioe) {
-            // TODO: re-evaluate
             throw new RuntimeException(ioe);
         }
 
