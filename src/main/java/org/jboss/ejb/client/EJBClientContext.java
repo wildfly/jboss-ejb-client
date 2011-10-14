@@ -156,6 +156,7 @@ public final class EJBClientContext extends Attachable {
      * Register an EJB receiver with this client context.
      *
      * @param receiver the receiver to register
+     * @throws IllegalArgumentException If the passed <code>receiver</code> is null
      */
     public void registerEJBReceiver(final EJBReceiver<?> receiver) {
         if (receiver == null) {
@@ -171,6 +172,24 @@ public final class EJBClientContext extends Attachable {
             this.ejbReceiverAssociations.put(receiver, ejbReceiverContext);
         }
         receiver.associate(ejbReceiverContext);
+    }
+
+    /**
+     * Unregister (a previously registered) EJB receiver from this client context.
+     * <p/>
+     * This EJB client context will not use this unregistered receiver for any subsequent
+     * invocations
+     *
+     * @param receiver The EJB receiver to unregister
+     * @throws IllegalArgumentException If the passed <code>receiver</code> is null
+     */
+    public void unregisterEJBReceiver(final EJBReceiver<?> receiver) {
+        if (receiver == null) {
+            throw new IllegalArgumentException("Receiver cannot be null");
+        }
+        synchronized (this.ejbReceiverAssociations) {
+            this.ejbReceiverAssociations.remove(receiver);
+        }
     }
 
     /**

@@ -31,6 +31,7 @@ import org.jboss.remoting3.MessageInputStream;
 import org.xnio.FutureResult;
 
 import java.io.IOException;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
@@ -87,8 +88,8 @@ class ChannelAssociation {
             @Override
             public void handleClose(Channel closed, IOException exception) {
                 logger.debug("Closing channel " + closed, exception);
-                // TODO: We need a re-connect or some similar mechanism to make sure that the EJBReceiver
-                // is either removed from the context or is reconnected to the server
+                // notify about the broken channel and do the necessary cleanups
+                ChannelAssociation.this.notifyBrokenChannel(exception);
 
             }
         });
@@ -216,6 +217,32 @@ class ChannelAssociation {
         }
     }
 
+    private void notifyBrokenChannel(final IOException ioException) {
+        try {
+            final EJBReceiverInvocationContext.ResultProducer unusbaleChannelResultProducer = new UnusableChannelResultProducer(ioException);
+            // notify waiting method invocations
+            final Collection<EJBReceiverInvocationContext> receiverInvocationContexts = this.waitingMethodInvocations.values();
+            // @see javadoc of Collections.synchronizedMap()
+            synchronized (this.waitingMethodInvocations) {
+                for (final EJBReceiverInvocationContext receiverInvocationContext : receiverInvocationContexts) {
+                    receiverInvocationContext.resultReady(unusbaleChannelResultProducer);
+                }
+            }
+            // notify the other waiting invocations
+            final Collection<FutureResult<EJBReceiverInvocationContext.ResultProducer>> futureResults = this.waitingFutureResults.values();
+            // @see javadoc of Collections.synchronizedMap()
+            synchronized (this.waitingFutureResults) {
+                for (final FutureResult<EJBReceiverInvocationContext.ResultProducer> resultProducerFutureResult : futureResults) {
+                    resultProducerFutureResult.setResult(unusbaleChannelResultProducer);
+                }
+            }
+        } finally {
+            // close the receiver context
+            this.ejbReceiverContext.close();
+        }
+
+    }
+
 
     /**
      * A {@link Channel.Receiver} for receiving message on the remoting channel
@@ -225,16 +252,30 @@ class ChannelAssociation {
         @Override
         public void handleError(Channel channel, IOException error) {
             logger.error("Error on channel " + channel, error);
-            // TODO: We need a re-connect or some similar mechanism to make sure that the EJBReceiver
-            // is either removed from the context or is reconnected to the server
+            // close the channel and let the CloseHandler handle the cleanup
+            try {
+                channel.close();
+            } catch (IOException ioe) {
+                // couldn't properly close, so let's do the cleanup that the CloseHandler was expected to do
+
+                // notify about the broken channel and do the necessary cleanups
+                ChannelAssociation.this.notifyBrokenChannel(error);
+            }
 
         }
 
         @Override
         public void handleEnd(Channel channel) {
             logger.info("Channel " + channel + " can no longer process messages");
-            // TODO: We need a re-connect or some similar mechanism to make sure that the EJBReceiver
-            // is either removed from the context or is reconnected to the server
+            // close the channel and let the CloseHandler handle the cleanup
+            try {
+                channel.close();
+            } catch (IOException ioe) {
+                // couldn't properly close, so let's do the cleanup that the CloseHandler was expected to do
+
+                // notify about the broken channel and do the necessary cleanups
+                ChannelAssociation.this.notifyBrokenChannel(new IOException("Channel " + channel + " is no longer readable"));
+            }
         }
 
         @Override
@@ -260,5 +301,28 @@ class ChannelAssociation {
             }
         }
 
+    }
+
+    /**
+     * A {@link org.jboss.ejb.client.EJBReceiverInvocationContext.ResultProducer} which in its
+     * {@link org.jboss.ejb.client.EJBReceiverInvocationContext.ResultProducer#getResult()} throws the {@link IOException}
+     * which resulted in the channel being unusable
+     */
+    private class UnusableChannelResultProducer implements EJBReceiverInvocationContext.ResultProducer {
+
+        private final IOException ioException;
+
+        UnusableChannelResultProducer(final IOException ioexception) {
+            this.ioException = ioexception;
+        }
+
+        @Override
+        public Object getResult() throws Exception {
+            throw this.ioException;
+        }
+
+        @Override
+        public void discardResult() {
+        }
     }
 }

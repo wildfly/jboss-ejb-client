@@ -50,6 +50,6 @@ public final class EJBReceiverContext extends Attachable implements Closeable {
      * Inform the EJB client context that this receiver is no longer available.
      */
     public void close() {
-        // todo
+        this.clientContext.unregisterEJBReceiver(this.receiver);
     }
 }
