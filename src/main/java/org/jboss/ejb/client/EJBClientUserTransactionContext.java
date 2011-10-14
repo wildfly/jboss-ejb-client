@@ -99,10 +99,10 @@ public final class EJBClientUserTransactionContext extends EJBClientTransactionC
             if (state.status != Status.STATUS_ACTIVE && state.status != Status.STATUS_MARKED_ROLLBACK) {
                 throw new IllegalStateException("Transaction for this thread is not active");
             }
-            final UserTransactionID transactionID = new UserTransactionID(nodeName, idCounter.getAndAdd(127));
+            final UserTransactionID transactionID = state.currentId;
             try {
                 final EJBClientContext clientContext = EJBClientContext.requireCurrent();
-                final EJBReceiverContext receiverContext = clientContext.getNodeEJBReceiver(nodeName);
+                final EJBReceiverContext receiverContext = clientContext.getNodeEJBReceiverContext(nodeName);
                 final EJBReceiver<?> receiver = receiverContext.getReceiver();
                 if (state.status == Status.STATUS_MARKED_ROLLBACK) {
                     state.status = Status.STATUS_ROLLING_BACK;
@@ -143,10 +143,10 @@ public final class EJBClientUserTransactionContext extends EJBClientTransactionC
             if (state.status != Status.STATUS_ACTIVE && state.status != Status.STATUS_MARKED_ROLLBACK) {
                 throw new IllegalStateException("Transaction for this thread is not active");
             }
-            final UserTransactionID transactionID = new UserTransactionID(nodeName, idCounter.getAndAdd(127));
+            final UserTransactionID transactionID = state.currentId;
             try {
                 final EJBClientContext clientContext = EJBClientContext.requireCurrent();
-                final EJBReceiverContext receiverContext = clientContext.getNodeEJBReceiver(nodeName);
+                final EJBReceiverContext receiverContext = clientContext.getNodeEJBReceiverContext(nodeName);
                 final EJBReceiver<?> receiver = receiverContext.getReceiver();
                 state.status = Status.STATUS_ROLLING_BACK;
                 try {

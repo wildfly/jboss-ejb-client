@@ -82,6 +82,7 @@ public abstract class TransactionID implements Serializable {
      * @param other the other object
      * @return {@code true} if they are equal, {@code false} otherwise
      */
+    @Override
     public final boolean equals(Object other) {
         return other.getClass() == getClass() && equals((TransactionID)other);
     }
@@ -90,6 +91,7 @@ public abstract class TransactionID implements Serializable {
         return this == other || other != null && Arrays.equals(encodedForm, other.encodedForm);
     }
 
+    @Override
     public final int hashCode() {
         return hashCode;
     }

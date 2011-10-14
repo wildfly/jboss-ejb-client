@@ -212,6 +212,8 @@ class ChannelAssociation {
                 return new GeneralInvocationFailureResponseHandler(this, GeneralInvocationFailureResponseHandler.FailureType.SESSION_NOT_ACTIVE);
             case 0x0E:
                 return new AsyncMethodNotificationHandler(this);
+            case 0x11:
+                return new GenericInvocationSuccessResponseHandler(this);
             default:
                 return null;
         }

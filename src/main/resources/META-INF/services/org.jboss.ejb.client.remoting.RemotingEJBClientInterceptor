@@ -1,1 +1,2 @@
 org.jboss.ejb.client.remoting.RemotingSessionInterceptor
+org.jboss.ejb.client.remoting.RemotingTransactionInterceptor

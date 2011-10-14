@@ -99,7 +99,7 @@ public final class EJBClientManagedTransactionContext extends EJBClientTransacti
     }
 
     EJBReceiverContext getReceiverContext(String nodeName) {
-        return EJBClientContext.requireCurrent().getNodeEJBReceiver(nodeName);
+        return EJBClientContext.requireCurrent().getNodeEJBReceiverContext(nodeName);
     }
 
     final class SynchronizationImpl implements Synchronization {
@@ -112,7 +112,7 @@ public final class EJBClientManagedTransactionContext extends EJBClientTransacti
         }
 
         public void beforeCompletion() {
-            final EJBReceiverContext receiverContext = EJBClientContext.requireCurrent().getNodeEJBReceiver(nodeName);
+            final EJBReceiverContext receiverContext = EJBClientContext.requireCurrent().getNodeEJBReceiverContext(nodeName);
             final EJBReceiver<?> receiver = receiverContext.getReceiver();
             receiver.beforeCompletion(receiverContext, transactionID); // block for result
         }
@@ -203,7 +203,7 @@ public final class EJBClientManagedTransactionContext extends EJBClientTransacti
         public int prepare(final Xid xid) throws XAException {
             final XidTransactionID transactionID = new XidTransactionID(xid);
             final EJBClientContext clientContext = EJBClientContext.requireCurrent();
-            final EJBReceiverContext receiverContext = clientContext.getNodeEJBReceiver(nodeName);
+            final EJBReceiverContext receiverContext = clientContext.getNodeEJBReceiverContext(nodeName);
             final EJBReceiver<?> receiver = receiverContext.getReceiver();
             return receiver.sendPrepare(receiverContext, transactionID);
         }
@@ -211,7 +211,7 @@ public final class EJBClientManagedTransactionContext extends EJBClientTransacti
         public void commit(final Xid xid, final boolean onePhase) throws XAException {
             final XidTransactionID transactionID = new XidTransactionID(xid);
             final EJBClientContext clientContext = EJBClientContext.requireCurrent();
-            final EJBReceiverContext receiverContext = clientContext.getNodeEJBReceiver(nodeName);
+            final EJBReceiverContext receiverContext = clientContext.getNodeEJBReceiverContext(nodeName);
             final EJBReceiver<?> receiver = receiverContext.getReceiver();
             receiver.sendCommit(receiverContext, transactionID, onePhase);
         }
@@ -219,7 +219,7 @@ public final class EJBClientManagedTransactionContext extends EJBClientTransacti
         public void forget(final Xid xid) throws XAException {
             final XidTransactionID transactionID = new XidTransactionID(xid);
             final EJBClientContext clientContext = EJBClientContext.requireCurrent();
-            final EJBReceiverContext receiverContext = clientContext.getNodeEJBReceiver(nodeName);
+            final EJBReceiverContext receiverContext = clientContext.getNodeEJBReceiverContext(nodeName);
             final EJBReceiver<?> receiver = receiverContext.getReceiver();
             receiver.sendForget(receiverContext, transactionID);
         }
@@ -227,7 +227,7 @@ public final class EJBClientManagedTransactionContext extends EJBClientTransacti
         public void rollback(final Xid xid) throws XAException {
             final XidTransactionID transactionID = new XidTransactionID(xid);
             final EJBClientContext clientContext = EJBClientContext.requireCurrent();
-            final EJBReceiverContext receiverContext = clientContext.getNodeEJBReceiver(nodeName);
+            final EJBReceiverContext receiverContext = clientContext.getNodeEJBReceiverContext(nodeName);
             final EJBReceiver<?> receiver = receiverContext.getReceiver();
             receiver.sendRollback(receiverContext, transactionID);
         }

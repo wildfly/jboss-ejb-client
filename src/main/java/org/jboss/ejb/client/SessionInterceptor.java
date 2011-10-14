@@ -40,6 +40,7 @@ public final class SessionInterceptor implements GeneralEJBClientInterceptor {
 
             }
         }
+        context.sendRequest();
     }
 
     public Object handleInvocationResult(final EJBClientInvocationContext<?> context) throws Exception {

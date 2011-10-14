@@ -37,6 +37,7 @@ public final class RemotingTransactionInterceptor implements RemotingEJBClientIn
         if (transactionID != null) {
             context.getReceiverSpecific().putPayloadAttachment(0x0001, transactionID.getEncodedForm());
         }
+        context.sendRequest();
     }
 
     public Object handleInvocationResult(final EJBClientInvocationContext<? extends RemotingAttachments> context) throws Exception {

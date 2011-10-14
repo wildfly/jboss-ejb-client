@@ -282,7 +282,17 @@ public final class EJBClientContext extends Attachable {
         }
     }
 
-    EJBReceiverContext getNodeEJBReceiver(final String nodeName) {
+    // TODO: Rethink this API. The current understanding is that a nodename can be associated with
+    // a EJBReceiver and each EJBReceiver can be associated multiple times with a EJBClientContext (atleast
+    // from an API point of view). Effectively, we'll have multiple EJBReceiverContext(s) for the same nodename
+    EJBReceiverContext getNodeEJBReceiverContext(final String nodeName) {
+        // TODO: Till we have a way to associate a nodename with a EJBReceiver, let this method
+        // just return the first available EJBReceiverContext
+        synchronized (this.ejbReceiverAssociations) {
+            if (!this.ejbReceiverAssociations.isEmpty()) {
+                return this.ejbReceiverAssociations.values().iterator().next();
+            }
+        }
         return null;
     }
 }
