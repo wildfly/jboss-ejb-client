@@ -35,25 +35,23 @@ public final class UserTransactionID extends TransactionID {
 
     UserTransactionID(final byte[] encodedForm) {
         super(encodedForm);
+        // first byte is the header
         if (encodedForm[0] != 0x01) {
             throw wrongFormat();
         }
-        final int encLen = encodedForm.length;
-        int end = -1;
-        for (int i = 1; i < encLen; i++) {
-            if (encodedForm[i] == 0) {
-                end = i; break;
-            }
-        }
-        if (end == -1 || end == 2) {
+        final int totalEncodedLength = encodedForm.length;
+        // second byte of the encoded form is the length of the nodename bytes
+        final int nodeNameLength = encodedForm[1];
+        if (nodeNameLength <= 0) {
             throw wrongFormat();
         }
+        // next bytes are the nodename
         try {
-            nodeName = new String(encodedForm, 1, end, "UTF-8");
+            nodeName = new String(encodedForm, 2, nodeNameLength, "UTF-8");
         } catch (UnsupportedEncodingException e) {
             throw wrongFormat();
         }
-        if (encLen < end + 4) {
+        if (totalEncodedLength < nodeNameLength + 4) {
             throw wrongFormat();
         }
         // the rest is the unique ID
@@ -74,14 +72,14 @@ public final class UserTransactionID extends TransactionID {
         if (length > 255) {
             throw wrongFormat();
         }
-        final byte[] target = new byte[5 + length];
+        final byte[] target = new byte[6 + length];
         target[0] = 0x01;
         target[1] = (byte) length;
         System.arraycopy(nameBytes, 0, target, 2, length);
-        target[3 + length] = (byte) (uniqueId >> 24);
-        target[4 + length] = (byte) (uniqueId >> 16);
-        target[5 + length] = (byte) (uniqueId >> 8);
-        target[6 + length] = (byte) uniqueId;
+        target[2 + length] = (byte) (uniqueId >> 24);
+        target[3 + length] = (byte) (uniqueId >> 16);
+        target[4 + length] = (byte) (uniqueId >> 8);
+        target[5 + length] = (byte) uniqueId;
         return target;
     }
 
