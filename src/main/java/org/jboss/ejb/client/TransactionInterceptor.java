@@ -35,11 +35,13 @@ public final class TransactionInterceptor implements GeneralEJBClientInterceptor
             final String name = id.getNodeName();
             // todo affinity
         }
-        context.putAttachment(TransactionID.TRANSACTION_ID_KEY, transactionID);
+        if (transactionID != null) {
+            context.putAttachment(TransactionID.TRANSACTION_ID_KEY, transactionID);
+        }
         context.sendRequest();
     }
 
     public Object handleInvocationResult(final EJBClientInvocationContext<?> context) throws Exception {
-        return null;
+        return context.getResult();
     }
 }

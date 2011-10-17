@@ -28,6 +28,7 @@ import org.jboss.ejb.client.EJBReceiver;
 import org.jboss.ejb.client.EJBReceiverContext;
 import org.jboss.ejb.client.EJBReceiverInvocationContext;
 import org.jboss.ejb.client.SessionID;
+import org.jboss.ejb.client.TransactionID;
 import org.jboss.logging.Logger;
 import org.jboss.remoting3.Channel;
 import org.jboss.remoting3.CloseHandler;
@@ -35,6 +36,7 @@ import org.jboss.remoting3.Connection;
 import org.xnio.IoFuture;
 import org.xnio.OptionMap;
 
+import javax.transaction.xa.XAException;
 import java.io.DataOutputStream;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -175,13 +177,73 @@ public final class RemotingConnectionEJBReceiver extends EJBReceiver<RemotingAtt
         return sessionId;
     }
 
+    @Override
     public void verify(final String appName, final String moduleName, final String distinctName, final String beanName) throws Exception {
         // TODO: Implement
         logger.warn("Not yet implemented RemotingConnectionEJBReceiver#verify");
     }
 
+    @Override
     public RemotingAttachments createReceiverSpecific() {
         return new RemotingAttachments();
+    }
+
+    @Override
+    protected void sendCommit(final EJBReceiverContext receiverContext, final TransactionID transactionID, final boolean onePhase) throws XAException {
+        final ChannelAssociation channelAssociation = this.requireChannelAssociation(receiverContext);
+        final short invocationId = channelAssociation.getNextInvocationId();
+        final Channel channel = channelAssociation.getChannel();
+        final Future<EJBReceiverInvocationContext.ResultProducer> futureResultProducer = channelAssociation.receiveResponse(invocationId);
+        try {
+            final DataOutputStream dataOutputStream = new DataOutputStream(channel.writeMessage());
+            final TransactionMessageWriter transactionMessageWriter = new TransactionMessageWriter();
+            try {
+                transactionMessageWriter.writeTxCommit(dataOutputStream, invocationId, transactionID);
+            } finally {
+                dataOutputStream.close();
+            }
+        } catch (IOException ioe) {
+            throw new RuntimeException("Error sending transaction commit message", ioe);
+        }
+        try {
+            final EJBReceiverInvocationContext.ResultProducer resultProducer = futureResultProducer.get();
+            resultProducer.getResult();
+        } catch (XAException xae) {
+            throw xae;
+        } catch (RuntimeException re) {
+            throw re;
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    @Override
+    protected void sendRollback(EJBReceiverContext receiverContext, TransactionID transactionID) throws XAException {
+        final ChannelAssociation channelAssociation = this.requireChannelAssociation(receiverContext);
+        final short invocationId = channelAssociation.getNextInvocationId();
+        final Channel channel = channelAssociation.getChannel();
+        final Future<EJBReceiverInvocationContext.ResultProducer> futureResultProducer = channelAssociation.receiveResponse(invocationId);
+        try {
+            final DataOutputStream dataOutputStream = new DataOutputStream(channel.writeMessage());
+            final TransactionMessageWriter transactionMessageWriter = new TransactionMessageWriter();
+            try {
+                transactionMessageWriter.writeTxRollback(dataOutputStream, invocationId, transactionID);
+            } finally {
+                dataOutputStream.close();
+            }
+        } catch (IOException ioe) {
+            throw new RuntimeException("Error sending transaction rollback message", ioe);
+        }
+        try {
+            final EJBReceiverInvocationContext.ResultProducer resultProducer = futureResultProducer.get();
+            resultProducer.getResult();
+        } catch (XAException xae) {
+            throw xae;
+        } catch (RuntimeException re) {
+            throw re;
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
     }
 
     void moduleAvailable(final String appName, final String moduleName, final String distinctName) {
