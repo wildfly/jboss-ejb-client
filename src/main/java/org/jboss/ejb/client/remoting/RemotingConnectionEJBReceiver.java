@@ -301,7 +301,7 @@ public final class RemotingConnectionEJBReceiver extends EJBReceiver<RemotingAtt
                 dataOutputStream.close();
             }
         } catch (IOException ioe) {
-            throw new RuntimeException("Error sending transaction prepare message", ioe);
+            throw new RuntimeException("Error sending transaction forget message", ioe);
         }
         try {
             // wait for result
@@ -309,6 +309,35 @@ public final class RemotingConnectionEJBReceiver extends EJBReceiver<RemotingAtt
             resultProducer.getResult();
         } catch (XAException xae) {
             throw xae;
+        } catch (RuntimeException re) {
+            throw re;
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    @Override
+    protected void beforeCompletion(final EJBReceiverContext receiverContext, final TransactionID transactionID) {
+        final ChannelAssociation channelAssociation = this.requireChannelAssociation(receiverContext);
+        final short invocationId = channelAssociation.getNextInvocationId();
+        final Channel channel = channelAssociation.getChannel();
+        final Future<EJBReceiverInvocationContext.ResultProducer> futureResultProducer = channelAssociation.enrollForResult(invocationId);
+        try {
+            final DataOutputStream dataOutputStream = new DataOutputStream(channel.writeMessage());
+            final TransactionMessageWriter transactionMessageWriter = new TransactionMessageWriter();
+            try {
+                // write the beforeCompletion message
+                transactionMessageWriter.writeTxBeforeCompletion(dataOutputStream, invocationId, transactionID);
+            } finally {
+                dataOutputStream.close();
+            }
+        } catch (IOException ioe) {
+            throw new RuntimeException("Error sending transaction beforeCompletion message", ioe);
+        }
+        try {
+            // wait for result
+            final EJBReceiverInvocationContext.ResultProducer resultProducer = futureResultProducer.get();
+            resultProducer.getResult();
         } catch (RuntimeException re) {
             throw re;
         } catch (Exception e) {
