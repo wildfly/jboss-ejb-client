@@ -31,11 +31,11 @@ import java.io.IOException;
 /**
  * User: jpai
  */
-class GenericInvocationSuccessResponseHandler extends ProtocolMessageHandler {
+class TransactionInvocationResponseHandler extends ProtocolMessageHandler {
 
     private final ChannelAssociation channelAssociation;
 
-    GenericInvocationSuccessResponseHandler(final ChannelAssociation channelAssociation) {
+    TransactionInvocationResponseHandler(final ChannelAssociation channelAssociation) {
         this.channelAssociation = channelAssociation;
     }
 
@@ -43,22 +43,39 @@ class GenericInvocationSuccessResponseHandler extends ProtocolMessageHandler {
     protected void processMessage(final MessageInputStream messageInputStream) throws IOException {
         // read the invocation id
         final DataInputStream dataInputStream = new DataInputStream(messageInputStream);
-        final short invocationId;
         try {
-            invocationId = dataInputStream.readShort();
+            final short invocationId = dataInputStream.readShort();
+            // check to see if this was a response to a "prepare" invocation. If yes, then
+            // the message will also contain an additional int value with the prepare result
+            final boolean prepareTx = dataInputStream.readBoolean();
+            if (prepareTx) {
+                final int prepareInvocationResult = PackedInteger.readPackedInteger(dataInputStream);
+                // let the waiting invocation know that the result is ready
+                this.channelAssociation.resultReady(invocationId, new TxInvocationResultProducer(prepareInvocationResult));
+            } else {
+                // let the waiting invocation know that the result is ready
+                this.channelAssociation.resultReady(invocationId, new TxInvocationResultProducer());
+            }
         } finally {
             dataInputStream.close();
         }
-        this.channelAssociation.resultReady(invocationId, new SuccessAcknowledgementResultProducer());
     }
 
-    private class SuccessAcknowledgementResultProducer implements EJBReceiverInvocationContext.ResultProducer {
+    private class TxInvocationResultProducer implements EJBReceiverInvocationContext.ResultProducer {
+
+        private Integer txResult;
+
+        TxInvocationResultProducer() {
+            this.txResult = null;
+        }
+
+        TxInvocationResultProducer(final Integer txResult) {
+            this.txResult = txResult;
+        }
 
         @Override
         public Object getResult() throws Exception {
-            // there's no real result, since it's just an acknowledgemnt response that the
-            // invocation was successful processed
-            return null;
+            return this.txResult;
         }
 
         @Override

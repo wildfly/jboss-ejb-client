@@ -141,7 +141,7 @@ class ChannelAssociation {
      * @param invocationId The invocation id
      * @return
      */
-    Future<EJBReceiverInvocationContext.ResultProducer> receiveResponse(final short invocationId) {
+    Future<EJBReceiverInvocationContext.ResultProducer> enrollForResult(final short invocationId) {
         final FutureResult<EJBReceiverInvocationContext.ResultProducer> futureResult = new FutureResult<EJBReceiverInvocationContext.ResultProducer>();
         this.waitingFutureResults.put(invocationId, futureResult);
         return IoFutureHelper.future(futureResult.getIoFuture());
@@ -212,8 +212,8 @@ class ChannelAssociation {
                 return new GeneralInvocationFailureResponseHandler(this, GeneralInvocationFailureResponseHandler.FailureType.SESSION_NOT_ACTIVE);
             case 0x0E:
                 return new AsyncMethodNotificationHandler(this);
-            case 0x11:
-                return new GenericInvocationSuccessResponseHandler(this);
+            case 0x13:
+                return new TransactionInvocationResponseHandler(this);
             default:
                 return null;
         }
