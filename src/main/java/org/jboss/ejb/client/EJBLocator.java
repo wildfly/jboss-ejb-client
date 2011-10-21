@@ -53,6 +53,18 @@ public abstract class EJBLocator<T> extends Locator<T> {
      */
     protected EJBLocator(final Class<T> viewType, final String appName, final String moduleName, final String beanName, final String distinctName) {
         super(viewType);
+        if (appName == null) {
+            throw new IllegalArgumentException("appName is null");
+        }
+        if (moduleName == null) {
+            throw new IllegalArgumentException("moduleName is null");
+        }
+        if (beanName == null) {
+            throw new IllegalArgumentException("beanName is null");
+        }
+        if (distinctName == null) {
+            throw new IllegalArgumentException("distinctName is null");
+        }
         this.appName = appName;
         this.moduleName = moduleName;
         this.beanName = beanName;
