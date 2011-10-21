@@ -33,7 +33,7 @@ import javax.ejb.EJBObject;
  *
  * @param <T> the remote view type
  */
-public class EntityEJBLocator<T extends EJBObject> extends EJBLocator<T> {
+public final class EntityEJBLocator<T extends EJBObject> extends EJBLocator<T> {
 
     private static final long serialVersionUID = 6674116259124568398L;
 
