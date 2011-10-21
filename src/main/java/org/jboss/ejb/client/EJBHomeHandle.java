@@ -37,14 +37,14 @@ public final class EJBHomeHandle<T extends EJBHome> implements HomeHandle {
 
     private static final long serialVersionUID = -4870688692508067759L;
 
-    private final EJBLocator<T> locator;
+    private final EJBHomeLocator<T> locator;
 
     /**
      * Construct a new instance.
      *
      * @param locator the locator for the home interface
      */
-    public EJBHomeHandle(final EJBLocator<T> locator) {
+    public EJBHomeHandle(final EJBHomeLocator<T> locator) {
         this.locator = locator;
     }
 
