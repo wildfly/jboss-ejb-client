@@ -41,6 +41,7 @@ import javax.transaction.xa.Xid;
 public final class EJBClientManagedTransactionContext extends EJBClientTransactionContext {
     private final TransactionManager transactionManager;
     private final TransactionSynchronizationRegistry synchronizationRegistry;
+    private static final AtomicReferenceFieldUpdater<ResourceImpl, State> stateUpdater = AtomicReferenceFieldUpdater.newUpdater(ResourceImpl.class, State.class, "state");
 
     EJBClientManagedTransactionContext(final TransactionManager transactionManager, final TransactionSynchronizationRegistry synchronizationRegistry) {
         this.transactionManager = transactionManager;
@@ -121,7 +122,6 @@ public final class EJBClientManagedTransactionContext extends EJBClientTransacti
         }
     }
 
-    private static final AtomicReferenceFieldUpdater<ResourceImpl, State> stateUpdater = AtomicReferenceFieldUpdater.newUpdater(ResourceImpl.class, State.class, "state");
 
     static final class State {
         private final XidTransactionID transactionID;
@@ -145,7 +145,7 @@ public final class EJBClientManagedTransactionContext extends EJBClientTransacti
         private final Object transactionKey;
         private final String nodeName;
         @SuppressWarnings("unused")
-        private volatile State state;
+        volatile State state;
 
         ResourceImpl(final Object transactionKey, final String nodeName) {
             this.transactionKey = transactionKey;

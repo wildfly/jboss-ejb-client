@@ -48,7 +48,7 @@ public final class XidTransactionID extends TransactionID {
             throw new IllegalArgumentException("Invalid global transaction ID length");
         }
         final byte bqalLen = encodedBytes[6 + gtidLen];
-        if (bqalLen > Xid.MAXBQUALSIZE || bqalLen != encodedBytes.length - gtidLen - 6) {
+        if (bqalLen > Xid.MAXBQUALSIZE || bqalLen != encodedBytes.length - gtidLen - 7) {
             throw new IllegalArgumentException("Invalid branch qualifier length");
         }
     }
@@ -61,13 +61,14 @@ public final class XidTransactionID extends TransactionID {
         final byte[] gtid = original.getGlobalTransactionId();
         final byte[] bqal = original.getBranchQualifier();
         final int formatId = original.getFormatId();
-        final byte[] target = new byte[gtid.length + bqal.length + 6];
-        target[0] = (byte) (formatId >>> 24);
-        target[1] = (byte) (formatId >>> 16);
-        target[2] = (byte) (formatId >>> 8);
-        target[3] = (byte) (formatId);
-        target[4] = (byte) gtid.length;
-        System.arraycopy(gtid, 0, target, 5, gtid.length);
+        final byte[] target = new byte[gtid.length + bqal.length + 7];
+        target[0] = 0x02;
+        target[1] = (byte) (formatId >>> 24);
+        target[2] = (byte) (formatId >>> 16);
+        target[3] = (byte) (formatId >>> 8);
+        target[4] = (byte) (formatId);
+        target[5] = (byte) gtid.length;
+        System.arraycopy(gtid, 0, target, 6, gtid.length);
         target[6 + gtid.length] = (byte) bqal.length;
         System.arraycopy(bqal, 0, target, 7 + gtid.length, bqal.length);
         return target;
