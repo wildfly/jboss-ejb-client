@@ -32,7 +32,6 @@ import org.jboss.remoting3.CloseHandler;
 import org.jboss.remoting3.Endpoint;
 import org.jboss.remoting3.MessageInputStream;
 import org.jboss.remoting3.OpenListener;
-import org.jboss.remoting3.Registration;
 import org.jboss.remoting3.Remoting;
 import org.jboss.remoting3.remote.RemoteConnectionProviderFactory;
 import org.jboss.remoting3.security.SimpleServerAuthenticationProvider;
@@ -42,7 +41,6 @@ import org.xnio.IoUtils;
 import org.xnio.OptionMap;
 import org.xnio.Options;
 import org.xnio.Sequence;
-import org.xnio.Xnio;
 import org.xnio.channels.AcceptingChannel;
 import org.xnio.channels.ConnectedStreamChannel;
 
@@ -62,8 +60,6 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArraySet;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 
 /**
  * @author <a href="mailto:cdewolf@redhat.com">Carlo de Wolf</a>
@@ -96,11 +92,9 @@ public class DummyServer {
 
     public void start() throws IOException {
         logger.info("Starting " + this);
-        final ExecutorService serverExecutor = Executors.newFixedThreadPool(4);
         final OptionMap options = OptionMap.EMPTY;
-        endpoint = Remoting.createEndpoint("endpoint", serverExecutor, options);
-        final Xnio xnio = Xnio.getInstance();
-        final Registration registration = endpoint.addConnectionProvider("remote", new RemoteConnectionProviderFactory(xnio), OptionMap.create(Options.SSL_ENABLED, false));
+        endpoint = Remoting.createEndpoint("endpoint", options);
+        endpoint.addConnectionProvider("remote", new RemoteConnectionProviderFactory(), OptionMap.create(Options.SSL_ENABLED, Boolean.FALSE));
         final NetworkServerProvider serverProvider = endpoint.getConnectionProviderInterface("remote", NetworkServerProvider.class);
         final SocketAddress bindAddress = new InetSocketAddress(InetAddress.getByName(host), port);
         final SimpleServerAuthenticationProvider authenticationProvider = new SimpleServerAuthenticationProvider();

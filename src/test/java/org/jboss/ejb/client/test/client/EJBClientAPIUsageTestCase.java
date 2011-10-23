@@ -70,9 +70,8 @@ public class EJBClientAPIUsageTestCase {
         server.start();
         server.register("my-app", "my-module", "", EchoBean.class.getSimpleName(), new EchoBean());
 
-        final Endpoint endpoint = Remoting.createEndpoint("endpoint", Executors.newSingleThreadExecutor(), OptionMap.EMPTY);
-        final Xnio xnio = Xnio.getInstance();
-        final Registration registration = endpoint.addConnectionProvider("remote", new RemoteConnectionProviderFactory(xnio), OptionMap.create(Options.SSL_ENABLED, false));
+        final Endpoint endpoint = Remoting.createEndpoint("endpoint", OptionMap.EMPTY);
+        endpoint.addConnectionProvider("remote", new RemoteConnectionProviderFactory(), OptionMap.create(Options.SSL_ENABLED, Boolean.FALSE));
 
 
         // open a connection
