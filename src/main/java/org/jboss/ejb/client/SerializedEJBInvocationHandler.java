@@ -36,7 +36,7 @@ public final class SerializedEJBInvocationHandler implements Externalizable {
 
     private static final long serialVersionUID = -2370168183054746652L;
 
-    private Locator<?> locator;
+    private EJBLocator<?> locator;
 
     /**
      * Construct a new instance.
@@ -49,7 +49,7 @@ public final class SerializedEJBInvocationHandler implements Externalizable {
      *
      * @param locator the locator for this invocation handler
      */
-    public SerializedEJBInvocationHandler(final Locator<?> locator) {
+    public SerializedEJBInvocationHandler(final EJBLocator<?> locator) {
         this.locator = locator;
     }
     /**
@@ -57,7 +57,7 @@ public final class SerializedEJBInvocationHandler implements Externalizable {
      *
      * @return the invocation locator
      */
-    public Locator<?> getLocator() {
+    public EJBLocator<?> getLocator() {
         return locator;
     }
 
@@ -66,7 +66,7 @@ public final class SerializedEJBInvocationHandler implements Externalizable {
      *
      * @param locator the invocation locator
      */
-    public void setLocator(final Locator<?> locator) {
+    public void setLocator(final EJBLocator<?> locator) {
         this.locator = locator;
     }
 
@@ -88,7 +88,7 @@ public final class SerializedEJBInvocationHandler implements Externalizable {
      * @throws ClassNotFoundException if a class cannot be resolved
      */
     public void readExternal(final ObjectInput in) throws IOException, ClassNotFoundException {
-        locator = (Locator<?>) in.readObject();
+        locator = (EJBLocator<?>) in.readObject();
     }
 
     /**
@@ -97,14 +97,14 @@ public final class SerializedEJBInvocationHandler implements Externalizable {
      * @return the invocation handler
      */
     protected Object readResolve() {
-        final Locator<?> locator = this.locator;
+        final EJBLocator<?> locator = this.locator;
         if (locator == null) {
             throw new IllegalStateException("locator is null");
         }
         return readResolve(locator);
     }
 
-    private static <T> EJBInvocationHandler<T> readResolve(Locator<T> locator) {
+    private static <T> EJBInvocationHandler<T> readResolve(EJBLocator<T> locator) {
         return new EJBInvocationHandler<T>(locator);
     }
 }

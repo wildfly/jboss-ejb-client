@@ -22,7 +22,7 @@
 
 package org.jboss.ejb.client.remoting;
 
-import org.jboss.ejb.client.Locator;
+import org.jboss.ejb.client.EJBLocator;
 
 import java.io.DataInput;
 import java.io.DataOutput;
@@ -78,13 +78,13 @@ public class DummyProtocolHandler {
         String moduleName = null;
         String distinctName = null;
         String beanName = null;
-        Locator ejbLocator = null;
+        EJBLocator ejbLocator = null;
         try {
             appName = (String) unMarshaller.readObject();
             moduleName = (String) unMarshaller.readObject();
             distinctName = (String) unMarshaller.readObject();
             beanName = (String) unMarshaller.readObject();
-            ejbLocator = (Locator) unMarshaller.readObject();
+            ejbLocator = (EJBLocator) unMarshaller.readObject();
         } catch (ClassNotFoundException e) {
             throw new RuntimeException(e);
         }
@@ -98,7 +98,7 @@ public class DummyProtocolHandler {
         unMarshaller.finish();
 
         return new MethodInvocationRequest(invocationId, appName, moduleName, distinctName, beanName,
-                ejbLocator.getInterfaceType().getName(), methodName, methodParamTypes, methodParams, attachments);
+                ejbLocator.getViewType().getName(), methodName, methodParamTypes, methodParams, attachments);
     }
 
     public void writeMethodInvocationResponse(final DataOutput output, final short invocationId, final Object result,

@@ -65,7 +65,7 @@ public final class EJBClientInvocationContext<A> extends Attachable {
     private boolean requestDone;
     private boolean resultDone;
 
-    EJBClientInvocationContext(final EJBInvocationHandler invocationHandler, final EJBClientContext ejbClientContext, final A receiverSpecific, final EJBReceiver<A> receiver, final EJBReceiverContext ejbReceiverContext, final Object invokedProxy, final Method invokedMethod, final Object[] parameters) {
+    EJBClientInvocationContext(final EJBInvocationHandler<?> invocationHandler, final EJBClientContext ejbClientContext, final A receiverSpecific, final EJBReceiver<A> receiver, final EJBReceiverContext ejbReceiverContext, final Object invokedProxy, final Method invokedMethod, final Object[] parameters) {
         this.invocationHandler = invocationHandler;
         this.ejbClientContext = ejbClientContext;
         this.receiverSpecific = receiverSpecific;
@@ -73,7 +73,7 @@ public final class EJBClientInvocationContext<A> extends Attachable {
         this.invokedProxy = invokedProxy;
         this.invokedMethod = invokedMethod;
         this.parameters = parameters;
-        this.interceptorChain = this.getClientInterceptors(ejbClientContext, receiver);
+        interceptorChain = getClientInterceptors(receiver);
         //noinspection ThisEscapedInObjectConstruction
         receiverInvocationContext = new EJBReceiverInvocationContext(this, ejbReceiverContext);
     }
@@ -156,7 +156,7 @@ public final class EJBClientInvocationContext<A> extends Attachable {
      *
      * @return the locator
      */
-    public Locator<?> getLocator() {
+    public EJBLocator<?> getLocator() {
         return invocationHandler.getLocator();
     }
 
@@ -293,7 +293,7 @@ public final class EJBClientInvocationContext<A> extends Attachable {
      * @return the invoked view class
      */
     public Class<?> getViewClass() {
-        return invocationHandler.getLocator().getInterfaceType();
+        return invocationHandler.getLocator().getViewType();
     }
 
     Future<?> getFutureResponse() {
@@ -572,9 +572,10 @@ public final class EJBClientInvocationContext<A> extends Attachable {
         resultProducer.discardResult();
     }
 
-    private EJBClientInterceptor<? super A>[] getClientInterceptors(final EJBClientContext ejbClientContext, final EJBReceiver<A> ejbReceiver) {
-        final GeneralEJBClientInterceptor[] generalInterceptors = ejbClientContext.GENERAL_INTERCEPTORS;
+    private EJBClientInterceptor<? super A>[] getClientInterceptors(final EJBReceiver<A> ejbReceiver) {
+        final GeneralEJBClientInterceptor[] generalInterceptors = EJBClientContext.GENERAL_INTERCEPTORS;
         final EJBClientInterceptor<? super A>[] receiverSpecificInterceptors = ejbReceiver.getClientInterceptors();
+        @SuppressWarnings("unchecked")
         final EJBClientInterceptor<? super A>[] allApplicableInterceptors = new EJBClientInterceptor[generalInterceptors.length + receiverSpecificInterceptors.length];
 
         System.arraycopy(generalInterceptors, 0, allApplicableInterceptors, 0, generalInterceptors.length);

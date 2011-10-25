@@ -24,13 +24,11 @@ package org.jboss.ejb.client.test.client;
 
 import org.jboss.ejb.client.EJBClient;
 import org.jboss.ejb.client.EJBClientContext;
-import org.jboss.ejb.client.Locator;
 import org.jboss.ejb.client.StatelessEJBLocator;
 import org.jboss.ejb.client.test.common.AnonymousCallbackHandler;
 import org.jboss.ejb.client.test.common.DummyServer;
 import org.jboss.remoting3.Connection;
 import org.jboss.remoting3.Endpoint;
-import org.jboss.remoting3.Registration;
 import org.jboss.remoting3.Remoting;
 import org.jboss.remoting3.remote.RemoteConnectionProviderFactory;
 import org.junit.AfterClass;
@@ -40,10 +38,8 @@ import org.junit.Test;
 import org.xnio.IoFuture;
 import org.xnio.OptionMap;
 import org.xnio.Options;
-import org.xnio.Xnio;
 
 import java.net.URI;
-import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
 import static org.jboss.ejb.client.remoting.IoFutureHelper.get;
