@@ -111,4 +111,16 @@ public final class StatefulEJBLocator<T> extends EJBLocator<T> {
         ois.defaultReadObject();
         hashCodeSetter.setInt(this, sessionId.hashCode() * 13 + super.hashCode());
     }
+
+        @Override
+    public String toString() {
+        return "StatefulEJBLocator{" +
+                "appName='" + getAppName() + '\'' +
+                ", moduleName='" + getModuleName() + '\'' +
+                ", distinctName='" + getDistinctName() + '\'' +
+                ", beanName='" + getBeanName() + '\'' +
+                ", view='" + getViewType() +'\'' +
+                ", sessionId='" + getSessionId() +'\'' +
+                '}';
+    }
 }

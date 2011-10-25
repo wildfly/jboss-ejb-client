@@ -82,4 +82,17 @@ public final class StatelessEJBLocator<T> extends EJBLocator<T> {
     public boolean equals(final StatelessEJBLocator<?> other) {
         return super.equals(other);
     }
+
+
+    @Override
+    public String toString() {
+        return "StatelessEJBLocator{" +
+                "appName='" + getAppName() + '\'' +
+                ", moduleName='" + getModuleName() + '\'' +
+                ", distinctName='" + getDistinctName() + '\'' +
+                ", beanName='" + getBeanName() + '\'' +
+                ", view='" + getViewType() +'\'' +
+                '}';
+    }
+
 }

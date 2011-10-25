@@ -154,4 +154,5 @@ public abstract class EJBLocator<T> implements Serializable {
         ois.defaultReadObject();
         hashCodeSetter.setInt(this, calcHashCode(viewType, appName, moduleName, beanName, distinctName));
     }
+
 }
