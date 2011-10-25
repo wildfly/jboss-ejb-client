@@ -139,4 +139,5 @@ public abstract class EJBLocator<T> extends Locator<T> {
         ois.defaultReadObject();
         hashCodeSetter.setInt(this, calcHashCode(super.hashCode(), appName, moduleName, beanName, distinctName));
     }
+
 }
