@@ -35,7 +35,7 @@ import javax.naming.NamingEnumeration;
 import javax.naming.NamingException;
 import java.util.Hashtable;
 import org.jboss.ejb.client.EJBHomeLocator;
-import org.jboss.ejb.client.Locator;
+import org.jboss.ejb.client.EJBLocator;
 import org.jboss.ejb.client.StatefulEJBLocator;
 import org.jboss.ejb.client.StatelessEJBLocator;
 import org.jboss.logging.Logger;
@@ -119,7 +119,7 @@ class EjbNamingContext implements Context {
     }
 
     private <T extends EJBHome> T doCreateHomeProxy(Class<T> viewClass, EjbJndiIdentifier identifier) throws Exception {
-        final Locator<T> locator;
+        final EJBLocator<T> locator;
         final Map<String,String> options = identifier.getOptions();
         final boolean stateful = options.containsKey("stateful") && ! "false".equalsIgnoreCase(options.get("stateful"));
         if (stateful) log.warnf("Ignoring 'stateful' option on lookup of home %s", viewClass);
@@ -128,7 +128,7 @@ class EjbNamingContext implements Context {
     }
 
     private <T> T doCreateProxy(Class<T> viewClass, EjbJndiIdentifier identifier) throws Exception {
-        final Locator<T> locator;
+        final EJBLocator<T> locator;
         final Map<String,String> options = identifier.getOptions();
         final boolean stateful = options.containsKey("stateful") && ! "false".equalsIgnoreCase(options.get("stateful"));
         if (stateful) {

@@ -128,11 +128,11 @@ public final class EJBClient {
      * @return the new proxy
      * @throws IllegalArgumentException if the locator parameter is {@code null} or is invalid
      */
-    public static <T> T createProxy(final Locator<T> locator) throws IllegalArgumentException {
+    public static <T> T createProxy(final EJBLocator<T> locator) throws IllegalArgumentException {
         if (locator == null) {
             throw new NullPointerException("locator is null");
         }
-        final Class<T> viewType = locator.getInterfaceType();
+        final Class<T> viewType = locator.getViewType();
         return viewType.cast(Proxy.newProxyInstance(viewType.getClassLoader(), new Class<?>[] { viewType }, new EJBInvocationHandler<T>(locator)));
     }
 
@@ -161,7 +161,7 @@ public final class EJBClient {
      * @return the locator
      * @throws IllegalArgumentException if the given proxy is not a valid client proxy instance
      */
-    public static <T> Locator<? extends T> getLocatorFor(T proxy) throws IllegalArgumentException {
+    public static <T> EJBLocator<? extends T> getLocatorFor(T proxy) throws IllegalArgumentException {
         return EJBInvocationHandler.forProxy(proxy).getLocator();
     }
 

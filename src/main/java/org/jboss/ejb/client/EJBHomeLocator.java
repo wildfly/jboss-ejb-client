@@ -71,16 +71,6 @@ public final class EJBHomeLocator<T extends EJBHome> extends EJBLocator<T> {
      * @param other the other object
      * @return {@code true} if they are equal, {@code false} otherwise
      */
-    public boolean equals(final Locator<?> other) {
-        return other instanceof EJBHomeLocator && equals((EJBHomeLocator<?>) other);
-    }
-
-    /**
-     * Determine whether this object is equal to another.
-     *
-     * @param other the other object
-     * @return {@code true} if they are equal, {@code false} otherwise
-     */
     public boolean equals(final EJBLocator<?> other) {
         return other instanceof EJBHomeLocator && equals((EJBHomeLocator<?>) other);
     }

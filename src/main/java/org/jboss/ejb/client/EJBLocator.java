@@ -24,6 +24,7 @@ package org.jboss.ejb.client;
 
 import java.io.IOException;
 import java.io.ObjectInputStream;
+import java.io.Serializable;
 import org.jboss.marshalling.FieldSetter;
 
 /**
@@ -31,9 +32,10 @@ import org.jboss.marshalling.FieldSetter;
  *
  * @param <T> the interface type
  */
-public abstract class EJBLocator<T> extends Locator<T> {
+public abstract class EJBLocator<T> implements Serializable {
     private static final long serialVersionUID = -7306257085240447972L;
 
+    private final Class<T> viewType;
     private final String appName;
     private final String moduleName;
     private final String beanName;
@@ -42,17 +44,10 @@ public abstract class EJBLocator<T> extends Locator<T> {
 
     private static final FieldSetter hashCodeSetter = FieldSetter.get(EJBLocator.class, "hashCode");
 
-    /**
-     * Construct a new instance.
-     *
-     * @param viewType the view type
-     * @param appName the application name
-     * @param moduleName the module name
-     * @param beanName the bean name
-     * @param distinctName the distinct name
-     */
-    protected EJBLocator(final Class<T> viewType, final String appName, final String moduleName, final String beanName, final String distinctName) {
-        super(viewType);
+    EJBLocator(final Class<T> viewType, final String appName, final String moduleName, final String beanName, final String distinctName) {
+        if (viewType == null) {
+            throw new IllegalArgumentException("viewType is null");
+        }
         if (appName == null) {
             throw new IllegalArgumentException("appName is null");
         }
@@ -65,29 +60,59 @@ public abstract class EJBLocator<T> extends Locator<T> {
         if (distinctName == null) {
             throw new IllegalArgumentException("distinctName is null");
         }
+        this.viewType = viewType;
         this.appName = appName;
         this.moduleName = moduleName;
         this.beanName = beanName;
         this.distinctName = distinctName;
-        hashCode = calcHashCode(super.hashCode(), appName, moduleName, beanName, distinctName);
+        hashCode = calcHashCode(viewType, appName, moduleName, beanName, distinctName);
     }
 
-    private static int calcHashCode(final int superHashCode, final String appName, final String moduleName, final String beanName, final String distinctName) {
-        return superHashCode * 13 + (appName.hashCode() * 13 + (moduleName.hashCode() * 13 + (beanName.hashCode() * 13 + (distinctName.hashCode()))));
+    private static int calcHashCode(final Class<?> viewType, final String appName, final String moduleName, final String beanName, final String distinctName) {
+        return viewType.hashCode() * 13 + (appName.hashCode() * 13 + (moduleName.hashCode() * 13 + (beanName.hashCode() * 13 + (distinctName.hashCode()))));
     }
 
+    /**
+     * Get the view type of this locator.
+     *
+     * @return the view type
+     */
+    public Class<T> getViewType() {
+        return viewType;
+    }
+
+    /**
+     * Get the application name.
+     *
+     * @return the application name
+     */
     public String getAppName() {
         return appName;
     }
 
+    /**
+     * Get the module name.
+     *
+     * @return the module name
+     */
     public String getModuleName() {
         return moduleName;
     }
 
+    /**
+     * Get the EJB bean name.
+     *
+     * @return the EJB bean name
+     */
     public String getBeanName() {
         return beanName;
     }
 
+    /**
+     * Get the module distinct name.
+     *
+     * @return the module distinct name
+     */
     public String getDistinctName() {
         return distinctName;
     }
@@ -117,16 +142,6 @@ public abstract class EJBLocator<T> extends Locator<T> {
      * @param other the other object
      * @return {@code true} if they are equal, {@code false} otherwise
      */
-    public boolean equals(final Locator<?> other) {
-        return other instanceof EJBLocator && equals((EJBLocator<?>)other);
-    }
-
-    /**
-     * Determine whether this object is equal to another.
-     *
-     * @param other the other object
-     * @return {@code true} if they are equal, {@code false} otherwise
-     */
     public boolean equals(EJBLocator<?> other) {
         return this == other || other != null && hashCode == other.hashCode
                 && appName.equals(other.appName)
@@ -137,6 +152,6 @@ public abstract class EJBLocator<T> extends Locator<T> {
 
     private void readObject(ObjectInputStream ois) throws ClassNotFoundException, IOException {
         ois.defaultReadObject();
-        hashCodeSetter.setInt(this, calcHashCode(super.hashCode(), appName, moduleName, beanName, distinctName));
+        hashCodeSetter.setInt(this, calcHashCode(viewType, appName, moduleName, beanName, distinctName));
     }
 }

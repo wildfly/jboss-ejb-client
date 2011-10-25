@@ -28,7 +28,7 @@ package org.jboss.ejb.client;
 public final class SessionInterceptor implements GeneralEJBClientInterceptor {
 
     public void handleInvocation(final EJBClientInvocationContext<?> context) throws Exception {
-        final Locator<?> locator = context.getLocator();
+        final EJBLocator<?> locator = context.getLocator();
         if (locator instanceof StatefulEJBLocator) {
             final StatefulEJBLocator<?> ejbLocator = (StatefulEJBLocator<?>) locator;
             final SessionID sessionID = ejbLocator.getSessionId();

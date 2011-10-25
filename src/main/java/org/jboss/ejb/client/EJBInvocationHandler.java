@@ -42,9 +42,9 @@ final class EJBInvocationHandler<T> extends Attachable implements InvocationHand
     private static final long serialVersionUID = 946555285095057230L;
 
     private final transient boolean async;
-    private final Locator<T> locator;
+    private final EJBLocator<T> locator;
 
-    EJBInvocationHandler(final Locator<T> locator) {
+    EJBInvocationHandler(final EJBLocator<T> locator) {
         if (locator == null) {
             throw new NullPointerException("locator is null");
         }
@@ -59,7 +59,7 @@ final class EJBInvocationHandler<T> extends Attachable implements InvocationHand
     }
 
     public Object invoke(final Object proxy, final Method method, final Object[] args) throws Throwable {
-        return doInvoke(locator.getInterfaceType().cast(proxy), method, args);
+        return doInvoke(locator.getViewType().cast(proxy), method, args);
     }
 
     Object doInvoke(final T proxy, final Method method, final Object[] args) throws Throwable {
@@ -145,7 +145,7 @@ final class EJBInvocationHandler<T> extends Attachable implements InvocationHand
         return async ? this : new EJBInvocationHandler<T>(this);
     }
 
-    Locator<T> getLocator() {
+    EJBLocator<T> getLocator() {
         return locator;
     }
 }
