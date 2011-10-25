@@ -24,9 +24,10 @@ package org.jboss.ejb.client;
 
 import java.io.IOException;
 import java.io.ObjectInputStream;
-import org.jboss.marshalling.FieldSetter;
 
 import javax.ejb.EJBObject;
+
+import org.jboss.marshalling.FieldSetter;
 
 /**
  * A locator for an entity EJB.
@@ -123,4 +124,17 @@ public final class EntityEJBLocator<T extends EJBObject> extends EJBLocator<T> {
         ois.defaultReadObject();
         hashCodeSetter.setInt(this, primaryKey.hashCode() * 13 + super.hashCode());
     }
+
+    @Override
+    public String toString() {
+        return "EntityEJBLocator{" +
+                "appName='" + getAppName() + '\'' +
+                ", moduleName='" + getModuleName() + '\'' +
+                ", distinctName='" + getDistinctName() + '\'' +
+                ", beanName='" + getBeanName() + '\'' +
+                ", view='" + getInterfaceType() +'\'' +
+                ", primaryKey='" + getPrimaryKey() +'\'' +
+                '}';
+    }
+
 }

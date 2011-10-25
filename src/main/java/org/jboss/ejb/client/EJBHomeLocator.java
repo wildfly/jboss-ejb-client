@@ -94,4 +94,15 @@ public final class EJBHomeLocator<T extends EJBHome> extends EJBLocator<T> {
     public boolean equals(final EJBHomeLocator<?> other) {
         return super.equals(other);
     }
+
+        @Override
+    public String toString() {
+        return "EJBHomeLocator{" +
+                "appName='" + getAppName() + '\'' +
+                ", moduleName='" + getModuleName() + '\'' +
+                ", distinctName='" + getDistinctName() + '\'' +
+                ", beanName='" + getBeanName() + '\'' +
+                ", view='" + getInterfaceType() +'\'' +
+                '}';
+    }
 }
