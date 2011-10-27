@@ -102,7 +102,7 @@ public final class EJBClientUserTransactionContext extends EJBClientTransactionC
             final UserTransactionID transactionID = state.currentId;
             try {
                 final EJBClientContext clientContext = EJBClientContext.requireCurrent();
-                final EJBReceiverContext receiverContext = clientContext.getNodeEJBReceiverContext(nodeName);
+                final EJBReceiverContext receiverContext = clientContext.requireNodeEJBReceiverContext(nodeName);
                 final EJBReceiver<?> receiver = receiverContext.getReceiver();
                 if (state.status == Status.STATUS_MARKED_ROLLBACK) {
                     state.status = Status.STATUS_ROLLING_BACK;
@@ -146,7 +146,7 @@ public final class EJBClientUserTransactionContext extends EJBClientTransactionC
             final UserTransactionID transactionID = state.currentId;
             try {
                 final EJBClientContext clientContext = EJBClientContext.requireCurrent();
-                final EJBReceiverContext receiverContext = clientContext.getNodeEJBReceiverContext(nodeName);
+                final EJBReceiverContext receiverContext = clientContext.requireNodeEJBReceiverContext(nodeName);
                 final EJBReceiver<?> receiver = receiverContext.getReceiver();
                 state.status = Status.STATUS_ROLLING_BACK;
                 try {

@@ -189,6 +189,11 @@ public final class RemotingConnectionEJBReceiver extends EJBReceiver<RemotingAtt
     }
 
     @Override
+    protected String getNodeName() {
+        return this.connection.getRemoteEndpointName();
+    }
+
+    @Override
     protected void sendCommit(final EJBReceiverContext receiverContext, final TransactionID transactionID, final boolean onePhase) throws XAException {
         final ChannelAssociation channelAssociation = this.requireChannelAssociation(receiverContext);
         final short invocationId = channelAssociation.getNextInvocationId();

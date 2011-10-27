@@ -198,6 +198,8 @@ public abstract class EJBReceiver<A> extends Attachable {
         throw new XAException(XAException.XA_RBOTHER);
     }
 
+    protected abstract String getNodeName();
+
     /**
      * The before-completion hook.  Cause all connected subordinate transaction managers to invoke their beforeCompletion
      * methods.  This method should not return until all remote beforeCompletions have been called.

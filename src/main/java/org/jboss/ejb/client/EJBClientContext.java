@@ -40,7 +40,7 @@ import java.util.ServiceLoader;
  *
  * @author <a href="mailto:david.lloyd@redhat.com">David M. Lloyd</a>
  */
-@SuppressWarnings({ "UnnecessaryThis" })
+@SuppressWarnings({"UnnecessaryThis"})
 public final class EJBClientContext extends Attachable {
 
     private static final InheritableThreadLocal<EJBClientContext> CURRENT = new InheritableThreadLocal<EJBClientContext>();
@@ -62,6 +62,7 @@ public final class EJBClientContext extends Attachable {
 
     /**
      * Create a new client context and associate it with the current thread.
+     *
      * @return Returns the newly created context
      */
     public static EJBClientContext create() {
@@ -235,7 +236,7 @@ public final class EJBClientContext extends Attachable {
      * @param distinctName the distinct name, or {@code null} for none
      * @return the first EJB receiver to match
      * @throws IllegalStateException If there's no {@link EJBReceiver} which can handle a EJB for the passed combination
-     *                                  of app, module and distinct name.
+     *                               of app, module and distinct name.
      */
     EJBReceiver<?> requireEJBReceiver(final String appName, final String moduleName, final String distinctName)
             throws IllegalStateException {
@@ -282,17 +283,22 @@ public final class EJBClientContext extends Attachable {
         }
     }
 
-    // TODO: Rethink this API. The current understanding is that a node name can be associated with
-    // a EJBReceiver and each EJBReceiver can be associated multiple times with a EJBClientContext (at least
-    // from an API point of view). Effectively, we'll have multiple EJBReceiverContext(s) for the same node name
-    EJBReceiverContext getNodeEJBReceiverContext(final String nodeName) {
-        // TODO: Till we have a way to associate a node name with a EJBReceiver, let this method
-        // just return the first available EJBReceiverContext
+    EJBReceiver requireNodeEJBReceiver(final String nodeName) {
+        if (nodeName == null) {
+            throw new IllegalArgumentException("Node name cannot be null");
+        }
         synchronized (this.ejbReceiverAssociations) {
-            if (!this.ejbReceiverAssociations.isEmpty()) {
-                return this.ejbReceiverAssociations.values().iterator().next();
+            for (final EJBReceiver<?> ejbReceiver : this.ejbReceiverAssociations.keySet()) {
+                if (nodeName.equals(ejbReceiver.getNodeName())) {
+                    return ejbReceiver;
+                }
             }
         }
-        return null;
+        throw new IllegalStateException("No EJBReceiver available for node name " + nodeName);
+    }
+
+    EJBReceiverContext requireNodeEJBReceiverContext(final String nodeName) {
+        final EJBReceiver ejbReceiver = this.requireNodeEJBReceiver(nodeName);
+        return this.requireEJBReceiverContext(ejbReceiver);
     }
 }

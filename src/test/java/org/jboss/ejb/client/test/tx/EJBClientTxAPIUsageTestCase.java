@@ -31,7 +31,6 @@ import org.jboss.ejb.client.EJBReceiverContext;
 import org.jboss.ejb.client.EJBReceiverInvocationContext;
 import org.jboss.ejb.client.SessionID;
 import org.jboss.ejb.client.TransactionID;
-import org.jboss.ejb.client.UserTransactionID;
 import org.junit.Test;
 
 import javax.transaction.UserTransaction;
@@ -49,7 +48,7 @@ public class EJBClientTxAPIUsageTestCase {
         final EJBClientContext ejbClientContext = EJBClientContext.create();
         try {
             final EJBClientTransactionContext ejbClientTransactionContext = EJBClientTransactionContext.createLocal();
-            final EJBReceiver dummyReceiver = new DummyEJBReceiver();
+            final EJBReceiver dummyReceiver = new DummyEJBReceiver("dummynodename");
             ejbClientContext.registerEJBReceiver(dummyReceiver);
             final UserTransaction userTransaction = EJBClient.getUserTransaction("dummynodename");
             userTransaction.begin();
@@ -59,6 +58,12 @@ public class EJBClientTxAPIUsageTestCase {
     }
 
     private class DummyEJBReceiver extends EJBReceiver<Map> {
+
+        private final String nodeName;
+
+        DummyEJBReceiver(String nodeName) {
+            this.nodeName = nodeName;
+        }
 
         @Override
         protected void associate(EJBReceiverContext context) {
@@ -86,6 +91,11 @@ public class EJBClientTxAPIUsageTestCase {
         @Override
         protected void sendCommit(EJBReceiverContext context, TransactionID transactionID, boolean onePhase) throws XAException {
             // do nothing
+        }
+
+        @Override
+        protected String getNodeName() {
+            return this.nodeName;
         }
     }
 }
