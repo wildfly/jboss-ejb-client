@@ -198,6 +198,10 @@ public abstract class EJBReceiver<A> extends Attachable {
         throw new XAException(XAException.XA_RBOTHER);
     }
 
+    /**
+     * Returns the node name corresponding to this receiver. This method isn't expected to return a null value
+     * @return
+     */
     protected abstract String getNodeName();
 
     /**
