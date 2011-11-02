@@ -68,7 +68,7 @@ class MethodInvocationResponseHandler extends ProtocolMessageHandler {
         final DataInputStream input = new DataInputStream(messageInputStream);
         // read the invocation id
         final short invocationId = input.readShort();
-        // create a ResultProducer which can unmarshal and return the result, later
+        // create a ResultProducer which can unmarshall and return the result, later
         final EJBReceiverInvocationContext.ResultProducer resultProducer = new MethodInvocationResultProducer(input);
         // make it known that the result is available
         this.channelAssociation.resultReady(invocationId, resultProducer);

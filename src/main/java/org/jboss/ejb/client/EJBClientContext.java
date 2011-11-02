@@ -244,7 +244,7 @@ public final class EJBClientContext extends Attachable {
         // This is an "optimization"
         // if there's just one EJBReceiver, then we don't check whether it can handle the module. We just
         // assume that it will be able to handle this module (if not, it will throw a NoSuchEJBException anyway)
-        // This comes handy in cases where the EJBReceiver might not yet have received a module inventory messsage
+        // This comes handy in cases where the EJBReceiver might not yet have received a module inventory message
         // from the server and hence wouldn't know whether it can handle a particular app, module, distinct name combination.
         synchronized (this.ejbReceiverAssociations) {
             if (this.ejbReceiverAssociations.size() == 1) {
@@ -282,11 +282,11 @@ public final class EJBClientContext extends Attachable {
         }
     }
 
-    // TODO: Rethink this API. The current understanding is that a nodename can be associated with
-    // a EJBReceiver and each EJBReceiver can be associated multiple times with a EJBClientContext (atleast
-    // from an API point of view). Effectively, we'll have multiple EJBReceiverContext(s) for the same nodename
+    // TODO: Rethink this API. The current understanding is that a node name can be associated with
+    // a EJBReceiver and each EJBReceiver can be associated multiple times with a EJBClientContext (at least
+    // from an API point of view). Effectively, we'll have multiple EJBReceiverContext(s) for the same node name
     EJBReceiverContext getNodeEJBReceiverContext(final String nodeName) {
-        // TODO: Till we have a way to associate a nodename with a EJBReceiver, let this method
+        // TODO: Till we have a way to associate a node name with a EJBReceiver, let this method
         // just return the first available EJBReceiverContext
         synchronized (this.ejbReceiverAssociations) {
             if (!this.ejbReceiverAssociations.isEmpty()) {

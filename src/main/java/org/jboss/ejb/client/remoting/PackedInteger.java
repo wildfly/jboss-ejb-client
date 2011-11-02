@@ -31,7 +31,7 @@ import java.io.IOException;
  * A {@link PackedInteger} is a variable-length integer. The most-significant bit of each byte of a
  * {@link PackedInteger} value indicates whether that byte is the final (lowest-order) byte of the value.
  * If the bit is 0, then this is the last byte; if the bit is 1, then there is at least one more subsequent
- * byte pending, and the current value should be shifted to the left by 7 bits to accomodate the next byte's data.
+ * byte pending, and the current value should be shifted to the left by 7 bits to accommodate the next byte's data.
  * <p/>
  * Note: {@link PackedInteger} cannot hold signed integer values.
  *

@@ -170,7 +170,7 @@ final class EJBInvocationHandler<T> extends Attachable implements InvocationHand
         @Override
         public boolean equals(final Object o) {
             //we don't care about the return type
-            //we hant co-cariant methods to still be handled
+            //we want covariant methods to still be handled
             if (this == o) return true;
             if (o == null || getClass() != o.getClass()) return false;
 

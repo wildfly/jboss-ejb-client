@@ -90,7 +90,7 @@ class MethodInvocationMessageWriter extends AbstractMessageWriter {
         marshaller.start(output);
         final EJBLocator locator = invocationContext.getLocator();
         // Write out the app/module/distinctname/bean name combination using the writeObject method
-        // *and* using the objects returned by a call to the locatore.getXXX() methods,
+        // *and* using the objects returned by a call to the locator.getXXX() methods,
         // so that later when the locator is written out later, the marshalling impl uses back-references
         // to prevent duplicating this app/module/bean/distinctname (which is already present in the locator) twice
         marshaller.writeObject(locator.getAppName());

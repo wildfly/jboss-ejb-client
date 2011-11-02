@@ -134,7 +134,7 @@ public final class RemotingConnectionEJBReceiver extends EJBReceiver<RemotingAtt
                 logger.info("Successful version handshake completed for receiver context " + context + " on channel " + compatibleChannel);
             } else {
                 // no version handshake done. close the context
-                logger.info("Version handshake not completed for recevier context " + context + " by receiver " + this + " . Closing the receiver context");
+                logger.info("Version handshake not completed for receiver context " + context + " by receiver " + this + " . Closing the receiver context");
                 context.close();
             }
         } catch (InterruptedException e) {
@@ -198,7 +198,7 @@ public final class RemotingConnectionEJBReceiver extends EJBReceiver<RemotingAtt
             final DataOutputStream dataOutputStream = new DataOutputStream(channel.writeMessage());
             final TransactionMessageWriter transactionMessageWriter = new TransactionMessageWriter();
             try {
-                // write the tx commit messsage
+                // write the tx commit message
                 transactionMessageWriter.writeTxCommit(dataOutputStream, invocationId, transactionID, onePhase);
             } finally {
                 dataOutputStream.close();

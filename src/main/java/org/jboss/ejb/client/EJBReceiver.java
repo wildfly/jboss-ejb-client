@@ -53,7 +53,7 @@ public abstract class EJBReceiver<A> extends Attachable {
     }
 
     /**
-     * De-registers a module for this reciever
+     * De-register a module from this receiver.
      *
      * @param appName      the app name
      * @param moduleName   the module name

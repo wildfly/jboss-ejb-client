@@ -61,7 +61,7 @@ class EjbJndiNameParser {
     }
 
     /**
-     * Parse the remaing JNDI name for the given application name
+     * Parse the remaining JNDI name for the given application name
      * @param applicationName The application name
      * @param remaining The remaining name
      * @return The EjbIdentifier
@@ -79,7 +79,7 @@ class EjbJndiNameParser {
     }
 
     /**
-     * Parse the rmaining JNDI name, given the app and module name
+     * Parse the remaining JNDI name, given the app and module name
      * @param applicationName The application name
      * @param moduleName The module name
      * @param remaining The remaining name
@@ -101,7 +101,7 @@ class EjbJndiNameParser {
     }
 
     /**
-     * Parse the rmaining JNDI name, given the app, module and distinct name
+     * Parse the remaining JNDI name, given the app, module and distinct name
      *
      * @param applicationName The application name
      * @param moduleName The module name
@@ -122,7 +122,7 @@ class EjbJndiNameParser {
     }
 
     /**
-     * Parse the rmaining JNDI name, given the app, module, distinct and ejb name
+     * Parse the remaining JNDI name, given the app, module, distinct and ejb name
      *
      * @param applicationName The application name
      * @param moduleName The module name
@@ -142,7 +142,7 @@ class EjbJndiNameParser {
             viewName = remaining;
         } else {
             viewName = remaining.substring(0, pos);
-            //we don't handle esacaping at all here, so you can't have special characters
+            //we don't handle escaping at all here, so you can't have special characters
             //in the view options. This should not be a problem in practice
             final String[] options = remaining.substring(pos + 1).split("&");
             for(final String option : options) {

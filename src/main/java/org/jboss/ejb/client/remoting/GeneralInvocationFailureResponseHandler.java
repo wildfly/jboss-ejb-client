@@ -57,7 +57,7 @@ class GeneralInvocationFailureResponseHandler extends ProtocolMessageHandler {
     }
 
     /**
-     * Process the passed <code>messageInputstream</code> for the invocation failure
+     * Process the passed <code>MessageInputStream</code> for the invocation failure
      *
      * @param messageInputStream The message input stream
      * @throws IOException If there's a problem while reading the stream
@@ -78,7 +78,7 @@ class GeneralInvocationFailureResponseHandler extends ProtocolMessageHandler {
                     exception = new EJBException(failureMessage);
                     break;
             }
-            // let the result availibility be known
+            // let the result availability be known
             this.channelAssociation.resultReady(invocationId, new InvocationFailureResultProducer(exception));
 
         } finally {

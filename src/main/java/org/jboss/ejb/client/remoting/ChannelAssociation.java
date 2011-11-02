@@ -221,13 +221,13 @@ class ChannelAssociation {
 
     private void notifyBrokenChannel(final IOException ioException) {
         try {
-            final EJBReceiverInvocationContext.ResultProducer unusbaleChannelResultProducer = new UnusableChannelResultProducer(ioException);
+            final EJBReceiverInvocationContext.ResultProducer unusableChannelResultProducer = new UnusableChannelResultProducer(ioException);
             // notify waiting method invocations
             final Collection<EJBReceiverInvocationContext> receiverInvocationContexts = this.waitingMethodInvocations.values();
             // @see javadoc of Collections.synchronizedMap()
             synchronized (this.waitingMethodInvocations) {
                 for (final EJBReceiverInvocationContext receiverInvocationContext : receiverInvocationContexts) {
-                    receiverInvocationContext.resultReady(unusbaleChannelResultProducer);
+                    receiverInvocationContext.resultReady(unusableChannelResultProducer);
                 }
             }
             // notify the other waiting invocations
@@ -235,7 +235,7 @@ class ChannelAssociation {
             // @see javadoc of Collections.synchronizedMap()
             synchronized (this.waitingFutureResults) {
                 for (final FutureResult<EJBReceiverInvocationContext.ResultProducer> resultProducerFutureResult : futureResults) {
-                    resultProducerFutureResult.setResult(unusbaleChannelResultProducer);
+                    resultProducerFutureResult.setResult(unusableChannelResultProducer);
                 }
             }
         } finally {

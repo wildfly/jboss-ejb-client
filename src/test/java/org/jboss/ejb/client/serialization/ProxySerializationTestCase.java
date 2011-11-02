@@ -51,15 +51,15 @@ public class ProxySerializationTestCase {
         final MarshallingConfiguration marshallingConfiguration = new MarshallingConfiguration();
         marshallingConfiguration.setVersion(2);
         org.jboss.marshalling.MarshallerFactory factory = new RiverMarshallerFactory();
-        final Marshaller marshaler = factory.createMarshaller(marshallingConfiguration);
+        final Marshaller marshaller = factory.createMarshaller(marshallingConfiguration);
         final ByteArrayOutputStream bytes = new ByteArrayOutputStream();
-        marshaler.start(new OutputStreamByteOutput(bytes));
-        marshaler.writeObject(proxy);
-        marshaler.finish();
-        Unmarshaller unmarshaler = factory.createUnmarshaller(marshallingConfiguration);
+        marshaller.start(new OutputStreamByteOutput(bytes));
+        marshaller.writeObject(proxy);
+        marshaller.finish();
+        Unmarshaller unmarshaller = factory.createUnmarshaller(marshallingConfiguration);
         ByteArrayInputStream in = new ByteArrayInputStream(bytes.toByteArray());
-        unmarshaler.start(new InputStreamByteInput(in));
-        Object deserialized = unmarshaler.readObject();
+        unmarshaller.start(new InputStreamByteInput(in));
+        Object deserialized = unmarshaller.readObject();
         Assert.assertEquals(proxy, deserialized);
     }
 
