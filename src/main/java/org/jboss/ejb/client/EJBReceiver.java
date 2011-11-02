@@ -40,6 +40,15 @@ public abstract class EJBReceiver<A> extends Attachable {
 
     private final Set<ModuleID> accessibleModules = Collections.synchronizedSet(new HashSet<ModuleID>());
 
+    private final String nodeName;
+
+    public EJBReceiver(final String nodeName) {
+        if (nodeName == null) {
+            throw new IllegalArgumentException("Node name cannot be null for a EJB receiver");
+        }
+        this.nodeName = nodeName;
+    }
+
     /**
      * Register a new module to this receiver.
      *
@@ -199,10 +208,13 @@ public abstract class EJBReceiver<A> extends Attachable {
     }
 
     /**
-     * Returns the node name corresponding to this receiver. This method isn't expected to return a null value
+     * Returns the node name corresponding to this receiver. This method will <i>not</i> return a null value.
+     *
      * @return
      */
-    protected abstract String getNodeName();
+    protected final String getNodeName() {
+        return this.nodeName;
+    }
 
     /**
      * The before-completion hook.  Cause all connected subordinate transaction managers to invoke their beforeCompletion

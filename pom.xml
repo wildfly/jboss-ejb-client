@@ -102,20 +102,20 @@
         <dependency>
             <groupId>org.jboss.xnio</groupId>
             <artifactId>xnio-api</artifactId>
-            <version>3.0.0.Beta7</version>
+            <version>3.0.0.Beta9</version>
         </dependency>
 
         <dependency>
             <groupId>org.jboss.xnio</groupId>
             <artifactId>xnio-nio</artifactId>
-            <version>3.0.0.Beta7</version>
+            <version>3.0.0.Beta9</version>
             <scope>test</scope>
         </dependency>
 
         <dependency>
             <groupId>org.jboss.remoting3</groupId>
             <artifactId>jboss-remoting</artifactId>
-            <version>3.2.0.Beta5</version>
+            <version>3.2.0.Beta6</version>
         </dependency>
 
         <dependency>

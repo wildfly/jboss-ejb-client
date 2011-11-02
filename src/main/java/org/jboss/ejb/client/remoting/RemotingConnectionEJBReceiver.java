@@ -22,6 +22,18 @@
 
 package org.jboss.ejb.client.remoting;
 
+import javax.transaction.xa.XAException;
+import java.io.DataOutputStream;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.IdentityHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.ServiceLoader;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
+
 import org.jboss.ejb.client.EJBClientInterceptor;
 import org.jboss.ejb.client.EJBClientInvocationContext;
 import org.jboss.ejb.client.EJBReceiver;
@@ -35,18 +47,6 @@ import org.jboss.remoting3.CloseHandler;
 import org.jboss.remoting3.Connection;
 import org.xnio.IoFuture;
 import org.xnio.OptionMap;
-
-import javax.transaction.xa.XAException;
-import java.io.DataOutputStream;
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.IdentityHashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.ServiceLoader;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.Future;
-import java.util.concurrent.TimeUnit;
 
 /**
  * A {@link EJBReceiver} which uses JBoss Remoting to communicate with the server for EJB invocations
@@ -84,6 +84,7 @@ public final class RemotingConnectionEJBReceiver extends EJBReceiver<RemotingAtt
      * @param connection the connection to associate with
      */
     public RemotingConnectionEJBReceiver(final Connection connection) {
+        super(connection.getRemoteEndpointName());
         this.connection = connection;
     }
 
@@ -186,11 +187,6 @@ public final class RemotingConnectionEJBReceiver extends EJBReceiver<RemotingAtt
     @Override
     public RemotingAttachments createReceiverSpecific() {
         return new RemotingAttachments();
-    }
-
-    @Override
-    protected String getNodeName() {
-        return this.connection.getRemoteEndpointName();
     }
 
     @Override

@@ -22,6 +22,11 @@
 
 package org.jboss.ejb.client.test.tx;
 
+import javax.transaction.UserTransaction;
+import javax.transaction.xa.XAException;
+import java.util.HashMap;
+import java.util.Map;
+
 import org.jboss.ejb.client.EJBClient;
 import org.jboss.ejb.client.EJBClientContext;
 import org.jboss.ejb.client.EJBClientInvocationContext;
@@ -32,11 +37,6 @@ import org.jboss.ejb.client.EJBReceiverInvocationContext;
 import org.jboss.ejb.client.SessionID;
 import org.jboss.ejb.client.TransactionID;
 import org.junit.Test;
-
-import javax.transaction.UserTransaction;
-import javax.transaction.xa.XAException;
-import java.util.HashMap;
-import java.util.Map;
 
 /**
  * User: jpai
@@ -59,10 +59,8 @@ public class EJBClientTxAPIUsageTestCase {
 
     private class DummyEJBReceiver extends EJBReceiver<Map> {
 
-        private final String nodeName;
-
         DummyEJBReceiver(String nodeName) {
-            this.nodeName = nodeName;
+            super(nodeName);
         }
 
         @Override
@@ -93,9 +91,5 @@ public class EJBClientTxAPIUsageTestCase {
             // do nothing
         }
 
-        @Override
-        protected String getNodeName() {
-            return this.nodeName;
-        }
     }
 }
