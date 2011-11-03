@@ -137,6 +137,16 @@ public final class EJBClient {
     }
 
     /**
+     * Determine whether an object is indeed a valid EJB proxy object created by this API.
+     *
+     * @param object the object to test
+     * @return {@code true} if it is an EJB proxy, {@code false} otherwise
+     */
+    public static boolean isEJBProxy(final Object object) {
+        return object != null && Proxy.isProxyClass(object.getClass()) && Proxy.getInvocationHandler(object) instanceof EJBInvocationHandler;
+    }
+
+    /**
      * Create a new EJB session.
      *
      * @param appName the application name
