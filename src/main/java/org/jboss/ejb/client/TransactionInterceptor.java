@@ -29,6 +29,12 @@ public final class TransactionInterceptor implements GeneralEJBClientInterceptor
 
     public void handleInvocation(final EJBClientInvocationContext<?> context) throws Exception {
         final EJBClientTransactionContext current = EJBClientTransactionContext.getCurrent();
+        // A EJB client tx context allows to set selectors and there's no guarantee that the
+        // selector returns a non-null context. So be safe!
+        if (current == null) {
+            context.sendRequest();
+            return;
+        }
         final TransactionID transactionID = current.getAssociatedTransactionID(context);
         if (transactionID instanceof UserTransactionID) {
             final UserTransactionID id = (UserTransactionID) transactionID;
