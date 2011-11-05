@@ -27,6 +27,7 @@ import javax.transaction.xa.XAException;
 import java.util.HashMap;
 import java.util.Map;
 
+import org.jboss.ejb.client.ContextSelector;
 import org.jboss.ejb.client.EJBClient;
 import org.jboss.ejb.client.EJBClientContext;
 import org.jboss.ejb.client.EJBClientInvocationContext;
@@ -39,13 +40,14 @@ import org.jboss.ejb.client.TransactionID;
 import org.junit.Test;
 
 /**
- * User: jpai
+ * @author Jaikiran Pai
  */
 public class EJBClientTxAPIUsageTestCase {
 
     @Test
     public void testUserTransactionBegin() throws Exception {
         final EJBClientContext ejbClientContext = EJBClientContext.create();
+        final ContextSelector<EJBClientContext> oldClientContextSelector = EJBClientContext.setConstantContext(ejbClientContext);
         try {
             final EJBClientTransactionContext ejbClientTransactionContext = EJBClientTransactionContext.createLocal();
             final EJBReceiver dummyReceiver = new DummyEJBReceiver("dummynodename");
@@ -53,7 +55,7 @@ public class EJBClientTxAPIUsageTestCase {
             final UserTransaction userTransaction = EJBClient.getUserTransaction("dummynodename");
             userTransaction.begin();
         } finally {
-            EJBClientContext.suspendCurrent();
+            EJBClientContext.setSelector(oldClientContextSelector);
         }
     }
 

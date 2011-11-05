@@ -22,9 +22,6 @@
 
 package org.jboss.ejb.client;
 
-import org.jboss.ejb.client.remoting.RemotingConnectionEJBReceiver;
-import org.jboss.remoting3.Connection;
-
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashSet;
@@ -33,6 +30,9 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.ServiceLoader;
+
+import org.jboss.ejb.client.remoting.RemotingConnectionEJBReceiver;
+import org.jboss.remoting3.Connection;
 
 /**
  * The public API for an EJB client context.  A thread may be associated with an EJB client context.  An EJB
@@ -43,7 +43,10 @@ import java.util.ServiceLoader;
 @SuppressWarnings({"UnnecessaryThis"})
 public final class EJBClientContext extends Attachable {
 
-    private static final InheritableThreadLocal<EJBClientContext> CURRENT = new InheritableThreadLocal<EJBClientContext>();
+    /**
+     * EJB client context selector. By default the {@link BootstrapEJBClientContextSelector} is used
+     */
+    private static volatile ContextSelector<EJBClientContext> SELECTOR = BootstrapEJBClientContextSelector.INSTANCE;
 
     static final GeneralEJBClientInterceptor[] GENERAL_INTERCEPTORS;
 
@@ -61,73 +64,32 @@ public final class EJBClientContext extends Attachable {
     }
 
     /**
-     * Create a new client context and associate it with the current thread.
+     * Creates and returns a new client context
      *
      * @return Returns the newly created context
      */
     public static EJBClientContext create() {
-        if (CURRENT.get() != null) {
-            throw new IllegalStateException("The current EJB client context is already set");
-        }
-        final EJBClientContext ejbClientContext = new EJBClientContext();
-        CURRENT.set(ejbClientContext);
-        return ejbClientContext;
+        return new EJBClientContext();
     }
 
-    /**
-     * Set the current client context.
-     *
-     * @param context the client context
-     * @throws IllegalStateException if there is already a client context for the current thread
-     */
-    public static void setCurrent(EJBClientContext context) {
-        if (CURRENT.get() != null) {
-            throw new IllegalStateException("The current EJB client context is already set");
+    public static void setSelector(final ContextSelector<EJBClientContext> selector) {
+        if (selector == null) {
+            throw new IllegalArgumentException("EJB client context selector cannot be set to null");
         }
-        CURRENT.set(context);
+        SELECTOR = selector;
     }
 
-    /**
-     * Suspend the current client context.  The context is returned and the thread's current context is cleared.
-     *
-     * @return the suspended context
-     * @throws IllegalStateException if there is no client context for the current thread
-     */
-    public static EJBClientContext suspendCurrent() {
-        try {
-            return requireCurrent();
-        } finally {
-            CURRENT.set(null);
-        }
+    public static ContextSelector<EJBClientContext> setConstantContext(final EJBClientContext context) {
+        return getAndSetCurrent(new ConstantContextSelector<EJBClientContext>(context));
     }
 
-    /**
-     * Get and set the current client context for this thread.
-     *
-     * @param context the new current client context
-     * @return the previous context, which should be restored in a {@code finally} block
-     */
-    public static EJBClientContext getAndSetCurrent(EJBClientContext context) {
-        if (context == null) {
-            throw new IllegalArgumentException("context is null");
+    public static ContextSelector<EJBClientContext> getAndSetCurrent(final ContextSelector<EJBClientContext> newSelector) {
+        if (newSelector == null) {
+            throw new IllegalArgumentException("Cannot set EJB client context selector to null");
         }
-        final InheritableThreadLocal<EJBClientContext> tl = CURRENT;
-        try {
-            return tl.get();
-        } finally {
-            tl.set(context);
-        }
-    }
-
-    /**
-     * Restore the current client context for this thread.  Used to restore the client context value after it was
-     * saved with {@link #getAndSetCurrent(org.jboss.ejb.client.EJBClientContext)}.  The previous current context
-     * is discarded.
-     *
-     * @param current the new current client context
-     */
-    public static void restoreCurrent(EJBClientContext current) {
-        CURRENT.set(current);
+        final ContextSelector<EJBClientContext> oldSelector = SELECTOR;
+        SELECTOR = newSelector;
+        return oldSelector;
     }
 
     /**
@@ -136,7 +98,7 @@ public final class EJBClientContext extends Attachable {
      * @return the current client context
      */
     public static EJBClientContext getCurrent() {
-        return CURRENT.get();
+        return SELECTOR.getCurrent();
     }
 
     /**
@@ -146,9 +108,9 @@ public final class EJBClientContext extends Attachable {
      * @throws IllegalStateException if the current client context is not set
      */
     public static EJBClientContext requireCurrent() throws IllegalStateException {
-        final EJBClientContext clientContext = CURRENT.get();
+        final EJBClientContext clientContext = getCurrent();
         if (clientContext == null) {
-            throw new IllegalStateException("No EJB client context is set for this thread");
+            throw new IllegalStateException("No EJB client context is available");
         }
         return clientContext;
     }
@@ -198,7 +160,7 @@ public final class EJBClientContext extends Attachable {
      *
      * @param connection the connection to register
      */
-    public void registerConnection(Connection connection) {
+    public void registerConnection(final Connection connection) {
         registerEJBReceiver(new RemotingConnectionEJBReceiver(connection));
     }
 

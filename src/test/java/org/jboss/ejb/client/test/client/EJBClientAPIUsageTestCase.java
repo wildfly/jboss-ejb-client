@@ -22,6 +22,7 @@
 
 package org.jboss.ejb.client.test.client;
 
+import org.jboss.ejb.client.ContextSelector;
 import org.jboss.ejb.client.EJBClient;
 import org.jboss.ejb.client.EJBClientContext;
 import org.jboss.ejb.client.StatelessEJBLocator;
@@ -88,13 +89,14 @@ public class EJBClientAPIUsageTestCase {
         final EchoRemote proxy = EJBClient.createProxy(statelessEJBLocator);
         Assert.assertNotNull("Received a null proxy", proxy);
         final String message = "Yet another Hello World!!!";
-        EJBClientContext ejbClientContext = EJBClientContext.create();
+        final EJBClientContext ejbClientContext = EJBClientContext.create();
+        final ContextSelector<EJBClientContext> oldClientContextSelector = EJBClientContext.setConstantContext(ejbClientContext);
         try {
             ejbClientContext.registerConnection(connection);
             final String echo = proxy.echo(message);
             Assert.assertEquals("Unexpected echo message", message, echo);
         } finally {
-            EJBClientContext.suspendCurrent();
+            EJBClientContext.setSelector(oldClientContextSelector);
         }
     }
 }
