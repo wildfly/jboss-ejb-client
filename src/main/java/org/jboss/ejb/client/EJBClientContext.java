@@ -44,9 +44,9 @@ import org.jboss.remoting3.Connection;
 public final class EJBClientContext extends Attachable {
 
     /**
-     * EJB client context selector. By default the {@link BootstrapEJBClientContextSelector} is used
+     * EJB client context selector. By default the {@link ConfigBasedEJBClientContextSelector} is used
      */
-    private static volatile ContextSelector<EJBClientContext> SELECTOR = BootstrapEJBClientContextSelector.INSTANCE;
+    private static volatile ContextSelector<EJBClientContext> SELECTOR = ConfigBasedEJBClientContextSelector.INSTANCE;
 
     static final GeneralEJBClientInterceptor[] GENERAL_INTERCEPTORS;
 

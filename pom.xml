@@ -51,6 +51,7 @@
                             <value>org.jboss.logmanager.LogManager</value>
                         </property>
                     </systemProperties>
+                    <forkMode>always</forkMode>
                 </configuration>
             </plugin>
             <plugin>

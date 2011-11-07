@@ -78,7 +78,7 @@ public class DummyServer {
 
     private final int port;
     private final String host;
-
+    private final String endpointName;
 
     private AcceptingChannel<? extends ConnectedStreamChannel> server;
     private Map<EJBModuleIdentifier, Map<String, Object>> registeredEJBs = new ConcurrentHashMap<EJBModuleIdentifier, Map<String, Object>>();
@@ -86,14 +86,19 @@ public class DummyServer {
     private final Collection<Channel> openChannels = new CopyOnWriteArraySet<Channel>();
 
     public DummyServer(final String host, final int port) {
+        this(host, port, "default-dummy-server-endpoint");
+    }
+
+    public DummyServer(final String host, final int port, final String endpointName) {
         this.host = host;
         this.port = port;
+        this.endpointName = endpointName;
     }
 
     public void start() throws IOException {
         logger.info("Starting " + this);
         final OptionMap options = OptionMap.EMPTY;
-        endpoint = Remoting.createEndpoint("endpoint", options);
+        endpoint = Remoting.createEndpoint(this.endpointName, options);
         endpoint.addConnectionProvider("remote", new RemoteConnectionProviderFactory(), OptionMap.create(Options.SSL_ENABLED, Boolean.FALSE));
         final NetworkServerProvider serverProvider = endpoint.getConnectionProviderInterface("remote", NetworkServerProvider.class);
         final SocketAddress bindAddress = new InetSocketAddress(InetAddress.getByName(host), port);
@@ -124,7 +129,7 @@ public class DummyServer {
 
             @Override
             public void registrationTerminated() {
-                throw new RuntimeException("NYI: .registrationTerminated");
+                logger.info("Registration terminated for open listener");
             }
 
             private void sendVersionMessage(final Channel channel) throws IOException {
