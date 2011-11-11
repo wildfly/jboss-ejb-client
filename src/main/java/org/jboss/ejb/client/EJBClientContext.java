@@ -35,8 +35,7 @@ import org.jboss.ejb.client.remoting.RemotingConnectionEJBReceiver;
 import org.jboss.remoting3.Connection;
 
 /**
- * The public API for an EJB client context.  A thread may be associated with an EJB client context.  An EJB
- * client context may be associated with (and used by) one or more threads concurrently.
+ * The public API for an EJB client context.  An EJB client context may be associated with (and used by) one or more threads concurrently.
  *
  * @author <a href="mailto:david.lloyd@redhat.com">David M. Lloyd</a>
  */
@@ -47,6 +46,8 @@ public final class EJBClientContext extends Attachable {
      * EJB client context selector. By default the {@link ConfigBasedEJBClientContextSelector} is used
      */
     private static volatile ContextSelector<EJBClientContext> SELECTOR = ConfigBasedEJBClientContextSelector.INSTANCE;
+
+    private static final RuntimePermission SET_SELECTOR_PERMISSION = new RuntimePermission("setEJBClientContextSelector");
 
     static final GeneralEJBClientInterceptor[] GENERAL_INTERCEPTORS;
 
@@ -72,20 +73,50 @@ public final class EJBClientContext extends Attachable {
         return new EJBClientContext();
     }
 
+    /**
+     * Sets the EJB client context selector
+     *
+     * @param selector The selector to set. Cannot be null
+     * @throws SecurityException if a security manager is installed and you do not have the {@code setEJBClientContextSelector}
+     * {@link RuntimePermission}
+     */
     public static void setSelector(final ContextSelector<EJBClientContext> selector) {
         if (selector == null) {
             throw new IllegalArgumentException("EJB client context selector cannot be set to null");
         }
+        final SecurityManager sm = System.getSecurityManager();
+        if (sm != null) {
+            sm.checkPermission(SET_SELECTOR_PERMISSION);
+        }
         SELECTOR = selector;
     }
 
+    /**
+     * Set a constant EJB client context.  Replaces the existing selector, which is then returned by this method
+     *
+     * @param context the context to set
+     * @throws SecurityException if a security manager is installed and you do not have the {@code setEJBClientContextSelector} {@link RuntimePermission}
+     *
+     * @return Returns the previosuly set EJB client context selector.
+     */
     public static ContextSelector<EJBClientContext> setConstantContext(final EJBClientContext context) {
         return getAndSetCurrent(new ConstantContextSelector<EJBClientContext>(context));
     }
 
+    /**
+     * Sets a new EJB client context selector. Replaces the existing selector, which is then returned by this method.
+     *
+     * @param newSelector The new selector. Cannot be null.
+     * @return Returns the previously set EJB client context selector
+     * @throws SecurityException if a security manager is installed and you do not have the {@code setEJBClientContextSelector} {@link RuntimePermission}
+     */
     public static ContextSelector<EJBClientContext> getAndSetCurrent(final ContextSelector<EJBClientContext> newSelector) {
         if (newSelector == null) {
             throw new IllegalArgumentException("Cannot set EJB client context selector to null");
+        }
+        final SecurityManager sm = System.getSecurityManager();
+        if (sm != null) {
+            sm.checkPermission(SET_SELECTOR_PERMISSION);
         }
         final ContextSelector<EJBClientContext> oldSelector = SELECTOR;
         SELECTOR = newSelector;
