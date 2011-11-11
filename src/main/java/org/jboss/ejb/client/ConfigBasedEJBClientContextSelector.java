@@ -135,12 +135,12 @@ class ConfigBasedEJBClientContextSelector implements ContextSelector<EJBClientCo
                     "Skipping classloader search for " + EJB_CLIENT_PROPS_FILE_NAME);
             return null;
         }
-        final ClassLoader tccl = SecurityActions.getContextClassLoader();
-        logger.debug("Looking for " + EJB_CLIENT_PROPS_FILE_NAME + " using classloader " + tccl);
+        final ClassLoader classLoader = getClientClassLoader();
+        logger.debug("Looking for " + EJB_CLIENT_PROPS_FILE_NAME + " using classloader " + classLoader);
         // find from classloader
-        final InputStream clientPropsInputStream = tccl.getResourceAsStream(EJB_CLIENT_PROPS_FILE_NAME);
+        final InputStream clientPropsInputStream = classLoader.getResourceAsStream(EJB_CLIENT_PROPS_FILE_NAME);
         if (clientPropsInputStream != null) {
-            logger.debug("Found " + EJB_CLIENT_PROPS_FILE_NAME + " using classloader " + tccl);
+            logger.debug("Found " + EJB_CLIENT_PROPS_FILE_NAME + " using classloader " + classLoader);
             final Properties clientProps = new Properties();
             try {
                 clientProps.load(clientPropsInputStream);
@@ -272,11 +272,24 @@ class ConfigBasedEJBClientContextSelector implements ContextSelector<EJBClientCo
     }
 
     private OptionMap getOptionMapFromProperties(final Properties properties, final String propertyPrefix) {
-        final ClassLoader tccl = SecurityActions.getContextClassLoader();
-        final OptionMap.Builder optionMapBuilder = OptionMap.builder().parseAll(properties, propertyPrefix, tccl);
+        final ClassLoader classLoader = getClientClassLoader();
+        final OptionMap.Builder optionMapBuilder = OptionMap.builder().parseAll(properties, propertyPrefix, classLoader);
         final OptionMap optionMap = optionMapBuilder.getMap();
         logger.debug(propertyPrefix + " has the following options " + optionMap);
         return optionMap;
+    }
+
+    /**
+     * If {@link Thread#getContextClassLoader()} is null then returns the classloader which loaded
+     * {@link ConfigBasedEJBClientContextSelector}. Else returns the {@link Thread#getContextClassLoader()}
+     * @return
+     */
+    private static ClassLoader getClientClassLoader() {
+        final ClassLoader tccl = SecurityActions.getContextClassLoader();
+        if (tccl != null) {
+            return tccl;
+        }
+        return ConfigBasedEJBClientContextSelector.class.getClassLoader();
     }
 
     // TODO: This is a hack for now, till we have a way to configure callback handlers
