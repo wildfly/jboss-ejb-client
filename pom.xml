@@ -103,13 +103,13 @@
         <dependency>
             <groupId>org.jboss.xnio</groupId>
             <artifactId>xnio-api</artifactId>
-            <version>3.0.0.CR1</version>
+            <version>3.0.0.CR3</version>
         </dependency>
 
         <dependency>
             <groupId>org.jboss.xnio</groupId>
             <artifactId>xnio-nio</artifactId>
-            <version>3.0.0.CR1</version>
+            <version>3.0.0.CR3</version>
             <scope>test</scope>
         </dependency>
 
