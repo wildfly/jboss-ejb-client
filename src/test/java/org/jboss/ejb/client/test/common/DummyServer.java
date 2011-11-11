@@ -105,7 +105,7 @@ public class DummyServer {
         final SimpleServerAuthenticationProvider authenticationProvider = new SimpleServerAuthenticationProvider();
         authenticationProvider.addUser("test", "localhost.localdomain", "test".toCharArray());
         final OptionMap serverOptions = OptionMap.create(Options.SASL_MECHANISMS, Sequence.of("ANONYMOUS"), Options.SASL_POLICY_NOANONYMOUS, Boolean.FALSE);
-        this.server = serverProvider.createServer(bindAddress, serverOptions, authenticationProvider);
+        this.server = serverProvider.createServer(bindAddress, serverOptions, authenticationProvider, null);
 
         endpoint.registerService("jboss.ejb", new OpenListener() {
             @Override
