@@ -48,7 +48,9 @@ import org.jboss.remoting3.Endpoint;
 import org.jboss.remoting3.Remoting;
 import org.jboss.remoting3.remote.RemoteConnectionProviderFactory;
 import org.xnio.IoFuture;
+import org.xnio.Option;
 import org.xnio.OptionMap;
+import org.xnio.Options;
 
 /**
  * An EJB client context selector which parses a properties file to create {@link org.jboss.ejb.client.remoting.RemotingConnectionEJBReceiver}s
@@ -82,6 +84,16 @@ class ConfigBasedEJBClientContextSelector implements ContextSelector<EJBClientCo
     private static final String ENDPOINT_CREATION_OPTIONS_PREFIX = "endpoint.create.options.";
     private static final String REMOTE_CONNECTION_PROVIDER_CREATE_OPTIONS_PREFIX = "remote.connectionprovider.create.options.";
     private static final String REMOTE_CONNECTIONS_PROP_KEY = "remote.connections";
+
+    // The default options that will be used (unless overridden by the config file) for endpoint creation
+    private static final OptionMap DEFAULT_ENDPOINT_CREATION_OPTIONS = OptionMap.create(Options.THREAD_DAEMON, true);
+
+    // The default options that will be used (unless overridden by the config file) while creating a connection
+    private static final OptionMap DEFAULT_CONNECTION_CREATION_OPTIONS = OptionMap.EMPTY;
+
+    // The default options that will be used (unless overridden by the config file) while adding a remote connection
+    // provider to the endpoint
+    private static final OptionMap DEFAULT_CONNECTION_PROVIDER_CREATION_OPTIONS = OptionMap.EMPTY;
 
     static final ConfigBasedEJBClientContextSelector INSTANCE = new ConfigBasedEJBClientContextSelector();
 
@@ -200,11 +212,15 @@ class ConfigBasedEJBClientContextSelector implements ContextSelector<EJBClientCo
 
     private void createEndpoint(final Properties ejbClientProperties) throws IOException {
         final String clientEndpointName = ejbClientProperties.getProperty(EJB_CLIENT_PROP_KEY_ENDPOINT_NAME, EJB_CLIENT_DEFAULT_ENDPOINT_NAME);
-        final OptionMap endPointCreationOptions = this.getOptionMapFromProperties(ejbClientProperties, ENDPOINT_CREATION_OPTIONS_PREFIX);
+        final OptionMap endPointCreationOptionsFromConfiguration = this.getOptionMapFromProperties(ejbClientProperties, ENDPOINT_CREATION_OPTIONS_PREFIX);
+        // merge with defaults
+        final OptionMap endPointCreationOptions = this.mergeWithDefaults(DEFAULT_ENDPOINT_CREATION_OPTIONS, endPointCreationOptionsFromConfiguration);
         // create the endpoint
         this.clientEndpoint = Remoting.createEndpoint(clientEndpointName, endPointCreationOptions);
         // add a connection provider for the "remote" URI scheme
-        final OptionMap remoteConnectionProivderOptions = this.getOptionMapFromProperties(ejbClientProperties, REMOTE_CONNECTION_PROVIDER_CREATE_OPTIONS_PREFIX);
+        final OptionMap remoteConnectionProivderOptionsFromConfiguration = this.getOptionMapFromProperties(ejbClientProperties, REMOTE_CONNECTION_PROVIDER_CREATE_OPTIONS_PREFIX);
+        // merge with defaults
+        final OptionMap remoteConnectionProivderOptions = this.mergeWithDefaults(DEFAULT_CONNECTION_PROVIDER_CREATION_OPTIONS, remoteConnectionProivderOptionsFromConfiguration);
         this.clientEndpoint.addConnectionProvider("remote", new RemoteConnectionProviderFactory(), remoteConnectionProivderOptions);
     }
 
@@ -234,7 +250,9 @@ class ConfigBasedEJBClientContextSelector implements ContextSelector<EJBClientCo
         }
         // get connect options for the connection
         final String connectOptionsPrefix = this.getConnectionSpecificConnectOptionsPrefix(connectionName);
-        final OptionMap connectOptions = this.getOptionMapFromProperties(ejbClientProperties, connectOptionsPrefix);
+        final OptionMap connectOptionsFromConfiguration = this.getOptionMapFromProperties(ejbClientProperties, connectOptionsPrefix);
+        // merge with defaults
+        final OptionMap connectOptions = this.mergeWithDefaults(DEFAULT_CONNECTION_CREATION_OPTIONS, connectOptionsFromConfiguration);
         // create the connection, but first create the endpoint if it isn't already created
         if (this.clientEndpoint == null) {
             this.createEndpoint(ejbClientProperties);
@@ -289,6 +307,37 @@ class ConfigBasedEJBClientContextSelector implements ContextSelector<EJBClientCo
         final OptionMap optionMap = optionMapBuilder.getMap();
         logger.debug(propertyPrefix + " has the following options " + optionMap);
         return optionMap;
+    }
+
+    /**
+     * Merges the passed <code>defaults</code> and the <code>overrides</code> to return a combined
+     * {@link OptionMap}. If the passed <code>overrides</code> has a {@link Option} for
+     * which matches the one in <code>defaults</code> then the default option value is ignored and instead the
+     * overridden one is added to the combined {@link OptionMap}. If however, the <code>overrides</code> doesn't
+     * contain a option which is present in the <code>defaults</code>, then the default option is added to the
+     * combined {@link OptionMap}
+     *
+     * @param defaults  The default options
+     * @param overrides The overridden options
+     * @return
+     */
+    private OptionMap mergeWithDefaults(final OptionMap defaults, final OptionMap overrides) {
+        // copy all the overrides
+        final OptionMap.Builder combinedOptionsBuilder = OptionMap.builder().addAll(overrides);
+        // Skip all the defaults which have been overridden and just add the rest of the defaults
+        // to the combined options
+        for (final Option defaultOption : defaults) {
+            if (combinedOptionsBuilder.getMap().contains(defaultOption)) {
+                continue;
+            }
+            final Object defaultValue = defaults.get(defaultOption);
+            combinedOptionsBuilder.set(defaultOption, defaultValue);
+        }
+        final OptionMap combinedOptions = combinedOptionsBuilder.getMap();
+        if (logger.isTraceEnabled()) {
+            logger.trace("Options " + overrides + " have been merged with defaults " + defaults + " to form " + combinedOptions);
+        }
+        return combinedOptions;
     }
 
     /**
