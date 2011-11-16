@@ -57,7 +57,7 @@ public class SingleConnectionConfigBasedSelectorTestCase {
         if (url == null) {
             throw new IllegalStateException("Missing file " + fileName);
         }
-        System.setProperty("jboss.ejb.client.properties", url.getPath());
+        System.setProperty("jboss.ejb.client.properties.file.path", url.getPath());
 
         server = new DummyServer("localhost", 7999, SERVER_ENDPOINT_NAME);
         server.start();

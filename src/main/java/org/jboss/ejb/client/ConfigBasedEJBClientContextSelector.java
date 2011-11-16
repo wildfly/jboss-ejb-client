@@ -51,6 +51,18 @@ import org.xnio.IoFuture;
 import org.xnio.OptionMap;
 
 /**
+ * An EJB client context selector which parses a properties file to create {@link org.jboss.ejb.client.remoting.RemotingConnectionEJBReceiver}s
+ * out of the properties configured in that file.
+ * <p/>
+ * By default this selector looks for a file named <code>jboss-ejb-client.properties</code> in the classpath of the application. The
+ * location and the name of the file can be explicitly specified by passing setting the value for <code>jboss.ejb.client.properties.file.path</code>
+ * system property. If this system property is set then this selector uses the value as the file path for the EJB client
+ * context configuration properties file and <i></i>doesn't</i> further look for the <code>jboss-ejb-client.properties</code>
+ * in the classpath.
+ * <p/>
+ * Applications can also disable classpath scanning of <code>jboss-ejb-client.properties</code>, by this selector,
+ * by setting the <code>jboss.ejb.client.properties.skip.classloader.scan</code> system property to <code>true</code>
+ *
  * @author Jaikiran Pai
  */
 class ConfigBasedEJBClientContextSelector implements ContextSelector<EJBClientContext> {
@@ -59,7 +71,7 @@ class ConfigBasedEJBClientContextSelector implements ContextSelector<EJBClientCo
 
     private static final long DEFAULT_CONNECTION_TIMEOUT_IN_MILLIS = 5000;
 
-    private static final String EJB_CLIENT_PROPS_FILE_SYS_PROPERTY = "jboss.ejb.client.properties";
+    private static final String EJB_CLIENT_PROPS_FILE_SYS_PROPERTY = "jboss.ejb.client.properties.file.path";
     private static final String EJB_CLIENT_PROPS_SKIP_CLASSLOADER_SCAN_SYS_PROPERTY = "jboss.ejb.client.properties.skip.classloader.scan";
 
     private static final String EJB_CLIENT_PROPS_FILE_NAME = "jboss-ejb-client.properties";
@@ -282,6 +294,7 @@ class ConfigBasedEJBClientContextSelector implements ContextSelector<EJBClientCo
     /**
      * If {@link Thread#getContextClassLoader()} is null then returns the classloader which loaded
      * {@link ConfigBasedEJBClientContextSelector}. Else returns the {@link Thread#getContextClassLoader()}
+     *
      * @return
      */
     private static ClassLoader getClientClassLoader() {

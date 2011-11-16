@@ -60,7 +60,7 @@ public class MultipleConnectionsConfigBasedSelectorTestCase {
         if (url == null) {
             throw new IllegalStateException("Missing file " + fileName);
         }
-        System.setProperty("jboss.ejb.client.properties", url.getPath());
+        System.setProperty("jboss.ejb.client.properties.file.path", url.getPath());
 
         serverOne = new DummyServer("localhost", 6999, SERVER_ONE_ENDPOINT_NAME);
         serverOne.start();
