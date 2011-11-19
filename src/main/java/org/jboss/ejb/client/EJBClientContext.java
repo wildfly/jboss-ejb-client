@@ -77,7 +77,7 @@ public final class EJBClientContext extends Attachable {
      * Sets the EJB client context selector. Replaces the existing selector, which is then returned by this method
      *
      * @param newSelector The selector to set. Cannot be null
-     * @return Returns the previosuly set EJB client context selector.
+     * @return Returns the previously set EJB client context selector.
      * @throws SecurityException if a security manager is installed and you do not have the {@code setEJBClientContextSelector}
      *                           {@link RuntimePermission}
      */
@@ -98,7 +98,7 @@ public final class EJBClientContext extends Attachable {
      * Set a constant EJB client context.  Replaces the existing selector, which is then returned by this method
      *
      * @param context the context to set
-     * @return Returns the previosuly set EJB client context selector.
+     * @return Returns the previously set EJB client context selector.
      * @throws SecurityException if a security manager is installed and you do not have the {@code setEJBClientContextSelector} {@link RuntimePermission}
      */
     public static ContextSelector<EJBClientContext> setConstantContext(final EJBClientContext context) {
@@ -138,7 +138,7 @@ public final class EJBClientContext extends Attachable {
         if (receiver == null) {
             throw new IllegalArgumentException("receiver is null");
         }
-        EJBReceiverContext ejbReceiverContext = null;
+        EJBReceiverContext ejbReceiverContext;
         synchronized (this.ejbReceiverAssociations) {
             if (this.ejbReceiverAssociations.containsKey(receiver)) {
                 // nothing to do
