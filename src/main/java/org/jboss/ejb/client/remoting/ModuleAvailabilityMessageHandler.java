@@ -22,11 +22,12 @@
 
 package org.jboss.ejb.client.remoting;
 
-import org.jboss.remoting3.MessageInputStream;
-
 import java.io.DataInput;
 import java.io.DataInputStream;
 import java.io.IOException;
+
+import org.jboss.ejb.client.EJBReceiverContext;
+import org.jboss.remoting3.MessageInputStream;
 
 /**
  * Responsible for parsing module availability and unavailability messages from a stream, as per the EJB remoting client
@@ -44,10 +45,13 @@ class ModuleAvailabilityMessageHandler extends ProtocolMessageHandler {
     }
 
     private final ModuleReportType type;
+    private final EJBReceiverContext receiverContext;
 
-    ModuleAvailabilityMessageHandler(final RemotingConnectionEJBReceiver ejbReceiver, final ModuleReportType type) {
+    ModuleAvailabilityMessageHandler(final RemotingConnectionEJBReceiver ejbReceiver, final EJBReceiverContext receiverContext,
+                                     final ModuleReportType type) {
         this.ejbReceiver = ejbReceiver;
         this.type = type;
+        this.receiverContext = receiverContext;
     }
 
 
@@ -72,15 +76,15 @@ class ModuleAvailabilityMessageHandler extends ProtocolMessageHandler {
             for (int i = 0; i < ejbModules.length; i++) {
                 // read the app name
                 String appName = input.readUTF();
-                if (appName.isEmpty()) {
-                    appName = null;
+                if (appName == null) {
+                    appName = "";
                 }
                 // read the module name
                 final String moduleName = input.readUTF();
                 // read distinct name
                 String distinctName = input.readUTF();
-                if (distinctName.isEmpty()) {
-                    distinctName = null;
+                if (distinctName == null) {
+                    distinctName = "";
                 }
                 ejbModules[i] = new EJBModuleIdentifier(appName, moduleName, distinctName);
             }
@@ -90,12 +94,12 @@ class ModuleAvailabilityMessageHandler extends ProtocolMessageHandler {
         switch (this.type) {
             case MODULE_AVAILABLE:
                 for (final EJBModuleIdentifier ejbModule : ejbModules) {
-                    this.ejbReceiver.moduleAvailable(ejbModule.appName, ejbModule.moduleName, ejbModule.distinctName);
+                    this.ejbReceiver.moduleAvailable(this.receiverContext, ejbModule.appName, ejbModule.moduleName, ejbModule.distinctName);
                 }
                 break;
             case MODULE_UNAVAILABLE:
                 for (final EJBModuleIdentifier ejbModule : ejbModules) {
-                    this.ejbReceiver.moduleUnavailable(ejbModule.appName, ejbModule.moduleName, ejbModule.distinctName);
+                    this.ejbReceiver.moduleUnavailable(this.receiverContext, ejbModule.appName, ejbModule.moduleName, ejbModule.distinctName);
                 }
                 break;
         }

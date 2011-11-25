@@ -79,6 +79,14 @@ public final class RemotingConnectionEJBReceiver extends EJBReceiver<RemotingAtt
     private final String clientMarshallingStrategy = "river";
 
     /**
+     * A latch which will be used to wait for the initial module availability report from the server
+     * after the version handshake between the server and the client is successfully completed.
+     */
+    private final Map<EJBReceiverContext, CountDownLatch> moduleAvailabilityReportLatches = new IdentityHashMap<EJBReceiverContext, CountDownLatch>();
+
+    private final String cachedToString;
+
+    /**
      * Construct a new instance.
      *
      * @param connection the connection to associate with
@@ -86,6 +94,10 @@ public final class RemotingConnectionEJBReceiver extends EJBReceiver<RemotingAtt
     public RemotingConnectionEJBReceiver(final Connection connection) {
         super(connection.getRemoteEndpointName());
         this.connection = connection;
+
+        this.cachedToString = new StringBuffer("Remoting connection EJB receiver [connection=").append(this.connection)
+                .append(",channel=").append(EJB_CHANNEL_NAME).append(",nodename=").append(this.getNodeName())
+                .append("]").toString();
     }
 
     @Override
@@ -95,7 +107,14 @@ public final class RemotingConnectionEJBReceiver extends EJBReceiver<RemotingAtt
 
     @Override
     public void associate(final EJBReceiverContext context) {
+        // a latch for waiting a version handshake
         final CountDownLatch versionHandshakeLatch = new CountDownLatch(1);
+        // setup a latch which will be used for waiting initial module availability report from the server
+        final CountDownLatch initialModuleAvailabilityLatch = new CountDownLatch(1);
+        synchronized (this.moduleAvailabilityReportLatches) {
+            this.moduleAvailabilityReportLatches.put(context, initialModuleAvailabilityLatch);
+        }
+
         final VersionReceiver versionReceiver = new VersionReceiver(versionHandshakeLatch, this.clientProtocolVersion, this.clientMarshallingStrategy);
         final IoFuture<Channel> futureChannel = connection.openChannel(EJB_CHANNEL_NAME, OptionMap.EMPTY);
         futureChannel.addNotifier(new IoFuture.HandlingNotifier<Channel, EJBReceiverContext>() {
@@ -122,10 +141,11 @@ public final class RemotingConnectionEJBReceiver extends EJBReceiver<RemotingAtt
             }
         }, context);
 
+        boolean successfulHandshake = false;
         try {
             // wait for the handshake to complete
             // TODO: Think about externalizing this timeout
-            final boolean successfulHandshake = versionHandshakeLatch.await(5, TimeUnit.SECONDS);
+            successfulHandshake = versionHandshakeLatch.await(5, TimeUnit.SECONDS);
             if (successfulHandshake) {
                 final Channel compatibleChannel = versionReceiver.getCompatibleChannel();
                 final ChannelAssociation channelAssociation = new ChannelAssociation(this, context, compatibleChannel, this.clientProtocolVersion, this.clientMarshallingStrategy);
@@ -140,6 +160,23 @@ public final class RemotingConnectionEJBReceiver extends EJBReceiver<RemotingAtt
             }
         } catch (InterruptedException e) {
             context.close();
+        }
+
+        if (successfulHandshake) {
+            // Now that the version handshake has been completed, let's await the initial module report
+            // from the server. This initial wait is necessary to ensure that any immediate invocation on the receiver
+            // doesn't fail due to non-availability of the module report (which effectively means this receiver won't
+            // know whether it can handle an invocation on a appname/modulename/distinctname combination
+            try {
+                final boolean initialReportAvailable = initialModuleAvailabilityLatch.await(5, TimeUnit.SECONDS);
+                if (!initialReportAvailable) {
+                    // let's log a message and just return back. Don't close the context since it's *not* an error
+                    // that the module report wasn't available in that amount of time.
+                    logger.info("Initial module availability report for " + this + " wasn't received during the receiver context association");
+                }
+            } catch (InterruptedException e) {
+                logger.debug("Caught InterruptedException while waiting for initial module availability report for " + this, e);
+            }
         }
     }
 
@@ -346,13 +383,21 @@ public final class RemotingConnectionEJBReceiver extends EJBReceiver<RemotingAtt
         }
     }
 
-    void moduleAvailable(final String appName, final String moduleName, final String distinctName) {
-        logger.debug("Received module availability message for appName: " + appName + " moduleName: " + moduleName + " distinctName: " + distinctName);
+    void moduleAvailable(final EJBReceiverContext receiverContext, final String appName, final String moduleName, final String distinctName) {
+        logger.debug("Received module availability message for appName: " + appName + " moduleName: " + moduleName + " distinctName: " + distinctName + " for receiver context " + receiverContext);
         this.registerModule(appName, moduleName, distinctName);
+        // notify of module availability if anyone's waiting on the latch
+        final CountDownLatch moduleAvailabilityReportLatch;
+        synchronized (this.moduleAvailabilityReportLatches) {
+            moduleAvailabilityReportLatch = this.moduleAvailabilityReportLatches.remove(receiverContext);
+        }
+        if (moduleAvailabilityReportLatch != null) {
+            moduleAvailabilityReportLatch.countDown();
+        }
     }
 
-    void moduleUnavailable(final String appName, final String moduleName, final String distinctName) {
-        logger.debug("Received module un-availability message for appName: " + appName + " moduleName: " + moduleName + " distinctName: " + distinctName);
+    void moduleUnavailable(final EJBReceiverContext receiverContext, final String appName, final String moduleName, final String distinctName) {
+        logger.debug("Received module un-availability message for appName: " + appName + " moduleName: " + moduleName + " distinctName: " + distinctName + " for receiver context " + receiverContext);
         this.deRegisterModule(appName, moduleName, distinctName);
     }
 
@@ -367,4 +412,8 @@ public final class RemotingConnectionEJBReceiver extends EJBReceiver<RemotingAtt
         return channelAssociation;
     }
 
+    @Override
+    public String toString() {
+        return this.cachedToString;
+    }
 }

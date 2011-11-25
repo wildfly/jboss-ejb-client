@@ -78,7 +78,6 @@ public class ClasspathConfigBasedSelectorTestCase {
     @Test
     public void testRemotingEJBReceiver() throws Exception {
         final ConfigBasedEJBClientContextSelector configBasedEJBClientContextSelector = ConfigBasedEJBClientContextSelector.INSTANCE;
-        this.waitForModuleAvailabilityReportForReceivers();
 
         final EJBClientContext ejbClientContext = configBasedEJBClientContextSelector.getCurrent();
         logger.info("Found EJB client context " + ejbClientContext);
@@ -89,21 +88,6 @@ public class ClasspathConfigBasedSelectorTestCase {
         final EJBReceiver<?> receiver = ejbReceivers.iterator().next();
         Assert.assertEquals("Unexpected EJB receiver type", RemotingConnectionEJBReceiver.class, receiver.getClass());
         Assert.assertEquals("Unexpected EJB receiver", SERVER_ENDPOINT_NAME, receiver.getNodeName());
-    }
-
-    // The EJBClientContext.getEJBReceivers(appName, moduleName, distinctName) relies on
-    // module availability reports.
-    // The module availability report could potentially take a few seconds to be delivered to the client from the
-    // server. So we wait for some time
-    private void waitForModuleAvailabilityReportForReceivers() {
-        final long waitTime = 1000;
-        logger.info("Sleeping for " + waitTime + " milli. seconds for the module availability report to be available from the server");
-        try {
-            Thread.sleep(waitTime);
-        } catch (InterruptedException e) {
-            // ignore
-            logger.debug("Sleep interrupted", e);
-        }
     }
 
 }

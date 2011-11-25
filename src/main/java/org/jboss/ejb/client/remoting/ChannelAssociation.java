@@ -201,9 +201,9 @@ class ChannelAssociation {
             case 0x06:
                 return new InvocationExceptionResponseHandler(this, this.marshallingStrategy);
             case 0x08:
-                return new ModuleAvailabilityMessageHandler(this.ejbReceiver, ModuleAvailabilityMessageHandler.ModuleReportType.MODULE_AVAILABLE);
+                return new ModuleAvailabilityMessageHandler(this.ejbReceiver, this.ejbReceiverContext, ModuleAvailabilityMessageHandler.ModuleReportType.MODULE_AVAILABLE);
             case 0x09:
-                return new ModuleAvailabilityMessageHandler(this.ejbReceiver, ModuleAvailabilityMessageHandler.ModuleReportType.MODULE_UNAVAILABLE);
+                return new ModuleAvailabilityMessageHandler(this.ejbReceiver, this.ejbReceiverContext, ModuleAvailabilityMessageHandler.ModuleReportType.MODULE_UNAVAILABLE);
             case 0x0A:
                 return new GeneralInvocationFailureResponseHandler(this, GeneralInvocationFailureResponseHandler.FailureType.NO_SUCH_EJB);
             case 0x0B:
