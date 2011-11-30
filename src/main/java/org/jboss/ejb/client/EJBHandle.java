@@ -84,4 +84,12 @@ public final class EJBHandle<T extends EJBObject> implements Handle {
     public int hashCode() {
         return locator.hashCode();
     }
+
+    /**
+     *
+     * @return The locator for this handle
+     */
+    public EJBLocator<T> getLocator() {
+        return locator;
+    }
 }

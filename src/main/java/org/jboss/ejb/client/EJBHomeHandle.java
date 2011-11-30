@@ -84,4 +84,12 @@ public final class EJBHomeHandle<T extends EJBHome> implements HomeHandle {
     public int hashCode() {
         return locator.hashCode() ^ 1;
     }
+
+    /**
+     *
+     * @return The EJB locator for this home handle
+     */
+    public EJBHomeLocator<T> getLocator() {
+        return locator;
+    }
 }
