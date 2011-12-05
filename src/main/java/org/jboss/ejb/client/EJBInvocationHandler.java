@@ -138,11 +138,6 @@ final class EJBInvocationHandler<T> extends Attachable implements InvocationHand
         return new SerializedEJBInvocationHandler(locator);
     }
 
-    private void writeObject(ObjectOutputStream oos) throws IOException {
-        if (async) throw new NotSerializableException("Async proxies are not serializable");
-        oos.defaultWriteObject();
-    }
-
     EJBInvocationHandler<T> getAsyncHandler() {
         return async ? this : new EJBInvocationHandler<T>(this);
     }
