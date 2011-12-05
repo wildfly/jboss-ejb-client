@@ -132,8 +132,7 @@ public final class EJBClient {
         if (locator == null) {
             throw new NullPointerException("locator is null");
         }
-        final Class<T> viewType = locator.getViewType();
-        return viewType.cast(Proxy.newProxyInstance(viewType.getClassLoader(), new Class<?>[] { viewType }, new EJBInvocationHandler<T>(locator)));
+        return locator.createProxyInstance(new EJBInvocationHandler(locator));
     }
 
     /**

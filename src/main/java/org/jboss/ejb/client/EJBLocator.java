@@ -25,6 +25,11 @@ package org.jboss.ejb.client;
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.Serializable;
+import java.lang.reflect.Constructor;
+import java.lang.reflect.InvocationHandler;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Proxy;
+import java.lang.reflect.UndeclaredThrowableException;
 import org.jboss.marshalling.FieldSetter;
 
 /**
@@ -40,9 +45,13 @@ public abstract class EJBLocator<T> implements Serializable {
     private final String moduleName;
     private final String beanName;
     private final String distinctName;
+    private final transient Class<? extends T> proxyClass;
+    private final transient Constructor<? extends T> proxyConstructor;
     private final transient int hashCode;
 
     private static final FieldSetter hashCodeSetter = FieldSetter.get(EJBLocator.class, "hashCode");
+    private static final FieldSetter proxyClassSetter = FieldSetter.get(Class.class, "proxyClass");
+    private static final FieldSetter proxyConstructorSetter = FieldSetter.get(Constructor.class, "proxyConstructor");
 
     EJBLocator(final Class<T> viewType, final String appName, final String moduleName, final String beanName, final String distinctName) {
         if (viewType == null) {
@@ -65,6 +74,12 @@ public abstract class EJBLocator<T> implements Serializable {
         this.moduleName = moduleName;
         this.beanName = beanName;
         this.distinctName = distinctName;
+        proxyClass = Proxy.getProxyClass(viewType.getClassLoader(), viewType).asSubclass(viewType);
+        try {
+            proxyConstructor = proxyClass.getConstructor(InvocationHandler.class);
+        } catch (NoSuchMethodException e) {
+            throw new NoSuchMethodError("No valid constructor found on proxy class");
+        }
         hashCode = calcHashCode(viewType, appName, moduleName, beanName, distinctName);
     }
 
@@ -137,6 +152,46 @@ public abstract class EJBLocator<T> implements Serializable {
     }
 
     /**
+     * Get the proxy class for this locator.
+     *
+     * @return the proxy class
+     */
+    public Class<? extends T> getProxyClass() {
+        return proxyClass;
+    }
+
+    /**
+     * Get the proxy class constructor for this locator.  A proxy class constructor accepts a single
+     * argument of type {@link InvocationHandler}.
+     *
+     * @return the proxy constructor
+     */
+    public Constructor<? extends T> getProxyConstructor() {
+        return proxyConstructor;
+    }
+
+    /**
+     * Create a proxy instance using the cached proxy class.
+     *
+     * @param invocationHandler the invocation handler to use
+     * @return the proxy instance
+     */
+    public T createProxyInstance(InvocationHandler invocationHandler) {
+        if (invocationHandler == null) {
+            throw new IllegalArgumentException("invocationHandler is null");
+        }
+        try {
+            return proxyConstructor.newInstance(invocationHandler);
+        } catch (InstantiationException e) {
+            throw new InstantiationError(e.getMessage());
+        } catch (IllegalAccessException e) {
+            throw new IllegalAccessError(e.getMessage());
+        } catch (InvocationTargetException e) {
+            throw new UndeclaredThrowableException(e.getCause());
+        }
+    }
+
+    /**
      * Determine whether this object is equal to another.
      *
      * @param other the other object
@@ -152,7 +207,15 @@ public abstract class EJBLocator<T> implements Serializable {
 
     private void readObject(ObjectInputStream ois) throws ClassNotFoundException, IOException {
         ois.defaultReadObject();
+        final Class<? extends T> proxyType = Proxy.getProxyClass(viewType.getClassLoader(), viewType).asSubclass(viewType);
+        final Constructor<? extends T> proxyConstructor;
+        try {
+            proxyConstructor = proxyType.getConstructor(InvocationHandler.class);
+        } catch (NoSuchMethodException e) {
+            throw new NoSuchMethodError("No valid constructor found on proxy class");
+        }
+        proxyClassSetter.set(this, proxyType);
+        proxyConstructorSetter.set(this, proxyConstructor);
         hashCodeSetter.setInt(this, calcHashCode(viewType, appName, moduleName, beanName, distinctName));
     }
-
 }
