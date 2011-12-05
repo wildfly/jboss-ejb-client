@@ -135,7 +135,7 @@
             <groupId>org.jboss.sasl</groupId>
             <artifactId>jboss-sasl</artifactId>
             <version>${version.org.jboss.sasl}</version>
-            <scope>test</scope>
+            <scope>provided</scope>
         </dependency>
 
         <dependency>

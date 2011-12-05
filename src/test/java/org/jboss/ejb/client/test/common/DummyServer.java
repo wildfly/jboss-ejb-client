@@ -70,10 +70,6 @@ public class DummyServer {
 
     private static final String[] supportedMarshallerTypes = new String[]{"river", "java-serial"};
 
-    static {
-        Security.addProvider(new JBossSaslProvider());
-    }
-
     private Endpoint endpoint;
 
     private final int port;
