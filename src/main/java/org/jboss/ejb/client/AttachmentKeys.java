@@ -23,29 +23,27 @@
 package org.jboss.ejb.client;
 
 /**
+ * Commonly-used attachment keys.
+ *
  * @author <a href="mailto:david.lloyd@redhat.com">David M. Lloyd</a>
  */
-public final class TransactionInterceptor implements GeneralEJBClientInterceptor {
+public final class AttachmentKeys {
+    private AttachmentKeys() {}
 
-    public void handleInvocation(final EJBClientInvocationContext<?> context) throws Exception {
-        final EJBClientTransactionContext current = EJBClientTransactionContext.getCurrent();
-        // A EJB client tx context allows to set selectors and there's no guarantee that the
-        // selector returns a non-null context. So be safe!
-        if (current == null) {
-            context.sendRequest();
-            return;
-        }
-        final TransactionID transactionID = current.getAssociatedTransactionID(context);
-        if (transactionID != null) {
-            if (transactionID instanceof UserTransactionID) {
-                context.putAttachment(AttachmentKeys.REQUIRED_NODE, ((UserTransactionID) transactionID).getNodeName());
-            }
-            context.putAttachment(AttachmentKeys.TRANSACTION_ID_KEY, transactionID);
-        }
-        context.sendRequest();
-    }
-
-    public Object handleInvocationResult(final EJBClientInvocationContext<?> context) throws Exception {
-        return context.getResult();
-    }
+    /**
+     * The attachment key for transaction IDs.  This key is normally associated with an invocation.
+     */
+    public static final AttachmentKey<TransactionID> TRANSACTION_ID_KEY = new AttachmentKey<TransactionID>();
+    /**
+     * The preferred node for invocations from this proxy.  Note that this node name is only a
+     * recommendation and is not required to be used, and if the node is not available then the invocation
+     * may proceed to another node.  This key is normally associated with a proxy, and copied to an invocation.
+     */
+    public static final AttachmentKey<String> PREFERRED_NODE = new AttachmentKey<String>();
+    /**
+     * The required node for an invocation.  This node name is the only one which may handle the invocation;
+     * if the node is unavailable, the invocation must fail.  This key is normally associated with a transaction,
+     * and copied to the invocation.
+     */
+    public static final AttachmentKey<String> REQUIRED_NODE = new AttachmentKey<String>();
 }

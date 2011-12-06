@@ -35,11 +35,6 @@ public abstract class SessionID implements Serializable {
 
     private static final long serialVersionUID = 3872192729805797520L;
 
-    /**
-     * The attachment key for session IDs.
-     */
-    public static final AttachmentKey<SessionID> SESSION_ID_KEY = new AttachmentKey<SessionID>();
-
     // The transient flags aren't really respected since we use object replacement.
 
     private final byte[] encodedForm;

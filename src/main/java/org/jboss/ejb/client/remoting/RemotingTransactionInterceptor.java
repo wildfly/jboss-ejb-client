@@ -22,6 +22,7 @@
 
 package org.jboss.ejb.client.remoting;
 
+import org.jboss.ejb.client.AttachmentKeys;
 import org.jboss.ejb.client.EJBClientInvocationContext;
 import org.jboss.ejb.client.TransactionID;
 
@@ -33,7 +34,7 @@ import org.jboss.ejb.client.TransactionID;
 public final class RemotingTransactionInterceptor implements RemotingEJBClientInterceptor {
 
     public void handleInvocation(final EJBClientInvocationContext<? extends RemotingAttachments> context) throws Exception {
-        final TransactionID transactionID = context.getAttachment(TransactionID.TRANSACTION_ID_KEY);
+        final TransactionID transactionID = context.getAttachment(AttachmentKeys.TRANSACTION_ID_KEY);
         if (transactionID != null) {
             context.getReceiverSpecific().putPayloadAttachment(0x0001, transactionID.getEncodedForm());
         }

@@ -22,7 +22,10 @@
 
 package org.jboss.ejb.client;
 
+import java.io.Serializable;
 import java.lang.reflect.Method;
+import java.util.LinkedHashMap;
+import java.util.Map;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
@@ -58,6 +61,7 @@ public final class EJBClientInvocationContext<A> extends Attachable {
     private State state = State.WAITING;
     private AsyncState asyncState = AsyncState.SYNCHRONOUS;
     private Object cachedResult;
+    private Map<String, Object> contextData;
 
     // Interceptor state
     private final EJBClientInterceptor<? super A>[] interceptorChain;
@@ -149,6 +153,22 @@ public final class EJBClientInvocationContext<A> extends Attachable {
      */
     public <T> T putReceiverAttachment(final AttachmentKey<T> key, final T value) {
         return receiver.putAttachment(key, value);
+    }
+
+    /**
+     * Get the context data.  This same data will be made available verbatim to
+     * server-side interceptors via the {@code InvocationContext.getContextData()} method, and thus
+     * can be used to pass data from the client to the server (as long as all map values are
+     * {@link Serializable}).
+     *
+     * @return the context data
+     */
+    public Map<String, Object> getContextData() {
+        if (contextData == null) {
+            return contextData = new LinkedHashMap<String, Object>();
+        } else {
+            return contextData;
+        }
     }
 
     /**

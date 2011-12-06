@@ -35,11 +35,6 @@ public abstract class TransactionID implements Serializable {
 
     private static final long serialVersionUID = 7711835471353644411L;
 
-    /**
-     * The attachment key for transaction IDs.
-     */
-    public static final AttachmentKey<TransactionID> TRANSACTION_ID_KEY = new AttachmentKey<TransactionID>();
-
     // The transient flags aren't really respected since we use object replacement.
 
     private final byte[] encodedForm;
