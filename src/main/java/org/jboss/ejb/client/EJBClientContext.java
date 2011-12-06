@@ -47,6 +47,8 @@ public final class EJBClientContext extends Attachable {
     private static volatile ContextSelector<EJBClientContext> SELECTOR = ConfigBasedEJBClientContextSelector.INSTANCE;
 
     private static final RuntimePermission SET_SELECTOR_PERMISSION = new RuntimePermission("setEJBClientContextSelector");
+    private static final RuntimePermission ADD_INTERCEPTOR_PERMISSION = new RuntimePermission("registerInterceptor");
+    private static final RuntimePermission CREATE_CONTEXT_PERMISSION = new RuntimePermission("createEJBClientContext");
     private static final EJBClientInterceptor.Registration[] NO_INTERCEPTORS = new EJBClientInterceptor.Registration[0];
 
     private final Map<EJBReceiver, EJBReceiverContext> ejbReceiverAssociations = new IdentityHashMap<EJBReceiver, EJBReceiverContext>();
@@ -54,7 +56,7 @@ public final class EJBClientContext extends Attachable {
 
     private static final AtomicReferenceFieldUpdater<EJBClientContext, EJBClientInterceptor.Registration[]> registrationsUpdater = AtomicReferenceFieldUpdater.newUpdater(EJBClientContext.class, EJBClientInterceptor.Registration[].class, "registrations");
 
-    EJBClientContext() {
+    private EJBClientContext() {
     }
 
     private void init(ClassLoader classLoader) {
@@ -74,8 +76,22 @@ public final class EJBClientContext extends Attachable {
      * @return the newly created context
      */
     public static EJBClientContext create() {
+        return create(EJBClientContext.class.getClassLoader());
+    }
+
+    /**
+     * Creates and returns a new client context, using the given class loader to look for initializers.
+     *
+     * @param classLoader the class loader
+     * @return the newly created context
+     */
+    public static EJBClientContext create(ClassLoader classLoader) {
+        final SecurityManager sm = System.getSecurityManager();
+        if (sm != null) {
+            sm.checkPermission(CREATE_CONTEXT_PERMISSION);
+        }
         final EJBClientContext context = new EJBClientContext();
-        context.init(SecurityActions.getContextClassLoader());
+        context.init(classLoader);
         return context;
     }
 
@@ -195,6 +211,10 @@ public final class EJBClientContext extends Attachable {
     public EJBClientInterceptor.Registration registerInterceptor(final int priority, final EJBClientInterceptor clientInterceptor) throws IllegalArgumentException {
         if (clientInterceptor == null) {
             throw new IllegalArgumentException("clientInterceptor is null");
+        }
+        final SecurityManager sm = System.getSecurityManager();
+        if (sm != null) {
+            sm.checkPermission(ADD_INTERCEPTOR_PERMISSION);
         }
         final EJBClientInterceptor.Registration registration = new EJBClientInterceptor.Registration(this, clientInterceptor, priority);
         EJBClientInterceptor.Registration[] oldRegistrations, newRegistrations;
