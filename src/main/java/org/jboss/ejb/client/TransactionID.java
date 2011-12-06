@@ -34,12 +34,13 @@ import java.util.Arrays;
 public abstract class TransactionID implements Serializable {
 
     private static final long serialVersionUID = 7711835471353644411L;
-    static final String PRIVATE_DATA_KEY = "jboss.transaction.id";
 
     // The transient flags aren't really respected since we use object replacement.
 
     private final byte[] encodedForm;
     private final transient int hashCode;
+
+    public static final String PRIVATE_DATA_KEY = "jboss.transaction.id";
 
     /**
      * Construct a new instance.  The given array is used as-is, so if it comes from an untrusted source,
