@@ -22,6 +22,7 @@
 
 package org.jboss.ejb.client.remoting;
 
+import java.util.Map;
 import org.jboss.ejb.client.EJBClientInvocationContext;
 import org.jboss.ejb.client.EJBLocator;
 
@@ -57,7 +58,7 @@ class MethodInvocationMessageWriter extends AbstractMessageWriter {
      * @param invocationContext The EJB client invocation context
      * @throws IOException If there's a problem writing out to the {@link DataOutput}
      */
-    void writeMessage(final DataOutput output, final short invocationId, final EJBClientInvocationContext<RemotingAttachments> invocationContext) throws IOException {
+    void writeMessage(final DataOutput output, final short invocationId, final EJBClientInvocationContext invocationContext) throws IOException {
         if (output == null) {
             throw new IllegalArgumentException("Cannot write to null output");
         }
@@ -82,8 +83,6 @@ class MethodInvocationMessageWriter extends AbstractMessageWriter {
         }
         // write the method signature
         output.writeUTF(methodSignature.toString());
-        // write out the attachments
-        writeAttachments(output, invocationContext.getReceiverSpecific());
 
         // marshall the locator and method params
         final Marshaller marshaller = MarshallerFactory.createMarshaller(marshallingStrategy);
@@ -104,6 +103,13 @@ class MethodInvocationMessageWriter extends AbstractMessageWriter {
             for (final Object methodParam : methodParams) {
                 marshaller.writeObject(methodParam);
             }
+        }
+        // write out the attachments
+        final Map<String,Object> contextData = invocationContext.getContextData();
+        PackedInteger.writePackedInteger(marshaller, contextData.size());
+        for (Map.Entry<String, Object> entry : contextData.entrySet()) {
+            marshaller.writeObject(entry.getKey());
+            marshaller.writeObject(entry.getValue());
         }
         marshaller.finish();
 

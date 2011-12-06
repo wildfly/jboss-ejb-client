@@ -24,8 +24,6 @@ package org.jboss.ejb.client.test.tx;
 
 import javax.transaction.UserTransaction;
 import javax.transaction.xa.XAException;
-import java.util.HashMap;
-import java.util.Map;
 
 import org.jboss.ejb.client.ContextSelector;
 import org.jboss.ejb.client.EJBClient;
@@ -59,7 +57,7 @@ public class EJBClientTxAPIUsageTestCase {
         }
     }
 
-    private class DummyEJBReceiver extends EJBReceiver<Map> {
+    private class DummyEJBReceiver extends EJBReceiver {
 
         DummyEJBReceiver(String nodeName) {
             super(nodeName);
@@ -70,7 +68,7 @@ public class EJBClientTxAPIUsageTestCase {
         }
 
         @Override
-        protected void processInvocation(EJBClientInvocationContext<Map> mapEJBClientInvocationContext, EJBReceiverInvocationContext receiverContext) throws Exception {
+        protected void processInvocation(EJBClientInvocationContext mapEJBClientInvocationContext, EJBReceiverInvocationContext receiverContext) throws Exception {
         }
 
 
@@ -81,11 +79,6 @@ public class EJBClientTxAPIUsageTestCase {
 
         @Override
         protected void verify(String appName, String moduleName, String distinctName, String beanName) throws Exception {
-        }
-
-        @Override
-        protected Map createReceiverSpecific() {
-            return new HashMap<Object, Object>();
         }
 
         @Override

@@ -20,14 +20,20 @@
  * 02110-1301 USA, or see the FSF site: http://www.fsf.org.
  */
 
-package org.jboss.ejb.client.remoting;
-
-import org.jboss.ejb.client.EJBClientInterceptor;
+package org.jboss.ejb.client;
 
 /**
- * A Remoting-specific EJB client interceptor.
+ * A general initializer for an EJB client context.  All such initializers are loaded
+ * upon EJB client context creation.
  *
  * @author <a href="mailto:david.lloyd@redhat.com">David M. Lloyd</a>
  */
-public interface RemotingEJBClientInterceptor extends EJBClientInterceptor<RemotingAttachments> {
+public interface EJBClientContextInitializer {
+
+    /**
+     * Initialize a new client context.
+     *
+     * @param context the context to initialize
+     */
+    void initialize(EJBClientContext context);
 }

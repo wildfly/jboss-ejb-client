@@ -34,6 +34,7 @@ import java.util.Arrays;
 public abstract class TransactionID implements Serializable {
 
     private static final long serialVersionUID = 7711835471353644411L;
+    static final String PRIVATE_DATA_KEY = "jboss.transaction.id";
 
     // The transient flags aren't really respected since we use object replacement.
 
@@ -124,18 +125,28 @@ public abstract class TransactionID implements Serializable {
     }
 
     /**
-     * Serialized representation.
+     * Serialized representation of a transaction ID.
      */
-    static final class Serialized implements Serializable {
+    public static final class Serialized implements Serializable {
 
         private static final long serialVersionUID = -8146407206244018476L;
 
+        /**
+         * The bytes of the transaction ID.
+         *
+         * @serial
+         */
         private final byte[] id;
 
         Serialized(final byte[] id) {
             this.id = id;
         }
 
+        /**
+         * Reconstitute the transaction ID from this serialized representation.
+         *
+         * @return the transaction ID object
+         */
         protected Object readResolve() {
             return createTransactionID(id);
         }

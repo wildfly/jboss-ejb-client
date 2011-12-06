@@ -34,9 +34,9 @@ import java.util.Set;
  * @param <A> the invocation context attachment type specific to this receiver
  * @author <a href="mailto:david.lloyd@redhat.com">David M. Lloyd</a>
  */
-public abstract class EJBReceiver<A> extends Attachable {
+public abstract class EJBReceiver extends Attachable {
 
-    private static final EJBClientInterceptor<?>[] NO_INTERCEPTORS = new EJBClientInterceptor[0];
+    private static final EJBClientInterceptor[] NO_INTERCEPTORS = new EJBClientInterceptor[0];
 
     private final Set<ModuleID> accessibleModules = Collections.synchronizedSet(new HashSet<ModuleID>());
 
@@ -95,7 +95,7 @@ public abstract class EJBReceiver<A> extends Attachable {
      * @param receiverContext         The EJB receiver invocation context
      * @throws Exception if the operation throws an exception
      */
-    protected abstract void processInvocation(EJBClientInvocationContext<A> clientInvocationContext, EJBReceiverInvocationContext receiverContext) throws Exception;
+    protected abstract void processInvocation(EJBClientInvocationContext clientInvocationContext, EJBReceiverInvocationContext receiverContext) throws Exception;
 
     /**
      * Attempt to cancel an invocation.  Implementations should make a reasonable effort to determine whether
@@ -107,7 +107,7 @@ public abstract class EJBReceiver<A> extends Attachable {
      * @return {@code true} if the operation was definitely cancelled immediately, {@code false} otherwise
      */
     @SuppressWarnings("unused")
-    protected boolean cancelInvocation(EJBClientInvocationContext<A> clientInvocationContext, EJBReceiverInvocationContext receiverContext) {
+    protected boolean cancelInvocation(EJBClientInvocationContext clientInvocationContext, EJBReceiverInvocationContext receiverContext) {
         return false;
     }
 
@@ -134,27 +134,6 @@ public abstract class EJBReceiver<A> extends Attachable {
      * @throws Exception if the target does not exist
      */
     protected abstract void verify(String appName, String moduleName, String distinctName, String beanName) throws Exception;
-
-    /**
-     * Create the receiver-specific attachment for an invocation or serialization context.
-     *
-     * @return the attachment
-     */
-    protected abstract A createReceiverSpecific();
-
-    /**
-     * Returns receiver specific client interceptors. Protocol specific receivers are expected to return the
-     * protocol specific interceptors.
-     * <p/>
-     * This method returns an empty array. Individual implementations of {@link EJBReceiver} are expected to
-     * override this method to return receiver specific interceptors
-     *
-     * @return the interceptors
-     */
-    @SuppressWarnings("unchecked")
-    protected EJBClientInterceptor<A>[] getClientInterceptors() {
-        return (EJBClientInterceptor<A>[]) NO_INTERCEPTORS;
-    }
 
     /**
      * Send a transaction-prepare message for the given transaction ID.

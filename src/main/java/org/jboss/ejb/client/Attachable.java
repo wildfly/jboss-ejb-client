@@ -26,7 +26,8 @@ import java.util.IdentityHashMap;
 import java.util.Map;
 
 /**
- * An object which may have attachments.
+ * An object which may have attachments.  Even if the object is serializable, its
+ * attachment map is not and will always deserialize empty.
  *
  * @author <a href="mailto:david.lloyd@redhat.com">David M. Lloyd</a>
  */

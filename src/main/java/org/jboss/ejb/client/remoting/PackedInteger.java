@@ -26,6 +26,7 @@ import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.DataOutputStream;
 import java.io.IOException;
+import org.jboss.marshalling.ByteOutput;
 
 /**
  * A {@link PackedInteger} is a variable-length integer. The most-significant bit of each byte of a

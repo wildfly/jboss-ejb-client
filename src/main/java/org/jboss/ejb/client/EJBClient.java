@@ -158,7 +158,7 @@ public final class EJBClient {
     // TODO: narrow exception type(s)
     public static SessionID createSession(final String appName, final String moduleName, final String beanName, final String distinctName) throws Exception {
         EJBClientContext clientContext = EJBClientContext.requireCurrent();
-        EJBReceiver<?> ejbReceiver = clientContext.requireEJBReceiver(appName, moduleName, distinctName);
+        EJBReceiver ejbReceiver = clientContext.requireEJBReceiver(appName, moduleName, distinctName);
         EJBReceiverContext receiverContext = clientContext.requireEJBReceiverContext(ejbReceiver);
         return ejbReceiver.openSession(receiverContext, appName, moduleName, distinctName, beanName);
     }

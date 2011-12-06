@@ -41,7 +41,7 @@ public abstract class EJBClientTransactionContext extends Attachable {
      * @return the transaction ID to associate, or {@code null} for none
      * @throws Exception if an exception occurs
      */
-    protected abstract TransactionID getAssociatedTransactionID(EJBClientInvocationContext<?> invocationContext) throws Exception;
+    protected abstract TransactionID getAssociatedTransactionID(EJBClientInvocationContext invocationContext) throws Exception;
 
     private static volatile ContextSelector<EJBClientTransactionContext> SELECTOR = new ConstantContextSelector<EJBClientTransactionContext>(createLocal());
 

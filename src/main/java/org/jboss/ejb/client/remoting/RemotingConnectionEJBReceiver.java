@@ -25,16 +25,12 @@ package org.jboss.ejb.client.remoting;
 import javax.transaction.xa.XAException;
 import java.io.DataOutputStream;
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.IdentityHashMap;
-import java.util.List;
 import java.util.Map;
-import java.util.ServiceLoader;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 
-import org.jboss.ejb.client.EJBClientInterceptor;
 import org.jboss.ejb.client.EJBClientInvocationContext;
 import org.jboss.ejb.client.EJBReceiver;
 import org.jboss.ejb.client.EJBReceiverContext;
@@ -53,22 +49,11 @@ import org.xnio.OptionMap;
  *
  * @author <a href="mailto:david.lloyd@redhat.com">David M. Lloyd</a>
  */
-public final class RemotingConnectionEJBReceiver extends EJBReceiver<RemotingAttachments> {
+public final class RemotingConnectionEJBReceiver extends EJBReceiver {
 
     private static final Logger logger = Logger.getLogger(RemotingConnectionEJBReceiver.class);
 
     private static final String EJB_CHANNEL_NAME = "jboss.ejb";
-
-    private static final RemotingEJBClientInterceptor[] REMOTING_EJB_INTERCEPTORS;
-
-    static {
-        final List<RemotingEJBClientInterceptor> interceptors = new ArrayList<RemotingEJBClientInterceptor>();
-        for (RemotingEJBClientInterceptor interceptor : ServiceLoader.load(RemotingEJBClientInterceptor.class)) {
-            interceptors.add(interceptor);
-        }
-        REMOTING_EJB_INTERCEPTORS = interceptors.toArray(new RemotingEJBClientInterceptor[interceptors.size()]);
-    }
-
 
     private final Connection connection;
 
@@ -98,11 +83,6 @@ public final class RemotingConnectionEJBReceiver extends EJBReceiver<RemotingAtt
         this.cachedToString = new StringBuffer("Remoting connection EJB receiver [connection=").append(this.connection)
                 .append(",channel=").append(EJB_CHANNEL_NAME).append(",nodename=").append(this.getNodeName())
                 .append("]").toString();
-    }
-
-    @Override
-    protected EJBClientInterceptor<RemotingAttachments>[] getClientInterceptors() {
-        return REMOTING_EJB_INTERCEPTORS;
     }
 
     @Override
@@ -181,7 +161,7 @@ public final class RemotingConnectionEJBReceiver extends EJBReceiver<RemotingAtt
     }
 
     @Override
-    public void processInvocation(final EJBClientInvocationContext<RemotingAttachments> clientInvocationContext, final EJBReceiverInvocationContext ejbReceiverInvocationContext) throws Exception {
+    public void processInvocation(final EJBClientInvocationContext clientInvocationContext, final EJBReceiverInvocationContext ejbReceiverInvocationContext) throws Exception {
         final ChannelAssociation channelAssociation = this.requireChannelAssociation(ejbReceiverInvocationContext.getEjbReceiverContext());
         final Channel channel = channelAssociation.getChannel();
         final MethodInvocationMessageWriter messageWriter = new MethodInvocationMessageWriter(this.clientProtocolVersion, this.clientMarshallingStrategy);
@@ -219,11 +199,6 @@ public final class RemotingConnectionEJBReceiver extends EJBReceiver<RemotingAtt
     public void verify(final String appName, final String moduleName, final String distinctName, final String beanName) throws Exception {
         // TODO: Implement
         logger.warn("Not yet implemented RemotingConnectionEJBReceiver#verify");
-    }
-
-    @Override
-    public RemotingAttachments createReceiverSpecific() {
-        return new RemotingAttachments();
     }
 
     @Override

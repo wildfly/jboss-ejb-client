@@ -82,10 +82,10 @@ public class ClasspathConfigBasedSelectorTestCase {
         final EJBClientContext ejbClientContext = configBasedEJBClientContextSelector.getCurrent();
         logger.info("Found EJB client context " + ejbClientContext);
         Assert.assertNotNull("No client context found " + ejbClientContext);
-        final Collection<EJBReceiver<?>> ejbReceivers = ejbClientContext.getEJBReceivers("dummy-app", "dummy-module", "");
+        final Collection<EJBReceiver> ejbReceivers = ejbClientContext.getEJBReceivers("dummy-app", "dummy-module", "");
         Assert.assertNotNull("No EJB receivers found ", ejbReceivers);
         Assert.assertEquals("Unexpected number of EJB receivers", 1, ejbReceivers.size());
-        final EJBReceiver<?> receiver = ejbReceivers.iterator().next();
+        final EJBReceiver receiver = ejbReceivers.iterator().next();
         Assert.assertEquals("Unexpected EJB receiver type", RemotingConnectionEJBReceiver.class, receiver.getClass());
         Assert.assertEquals("Unexpected EJB receiver", SERVER_ENDPOINT_NAME, receiver.getNodeName());
     }

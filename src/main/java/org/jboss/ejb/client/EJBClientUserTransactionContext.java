@@ -50,7 +50,7 @@ public final class EJBClientUserTransactionContext extends EJBClientTransactionC
     private static final ThreadLocal<State> CURRENT_TRANSACTION_STATE = new ThreadLocal<State>();
 
     /** {@inheritDoc} */
-    protected UserTransactionID getAssociatedTransactionID(final EJBClientInvocationContext<?> invocationContext) {
+    protected UserTransactionID getAssociatedTransactionID(final EJBClientInvocationContext invocationContext) {
         final State state = CURRENT_TRANSACTION_STATE.get();
         return state == null ? null : state.currentId;
     }
@@ -103,7 +103,7 @@ public final class EJBClientUserTransactionContext extends EJBClientTransactionC
             try {
                 final EJBClientContext clientContext = EJBClientContext.requireCurrent();
                 final EJBReceiverContext receiverContext = clientContext.requireNodeEJBReceiverContext(nodeName);
-                final EJBReceiver<?> receiver = receiverContext.getReceiver();
+                final EJBReceiver receiver = receiverContext.getReceiver();
                 if (state.status == Status.STATUS_MARKED_ROLLBACK) {
                     state.status = Status.STATUS_ROLLING_BACK;
                     try {
@@ -147,7 +147,7 @@ public final class EJBClientUserTransactionContext extends EJBClientTransactionC
             try {
                 final EJBClientContext clientContext = EJBClientContext.requireCurrent();
                 final EJBReceiverContext receiverContext = clientContext.requireNodeEJBReceiverContext(nodeName);
-                final EJBReceiver<?> receiver = receiverContext.getReceiver();
+                final EJBReceiver receiver = receiverContext.getReceiver();
                 state.status = Status.STATUS_ROLLING_BACK;
                 try {
                     receiver.sendRollback(receiverContext, transactionID);

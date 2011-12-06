@@ -23,6 +23,7 @@
 package org.jboss.ejb.client.remoting;
 
 import org.jboss.ejb.client.AttachmentKeys;
+import org.jboss.ejb.client.EJBClientInterceptor;
 import org.jboss.ejb.client.EJBClientInvocationContext;
 import org.jboss.ejb.client.TransactionID;
 
@@ -31,9 +32,9 @@ import org.jboss.ejb.client.TransactionID;
  *
  * @author <a href="mailto:david.lloyd@redhat.com">David M. Lloyd</a>
  */
-public final class RemotingTransactionInterceptor implements RemotingEJBClientInterceptor {
+public final class RemotingTransactionInterceptor implements EJBClientInterceptor {
 
-    public void handleInvocation(final EJBClientInvocationContext<? extends RemotingAttachments> context) throws Exception {
+    public void handleInvocation(final EJBClientInvocationContext context) throws Exception {
         final TransactionID transactionID = context.getAttachment(AttachmentKeys.TRANSACTION_ID_KEY);
         if (transactionID != null) {
             context.getReceiverSpecific().putPayloadAttachment(0x0001, transactionID.getEncodedForm());
@@ -41,7 +42,7 @@ public final class RemotingTransactionInterceptor implements RemotingEJBClientIn
         context.sendRequest();
     }
 
-    public Object handleInvocationResult(final EJBClientInvocationContext<? extends RemotingAttachments> context) throws Exception {
+    public Object handleInvocationResult(final EJBClientInvocationContext context) throws Exception {
         // nothing to do with result
         return context.getResult();
     }

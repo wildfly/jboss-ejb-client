@@ -24,11 +24,19 @@ package org.jboss.ejb.client;
 
 import java.security.AccessController;
 import java.security.PrivilegedAction;
+import java.util.ServiceLoader;
 
 /**
  * @author Jaikiran Pai
  */
 final class SecurityActions {
+
+    private static final PrivilegedAction<ClassLoader> GET_CLASS_LOADER = new PrivilegedAction<ClassLoader>() {
+        @Override
+        public ClassLoader run() {
+            return Thread.currentThread().getContextClassLoader();
+        }
+    };
 
     static String getSystemProperty(final String key) {
         if (System.getSecurityManager() == null) {
@@ -61,10 +69,18 @@ final class SecurityActions {
         if (System.getSecurityManager() == null) {
             return Thread.currentThread().getContextClassLoader();
         } else {
-            return AccessController.doPrivileged(new PrivilegedAction<ClassLoader>() {
-                @Override
-                public ClassLoader run() {
-                    return Thread.currentThread().getContextClassLoader();
+            return AccessController.doPrivileged(GET_CLASS_LOADER);
+        }
+    }
+
+    static <S> ServiceLoader<S> loadService(final Class<S> type, final ClassLoader classLoader) {
+        final SecurityManager sm = System.getSecurityManager();
+        if (sm == null) {
+            return ServiceLoader.load(type, classLoader);
+        } else {
+            return AccessController.doPrivileged(new PrivilegedAction<ServiceLoader<S>>() {
+                public ServiceLoader<S> run() {
+                    return ServiceLoader.load(type, classLoader);
                 }
             });
         }

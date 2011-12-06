@@ -39,7 +39,7 @@ import static java.lang.Thread.holdsLock;
  * @param <A> the receiver attachment type
  * @author <a href="mailto:david.lloyd@redhat.com">David M. Lloyd</a>
  */
-public final class EJBClientInvocationContext<A> extends Attachable {
+public final class EJBClientInvocationContext extends Attachable {
 
     private static final Logs log = Logs.MAIN;
 
@@ -47,8 +47,7 @@ public final class EJBClientInvocationContext<A> extends Attachable {
     private final EJBReceiverInvocationContext receiverInvocationContext;
     private final EJBInvocationHandler<?> invocationHandler;
     private final EJBClientContext ejbClientContext;
-    private final EJBReceiver<A> receiver;
-    private final A receiverSpecific;
+    private final EJBReceiver receiver;
 
     // Invocation data
     private final Object invokedProxy;
@@ -64,20 +63,19 @@ public final class EJBClientInvocationContext<A> extends Attachable {
     private Map<String, Object> contextData;
 
     // Interceptor state
-    private final EJBClientInterceptor<? super A>[] interceptorChain;
+    private final EJBClientInterceptor[] interceptorChain;
     private int idx;
     private boolean requestDone;
     private boolean resultDone;
 
-    EJBClientInvocationContext(final EJBInvocationHandler<?> invocationHandler, final EJBClientContext ejbClientContext, final A receiverSpecific, final EJBReceiver<A> receiver, final EJBReceiverContext ejbReceiverContext, final Object invokedProxy, final Method invokedMethod, final Object[] parameters) {
+    EJBClientInvocationContext(final EJBInvocationHandler<?> invocationHandler, final EJBClientContext ejbClientContext, final EJBReceiver receiver, final EJBReceiverContext ejbReceiverContext, final Object invokedProxy, final Method invokedMethod, final Object[] parameters) {
         this.invocationHandler = invocationHandler;
         this.ejbClientContext = ejbClientContext;
-        this.receiverSpecific = receiverSpecific;
         this.receiver = receiver;
         this.invokedProxy = invokedProxy;
         this.invokedMethod = invokedMethod;
         this.parameters = parameters;
-        interceptorChain = getClientInterceptors(receiver);
+        interceptorChain = (EJBClientInterceptor[]) ejbClientContext.getInterceptorChain();
         //noinspection ThisEscapedInObjectConstruction
         receiverInvocationContext = new EJBReceiverInvocationContext(this, ejbReceiverContext);
     }
@@ -181,15 +179,6 @@ public final class EJBClientInvocationContext<A> extends Attachable {
     }
 
     /**
-     * Get the receiver-specific attachment for protocol-specific interceptors.
-     *
-     * @return the receiver attachment
-     */
-    public A getReceiverSpecific() {
-        return receiverSpecific;
-    }
-
-    /**
      * Proceed with sending the request normally.
      *
      * @throws Exception if the request was not successfully sent
@@ -199,7 +188,7 @@ public final class EJBClientInvocationContext<A> extends Attachable {
             throw new IllegalStateException("sendRequest() called during wrong phase");
         }
         final int idx = this.idx++;
-        final EJBClientInterceptor<? super A>[] chain = interceptorChain;
+        final EJBClientInterceptor[] chain = interceptorChain;
         try {
             if (chain.length == idx) {
                 receiver.processInvocation(this, receiverInvocationContext);
@@ -226,7 +215,7 @@ public final class EJBClientInvocationContext<A> extends Attachable {
         }
 
         final int idx = this.idx++;
-        final EJBClientInterceptor<? super A>[] chain = interceptorChain;
+        final EJBClientInterceptor[] chain = interceptorChain;
         try {
             if (chain.length == idx) {
                 return resultProducer.getResult();
@@ -276,7 +265,7 @@ public final class EJBClientInvocationContext<A> extends Attachable {
      *
      * @return the EJB receiver
      */
-    protected EJBReceiver<A> getReceiver() {
+    protected EJBReceiver getReceiver() {
         return receiver;
     }
 
@@ -591,17 +580,4 @@ public final class EJBClientInvocationContext<A> extends Attachable {
         }
         resultProducer.discardResult();
     }
-
-    private EJBClientInterceptor<? super A>[] getClientInterceptors(final EJBReceiver<A> ejbReceiver) {
-        final GeneralEJBClientInterceptor[] generalInterceptors = EJBClientContext.GENERAL_INTERCEPTORS;
-        final EJBClientInterceptor<? super A>[] receiverSpecificInterceptors = ejbReceiver.getClientInterceptors();
-        @SuppressWarnings("unchecked")
-        final EJBClientInterceptor<? super A>[] allApplicableInterceptors = new EJBClientInterceptor[generalInterceptors.length + receiverSpecificInterceptors.length];
-
-        System.arraycopy(generalInterceptors, 0, allApplicableInterceptors, 0, generalInterceptors.length);
-        System.arraycopy(receiverSpecificInterceptors, 0, allApplicableInterceptors, generalInterceptors.length, receiverSpecificInterceptors.length);
-
-        return allApplicableInterceptors;
-    }
-
 }

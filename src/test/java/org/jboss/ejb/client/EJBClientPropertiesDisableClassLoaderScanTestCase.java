@@ -85,7 +85,7 @@ public class EJBClientPropertiesDisableClassLoaderScanTestCase {
         final EJBClientContext ejbClientContext = configBasedEJBClientContextSelector.getCurrent();
         logger.info("Found EJB client context " + ejbClientContext);
         Assert.assertNotNull("No client context found " + ejbClientContext);
-        final Collection<EJBReceiver<?>> ejbReceivers = ejbClientContext.getEJBReceivers("dummy-app", "dummy-module", "");
+        final Collection<EJBReceiver> ejbReceivers = ejbClientContext.getEJBReceivers("dummy-app", "dummy-module", "");
         Assert.assertNotNull("No EJB receivers found ", ejbReceivers);
         // there should be no receivers because the classpath scan of jboss-ejb-client.properties was disabled
         // and also no explicit system property was set to point to a configuration file. So it should be an empty context

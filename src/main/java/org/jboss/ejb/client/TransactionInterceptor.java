@@ -23,29 +23,29 @@
 package org.jboss.ejb.client;
 
 /**
+ * The client interceptor which associates the current transaction ID with the invocation.
+ *
  * @author <a href="mailto:david.lloyd@redhat.com">David M. Lloyd</a>
  */
-public final class TransactionInterceptor implements GeneralEJBClientInterceptor {
+public final class TransactionInterceptor implements EJBClientInterceptor {
 
-    public void handleInvocation(final EJBClientInvocationContext<?> context) throws Exception {
+    public void handleInvocation(final EJBClientInvocationContext context) throws Exception {
         final EJBClientTransactionContext current = EJBClientTransactionContext.getCurrent();
         // A EJB client tx context allows to set selectors and there's no guarantee that the
         // selector returns a non-null context. So be safe!
-        if (current == null) {
-            context.sendRequest();
-            return;
-        }
-        final TransactionID transactionID = current.getAssociatedTransactionID(context);
-        if (transactionID != null) {
-            if (transactionID instanceof UserTransactionID) {
-                context.putAttachment(AttachmentKeys.REQUIRED_NODE, ((UserTransactionID) transactionID).getNodeName());
+        if (current != null) {
+            final TransactionID transactionID = current.getAssociatedTransactionID(context);
+            if (transactionID != null) {
+                if (transactionID instanceof UserTransactionID) {
+                    context.putAttachment(AttachmentKeys.REQUIRED_NODE, ((UserTransactionID) transactionID).getNodeName());
+                }
+                context.getContextData().put(TransactionID.PRIVATE_DATA_KEY, transactionID);
             }
-            context.putAttachment(AttachmentKeys.TRANSACTION_ID_KEY, transactionID);
         }
         context.sendRequest();
     }
 
-    public Object handleInvocationResult(final EJBClientInvocationContext<?> context) throws Exception {
+    public Object handleInvocationResult(final EJBClientInvocationContext context) throws Exception {
         return context.getResult();
     }
 }

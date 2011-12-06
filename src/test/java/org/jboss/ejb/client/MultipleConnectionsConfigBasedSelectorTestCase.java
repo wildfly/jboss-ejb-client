@@ -92,29 +92,29 @@ public class MultipleConnectionsConfigBasedSelectorTestCase {
         Assert.assertNotNull("No client context found " + ejbClientContext);
         // find the receiver for dummy-app-one
         // should find server one receiver
-        final Collection<EJBReceiver<?>> appOneReceivers = ejbClientContext.getEJBReceivers("dummy-app-one", "dummy-module-one", "");
+        final Collection<EJBReceiver> appOneReceivers = ejbClientContext.getEJBReceivers("dummy-app-one", "dummy-module-one", "");
         Assert.assertNotNull("No EJB receivers found ", appOneReceivers);
         Assert.assertEquals("Unexpected number of EJB receivers", 1, appOneReceivers.size());
-        final EJBReceiver<?> serverOneReceiver = appOneReceivers.iterator().next();
+        final EJBReceiver serverOneReceiver = appOneReceivers.iterator().next();
         Assert.assertEquals("Unexpected EJB receiver type", RemotingConnectionEJBReceiver.class, serverOneReceiver.getClass());
         Assert.assertEquals("Unexpected EJB receiver", SERVER_ONE_ENDPOINT_NAME, serverOneReceiver.getNodeName());
 
         // find the receiver for dummy-app-two
         // should find server two receiver
-        final Collection<EJBReceiver<?>> appTwoReceivers = ejbClientContext.getEJBReceivers("dummy-app-two", "dummy-module-two", "");
+        final Collection<EJBReceiver> appTwoReceivers = ejbClientContext.getEJBReceivers("dummy-app-two", "dummy-module-two", "");
         Assert.assertNotNull("No EJB receivers found ", appTwoReceivers);
         Assert.assertEquals("Unexpected number of EJB receivers", 1, appTwoReceivers.size());
-        final EJBReceiver<?> serverTwoReceiver = appTwoReceivers.iterator().next();
+        final EJBReceiver serverTwoReceiver = appTwoReceivers.iterator().next();
         Assert.assertEquals("Unexpected EJB receiver type", RemotingConnectionEJBReceiver.class, serverTwoReceiver.getClass());
         Assert.assertEquals("Unexpected EJB receiver", SERVER_TWO_ENDPOINT_NAME, serverTwoReceiver.getNodeName());
 
         // find the receivers for dummy-app-on-both-servers
         // should find both the server receivers
-        final Collection<EJBReceiver<?>> bothServerReceivers = ejbClientContext.getEJBReceivers("dummy-app-on-both-servers", "dummy-module-on-both-servers", "");
+        final Collection<EJBReceiver> bothServerReceivers = ejbClientContext.getEJBReceivers("dummy-app-on-both-servers", "dummy-module-on-both-servers", "");
         Assert.assertNotNull("No EJB receivers found ", bothServerReceivers);
         Assert.assertEquals("Unexpected number of EJB receivers", 2, bothServerReceivers.size());
         final Set<String> receiverNodeNames = new HashSet<String>();
-        for (final EJBReceiver<?> ejbReceiver : bothServerReceivers) {
+        for (final EJBReceiver ejbReceiver : bothServerReceivers) {
             Assert.assertEquals("Unexpected EJB receiver type", RemotingConnectionEJBReceiver.class, ejbReceiver.getClass());
             receiverNodeNames.add(ejbReceiver.getNodeName());
         }

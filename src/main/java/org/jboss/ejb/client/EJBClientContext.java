@@ -22,15 +22,14 @@
 
 package org.jboss.ejb.client;
 
-import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.IdentityHashMap;
 import java.util.Iterator;
-import java.util.List;
 import java.util.Map;
-import java.util.ServiceLoader;
 
+import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 import org.jboss.ejb.client.remoting.RemotingConnectionEJBReceiver;
 import org.jboss.remoting3.Connection;
 
@@ -43,34 +42,41 @@ import org.jboss.remoting3.Connection;
 public final class EJBClientContext extends Attachable {
 
     /**
-     * EJB client context selector. By default the {@link ConfigBasedEJBClientContextSelector} is used
+     * EJB client context selector. By default the {@link ConfigBasedEJBClientContextSelector} is used.
      */
     private static volatile ContextSelector<EJBClientContext> SELECTOR = ConfigBasedEJBClientContextSelector.INSTANCE;
 
     private static final RuntimePermission SET_SELECTOR_PERMISSION = new RuntimePermission("setEJBClientContextSelector");
+    private static final EJBClientInterceptor.Registration[] NO_INTERCEPTORS = new EJBClientInterceptor.Registration[0];
 
-    static final GeneralEJBClientInterceptor[] GENERAL_INTERCEPTORS;
+    private final Map<EJBReceiver, EJBReceiverContext> ejbReceiverAssociations = new IdentityHashMap<EJBReceiver, EJBReceiverContext>();
+    private volatile EJBClientInterceptor.Registration[] registrations = NO_INTERCEPTORS;
 
-    static {
-        final List<GeneralEJBClientInterceptor> interceptors = new ArrayList<GeneralEJBClientInterceptor>();
-        for (GeneralEJBClientInterceptor interceptor : ServiceLoader.load(GeneralEJBClientInterceptor.class)) {
-            interceptors.add(interceptor);
-        }
-        GENERAL_INTERCEPTORS = interceptors.toArray(new GeneralEJBClientInterceptor[interceptors.size()]);
-    }
-
-    private final Map<EJBReceiver<?>, EJBReceiverContext> ejbReceiverAssociations = new IdentityHashMap<EJBReceiver<?>, EJBReceiverContext>();
+    private static final AtomicReferenceFieldUpdater<EJBClientContext, EJBClientInterceptor.Registration[]> registrationsUpdater = AtomicReferenceFieldUpdater.newUpdater(EJBClientContext.class, EJBClientInterceptor.Registration[].class, "registrations");
 
     EJBClientContext() {
     }
 
+    private void init(ClassLoader classLoader) {
+        if (classLoader == null) {
+            classLoader = EJBClientContext.class.getClassLoader();
+        }
+        for (EJBClientContextInitializer contextInitializer : SecurityActions.loadService(EJBClientContextInitializer.class, classLoader)) {
+            try {
+                contextInitializer.initialize(this);
+            } catch (Throwable ignored) {}
+        }
+    }
+
     /**
-     * Creates and returns a new client context
+     * Creates and returns a new client context.
      *
-     * @return Returns the newly created context
+     * @return the newly created context
      */
     public static EJBClientContext create() {
-        return new EJBClientContext();
+        final EJBClientContext context = new EJBClientContext();
+        context.init(SecurityActions.getContextClassLoader());
+        return context;
     }
 
     /**
@@ -134,7 +140,7 @@ public final class EJBClientContext extends Attachable {
      * @param receiver the receiver to register
      * @throws IllegalArgumentException If the passed <code>receiver</code> is null
      */
-    public void registerEJBReceiver(final EJBReceiver<?> receiver) {
+    public void registerEJBReceiver(final EJBReceiver receiver) {
         if (receiver == null) {
             throw new IllegalArgumentException("receiver is null");
         }
@@ -159,7 +165,7 @@ public final class EJBClientContext extends Attachable {
      * @param receiver The EJB receiver to unregister
      * @throws IllegalArgumentException If the passed <code>receiver</code> is null
      */
-    public void unregisterEJBReceiver(final EJBReceiver<?> receiver) {
+    public void unregisterEJBReceiver(final EJBReceiver receiver) {
         if (receiver == null) {
             throw new IllegalArgumentException("Receiver cannot be null");
         }
@@ -177,10 +183,70 @@ public final class EJBClientContext extends Attachable {
         registerEJBReceiver(new RemotingConnectionEJBReceiver(connection));
     }
 
-    Collection<EJBReceiver<?>> getEJBReceivers(final String appName, final String moduleName, final String distinctName) {
-        final Collection<EJBReceiver<?>> eligibleEJBReceivers = new HashSet<EJBReceiver<?>>();
+    /**
+     * Register a client interceptor with this client context.
+     *
+     * @param priority the absolute priority of this interceptor (lower runs earlier; higher runs later)
+     * @param clientInterceptor the interceptor to register
+     * @return a handle which may be used to later remove this registration
+     * @throws IllegalArgumentException if the given interceptor is {@code null}, the priority is less than 0, or the
+     *      given interceptor is already registered
+     */
+    public EJBClientInterceptor.Registration registerInterceptor(final int priority, final EJBClientInterceptor clientInterceptor) throws IllegalArgumentException {
+        if (clientInterceptor == null) {
+            throw new IllegalArgumentException("clientInterceptor is null");
+        }
+        final EJBClientInterceptor.Registration registration = new EJBClientInterceptor.Registration(this, clientInterceptor, priority);
+        EJBClientInterceptor.Registration[] oldRegistrations, newRegistrations;
+        do {
+            oldRegistrations = registrations;
+            for (EJBClientInterceptor.Registration reg : oldRegistrations) {
+                if (reg.getInterceptor() == clientInterceptor) {
+                    throw new IllegalArgumentException("Interceptor '" + clientInterceptor + "' is already registered");
+                }
+            }
+            final int length = oldRegistrations.length;
+            newRegistrations = Arrays.copyOf(oldRegistrations, length + 1);
+            newRegistrations[length] = registration;
+            Arrays.sort(newRegistrations);
+        } while (! registrationsUpdater.compareAndSet(this, oldRegistrations, newRegistrations));
+        return registration;
+    }
+
+    void removeInterceptor(final EJBClientInterceptor.Registration registration) {
+        EJBClientInterceptor.Registration[] oldRegistrations, newRegistrations;
+        do {
+            oldRegistrations = registrations;
+            newRegistrations = null;
+            final int length = oldRegistrations.length;
+            final int newLength = length - 1;
+            if (length == 1) {
+                if (oldRegistrations[0].getInterceptor() == registration) {
+                    newRegistrations = NO_INTERCEPTORS;
+                }
+            } else for (int i = 0; i < length; i++) {
+                if (oldRegistrations[i].getInterceptor() == registration) {
+                    if (i == newLength) {
+                        newRegistrations = Arrays.copyOf(oldRegistrations, newLength);
+                        break;
+                    } else {
+                        newRegistrations = new EJBClientInterceptor.Registration[newLength];
+                        if (i > 0) System.arraycopy(oldRegistrations, 0, newRegistrations, 0, i);
+                        System.arraycopy(oldRegistrations, i + 1, newRegistrations, i, newLength - i);
+                        break;
+                    }
+                }
+            }
+            if (newRegistrations == null) {
+                return;
+            }
+        } while (! registrationsUpdater.compareAndSet(this, oldRegistrations, newRegistrations));
+    }
+
+    Collection<EJBReceiver> getEJBReceivers(final String appName, final String moduleName, final String distinctName) {
+        final Collection<EJBReceiver> eligibleEJBReceivers = new HashSet<EJBReceiver>();
         synchronized (this.ejbReceiverAssociations) {
-            for (final EJBReceiver<?> ejbReceiver : this.ejbReceiverAssociations.keySet()) {
+            for (final EJBReceiver ejbReceiver : this.ejbReceiverAssociations.keySet()) {
                 if (ejbReceiver.acceptsModule(appName, moduleName, distinctName)) {
                     eligibleEJBReceivers.add(ejbReceiver);
                 }
@@ -197,8 +263,8 @@ public final class EJBClientContext extends Attachable {
      * @param distinctName the distinct name, or {@code null} for none
      * @return the first EJB receiver to match, or {@code null} if none match
      */
-    EJBReceiver<?> getEJBReceiver(final String appName, final String moduleName, final String distinctName) {
-        final Iterator<EJBReceiver<?>> iterator = getEJBReceivers(appName, moduleName, distinctName).iterator();
+    EJBReceiver getEJBReceiver(final String appName, final String moduleName, final String distinctName) {
+        final Iterator<EJBReceiver> iterator = getEJBReceivers(appName, moduleName, distinctName).iterator();
         return iterator.hasNext() ? iterator.next() : null;
     }
 
@@ -213,10 +279,10 @@ public final class EJBClientContext extends Attachable {
      * @throws IllegalStateException If there's no {@link EJBReceiver} which can handle a EJB for the passed combination
      *                               of app, module and distinct name.
      */
-    EJBReceiver<?> requireEJBReceiver(final String appName, final String moduleName, final String distinctName)
+    EJBReceiver requireEJBReceiver(final String appName, final String moduleName, final String distinctName)
             throws IllegalStateException {
 
-        EJBReceiver<?> ejbReceiver = null;
+        EJBReceiver ejbReceiver = null;
         // This is an "optimization"
         // if there's just one EJBReceiver, then we don't check whether it can handle the module. We just
         // assume that it will be able to handle this module (if not, it will throw a NoSuchEJBException anyway)
@@ -248,7 +314,7 @@ public final class EJBClientContext extends Attachable {
      * @return The {@link EJBReceiverContext}
      * @throws IllegalStateException If the passed <code>receiver</code> hasn't been registered with this {@link EJBClientContext}
      */
-    EJBReceiverContext requireEJBReceiverContext(final EJBReceiver<?> receiver) throws IllegalStateException {
+    EJBReceiverContext requireEJBReceiverContext(final EJBReceiver receiver) throws IllegalStateException {
         synchronized (this.ejbReceiverAssociations) {
             final EJBReceiverContext receiverContext = this.ejbReceiverAssociations.get(receiver);
             if (receiverContext == null) {
@@ -263,7 +329,7 @@ public final class EJBClientContext extends Attachable {
             throw new IllegalArgumentException("Node name cannot be null");
         }
         synchronized (this.ejbReceiverAssociations) {
-            for (final EJBReceiver<?> ejbReceiver : this.ejbReceiverAssociations.keySet()) {
+            for (final EJBReceiver ejbReceiver : this.ejbReceiverAssociations.keySet()) {
                 if (nodeName.equals(ejbReceiver.getNodeName())) {
                     return ejbReceiver;
                 }
@@ -275,5 +341,15 @@ public final class EJBClientContext extends Attachable {
     EJBReceiverContext requireNodeEJBReceiverContext(final String nodeName) {
         final EJBReceiver ejbReceiver = this.requireNodeEJBReceiver(nodeName);
         return this.requireEJBReceiverContext(ejbReceiver);
+    }
+
+    EJBClientInterceptor[] getInterceptorChain() {
+        // todo optimize to eliminate copy
+        final EJBClientInterceptor.Registration[] registrations = this.registrations;
+        final EJBClientInterceptor[] interceptors = new EJBClientInterceptor[registrations.length];
+        for (int i = 0; i < registrations.length; i++) {
+            interceptors[i] = registrations[i].getInterceptor();
+        }
+        return interceptors;
     }
 }

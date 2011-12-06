@@ -22,9 +22,6 @@
 
 package org.jboss.ejb.client;
 
-import java.io.IOException;
-import java.io.NotSerializableException;
-import java.io.ObjectOutputStream;
 import java.io.Serializable;
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
@@ -92,7 +89,7 @@ final class EJBInvocationHandler<T> extends Attachable implements InvocationHand
             return handler.invoke(this, proxy, method, args);
         }
         final EJBClientContext context = EJBClientContext.requireCurrent();
-        final EJBReceiver<?> receiver = context.requireEJBReceiver(locator.getAppName(), locator.getModuleName(), locator.getDistinctName());
+        final EJBReceiver receiver = context.requireEJBReceiver(locator.getAppName(), locator.getModuleName(), locator.getDistinctName());
         return doInvoke(this, async, proxy, method, args, receiver, context);
     }
 
@@ -105,10 +102,10 @@ final class EJBInvocationHandler<T> extends Attachable implements InvocationHand
         throw Logs.MAIN.proxyNotOurs(proxy, EJBClient.class.getName());
     }
 
-    private static <T, A> Object doInvoke(final EJBInvocationHandler<T> ejbInvocationHandler, final boolean async, final T proxy, final Method method, final Object[] args, final EJBReceiver<A> receiver, EJBClientContext clientContext) throws Throwable {
+    private static <T> Object doInvoke(final EJBInvocationHandler<T> ejbInvocationHandler, final boolean async, final T proxy, final Method method, final Object[] args, final EJBReceiver receiver, EJBClientContext clientContext) throws Throwable {
         // todo - concatenate receiver chain too
         final EJBReceiverContext ejbReceiverContext = clientContext.requireEJBReceiverContext(receiver);
-        final EJBClientInvocationContext<A> invocationContext = new EJBClientInvocationContext<A>(ejbInvocationHandler, clientContext, receiver.createReceiverSpecific(), receiver, ejbReceiverContext, proxy, method, args);
+        final EJBClientInvocationContext invocationContext = new EJBClientInvocationContext(ejbInvocationHandler, clientContext, receiver, ejbReceiverContext, proxy, method, args);
 
         invocationContext.sendRequest();
 

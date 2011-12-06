@@ -67,7 +67,7 @@ public final class EJBClientManagedTransactionContext extends EJBClientTransacti
         }
     }
 
-    protected TransactionID getAssociatedTransactionID(final EJBClientInvocationContext<?> invocationContext) throws Exception {
+    protected TransactionID getAssociatedTransactionID(final EJBClientInvocationContext invocationContext) throws Exception {
         final Transaction transaction = transactionManager.getTransaction();
         if (transaction == null) {
             // no txn
@@ -75,7 +75,7 @@ public final class EJBClientManagedTransactionContext extends EJBClientTransacti
         }
         final Object transactionKey = synchronizationRegistry.getTransactionKey();
 
-        final EJBReceiver<?> receiver = invocationContext.getReceiver();
+        final EJBReceiver receiver = invocationContext.getReceiver();
         final String nodeName = receiver.getNodeName();
 
         final ResourceImpl resource = new ResourceImpl(transactionKey, nodeName);
@@ -204,21 +204,21 @@ public final class EJBClientManagedTransactionContext extends EJBClientTransacti
         public void commit(final Xid xid, final boolean onePhase) throws XAException {
             final XidTransactionID transactionID = new XidTransactionID(xid);
             final EJBReceiverContext receiverContext = EJBClientContext.requireCurrent().requireNodeEJBReceiverContext(this.nodeName);
-            final EJBReceiver<?> receiver = receiverContext.getReceiver();
+            final EJBReceiver receiver = receiverContext.getReceiver();
             receiver.sendCommit(receiverContext, transactionID, onePhase);
         }
 
         public void forget(final Xid xid) throws XAException {
             final XidTransactionID transactionID = new XidTransactionID(xid);
             final EJBReceiverContext receiverContext = EJBClientContext.requireCurrent().requireNodeEJBReceiverContext(this.nodeName);
-            final EJBReceiver<?> receiver = receiverContext.getReceiver();
+            final EJBReceiver receiver = receiverContext.getReceiver();
             receiver.sendForget(receiverContext, transactionID);
         }
 
         public void rollback(final Xid xid) throws XAException {
             final XidTransactionID transactionID = new XidTransactionID(xid);
             final EJBReceiverContext receiverContext = EJBClientContext.requireCurrent().requireNodeEJBReceiverContext(this.nodeName);
-            final EJBReceiver<?> receiver = receiverContext.getReceiver();
+            final EJBReceiver receiver = receiverContext.getReceiver();
             receiver.sendRollback(receiverContext, transactionID);
         }
 

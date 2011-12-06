@@ -113,18 +113,27 @@ public abstract class SessionID implements Serializable {
     }
 
     /**
-     * Serialized representation.
+     * Serialized representation of a session ID..
      */
-    static final class Serialized implements Serializable {
+    public static final class Serialized implements Serializable {
 
         private static final long serialVersionUID = -6014782612354158572L;
 
+        /**
+         * The bytes of the session ID.
+         * @serial
+         */
         private final byte[] id;
 
         Serialized(final byte[] id) {
             this.id = id;
         }
 
+        /**
+         * Reconstitute the session ID from this serialized representation.
+         *
+         * @return the session ID object
+         */
         protected Object readResolve() {
             return createSessionID(id);
         }

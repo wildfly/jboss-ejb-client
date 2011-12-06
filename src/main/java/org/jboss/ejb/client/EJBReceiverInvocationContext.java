@@ -28,13 +28,13 @@ package org.jboss.ejb.client;
  * @author <a href="mailto:david.lloyd@redhat.com">David M. Lloyd</a>
  */
 public final class EJBReceiverInvocationContext {
-    private final EJBClientInvocationContext<?> clientInvocationContext;
+    private final EJBClientInvocationContext clientInvocationContext;
 
     private final EJBReceiverContext ejbReceiverContext;
 
 
 
-    EJBReceiverInvocationContext(final EJBClientInvocationContext<?> clientInvocationContext, final EJBReceiverContext ejbReceiverContext) {
+    EJBReceiverInvocationContext(final EJBClientInvocationContext clientInvocationContext, final EJBReceiverContext ejbReceiverContext) {
         this.clientInvocationContext = clientInvocationContext;
         this.ejbReceiverContext = ejbReceiverContext;
     }

@@ -31,7 +31,7 @@ package org.jboss.ejb.client;
  *
  * @author <a href="mailto:david.lloyd@redhat.com">David M. Lloyd</a>
  */
-public interface EJBClientInterceptor<A> {
+public interface EJBClientInterceptor {
 
     /**
      * Handle the invocation.  Implementations may short-circuit the invocation by throwing an exception.  This method
@@ -40,7 +40,7 @@ public interface EJBClientInterceptor<A> {
      * @param context the invocation context
      * @throws Exception if an invocation error occurs
      */
-    void handleInvocation(EJBClientInvocationContext<? extends A> context) throws Exception;
+    void handleInvocation(EJBClientInvocationContext context) throws Exception;
 
     /**
      * Handle the invocation result.  The implementation should generally call {@link EJBClientInvocationContext#getResult()}
@@ -50,5 +50,35 @@ public interface EJBClientInterceptor<A> {
      * @return the invocation result, if any
      * @throws Exception if an invocation error occurred
      */
-    Object handleInvocationResult(EJBClientInvocationContext<? extends A> context) throws Exception;
+    Object handleInvocationResult(EJBClientInvocationContext context) throws Exception;
+
+    /**
+     * An interceptor registration handle.
+     */
+    class Registration implements Comparable<Registration> {
+        private final EJBClientContext clientContext;
+        private final EJBClientInterceptor interceptor;
+        private final int priority;
+
+        Registration(final EJBClientContext clientContext, final EJBClientInterceptor interceptor, final int priority) {
+            this.clientContext = clientContext;
+            this.interceptor = interceptor;
+            this.priority = priority;
+        }
+
+        /**
+         * Remove this registration.
+         */
+        public void remove() {
+            clientContext.removeInterceptor(this);
+        }
+
+        EJBClientInterceptor getInterceptor() {
+            return interceptor;
+        }
+
+        public int compareTo(final Registration o) {
+            return Integer.signum(priority - o.priority);
+        }
+    }
 }
