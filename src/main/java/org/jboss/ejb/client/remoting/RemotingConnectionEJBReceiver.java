@@ -398,7 +398,7 @@ public final class RemotingConnectionEJBReceiver extends EJBReceiver<RemotingAtt
 
     void moduleUnavailable(final EJBReceiverContext receiverContext, final String appName, final String moduleName, final String distinctName) {
         logger.debug("Received module un-availability message for appName: " + appName + " moduleName: " + moduleName + " distinctName: " + distinctName + " for receiver context " + receiverContext);
-        this.deRegisterModule(appName, moduleName, distinctName);
+        this.deregisterModule(appName, moduleName, distinctName);
     }
 
     private ChannelAssociation requireChannelAssociation(final EJBReceiverContext ejbReceiverContext) {

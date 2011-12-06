@@ -62,14 +62,14 @@ public abstract class EJBReceiver<A> extends Attachable {
     }
 
     /**
-     * De-register a module from this receiver.
+     * Deregister a module from this receiver.
      *
      * @param appName      the app name
      * @param moduleName   the module name
      * @param distinctName the distinct name
      * @return {@code true} if the registration was present
      */
-    protected final boolean deRegisterModule(String appName, String moduleName, String distinctName) {
+    protected final boolean deregisterModule(String appName, String moduleName, String distinctName) {
         return accessibleModules.remove(new ModuleID(appName, moduleName, distinctName));
     }
 
