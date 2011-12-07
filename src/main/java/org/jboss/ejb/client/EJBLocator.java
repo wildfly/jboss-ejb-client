@@ -50,8 +50,8 @@ public abstract class EJBLocator<T> implements Serializable {
     private final transient int hashCode;
 
     private static final FieldSetter hashCodeSetter = FieldSetter.get(EJBLocator.class, "hashCode");
-    private static final FieldSetter proxyClassSetter = FieldSetter.get(Class.class, "proxyClass");
-    private static final FieldSetter proxyConstructorSetter = FieldSetter.get(Constructor.class, "proxyConstructor");
+    private static final FieldSetter proxyClassSetter = FieldSetter.get(EJBLocator.class, "proxyClass");
+    private static final FieldSetter proxyConstructorSetter = FieldSetter.get(EJBLocator.class, "proxyConstructor");
 
     EJBLocator(final Class<T> viewType, final String appName, final String moduleName, final String beanName, final String distinctName) {
         if (viewType == null) {
