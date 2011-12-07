@@ -22,11 +22,22 @@
 
 package org.jboss.ejb.client.remoting;
 
-import org.jboss.ejb.client.EJBLocator;
-
 import java.io.DataInput;
 import java.io.DataOutput;
+import java.io.EOFException;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
+
+import org.jboss.ejb.client.EJBLocator;
+import org.jboss.marshalling.AbstractClassResolver;
+import org.jboss.marshalling.ByteInput;
+import org.jboss.marshalling.ByteOutput;
+import org.jboss.marshalling.Marshaller;
+import org.jboss.marshalling.MarshallerFactory;
+import org.jboss.marshalling.Marshalling;
+import org.jboss.marshalling.MarshallingConfiguration;
+import org.jboss.marshalling.Unmarshaller;
 
 /**
  * User: jpai
@@ -36,7 +47,7 @@ public class DummyProtocolHandler {
 
     private static final char METHOD_PARAM_TYPE_SEPARATOR = ',';
 
-    private final String marshallerType;
+    private final MarshallerFactory marshallerFactory;
 
     private static final byte HEADER_SESSION_OPEN_RESPONSE = 0x02;
     private static final byte HEADER_INVOCATION_REQUEST = 0x03;
@@ -47,7 +58,10 @@ public class DummyProtocolHandler {
     private static final byte HEADER_MODULE_UNAVAILABLE = 0x09;
 
     public DummyProtocolHandler(final String marshallerType) {
-        this.marshallerType = marshallerType;
+        this.marshallerFactory = Marshalling.getProvidedMarshallerFactory(marshallerType);
+        if (this.marshallerFactory == null) {
+            throw new RuntimeException("Could not find a marshaller factory for " + marshallerType + " marshalling strategy");
+        }
     }
 
     public MethodInvocationRequest readMethodInvocationRequest(final DataInput input, final ClassLoader cl) throws IOException {
@@ -67,35 +81,29 @@ public class DummyProtocolHandler {
 
         // un-marshall the method params
         final Object[] methodParams = new Object[methodParamTypes.length];
-        final UnMarshaller unMarshaller = MarshallerFactory.createUnMarshaller(this.marshallerType);
-        unMarshaller.start(input, new UnMarshaller.ClassLoaderProvider() {
-            @Override
-            public ClassLoader provideClassLoader() {
-                return cl;
-            }
-        });
+        final Unmarshaller unmarshaller = this.prepareForUnMarshalling(input);
         String appName = null;
         String moduleName = null;
         String distinctName = null;
         String beanName = null;
         EJBLocator ejbLocator = null;
         try {
-            appName = (String) unMarshaller.readObject();
-            moduleName = (String) unMarshaller.readObject();
-            distinctName = (String) unMarshaller.readObject();
-            beanName = (String) unMarshaller.readObject();
-            ejbLocator = (EJBLocator) unMarshaller.readObject();
+            appName = (String) unmarshaller.readObject();
+            moduleName = (String) unmarshaller.readObject();
+            distinctName = (String) unmarshaller.readObject();
+            beanName = (String) unmarshaller.readObject();
+            ejbLocator = (EJBLocator) unmarshaller.readObject();
         } catch (ClassNotFoundException e) {
             throw new RuntimeException(e);
         }
         for (int i = 0; i < methodParamTypes.length; i++) {
             try {
-                methodParams[i] = unMarshaller.readObject();
+                methodParams[i] = unmarshaller.readObject();
             } catch (ClassNotFoundException cnfe) {
                 throw new RuntimeException(cnfe);
             }
         }
-        unMarshaller.finish();
+        unmarshaller.finish();
 
         return new MethodInvocationRequest(invocationId, appName, moduleName, distinctName, beanName,
                 ejbLocator.getViewType().getName(), methodName, methodParamTypes, methodParams, attachments);
@@ -114,8 +122,7 @@ public class DummyProtocolHandler {
         // write the attachments
         this.writeAttachments(output, attachments);
         // write out the result
-        final Marshaller marshaller = MarshallerFactory.createMarshaller(this.marshallerType);
-        marshaller.start(output);
+        final Marshaller marshaller = this.prepareForMarshalling(output);
         marshaller.writeObject(result);
         marshaller.finish();
     }
@@ -159,4 +166,101 @@ public class DummyProtocolHandler {
         }
     }
 
+    /**
+     * Creates and returns a {@link org.jboss.marshalling.Marshaller} which is ready to be used for marshalling. The {@link org.jboss.marshalling.Marshaller#start(org.jboss.marshalling.ByteOutput)}
+     * will be invoked by this method, to use the passed {@link DataOutput dataOutput}, before returning the marshaller.
+     *
+     * @param dataOutput The {@link DataOutput} to which the data will be marshalled
+     * @return
+     * @throws IOException
+     */
+    private Marshaller prepareForMarshalling(final DataOutput dataOutput) throws IOException {
+        final Marshaller marshaller = this.getMarshaller();
+        final OutputStream outputStream = new OutputStream() {
+            @Override
+            public void write(int b) throws IOException {
+                final int byteToWrite = b & 0xff;
+                dataOutput.write(byteToWrite);
+            }
+        };
+        final ByteOutput byteOutput = Marshalling.createByteOutput(outputStream);
+        // start the marshaller
+        marshaller.start(byteOutput);
+
+        return marshaller;
+    }
+
+    /**
+     * Creates and returns a {@link Marshaller}
+     *
+     * @return
+     * @throws IOException
+     */
+    private Marshaller getMarshaller() throws IOException {
+        final MarshallingConfiguration marshallingConfiguration = new MarshallingConfiguration();
+        marshallingConfiguration.setClassTable(ProtocolV1ClassTable.INSTANCE);
+        marshallingConfiguration.setVersion(2);
+
+        return marshallerFactory.createMarshaller(marshallingConfiguration);
+    }
+
+    /**
+     * Creates and returns a {@link org.jboss.marshalling.Unmarshaller} which is ready to be used for unmarshalling. The {@link org.jboss.marshalling.Unmarshaller#start(org.jboss.marshalling.ByteInput)}
+     * will be invoked by this method, to use the passed {@link DataInput dataInput}, before returning the unmarshaller.
+     *
+     * @param dataInput The data input from which to unmarshall
+     * @return
+     * @throws IOException
+     */
+    private Unmarshaller prepareForUnMarshalling(final DataInput dataInput) throws IOException {
+        final Unmarshaller unmarshaller = this.getUnMarshaller();
+        final InputStream is = new InputStream() {
+            @Override
+            public int read() throws IOException {
+                try {
+
+                    final int b = dataInput.readByte();
+                    return b & 0xff;
+                } catch (EOFException eof) {
+                    return -1;
+                }
+            }
+        };
+        final ByteInput byteInput = Marshalling.createByteInput(is);
+        // start the unmarshaller
+        unmarshaller.start(byteInput);
+
+        return unmarshaller;
+    }
+
+    /**
+     * Creates and returns a {@link Unmarshaller}
+     *
+     * @return
+     * @throws IOException
+     */
+    private Unmarshaller getUnMarshaller() throws IOException {
+        final MarshallingConfiguration marshallingConfiguration = new MarshallingConfiguration();
+        marshallingConfiguration.setVersion(2);
+        marshallingConfiguration.setClassTable(ProtocolV1ClassTable.INSTANCE);
+        marshallingConfiguration.setClassResolver(TCCLClassResolver.INSTANCE);
+
+        return marshallerFactory.createUnmarshaller(marshallingConfiguration);
+    }
+
+    /**
+     * A {@link org.jboss.marshalling.ClassResolver} which returns the context classloader associated
+     * with the thread, when the {@link #getClassLoader()} is invoked
+     */
+    private static final class TCCLClassResolver extends AbstractClassResolver {
+        static TCCLClassResolver INSTANCE = new TCCLClassResolver();
+
+        private TCCLClassResolver() {
+        }
+
+        @Override
+        protected ClassLoader getClassLoader() {
+            return SecurityActions.getContextClassLoader();
+        }
+    }
 }
