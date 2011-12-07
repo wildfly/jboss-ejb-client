@@ -28,8 +28,8 @@ import java.util.HashSet;
 import java.util.IdentityHashMap;
 import java.util.Iterator;
 import java.util.Map;
-
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
+
 import org.jboss.ejb.client.remoting.RemotingConnectionEJBReceiver;
 import org.jboss.remoting3.Connection;
 
@@ -66,7 +66,8 @@ public final class EJBClientContext extends Attachable {
         for (EJBClientContextInitializer contextInitializer : SecurityActions.loadService(EJBClientContextInitializer.class, classLoader)) {
             try {
                 contextInitializer.initialize(this);
-            } catch (Throwable ignored) {}
+            } catch (Throwable ignored) {
+            }
         }
     }
 
@@ -201,12 +202,17 @@ public final class EJBClientContext extends Attachable {
 
     /**
      * Register a client interceptor with this client context.
+     * <p/>
+     * If the passed <code>clientInterceptor</code> is already added to this context with the same <code>priority</code>
+     * then this method just returns the old {@link org.jboss.ejb.client.EJBClientInterceptor.Registration}. If however,
+     * the <code>clientInterceptor</code> is already registered in this context with a different priority then this method
+     * throws an {@link IllegalArgumentException}
      *
-     * @param priority the absolute priority of this interceptor (lower runs earlier; higher runs later)
+     * @param priority          the absolute priority of this interceptor (lower runs earlier; higher runs later)
      * @param clientInterceptor the interceptor to register
      * @return a handle which may be used to later remove this registration
      * @throws IllegalArgumentException if the given interceptor is {@code null}, the priority is less than 0, or the
-     *      given interceptor is already registered
+     *                                  given interceptor is already registered with a different priority
      */
     public EJBClientInterceptor.Registration registerInterceptor(final int priority, final EJBClientInterceptor clientInterceptor) throws IllegalArgumentException {
         if (clientInterceptor == null) {
@@ -216,21 +222,30 @@ public final class EJBClientContext extends Attachable {
         if (sm != null) {
             sm.checkPermission(ADD_INTERCEPTOR_PERMISSION);
         }
-        final EJBClientInterceptor.Registration registration = new EJBClientInterceptor.Registration(this, clientInterceptor, priority);
+        final EJBClientInterceptor.Registration newRegistration = new EJBClientInterceptor.Registration(this, clientInterceptor, priority);
         EJBClientInterceptor.Registration[] oldRegistrations, newRegistrations;
         do {
             oldRegistrations = registrations;
-            for (EJBClientInterceptor.Registration reg : oldRegistrations) {
-                if (reg.getInterceptor() == clientInterceptor) {
-                    throw new IllegalArgumentException("Interceptor '" + clientInterceptor + "' is already registered");
+            for (EJBClientInterceptor.Registration oldRegistration : oldRegistrations) {
+                if (oldRegistration.getInterceptor() == clientInterceptor) {
+                    if (oldRegistration.compareTo(newRegistration) == 0) {
+                        // This means that a client interceptor which has already been added to this context,
+                        // is being added with the same priority. In such cases, this new registration request
+                        // is effectively a no-op and we just return the old registration
+                        return oldRegistration;
+                    } else {
+                        // This means that a client interceptor which has been added to this context, is being added
+                        // again with a different priority. We don't allow that to happen
+                        throw new IllegalArgumentException("Interceptor '" + clientInterceptor + "' is already registered");
+                    }
                 }
             }
             final int length = oldRegistrations.length;
             newRegistrations = Arrays.copyOf(oldRegistrations, length + 1);
-            newRegistrations[length] = registration;
+            newRegistrations[length] = newRegistration;
             Arrays.sort(newRegistrations);
-        } while (! registrationsUpdater.compareAndSet(this, oldRegistrations, newRegistrations));
-        return registration;
+        } while (!registrationsUpdater.compareAndSet(this, oldRegistrations, newRegistrations));
+        return newRegistration;
     }
 
     void removeInterceptor(final EJBClientInterceptor.Registration registration) {
@@ -260,7 +275,7 @@ public final class EJBClientContext extends Attachable {
             if (newRegistrations == null) {
                 return;
             }
-        } while (! registrationsUpdater.compareAndSet(this, oldRegistrations, newRegistrations));
+        } while (!registrationsUpdater.compareAndSet(this, oldRegistrations, newRegistrations));
     }
 
     Collection<EJBReceiver> getEJBReceivers(final String appName, final String moduleName, final String distinctName) {
