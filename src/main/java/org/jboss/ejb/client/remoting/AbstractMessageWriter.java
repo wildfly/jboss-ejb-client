@@ -95,6 +95,7 @@ class AbstractMessageWriter {
     private Marshaller getMarshaller(final MarshallerFactory marshallerFactory) throws IOException {
         final MarshallingConfiguration marshallingConfiguration = new MarshallingConfiguration();
         marshallingConfiguration.setClassTable(ProtocolV1ClassTable.INSTANCE);
+        marshallingConfiguration.setObjectTable(ProtocolV1ObjectTable.INSTANCE);
         marshallingConfiguration.setVersion(2);
 
         return marshallerFactory.createMarshaller(marshallingConfiguration);
