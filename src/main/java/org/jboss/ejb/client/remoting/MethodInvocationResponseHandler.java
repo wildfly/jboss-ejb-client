@@ -22,12 +22,14 @@
 
 package org.jboss.ejb.client.remoting;
 
-import org.jboss.ejb.client.EJBReceiverInvocationContext;
-import org.jboss.logging.Logger;
-import org.jboss.remoting3.MessageInputStream;
-
 import java.io.DataInputStream;
 import java.io.IOException;
+
+import org.jboss.ejb.client.EJBReceiverInvocationContext;
+import org.jboss.logging.Logger;
+import org.jboss.marshalling.MarshallerFactory;
+import org.jboss.marshalling.Unmarshaller;
+import org.jboss.remoting3.MessageInputStream;
 
 /**
  * Responsible for processing a message and parsing the method invocation response from it, as per the
@@ -40,12 +42,11 @@ class MethodInvocationResponseHandler extends ProtocolMessageHandler {
 
     private static final Logger logger = Logger.getLogger(MethodInvocationResponseHandler.class);
 
-    private final String marshallingType;
-
     private final ChannelAssociation channelAssociation;
+    private final MarshallerFactory marshallerFactory;
 
-    MethodInvocationResponseHandler(final ChannelAssociation channelAssociation, final String marshallingType) {
-        this.marshallingType = marshallingType;
+    MethodInvocationResponseHandler(final ChannelAssociation channelAssociation, final MarshallerFactory marshallerFactory) {
+        this.marshallerFactory = marshallerFactory;
         this.channelAssociation = channelAssociation;
     }
 
@@ -90,20 +91,12 @@ class MethodInvocationResponseHandler extends ProtocolMessageHandler {
             try {
                 // read the attachments
                 MethodInvocationResponseHandler.this.readAttachments(input);
-                final UnMarshaller unMarshaller = MarshallerFactory.createUnMarshaller(MethodInvocationResponseHandler.this.marshallingType);
-                final ClassLoader classLoader = Thread.currentThread().getContextClassLoader();
-                // A ClassLoaderProvider which returns TCCL that was present when this provider
-                // was instantiated
-                final UnMarshaller.ClassLoaderProvider classLoaderProvider = new UnMarshaller.ClassLoaderProvider() {
-                    @Override
-                    public ClassLoader provideClassLoader() {
-                        return classLoader;
-                    }
-                };
-                unMarshaller.start(this.input, classLoaderProvider);
+                // prepare the unmarshaller
+                final Unmarshaller unmarshaller = MethodInvocationResponseHandler.this.prepareForUnMarshalling(MethodInvocationResponseHandler.this.marshallerFactory, this.input);
                 // read the result
-                final Object result = unMarshaller.readObject();
-                unMarshaller.finish();
+                final Object result = unmarshaller.readObject();
+                // finish unmarshalling
+                unmarshaller.finish();
                 return result;
             } finally {
                 this.input.close();
@@ -112,7 +105,6 @@ class MethodInvocationResponseHandler extends ProtocolMessageHandler {
 
         @Override
         public void discardResult() {
-            //To change body of implemented methods use File | Settings | File Templates.
         }
     }
 }

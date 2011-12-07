@@ -22,13 +22,15 @@
 
 package org.jboss.ejb.client.remoting;
 
-import java.util.Map;
-import org.jboss.ejb.client.EJBClientInvocationContext;
-import org.jboss.ejb.client.EJBLocator;
-
 import java.io.DataOutput;
 import java.io.IOException;
 import java.lang.reflect.Method;
+import java.util.Map;
+
+import org.jboss.ejb.client.EJBClientInvocationContext;
+import org.jboss.ejb.client.EJBLocator;
+import org.jboss.marshalling.Marshaller;
+import org.jboss.marshalling.MarshallerFactory;
 
 /**
  * Responsible for writing out a method invocation message, as per the EJB remoting client protocol specification to a stream.
@@ -43,11 +45,11 @@ class MethodInvocationMessageWriter extends AbstractMessageWriter {
 
     private final byte protocolVersion;
 
-    private final String marshallingStrategy;
+    private final MarshallerFactory marshallerFactory;
 
-    MethodInvocationMessageWriter(final byte protocolVersion, final String marshallingStrategy) {
+    MethodInvocationMessageWriter(final byte protocolVersion, final MarshallerFactory marshallerFactory) {
         this.protocolVersion = protocolVersion;
-        this.marshallingStrategy = marshallingStrategy;
+        this.marshallerFactory = marshallerFactory;
     }
 
     /**
@@ -85,8 +87,7 @@ class MethodInvocationMessageWriter extends AbstractMessageWriter {
         output.writeUTF(methodSignature.toString());
 
         // marshall the locator and method params
-        final Marshaller marshaller = MarshallerFactory.createMarshaller(marshallingStrategy);
-        marshaller.start(output);
+        final Marshaller marshaller = this.prepareForMarshalling(this.marshallerFactory, output);
         final EJBLocator locator = invocationContext.getLocator();
         // Write out the app/module/distinctname/bean name combination using the writeObject method
         // *and* using the objects returned by a call to the locator.getXXX() methods,
@@ -105,12 +106,13 @@ class MethodInvocationMessageWriter extends AbstractMessageWriter {
             }
         }
         // write out the attachments
-        final Map<String,Object> contextData = invocationContext.getContextData();
+        final Map<String, Object> contextData = invocationContext.getContextData();
         PackedInteger.writePackedInteger(marshaller, contextData.size());
         for (Map.Entry<String, Object> entry : contextData.entrySet()) {
             marshaller.writeObject(entry.getKey());
             marshaller.writeObject(entry.getValue());
         }
+        // finish marshalling
         marshaller.finish();
 
     }

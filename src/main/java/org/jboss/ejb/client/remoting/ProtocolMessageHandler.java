@@ -22,10 +22,18 @@
 
 package org.jboss.ejb.client.remoting;
 
+import org.jboss.marshalling.AbstractClassResolver;
+import org.jboss.marshalling.ByteInput;
+import org.jboss.marshalling.MarshallerFactory;
+import org.jboss.marshalling.Marshalling;
+import org.jboss.marshalling.MarshallingConfiguration;
+import org.jboss.marshalling.Unmarshaller;
 import org.jboss.remoting3.MessageInputStream;
 
 import java.io.DataInput;
+import java.io.EOFException;
 import java.io.IOException;
+import java.io.InputStream;
 
 /**
  * User: jpai
@@ -61,6 +69,68 @@ abstract class ProtocolMessageHandler {
 
         // read the invocation id
         return input.readShort();
+    }
+
+    /**
+     * Creates and returns a {@link org.jboss.marshalling.Unmarshaller} which is ready to be used for unmarshalling. The {@link org.jboss.marshalling.Unmarshaller#start(org.jboss.marshalling.ByteInput)}
+     * will be invoked by this method, to use the passed {@link DataInput dataInput}, before returning the unmarshaller.
+     *
+     * @param marshallerFactory The marshaller factory
+     * @param dataInput         The data input from which to unmarshall
+     * @return
+     * @throws IOException
+     */
+    protected Unmarshaller prepareForUnMarshalling(final MarshallerFactory marshallerFactory, final DataInput dataInput) throws IOException {
+        final Unmarshaller unmarshaller = this.getUnMarshaller(marshallerFactory);
+        final InputStream is = new InputStream() {
+            @Override
+            public int read() throws IOException {
+                try {
+
+                    final int b = dataInput.readByte();
+                    return b & 0xff;
+                } catch (EOFException eof) {
+                    return -1;
+                }
+            }
+        };
+        final ByteInput byteInput = Marshalling.createByteInput(is);
+        // start the unmarshaller
+        unmarshaller.start(byteInput);
+
+        return unmarshaller;
+    }
+
+    /**
+     * Creates and returns a {@link Unmarshaller}
+     *
+     * @param marshallerFactory The marshaller factory
+     * @return
+     * @throws IOException
+     */
+    private Unmarshaller getUnMarshaller(final MarshallerFactory marshallerFactory) throws IOException {
+        final MarshallingConfiguration marshallingConfiguration = new MarshallingConfiguration();
+        marshallingConfiguration.setVersion(2);
+        marshallingConfiguration.setClassTable(ProtocolV1ClassTable.INSTANCE);
+        marshallingConfiguration.setClassResolver(TCCLClassResolver.INSTANCE);
+
+        return marshallerFactory.createUnmarshaller(marshallingConfiguration);
+    }
+
+    /**
+     * A {@link org.jboss.marshalling.ClassResolver} which returns the context classloader associated
+     * with the thread, when the {@link #getClassLoader()} is invoked
+     */
+    private static final class TCCLClassResolver extends AbstractClassResolver {
+        static TCCLClassResolver INSTANCE = new TCCLClassResolver();
+
+        private TCCLClassResolver() {
+        }
+
+        @Override
+        protected ClassLoader getClassLoader() {
+            return SecurityActions.getContextClassLoader();
+        }
     }
 
 }

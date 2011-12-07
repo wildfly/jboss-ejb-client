@@ -22,13 +22,13 @@
 
 package org.jboss.ejb.client.remoting;
 
-import org.jboss.ejb.client.EJBReceiverInvocationContext;
-import org.jboss.remoting3.MessageInputStream;
-
 import javax.ejb.EJBException;
 import javax.ejb.NoSuchEJBException;
 import java.io.DataInputStream;
 import java.io.IOException;
+
+import org.jboss.ejb.client.EJBReceiverInvocationContext;
+import org.jboss.remoting3.MessageInputStream;
 
 /**
  * Responsible for parsing an invocation failure message from the stream and throwing back the exception as
@@ -106,7 +106,6 @@ class GeneralInvocationFailureResponseHandler extends ProtocolMessageHandler {
 
         @Override
         public void discardResult() {
-            //To change body of implemented methods use File | Settings | File Templates.
         }
     }
 }

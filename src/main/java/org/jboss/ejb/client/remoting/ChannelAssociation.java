@@ -22,14 +22,6 @@
 
 package org.jboss.ejb.client.remoting;
 
-import org.jboss.ejb.client.EJBReceiverContext;
-import org.jboss.ejb.client.EJBReceiverInvocationContext;
-import org.jboss.logging.Logger;
-import org.jboss.remoting3.Channel;
-import org.jboss.remoting3.CloseHandler;
-import org.jboss.remoting3.MessageInputStream;
-import org.xnio.FutureResult;
-
 import java.io.IOException;
 import java.util.Collection;
 import java.util.Collections;
@@ -37,6 +29,15 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicInteger;
+
+import org.jboss.ejb.client.EJBReceiverContext;
+import org.jboss.ejb.client.EJBReceiverInvocationContext;
+import org.jboss.logging.Logger;
+import org.jboss.marshalling.MarshallerFactory;
+import org.jboss.remoting3.Channel;
+import org.jboss.remoting3.CloseHandler;
+import org.jboss.remoting3.MessageInputStream;
+import org.xnio.FutureResult;
 
 /**
  * A {@link ChannelAssociation} keeps track of the association between the {@link EJBReceiverContext}
@@ -60,7 +61,7 @@ class ChannelAssociation {
 
     private final byte protocolVersion;
 
-    private final String marshallingStrategy;
+    private final MarshallerFactory marshallerFactory;
 
     private final AtomicInteger nextInvocationId = new AtomicInteger(0);
 
@@ -71,19 +72,19 @@ class ChannelAssociation {
     /**
      * Creates a channel association for the passed {@link EJBReceiverContext} and the {@link Channel}
      *
-     * @param ejbReceiver         The EJB receiver
-     * @param ejbReceiverContext  The receiver context
-     * @param channel             The channel that will be used for remoting communication
-     * @param protocolVersion     The protocol version
-     * @param marshallingStrategy The marshalling strategy
+     * @param ejbReceiver        The EJB receiver
+     * @param ejbReceiverContext The receiver context
+     * @param channel            The channel that will be used for remoting communication
+     * @param protocolVersion    The protocol version
+     * @param marshallerFactory  The marshalling factory
      */
     ChannelAssociation(final RemotingConnectionEJBReceiver ejbReceiver, final EJBReceiverContext ejbReceiverContext,
-                       final Channel channel, final byte protocolVersion, final String marshallingStrategy) {
+                       final Channel channel, final byte protocolVersion, final MarshallerFactory marshallerFactory) {
         this.ejbReceiver = ejbReceiver;
         this.ejbReceiverContext = ejbReceiverContext;
         this.channel = channel;
         this.protocolVersion = protocolVersion;
-        this.marshallingStrategy = marshallingStrategy;
+        this.marshallerFactory = marshallerFactory;
         this.channel.addCloseHandler(new CloseHandler<Channel>() {
             @Override
             public void handleClose(Channel closed, IOException exception) {
@@ -197,9 +198,9 @@ class ChannelAssociation {
             case 0x02:
                 return new SessionOpenResponseHandler(this);
             case 0x05:
-                return new MethodInvocationResponseHandler(this, this.marshallingStrategy);
+                return new MethodInvocationResponseHandler(this, this.marshallerFactory);
             case 0x06:
-                return new InvocationExceptionResponseHandler(this, this.marshallingStrategy);
+                return new InvocationExceptionResponseHandler(this, this.marshallerFactory);
             case 0x08:
                 return new ModuleAvailabilityMessageHandler(this.ejbReceiver, this.ejbReceiverContext, ModuleAvailabilityMessageHandler.ModuleReportType.MODULE_AVAILABLE);
             case 0x09:

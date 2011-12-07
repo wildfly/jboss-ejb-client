@@ -38,6 +38,8 @@ import org.jboss.ejb.client.EJBReceiverInvocationContext;
 import org.jboss.ejb.client.SessionID;
 import org.jboss.ejb.client.TransactionID;
 import org.jboss.logging.Logger;
+import org.jboss.marshalling.MarshallerFactory;
+import org.jboss.marshalling.Marshalling;
 import org.jboss.remoting3.Channel;
 import org.jboss.remoting3.CloseHandler;
 import org.jboss.remoting3.Connection;
@@ -71,6 +73,8 @@ public final class RemotingConnectionEJBReceiver extends EJBReceiver {
 
     private final String cachedToString;
 
+    private final MarshallerFactory marshallerFactory;
+
     /**
      * Construct a new instance.
      *
@@ -83,6 +87,11 @@ public final class RemotingConnectionEJBReceiver extends EJBReceiver {
         this.cachedToString = new StringBuffer("Remoting connection EJB receiver [connection=").append(this.connection)
                 .append(",channel=").append(EJB_CHANNEL_NAME).append(",nodename=").append(this.getNodeName())
                 .append("]").toString();
+
+        this.marshallerFactory = Marshalling.getProvidedMarshallerFactory(this.clientMarshallingStrategy);
+        if (this.marshallerFactory == null) {
+            throw new RuntimeException("Could not find a marshaller factory for " + this.clientMarshallingStrategy + " marshalling strategy");
+        }
     }
 
     @Override
@@ -128,7 +137,7 @@ public final class RemotingConnectionEJBReceiver extends EJBReceiver {
             successfulHandshake = versionHandshakeLatch.await(5, TimeUnit.SECONDS);
             if (successfulHandshake) {
                 final Channel compatibleChannel = versionReceiver.getCompatibleChannel();
-                final ChannelAssociation channelAssociation = new ChannelAssociation(this, context, compatibleChannel, this.clientProtocolVersion, this.clientMarshallingStrategy);
+                final ChannelAssociation channelAssociation = new ChannelAssociation(this, context, compatibleChannel, this.clientProtocolVersion, this.marshallerFactory);
                 synchronized (this.channelAssociations) {
                     this.channelAssociations.put(context, channelAssociation);
                 }
@@ -164,7 +173,7 @@ public final class RemotingConnectionEJBReceiver extends EJBReceiver {
     public void processInvocation(final EJBClientInvocationContext clientInvocationContext, final EJBReceiverInvocationContext ejbReceiverInvocationContext) throws Exception {
         final ChannelAssociation channelAssociation = this.requireChannelAssociation(ejbReceiverInvocationContext.getEjbReceiverContext());
         final Channel channel = channelAssociation.getChannel();
-        final MethodInvocationMessageWriter messageWriter = new MethodInvocationMessageWriter(this.clientProtocolVersion, this.clientMarshallingStrategy);
+        final MethodInvocationMessageWriter messageWriter = new MethodInvocationMessageWriter(this.clientProtocolVersion, this.marshallerFactory);
         final DataOutputStream dataOutputStream = new DataOutputStream(channel.writeMessage());
         final short invocationId = channelAssociation.getNextInvocationId();
         channelAssociation.receiveResponse(invocationId, ejbReceiverInvocationContext);

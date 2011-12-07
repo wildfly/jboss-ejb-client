@@ -22,13 +22,13 @@
 
 package org.jboss.ejb.client.remoting;
 
+import java.io.DataInputStream;
+import java.io.IOException;
+
 import org.jboss.ejb.client.EJBReceiverInvocationContext;
 import org.jboss.ejb.client.SessionID;
 import org.jboss.logging.Logger;
 import org.jboss.remoting3.MessageInputStream;
-
-import java.io.DataInputStream;
-import java.io.IOException;
 
 /**
  * Responsible for parsing a stream for a (prior) session open request's response, as per the EJB remote client protocol
@@ -95,7 +95,6 @@ class SessionOpenResponseHandler extends ProtocolMessageHandler {
 
         @Override
         public void discardResult() {
-            //To change body of implemented methods use File | Settings | File Templates.
         }
     }
 }

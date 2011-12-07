@@ -22,26 +22,28 @@
 
 package org.jboss.ejb.client.remoting;
 
-import org.jboss.ejb.client.EJBReceiverInvocationContext;
-import org.jboss.logging.Logger;
-import org.jboss.remoting3.MessageInputStream;
-
 import java.io.DataInputStream;
 import java.io.IOException;
 
+import org.jboss.ejb.client.EJBReceiverInvocationContext;
+import org.jboss.logging.Logger;
+import org.jboss.marshalling.MarshallerFactory;
+import org.jboss.marshalling.Unmarshaller;
+import org.jboss.remoting3.MessageInputStream;
+
 /**
- * User: jpai
+ * @author Jaikiran Pai
  */
 class InvocationExceptionResponseHandler extends ProtocolMessageHandler {
 
     private static final Logger logger = Logger.getLogger(InvocationExceptionResponseHandler.class);
 
-    private final String marshallingType;
+    private final MarshallerFactory marshallerFactory;
 
     private final ChannelAssociation channelAssociation;
 
-    InvocationExceptionResponseHandler(final ChannelAssociation channelAssociation, final String marshallingType) {
-        this.marshallingType = marshallingType;
+    InvocationExceptionResponseHandler(final ChannelAssociation channelAssociation, final MarshallerFactory marshallerFactory) {
+        this.marshallerFactory = marshallerFactory;
         this.channelAssociation = channelAssociation;
     }
 
@@ -76,19 +78,12 @@ class InvocationExceptionResponseHandler extends ProtocolMessageHandler {
             try {
                 // read the attachments
                 InvocationExceptionResponseHandler.this.readAttachments(input);
-                final UnMarshaller unMarshaller = MarshallerFactory.createUnMarshaller(InvocationExceptionResponseHandler.this.marshallingType);
-                final ClassLoader classLoader = Thread.currentThread().getContextClassLoader();
-                // A ClassLoaderProvider which returns TCCL that was present when this provider
-                // was instantiated
-                final UnMarshaller.ClassLoaderProvider classLoaderProvider = new UnMarshaller.ClassLoaderProvider() {
-                    @Override
-                    public ClassLoader provideClassLoader() {
-                        return classLoader;
-                    }
-                };
-                unMarshaller.start(this.input, classLoaderProvider);
-                Object result = unMarshaller.readObject();
-                unMarshaller.finish();
+                // prepare the unmarshaller
+                final Unmarshaller unmarshaller = InvocationExceptionResponseHandler.this.prepareForUnMarshalling(InvocationExceptionResponseHandler.this.marshallerFactory, this.input);
+                Object result = unmarshaller.readObject();
+                // finish unmarshalling
+                unmarshaller.finish();
+
                 // should never happen if the server implemented the protocol correctly
                 // but let's just check - instead of running into a ClassCastException, we can provide a more
                 // meaningful error message
@@ -108,7 +103,6 @@ class InvocationExceptionResponseHandler extends ProtocolMessageHandler {
 
         @Override
         public void discardResult() {
-            //To change body of implemented methods use File | Settings | File Templates.
         }
     }
 }

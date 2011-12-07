@@ -22,10 +22,10 @@
 
 package org.jboss.ejb.client.remoting;
 
-import org.jboss.ejb.client.TransactionID;
-
 import java.io.DataOutput;
 import java.io.IOException;
+
+import org.jboss.ejb.client.TransactionID;
 
 /**
  * User: jpai

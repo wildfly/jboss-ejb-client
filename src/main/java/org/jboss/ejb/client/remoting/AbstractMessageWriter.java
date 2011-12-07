@@ -22,12 +22,24 @@
 
 package org.jboss.ejb.client.remoting;
 
+import java.io.DataInput;
 import java.io.DataOutput;
+import java.io.EOFException;
 import java.io.IOException;
-import java.util.Iterator;
+import java.io.InputStream;
+import java.io.OutputStream;
+
+import org.jboss.marshalling.AbstractClassResolver;
+import org.jboss.marshalling.ByteInput;
+import org.jboss.marshalling.ByteOutput;
+import org.jboss.marshalling.Marshaller;
+import org.jboss.marshalling.MarshallerFactory;
+import org.jboss.marshalling.Marshalling;
+import org.jboss.marshalling.MarshallingConfiguration;
+import org.jboss.marshalling.Unmarshaller;
 
 /**
- * User: jpai
+ * @author Jaikiran Pai
  */
 class AbstractMessageWriter {
 
@@ -49,4 +61,45 @@ class AbstractMessageWriter {
 
         }
     }
+
+    /**
+     * Creates and returns a {@link Marshaller} which is ready to be used for marshalling. The {@link Marshaller#start(org.jboss.marshalling.ByteOutput)}
+     * will be invoked by this method, to use the passed {@link DataOutput dataOutput}, before returning the marshaller.
+     *
+     * @param marshallerFactory The marshaller factory
+     * @param dataOutput        The {@link DataOutput} to which the data will be marshalled
+     * @return
+     * @throws IOException
+     */
+    protected Marshaller prepareForMarshalling(final MarshallerFactory marshallerFactory, final DataOutput dataOutput) throws IOException {
+        final Marshaller marshaller = this.getMarshaller(marshallerFactory);
+        final OutputStream outputStream = new OutputStream() {
+            @Override
+            public void write(int b) throws IOException {
+                final int byteToWrite = b & 0xff;
+                dataOutput.write(byteToWrite);
+            }
+        };
+        final ByteOutput byteOutput = Marshalling.createByteOutput(outputStream);
+        // start the marshaller
+        marshaller.start(byteOutput);
+
+        return marshaller;
+    }
+
+    /**
+     * Creates and returns a {@link Marshaller}
+     *
+     * @param marshallerFactory The marshaller factory
+     * @return
+     * @throws IOException
+     */
+    private Marshaller getMarshaller(final MarshallerFactory marshallerFactory) throws IOException {
+        final MarshallingConfiguration marshallingConfiguration = new MarshallingConfiguration();
+        marshallingConfiguration.setClassTable(ProtocolV1ClassTable.INSTANCE);
+        marshallingConfiguration.setVersion(2);
+
+        return marshallerFactory.createMarshaller(marshallingConfiguration);
+    }
+
 }
