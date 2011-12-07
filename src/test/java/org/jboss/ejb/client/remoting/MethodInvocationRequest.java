@@ -21,6 +21,8 @@
  */
 package org.jboss.ejb.client.remoting;
 
+import java.util.Map;
+
 /**
  * @author <a href="mailto:cdewolf@redhat.com">Carlo de Wolf</a>
  */
@@ -35,12 +37,12 @@ public class MethodInvocationRequest {
     private final String[] paramTypes;
     private final Object[] params;
     private final String distinctName;
-    private final RemotingAttachments attachments;
+    private final Map<String, Object> attachments;
 
     public MethodInvocationRequest(final short invocationId, final String appName, final String moduleName,
                                    final String distinctName, final String beanName, final String viewClassName,
                                    final String methodName, final String[] methodParamTypes,
-                                   final Object[] methodParams, final RemotingAttachments attachments) {
+                                   final Object[] methodParams, final Map<String, Object> attachments) {
 
         this.invocationId = invocationId;
         this.appName = appName;
@@ -75,7 +77,7 @@ public class MethodInvocationRequest {
         return this.paramTypes;
     }
 
-    public RemotingAttachments getAttachments() {
+    public Map<String, Object> getAttachments() {
         return attachments;
     }
 

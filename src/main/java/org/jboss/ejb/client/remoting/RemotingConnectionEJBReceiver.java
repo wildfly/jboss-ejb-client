@@ -189,13 +189,12 @@ public final class RemotingConnectionEJBReceiver extends EJBReceiver {
     public SessionID openSession(final EJBReceiverContext receiverContext, final String appName, final String moduleName, final String distinctName, final String beanName) throws Exception {
         final ChannelAssociation channelAssociation = this.requireChannelAssociation(receiverContext);
         final Channel channel = channelAssociation.getChannel();
-        final SessionOpenRequestWriter sessionOpenRequestWriter = new SessionOpenRequestWriter(this.clientProtocolVersion, this.clientMarshallingStrategy);
+        final SessionOpenRequestWriter sessionOpenRequestWriter = new SessionOpenRequestWriter(this.clientProtocolVersion);
         final DataOutputStream dataOutputStream = new DataOutputStream(channel.writeMessage());
         final short invocationId = channelAssociation.getNextInvocationId();
         final Future<EJBReceiverInvocationContext.ResultProducer> futureResultProducer = channelAssociation.enrollForResult(invocationId);
         try {
-            // TODO: Do we need to send along some attachments?
-            sessionOpenRequestWriter.writeMessage(dataOutputStream, invocationId, appName, moduleName, distinctName, beanName, null);
+            sessionOpenRequestWriter.writeMessage(dataOutputStream, invocationId, appName, moduleName, distinctName, beanName);
         } finally {
             dataOutputStream.close();
         }

@@ -27,8 +27,11 @@ import java.io.DataOutput;
 import java.io.EOFException;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.ObjectOutput;
 import java.io.OutputStream;
+import java.util.Map;
 
+import org.jboss.ejb.client.EJBClientInvocationContext;
 import org.jboss.marshalling.AbstractClassResolver;
 import org.jboss.marshalling.ByteInput;
 import org.jboss.marshalling.ByteOutput;
@@ -43,22 +46,17 @@ import org.jboss.marshalling.Unmarshaller;
  */
 class AbstractMessageWriter {
 
-    protected void writeAttachments(final DataOutput output, final RemotingAttachments attachments) throws IOException {
-        if (attachments == null) {
+    protected void writeAttachments(final ObjectOutput output, final EJBClientInvocationContext invocationContext) throws IOException {
+        final Map<String, Object> contextData = invocationContext.getContextData();
+        if (contextData == null) {
             output.writeByte(0);
             return;
         }
-        // write attachment count
-        output.writeByte(attachments.size());
-        for (final RemotingAttachments.RemotingAttachment attachment : attachments.entries()) {
-            // write attachment id
-            output.writeShort(attachment.getKey());
-            final byte[] data = attachment.getValue();
-            // write data length
-            PackedInteger.writePackedInteger(output, data.length);
-            // write the data
-            output.write(data);
-
+        // write the attachment count
+        PackedInteger.writePackedInteger(output, contextData.size());
+        for (Map.Entry<String, Object> entry : contextData.entrySet()) {
+            output.writeObject(entry.getKey());
+            output.writeObject(entry.getValue());
         }
     }
 

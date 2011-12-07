@@ -34,6 +34,9 @@ import java.io.DataInput;
 import java.io.EOFException;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.ObjectInput;
+import java.util.HashMap;
+import java.util.Map;
 
 /**
  * User: jpai
@@ -42,22 +45,18 @@ abstract class ProtocolMessageHandler {
 
     protected abstract void processMessage(final MessageInputStream messageInputStream) throws IOException;
 
-    protected RemotingAttachments readAttachments(final DataInput input) throws IOException {
-        int numAttachments = input.readByte();
+    protected Map<String, Object> readAttachments(final ObjectInput input) throws IOException, ClassNotFoundException {
+        final int numAttachments = input.readByte();
         if (numAttachments == 0) {
             return null;
         }
-        final RemotingAttachments attachments = new RemotingAttachments();
+        final Map<String, Object> attachments = new HashMap<String, Object>(numAttachments);
         for (int i = 0; i < numAttachments; i++) {
-            // read attachment id
-            final short attachmentId = input.readShort();
-            // read attachment data length
-            final int dataLength = PackedInteger.readPackedInteger(input);
-            // read the data
-            final byte[] data = new byte[dataLength];
-            input.readFully(data);
-
-            attachments.putPayloadAttachment(attachmentId, data);
+            // read the key
+            final String key = (String) input.readObject();
+            // read the attachment value
+            final Object val = input.readObject();
+            attachments.put(key, val);
         }
         return attachments;
     }

@@ -85,8 +85,6 @@ class SessionOpenResponseHandler extends ProtocolMessageHandler {
                 final byte[] sessionIdBytes = new byte[sessionIdLength];
                 // read the session id
                 this.input.read(sessionIdBytes);
-                // read the attachments
-                final RemotingAttachments attachments = SessionOpenResponseHandler.this.readAttachments(input);
                 return SessionID.createSessionID(sessionIdBytes);
             } finally {
                 this.input.close();

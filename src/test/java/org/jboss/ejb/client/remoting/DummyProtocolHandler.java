@@ -27,7 +27,11 @@ import java.io.DataOutput;
 import java.io.EOFException;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.ObjectInput;
+import java.io.ObjectOutput;
 import java.io.OutputStream;
+import java.util.HashMap;
+import java.util.Map;
 
 import org.jboss.ejb.client.EJBLocator;
 import org.jboss.marshalling.AbstractClassResolver;
@@ -76,10 +80,8 @@ public class DummyProtocolHandler {
         } else {
             methodParamTypes = signature.split(String.valueOf(METHOD_PARAM_TYPE_SEPARATOR));
         }
-        // read the attachments
-        final RemotingAttachments attachments = this.readAttachments(input);
 
-        // un-marshall the method params
+        // unmarshall the locator and the method params
         final Object[] methodParams = new Object[methodParamTypes.length];
         final Unmarshaller unmarshaller = this.prepareForUnMarshalling(input);
         String appName = null;
@@ -103,6 +105,14 @@ public class DummyProtocolHandler {
                 throw new RuntimeException(cnfe);
             }
         }
+        // unmarshall the attachments
+        final Map<String, Object> attachments;
+        try {
+            attachments = this.readAttachments(unmarshaller);
+        } catch (ClassNotFoundException cnfe) {
+            throw new RuntimeException(cnfe);
+        }
+
         unmarshaller.finish();
 
         return new MethodInvocationRequest(invocationId, appName, moduleName, distinctName, beanName,
@@ -110,7 +120,7 @@ public class DummyProtocolHandler {
     }
 
     public void writeMethodInvocationResponse(final DataOutput output, final short invocationId, final Object result,
-                                              final RemotingAttachments attachments) throws IOException {
+                                              final Map<String, Object> attachments) throws IOException {
         if (output == null) {
             throw new IllegalArgumentException("Cannot write to null output");
         }
@@ -119,50 +129,40 @@ public class DummyProtocolHandler {
         output.write(HEADER_INVOCATION_RESPONSE);
         // write the invocation id
         output.writeShort(invocationId);
-        // write the attachments
-        this.writeAttachments(output, attachments);
         // write out the result
         final Marshaller marshaller = this.prepareForMarshalling(output);
         marshaller.writeObject(result);
+        // write the attachments
+        this.writeAttachments(marshaller, attachments);
         marshaller.finish();
     }
 
-    private RemotingAttachments readAttachments(final DataInput input) throws IOException {
-        int numAttachments = input.readByte();
+    private Map<String, Object> readAttachments(final ObjectInput input) throws IOException, ClassNotFoundException {
+        final int numAttachments = input.readByte();
         if (numAttachments == 0) {
             return null;
         }
-        final RemotingAttachments attachments = new RemotingAttachments();
+        final Map<String, Object> attachments = new HashMap<String, Object>(numAttachments);
         for (int i = 0; i < numAttachments; i++) {
-            // read attachment id
-            final short attachmentId = input.readShort();
-            // read attachment data length
-            final int dataLength = PackedInteger.readPackedInteger(input);
-            // read the data
-            final byte[] data = new byte[dataLength];
-            input.readFully(data);
-
-            attachments.putPayloadAttachment(attachmentId, data);
+            // read the key
+            final String key = (String) input.readObject();
+            // read the attachment value
+            final Object val = input.readObject();
+            attachments.put(key, val);
         }
         return attachments;
     }
 
-    private void writeAttachments(final DataOutput output, final RemotingAttachments attachments) throws IOException {
+    private void writeAttachments(final ObjectOutput output, final Map<String, Object> attachments) throws IOException {
         if (attachments == null) {
             output.writeByte(0);
             return;
         }
-        // write attachment count
-        output.writeByte(attachments.size());
-        for (RemotingAttachments.RemotingAttachment attachment : attachments.entries()) {
-            // write attachment id
-            output.writeShort(attachment.getKey());
-            final byte[] data = attachment.getValue();
-            // write data length
-            PackedInteger.writePackedInteger(output, data.length);
-            // write the data
-            output.write(data);
-
+        // write the attachment count
+        PackedInteger.writePackedInteger(output, attachments.size());
+        for (Map.Entry<String, Object> entry : attachments.entrySet()) {
+            output.writeObject(entry.getKey());
+            output.writeObject(entry.getValue());
         }
     }
 

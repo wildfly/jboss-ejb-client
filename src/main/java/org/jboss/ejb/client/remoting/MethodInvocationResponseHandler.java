@@ -24,6 +24,7 @@ package org.jboss.ejb.client.remoting;
 
 import java.io.DataInputStream;
 import java.io.IOException;
+import java.util.Map;
 
 import org.jboss.ejb.client.EJBReceiverInvocationContext;
 import org.jboss.logging.Logger;
@@ -89,12 +90,13 @@ class MethodInvocationResponseHandler extends ProtocolMessageHandler {
         @Override
         public Object getResult() throws Exception {
             try {
-                // read the attachments
-                MethodInvocationResponseHandler.this.readAttachments(input);
                 // prepare the unmarshaller
                 final Unmarshaller unmarshaller = MethodInvocationResponseHandler.this.prepareForUnMarshalling(MethodInvocationResponseHandler.this.marshallerFactory, this.input);
                 // read the result
                 final Object result = unmarshaller.readObject();
+                // read the attachments
+                final Map<String, Object> attachments = MethodInvocationResponseHandler.this.readAttachments(unmarshaller);
+
                 // finish unmarshalling
                 unmarshaller.finish();
                 return result;

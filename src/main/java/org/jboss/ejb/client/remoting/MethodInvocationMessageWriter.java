@@ -106,12 +106,7 @@ class MethodInvocationMessageWriter extends AbstractMessageWriter {
             }
         }
         // write out the attachments
-        final Map<String, Object> contextData = invocationContext.getContextData();
-        PackedInteger.writePackedInteger(marshaller, contextData.size());
-        for (Map.Entry<String, Object> entry : contextData.entrySet()) {
-            marshaller.writeObject(entry.getKey());
-            marshaller.writeObject(entry.getValue());
-        }
+        this.writeAttachments(marshaller, invocationContext);
         // finish marshalling
         marshaller.finish();
 

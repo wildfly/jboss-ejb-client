@@ -35,11 +35,9 @@ class SessionOpenRequestWriter extends AbstractMessageWriter {
     private static final byte HEADER_SESSION_OPEN_REQUEST = 0x01;
 
     private final byte protocolVersion;
-    private final String marshallingStrategy;
 
-    SessionOpenRequestWriter(final byte protocolVersion, final String marshallingStrategy) {
+    SessionOpenRequestWriter(final byte protocolVersion) {
         this.protocolVersion = protocolVersion;
-        this.marshallingStrategy = marshallingStrategy;
     }
 
     /**
@@ -51,10 +49,9 @@ class SessionOpenRequestWriter extends AbstractMessageWriter {
      * @param moduleName   The module name of the EJB. Cannot be null.
      * @param distinctName The distinct name of the EJB. Can be null.
      * @param beanName     The EJB name. Cannot be null.
-     * @param attachments  Any {@link RemotingAttachments attachments} that have to be passed along with the messages
      * @throws IOException If there's a problem while writing to the {@link DataOutput}
      */
-    void writeMessage(final DataOutput output, final short invocationId, final String appName, final String moduleName, final String distinctName, final String beanName, final RemotingAttachments attachments) throws IOException {
+    void writeMessage(final DataOutput output, final short invocationId, final String appName, final String moduleName, final String distinctName, final String beanName) throws IOException {
         // write the header
         output.writeByte(HEADER_SESSION_OPEN_REQUEST);
         // write the invocation id
@@ -72,8 +69,6 @@ class SessionOpenRequestWriter extends AbstractMessageWriter {
             output.writeUTF(distinctName);
         }
         output.writeUTF(beanName);
-        // write the attachments
-        this.writeAttachments(output, attachments);
     }
 
 }
