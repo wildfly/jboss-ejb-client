@@ -31,7 +31,6 @@ import java.util.Set;
  * A receiver for EJB invocations.  Receivers can be associated with one or more client contexts.  This interface is
  * implemented by providers for EJB invocation services.
  *
- * @param <A> the invocation context attachment type specific to this receiver
  * @author <a href="mailto:david.lloyd@redhat.com">David M. Lloyd</a>
  */
 public abstract class EJBReceiver extends Attachable {
