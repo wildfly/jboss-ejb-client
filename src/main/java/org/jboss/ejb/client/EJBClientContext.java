@@ -41,15 +41,15 @@ import org.jboss.remoting3.Connection;
 @SuppressWarnings({"UnnecessaryThis"})
 public final class EJBClientContext extends Attachable {
 
-    /**
-     * EJB client context selector. By default the {@link ConfigBasedEJBClientContextSelector} is used.
-     */
-    private static volatile ContextSelector<EJBClientContext> SELECTOR = ConfigBasedEJBClientContextSelector.INSTANCE;
-
     private static final RuntimePermission SET_SELECTOR_PERMISSION = new RuntimePermission("setEJBClientContextSelector");
     private static final RuntimePermission ADD_INTERCEPTOR_PERMISSION = new RuntimePermission("registerInterceptor");
     private static final RuntimePermission CREATE_CONTEXT_PERMISSION = new RuntimePermission("createEJBClientContext");
     private static final EJBClientInterceptor.Registration[] NO_INTERCEPTORS = new EJBClientInterceptor.Registration[0];
+
+    /**
+     * EJB client context selector. By default the {@link ConfigBasedEJBClientContextSelector} is used.
+     */
+    private static volatile ContextSelector<EJBClientContext> SELECTOR = ConfigBasedEJBClientContextSelector.INSTANCE;
 
     private final Map<EJBReceiver, EJBReceiverContext> ejbReceiverAssociations = new IdentityHashMap<EJBReceiver, EJBReceiverContext>();
     private volatile EJBClientInterceptor.Registration[] registrations = NO_INTERCEPTORS;
@@ -259,16 +259,18 @@ public final class EJBClientContext extends Attachable {
                 if (oldRegistrations[0].getInterceptor() == registration) {
                     newRegistrations = NO_INTERCEPTORS;
                 }
-            } else for (int i = 0; i < length; i++) {
-                if (oldRegistrations[i].getInterceptor() == registration) {
-                    if (i == newLength) {
-                        newRegistrations = Arrays.copyOf(oldRegistrations, newLength);
-                        break;
-                    } else {
-                        newRegistrations = new EJBClientInterceptor.Registration[newLength];
-                        if (i > 0) System.arraycopy(oldRegistrations, 0, newRegistrations, 0, i);
-                        System.arraycopy(oldRegistrations, i + 1, newRegistrations, i, newLength - i);
-                        break;
+            } else {
+                for (int i = 0; i < length; i++) {
+                    if (oldRegistrations[i].getInterceptor() == registration) {
+                        if (i == newLength) {
+                            newRegistrations = Arrays.copyOf(oldRegistrations, newLength);
+                            break;
+                        } else {
+                            newRegistrations = new EJBClientInterceptor.Registration[newLength];
+                            if (i > 0) System.arraycopy(oldRegistrations, 0, newRegistrations, 0, i);
+                            System.arraycopy(oldRegistrations, i + 1, newRegistrations, i, newLength - i);
+                            break;
+                        }
                     }
                 }
             }
