@@ -47,6 +47,8 @@ public final class EJBClientContext extends Attachable {
     private static final RuntimePermission SET_SELECTOR_PERMISSION = new RuntimePermission("setEJBClientContextSelector");
     private static final RuntimePermission ADD_INTERCEPTOR_PERMISSION = new RuntimePermission("registerInterceptor");
     private static final RuntimePermission CREATE_CONTEXT_PERMISSION = new RuntimePermission("createEJBClientContext");
+    private static final AtomicReferenceFieldUpdater<EJBClientContext, EJBClientInterceptor.Registration[]> registrationsUpdater = AtomicReferenceFieldUpdater.newUpdater(EJBClientContext.class, EJBClientInterceptor.Registration[].class, "registrations");
+
     private static final EJBClientInterceptor.Registration[] NO_INTERCEPTORS = new EJBClientInterceptor.Registration[0];
 
     /**
@@ -57,7 +59,6 @@ public final class EJBClientContext extends Attachable {
     private final Map<EJBReceiver, EJBReceiverContext> ejbReceiverAssociations = new IdentityHashMap<EJBReceiver, EJBReceiverContext>();
     private volatile EJBClientInterceptor.Registration[] registrations = NO_INTERCEPTORS;
 
-    private static final AtomicReferenceFieldUpdater<EJBClientContext, EJBClientInterceptor.Registration[]> registrationsUpdater = AtomicReferenceFieldUpdater.newUpdater(EJBClientContext.class, EJBClientInterceptor.Registration[].class, "registrations");
 
     private EJBClientContext() {
     }
