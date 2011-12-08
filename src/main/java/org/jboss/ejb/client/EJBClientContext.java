@@ -31,6 +31,7 @@ import java.util.Map;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 
 import org.jboss.ejb.client.remoting.RemotingConnectionEJBReceiver;
+import org.jboss.logging.Logger;
 import org.jboss.remoting3.Connection;
 
 /**
@@ -40,6 +41,8 @@ import org.jboss.remoting3.Connection;
  */
 @SuppressWarnings({"UnnecessaryThis"})
 public final class EJBClientContext extends Attachable {
+
+    private static final Logger logger = Logger.getLogger(EJBClientContext.class);
 
     private static final RuntimePermission SET_SELECTOR_PERMISSION = new RuntimePermission("setEJBClientContextSelector");
     private static final RuntimePermission ADD_INTERCEPTOR_PERMISSION = new RuntimePermission("registerInterceptor");
@@ -63,10 +66,11 @@ public final class EJBClientContext extends Attachable {
         if (classLoader == null) {
             classLoader = EJBClientContext.class.getClassLoader();
         }
-        for (EJBClientContextInitializer contextInitializer : SecurityActions.loadService(EJBClientContextInitializer.class, classLoader)) {
+        for (final EJBClientContextInitializer contextInitializer : SecurityActions.loadService(EJBClientContextInitializer.class, classLoader)) {
             try {
                 contextInitializer.initialize(this);
             } catch (Throwable ignored) {
+                logger.debug("EJB client context initializer " + contextInitializer + " failed to initialize context " + this, ignored);
             }
         }
     }
