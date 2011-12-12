@@ -46,7 +46,14 @@ final class EJBInvocationHandler<T> extends Attachable implements InvocationHand
     private static final long serialVersionUID = 946555285095057230L;
 
     private final transient boolean async;
+    /**
+     * @serial the associated EJB locator
+     */
     private final EJBLocator<T> locator;
+    /**
+     * @serial the name of the node to which this proxy has a weak affinity; may be {@code null}
+     */
+    private volatile String nodeAffinity;
 
     /**
      * map of methods that can be handled on the client side
@@ -81,6 +88,14 @@ final class EJBInvocationHandler<T> extends Attachable implements InvocationHand
 
     public Object invoke(final Object proxy, final Method method, final Object[] args) throws Throwable {
         return doInvoke(locator.getViewType().cast(proxy), method, args);
+    }
+
+    void setAffinity(String newNodeAffinity) {
+        nodeAffinity = newNodeAffinity;
+    }
+
+    String getNodeAffinity() {
+        return nodeAffinity;
     }
 
     Object doInvoke(final T proxy, final Method method, final Object[] args) throws Throwable {
@@ -131,6 +146,7 @@ final class EJBInvocationHandler<T> extends Attachable implements InvocationHand
         }
     }
 
+    @SuppressWarnings("unused")
     protected Object writeReplace() {
         return new SerializedEJBInvocationHandler(locator);
     }

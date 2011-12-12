@@ -175,6 +175,16 @@ public final class EJBClient {
     }
 
     /**
+     * Get the current node affinity for the given proxy.
+     *
+     * @param proxy the proxy
+     * @return the name of the node, or {@code null} if there is no set affinity or if the object is not a valid proxy
+     */
+    public static String getNodeAffinity(final Object proxy) {
+        return isEJBProxy(proxy) ? EJBInvocationHandler.forProxy(proxy).getNodeAffinity() : null;
+    }
+
+    /**
      * Get a {@code UserTransaction} object instance which can be used to control transactions on a specific node.
      *
      * @param targetNodeName the node name

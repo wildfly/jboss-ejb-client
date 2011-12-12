@@ -96,6 +96,7 @@ public final class SerializedEJBInvocationHandler implements Externalizable {
      *
      * @return the invocation handler
      */
+    @SuppressWarnings("unused")
     protected Object readResolve() {
         final EJBLocator<?> locator = this.locator;
         if (locator == null) {

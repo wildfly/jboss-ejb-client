@@ -35,8 +35,6 @@ import java.util.Set;
  */
 public abstract class EJBReceiver extends Attachable {
 
-    private static final EJBClientInterceptor[] NO_INTERCEPTORS = new EJBClientInterceptor[0];
-
     private final Set<ModuleID> accessibleModules = Collections.synchronizedSet(new HashSet<ModuleID>());
 
     private final String nodeName;
