@@ -55,6 +55,7 @@ public final class EJBClientContext extends Attachable {
      * EJB client context selector. By default the {@link ConfigBasedEJBClientContextSelector} is used.
      */
     private static volatile ContextSelector<EJBClientContext> SELECTOR = ConfigBasedEJBClientContextSelector.INSTANCE;
+    private static volatile boolean SELECTOR_LOCKED;
 
     private final Map<EJBReceiver, EJBReceiverContext> ejbReceiverAssociations = new IdentityHashMap<EJBReceiver, EJBReceiverContext>();
     private volatile EJBClientInterceptor.Registration[] registrations = NO_INTERCEPTORS;
@@ -113,6 +114,9 @@ public final class EJBClientContext extends Attachable {
         if (newSelector == null) {
             throw new IllegalArgumentException("EJB client context selector cannot be set to null");
         }
+        if (SELECTOR_LOCKED) {
+            throw new SecurityException("EJB client context selector may not be changed");
+        }
         final SecurityManager sm = System.getSecurityManager();
         if (sm != null) {
             sm.checkPermission(SET_SELECTOR_PERMISSION);
@@ -131,6 +135,19 @@ public final class EJBClientContext extends Attachable {
      */
     public static ContextSelector<EJBClientContext> setConstantContext(final EJBClientContext context) {
         return setSelector(new ConstantContextSelector<EJBClientContext>(context));
+    }
+
+    /**
+     * Prevent the selector from being changed again.  Attempts to do so will result in a {@code SecurityException}.
+     * @throws SecurityException if a security manager is installed and you do not have the {@code setEJBClientContextSelector}
+     *                           {@link RuntimePermission}
+     */
+    public static void lockSelector() {
+        final SecurityManager sm = System.getSecurityManager();
+        if (sm != null) {
+            sm.checkPermission(SET_SELECTOR_PERMISSION);
+        }
+        SELECTOR_LOCKED = true;
     }
 
     /**
