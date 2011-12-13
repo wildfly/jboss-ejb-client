@@ -216,7 +216,15 @@ public final class EJBClientInvocationContext extends Attachable {
 
         final int idx = this.idx++;
         final EJBClientInterceptor[] chain = interceptorChain;
-        try {
+        if (idx == 0) try {
+            return chain[idx].handleInvocationResult(this);
+        } finally {
+            resultDone = true;
+            final String nodeName = getAttachment(AttachmentKeys.PREFERRED_NODE);
+            if (nodeName != null) {
+                invocationHandler.setAffinity(nodeName);
+            }
+        } else try {
             if (chain.length == idx) {
                 return resultProducer.getResult();
             } else {
