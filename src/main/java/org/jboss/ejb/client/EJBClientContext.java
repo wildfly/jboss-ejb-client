@@ -367,6 +367,12 @@ public final class EJBClientContext extends Attachable {
     }
 
     EJBReceiver requireNodeEJBReceiver(final String nodeName) {
+        final EJBReceiver receiver = getNodeEJBReceiver(nodeName);
+        if (receiver != null) return receiver;
+        throw new IllegalStateException("No EJBReceiver available for node name " + nodeName);
+    }
+
+    EJBReceiver getNodeEJBReceiver(final String nodeName) {
         if (nodeName == null) {
             throw new IllegalArgumentException("Node name cannot be null");
         }
@@ -377,7 +383,7 @@ public final class EJBClientContext extends Attachable {
                 }
             }
         }
-        throw new IllegalStateException("No EJBReceiver available for node name " + nodeName);
+        return null;
     }
 
     EJBReceiverContext requireNodeEJBReceiverContext(final String nodeName) {

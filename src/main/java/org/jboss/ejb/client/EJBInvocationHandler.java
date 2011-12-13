@@ -104,7 +104,13 @@ final class EJBInvocationHandler<T> extends Attachable implements InvocationHand
             return handler.invoke(this, proxy, method, args);
         }
         final EJBClientContext context = EJBClientContext.requireCurrent();
-        final EJBReceiver receiver = context.requireEJBReceiver(locator.getAppName(), locator.getModuleName(), locator.getDistinctName());
+        EJBReceiver receiver = null;
+        if (nodeAffinity != null) {
+            receiver = context.getNodeEJBReceiver(nodeAffinity);
+        }
+        if (receiver == null) {
+            receiver = context.requireEJBReceiver(locator.getAppName(), locator.getModuleName(), locator.getDistinctName());
+        }
         return doInvoke(this, async, proxy, method, args, receiver, context);
     }
 
