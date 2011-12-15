@@ -55,6 +55,12 @@ public final class EJBClientUserTransactionContext extends EJBClientTransactionC
         return state == null ? null : state.currentId;
     }
 
+    protected String getTransactionNode() {
+        final State state = CURRENT_TRANSACTION_STATE.get();
+        final UserTransactionID id = state == null ? null : state.currentId;
+        return id == null ? null : id.getNodeName();
+    }
+
     /** {@inheritDoc} */
     protected UserTransaction getUserTransaction(String nodeName) {
         return new UserTransactionImpl(nodeName);

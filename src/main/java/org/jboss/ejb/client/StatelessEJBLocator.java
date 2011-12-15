@@ -41,7 +41,7 @@ public final class StatelessEJBLocator<T> extends EJBLocator<T> {
      * @param distinctName the distinct name
      */
     public StatelessEJBLocator(final Class<T> viewType, final String appName, final String moduleName, final String beanName, final String distinctName) {
-        super(viewType, appName, moduleName, beanName, distinctName);
+        super(viewType, appName, moduleName, beanName, distinctName, Affinity.NONE);
     }
 
     /**

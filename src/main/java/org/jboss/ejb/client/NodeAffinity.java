@@ -23,21 +23,35 @@
 package org.jboss.ejb.client;
 
 /**
- * Commonly-used attachment keys.
+ * A single node affinity specification.
  *
  * @author <a href="mailto:david.lloyd@redhat.com">David M. Lloyd</a>
  */
-public final class AttachmentKeys {
-    private AttachmentKeys() {}
+public final class NodeAffinity extends Affinity {
+
+    private static final long serialVersionUID = -1241023739831847480L;
+
+    private final String nodeName;
 
     /**
-     * The attachment key for transaction IDs.  This key is normally associated with an invocation.
+     * Construct a new instance.
+     *
+     * @param nodeName the associated node name
      */
-    public static final AttachmentKey<TransactionID> TRANSACTION_ID_KEY = new AttachmentKey<TransactionID>();
+    public NodeAffinity(final String nodeName) {
+        this.nodeName = nodeName;
+    }
+
     /**
-     * The preferred node for invocations from this proxy.  Note that this node name is only a
-     * recommendation and is not required to be used, and if the node is not available then the invocation
-     * may proceed to another node.  This key is normally associated with a proxy, and copied to an invocation.
+     * Get the associated node name.
+     *
+     * @return the associated node name
      */
-    public static final AttachmentKey<String> PREFERRED_NODE = new AttachmentKey<String>();
+    public String getNodeName() {
+        return nodeName;
+    }
+
+    EJBReceiverContext getReceiverContext(final EJBClientContext clientContext) {
+        return clientContext.requireNodeEJBReceiverContext(nodeName);
+    }
 }

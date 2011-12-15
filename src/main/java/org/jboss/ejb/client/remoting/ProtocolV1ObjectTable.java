@@ -27,6 +27,7 @@ import java.io.InvalidObjectException;
 import java.util.IdentityHashMap;
 import java.util.Map;
 
+import org.jboss.ejb.client.Affinity;
 import org.jboss.ejb.client.TransactionID;
 import org.jboss.marshalling.Marshaller;
 import org.jboss.marshalling.ObjectTable;
@@ -39,8 +40,12 @@ final class ProtocolV1ObjectTable implements ObjectTable {
     static final ProtocolV1ObjectTable INSTANCE = new ProtocolV1ObjectTable();
 
     private static final Map<Object, ByteWriter> writers;
+    /**
+     * Do NOT change the order of this list.
+     */
     private static final Object[] objects = {
         TransactionID.PRIVATE_DATA_KEY,
+        Affinity.NONE,
     };
 
     static {

@@ -45,6 +45,7 @@ public abstract class EJBLocator<T> implements Serializable {
     private final String moduleName;
     private final String beanName;
     private final String distinctName;
+    private final Affinity affinity;
     private final transient Class<? extends T> proxyClass;
     private final transient Constructor<? extends T> proxyConstructor;
     private final transient int hashCode;
@@ -53,7 +54,7 @@ public abstract class EJBLocator<T> implements Serializable {
     private static final FieldSetter proxyClassSetter = FieldSetter.get(EJBLocator.class, "proxyClass");
     private static final FieldSetter proxyConstructorSetter = FieldSetter.get(EJBLocator.class, "proxyConstructor");
 
-    EJBLocator(final Class<T> viewType, final String appName, final String moduleName, final String beanName, final String distinctName) {
+    EJBLocator(final Class<T> viewType, final String appName, final String moduleName, final String beanName, final String distinctName, final Affinity affinity) {
         if (viewType == null) {
             throw new IllegalArgumentException("viewType is null");
         }
@@ -74,6 +75,7 @@ public abstract class EJBLocator<T> implements Serializable {
         this.moduleName = moduleName;
         this.beanName = beanName;
         this.distinctName = distinctName;
+        this.affinity = affinity;
         proxyClass = Proxy.getProxyClass(viewType.getClassLoader(), viewType).asSubclass(viewType);
         try {
             proxyConstructor = proxyClass.getConstructor(InvocationHandler.class);
@@ -130,6 +132,15 @@ public abstract class EJBLocator<T> implements Serializable {
      */
     public String getDistinctName() {
         return distinctName;
+    }
+
+    /**
+     * Get the locator affinity.
+     *
+     * @return the locator affinity
+     */
+    public Affinity getAffinity() {
+        return affinity;
     }
 
     /**

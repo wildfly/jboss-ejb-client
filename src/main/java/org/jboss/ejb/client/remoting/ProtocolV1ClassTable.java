@@ -27,12 +27,15 @@ import java.rmi.RemoteException;
 import java.util.IdentityHashMap;
 import java.util.Map;
 import java.util.concurrent.Future;
+import org.jboss.ejb.client.Affinity;
+import org.jboss.ejb.client.ClusterAffinity;
 import org.jboss.ejb.client.EJBHandle;
 import org.jboss.ejb.client.EJBHomeHandle;
 import org.jboss.ejb.client.EJBHomeLocator;
 import org.jboss.ejb.client.EJBLocator;
 import org.jboss.ejb.client.EntityEJBLocator;
-import org.jboss.ejb.client.NodeAssociatedSessionID;
+import org.jboss.ejb.client.NodeAffinity;
+import org.jboss.ejb.client.BasicSessionID;
 import org.jboss.ejb.client.SerializedEJBInvocationHandler;
 import org.jboss.ejb.client.SessionID;
 import org.jboss.ejb.client.StatefulEJBLocator;
@@ -74,6 +77,9 @@ final class ProtocolV1ClassTable implements ClassTable {
     static final ProtocolV1ClassTable INSTANCE = new ProtocolV1ClassTable();
 
     private static final Map<Class<?>, ByteWriter> writers;
+    /**
+     * Do NOT change the order of this list.
+     */
     private static final Class<?>[] classes = {
         EJBLocator.class,
         EJBHomeLocator.class,
@@ -85,7 +91,7 @@ final class ProtocolV1ClassTable implements ClassTable {
         SerializedEJBInvocationHandler.class,
         SessionID.class,
         UnknownSessionID.class,
-        NodeAssociatedSessionID.class,
+        BasicSessionID.class,
         UserTransactionID.class,
         XidTransactionID.class,
         EJBHome.class,
@@ -119,6 +125,10 @@ final class ProtocolV1ClassTable implements ClassTable {
         SessionID.Serialized.class,
         TransactionID.class,
         TransactionID.Serialized.class,
+        Affinity.class,
+        Affinity.NONE.getClass(),
+        NodeAffinity.class,
+        ClusterAffinity.class,
     };
 
     static {

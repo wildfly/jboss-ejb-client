@@ -43,7 +43,7 @@ public final class EJBHomeLocator<T extends EJBHome> extends EJBLocator<T> {
      * @param distinctName the distinct name
      */
     public EJBHomeLocator(final Class<T> viewType, final String appName, final String moduleName, final String beanName, final String distinctName) {
-        super(viewType, appName, moduleName, beanName, distinctName);
+        super(viewType, appName, moduleName, beanName, distinctName, Affinity.NONE);
     }
 
     /**

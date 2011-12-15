@@ -29,11 +29,13 @@ package org.jboss.ejb.client;
  */
 public class DefaultInterceptorsClientContextInitializer implements EJBClientContextInitializer {
 
-    private static final int TRANSACTION_INTERCEPTOR            = 0x100;
-    
+    private static final int TRANSACTION_INTERCEPTOR            = 0x10000;
+    private static final int RECEIVER_INTERCEPTOR            = 0x20000;
+
     @Override
     public void initialize(EJBClientContext context) {
         // setup the interceptors
         context.registerInterceptor(TRANSACTION_INTERCEPTOR, new TransactionInterceptor());
+        context.registerInterceptor(RECEIVER_INTERCEPTOR, new ReceiverInterceptor());
     }
 }

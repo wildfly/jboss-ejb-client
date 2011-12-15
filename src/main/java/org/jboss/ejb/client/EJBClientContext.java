@@ -404,10 +404,23 @@ public final class EJBClientContext extends Attachable {
     }
 
     EJBReceiverContext requireNodeEJBReceiverContext(final String nodeName) {
-        final EJBReceiver ejbReceiver = this.requireNodeEJBReceiver(nodeName);
-        return this.requireEJBReceiverContext(ejbReceiver);
+        final EJBReceiver ejbReceiver = requireNodeEJBReceiver(nodeName);
+        return requireEJBReceiverContext(ejbReceiver);
     }
 
+    EJBReceiverContext getNodeEJBReceiverContext(final String nodeName) {
+        final EJBReceiver ejbReceiver = getNodeEJBReceiver(nodeName);
+        return ejbReceiver == null ? null : requireEJBReceiverContext(ejbReceiver);
+    }
+
+    boolean clusterContains(final String clusterName, final String nodeName) {
+        // todo - use cluster->node mappings for this
+        return false;
+    }
+
+    EJBReceiverContext requireClusterEJBReceiverContext(final String clusterName) {
+        throw new IllegalStateException("Implement me");
+    }
     EJBClientInterceptor[] getInterceptorChain() {
         // todo optimize to eliminate copy
         final EJBClientInterceptor.Registration[] registrations = this.registrations;

@@ -125,7 +125,7 @@ final class EJBInvocationHandler<T> extends Attachable implements InvocationHand
 
     private static <T> Object doInvoke(final EJBInvocationHandler<T> ejbInvocationHandler, final boolean async, final T proxy, final Method method, final Object[] args, final EJBReceiver receiver, EJBClientContext clientContext) throws Throwable {
         final EJBReceiverContext ejbReceiverContext = clientContext.requireEJBReceiverContext(receiver);
-        final EJBClientInvocationContext invocationContext = new EJBClientInvocationContext(ejbInvocationHandler, clientContext, receiver, ejbReceiverContext, proxy, method, args);
+        final EJBClientInvocationContext invocationContext = new EJBClientInvocationContext(ejbInvocationHandler, clientContext, proxy, method, args);
 
         invocationContext.sendRequest();
 

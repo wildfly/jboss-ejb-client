@@ -51,7 +51,7 @@ public final class StatefulEJBLocator<T> extends EJBLocator<T> {
      * @param sessionId the stateful session ID
      */
     public StatefulEJBLocator(final Class<T> viewType, final String appName, final String moduleName, final String beanName, final String distinctName, final SessionID sessionId) {
-        super(viewType, appName, moduleName, beanName, distinctName);
+        super(viewType, appName, moduleName, beanName, distinctName, Affinity.NONE);
         if (sessionId == null) {
             throw new IllegalArgumentException("sessionId is null");
         }

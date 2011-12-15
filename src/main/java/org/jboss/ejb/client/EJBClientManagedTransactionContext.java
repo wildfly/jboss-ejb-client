@@ -97,6 +97,10 @@ public final class EJBClientManagedTransactionContext extends EJBClientTransacti
         return transactionID;
     }
 
+    protected String getTransactionNode() {
+        return null;
+    }
+
     final class SynchronizationImpl implements Synchronization {
         private final String nodeName;
         private final XidTransactionID transactionID;

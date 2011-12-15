@@ -44,10 +44,8 @@ public final class EJBClientInvocationContext extends Attachable {
     private static final Logs log = Logs.MAIN;
 
     // Contextual stuff
-    private final EJBReceiverInvocationContext receiverInvocationContext;
     private final EJBInvocationHandler<?> invocationHandler;
     private final EJBClientContext ejbClientContext;
-    private final EJBReceiver receiver;
 
     // Invocation data
     private final Object invokedProxy;
@@ -61,6 +59,7 @@ public final class EJBClientInvocationContext extends Attachable {
     private AsyncState asyncState = AsyncState.SYNCHRONOUS;
     private Object cachedResult;
     private Map<String, Object> contextData;
+    private EJBReceiverInvocationContext receiverInvocationContext;
 
     // Interceptor state
     private final EJBClientInterceptor[] interceptorChain;
@@ -68,16 +67,13 @@ public final class EJBClientInvocationContext extends Attachable {
     private boolean requestDone;
     private boolean resultDone;
 
-    EJBClientInvocationContext(final EJBInvocationHandler<?> invocationHandler, final EJBClientContext ejbClientContext, final EJBReceiver receiver, final EJBReceiverContext ejbReceiverContext, final Object invokedProxy, final Method invokedMethod, final Object[] parameters) {
+    EJBClientInvocationContext(final EJBInvocationHandler<?> invocationHandler, final EJBClientContext ejbClientContext, final Object invokedProxy, final Method invokedMethod, final Object[] parameters) {
         this.invocationHandler = invocationHandler;
         this.ejbClientContext = ejbClientContext;
-        this.receiver = receiver;
         this.invokedProxy = invokedProxy;
         this.invokedMethod = invokedMethod;
         this.parameters = parameters;
         interceptorChain = (EJBClientInterceptor[]) ejbClientContext.getInterceptorChain();
-        //noinspection ThisEscapedInObjectConstruction
-        receiverInvocationContext = new EJBReceiverInvocationContext(this, ejbReceiverContext);
     }
 
     enum AsyncState {
@@ -120,37 +116,12 @@ public final class EJBClientInvocationContext extends Attachable {
     }
 
     /**
-     * Get a value attached to the EJB client context.
+     * Get the EJB client context associated with this invocation.
      *
-     * @param key the attachment key
-     * @param <T> the value type
-     * @return the value, or {@code null} if there is none
+     * @return the EJB client context
      */
-    public <T> T getClientContextAttachment(AttachmentKey<T> key) {
-        return ejbClientContext.getAttachment(key);
-    }
-
-    /**
-     * Get a value attached to the receiver.
-     *
-     * @param key the attachment key
-     * @param <T> the value type
-     * @return the value, or {@code null} if there is none
-     */
-    public <T> T getReceiverAttachment(AttachmentKey<T> key) {
-        return receiver.getAttachment(key);
-    }
-
-    /**
-     * Set a value to be attached to the receiver.
-     *
-     * @param key the attachment key
-     * @param value the new value
-     * @param <T> the value type
-     * @return the previous value or {@code null} for none
-     */
-    public <T> T putReceiverAttachment(final AttachmentKey<T> key, final T value) {
-        return receiver.putAttachment(key, value);
+    public EJBClientContext getClientContext() {
+        return ejbClientContext;
     }
 
     /**
@@ -191,13 +162,21 @@ public final class EJBClientInvocationContext extends Attachable {
         final EJBClientInterceptor[] chain = interceptorChain;
         try {
             if (chain.length == idx) {
-                receiver.processInvocation(this, receiverInvocationContext);
+                final EJBReceiverInvocationContext context = receiverInvocationContext;
+                if (context == null) {
+                    throw new IllegalStateException("No valid receiver associated with invocation");
+                }
+                context.getEjbReceiverContext().getReceiver().processInvocation(this, context);
             } else {
                 chain[idx].handleInvocation(this);
             }
         } finally {
             requestDone = true;
         }
+    }
+
+    void setReceiverInvocationContext(EJBReceiverInvocationContext context) {
+        receiverInvocationContext = context;
     }
 
     /**
@@ -274,7 +253,11 @@ public final class EJBClientInvocationContext extends Attachable {
      * @return the EJB receiver
      */
     protected EJBReceiver getReceiver() {
-        return receiver;
+        final EJBReceiverInvocationContext context = receiverInvocationContext;
+        if (context == null) {
+            throw new IllegalStateException("No receiver associated with request");
+        }
+        return context.getEjbReceiverContext().getReceiver();
     }
 
     /**
@@ -416,7 +399,7 @@ public final class EJBClientInvocationContext extends Attachable {
                 }
                 state = State.CANCEL_REQ;
             }
-            return receiver.cancelInvocation(EJBClientInvocationContext.this, receiverInvocationContext);
+            return getReceiver().cancelInvocation(EJBClientInvocationContext.this, receiverInvocationContext);
         }
 
         public boolean isCancelled() {

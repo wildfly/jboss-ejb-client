@@ -43,6 +43,13 @@ public abstract class EJBClientTransactionContext extends Attachable {
      */
     protected abstract TransactionID getAssociatedTransactionID(EJBClientInvocationContext invocationContext) throws Exception;
 
+    /**
+     * Get the node to which this transaction is pinned, if any.
+     *
+     * @return the node name or {@code null} if the transaction is not pinned
+     */
+    protected abstract String getTransactionNode();
+
     private static volatile ContextSelector<EJBClientTransactionContext> SELECTOR = new ConstantContextSelector<EJBClientTransactionContext>(createLocal());
 
     private static final RuntimePermission SET_SELECTOR_PERMISSION = new RuntimePermission("setClientTransactionContextSelector");

@@ -22,22 +22,45 @@
 
 package org.jboss.ejb.client;
 
+import java.io.Serializable;
+
 /**
- * Commonly-used attachment keys.
+ * The affinity specification for an EJB proxy.
  *
  * @author <a href="mailto:david.lloyd@redhat.com">David M. Lloyd</a>
  */
-public final class AttachmentKeys {
-    private AttachmentKeys() {}
+public abstract class Affinity implements Serializable {
+
+    private static final long serialVersionUID = -2985180758368879373L;
 
     /**
-     * The attachment key for transaction IDs.  This key is normally associated with an invocation.
+     * The specification for no particular affinity.
      */
-    public static final AttachmentKey<TransactionID> TRANSACTION_ID_KEY = new AttachmentKey<TransactionID>();
-    /**
-     * The preferred node for invocations from this proxy.  Note that this node name is only a
-     * recommendation and is not required to be used, and if the node is not available then the invocation
-     * may proceed to another node.  This key is normally associated with a proxy, and copied to an invocation.
-     */
-    public static final AttachmentKey<String> PREFERRED_NODE = new AttachmentKey<String>();
+    public static final Affinity NONE = new NoAffinity();
+
+    Affinity() {
+    }
+
+    abstract EJBReceiverContext getReceiverContext(EJBClientContext clientContext);
+
+    static class NoAffinity extends Affinity {
+
+        private static final long serialVersionUID = -2052559528672779420L;
+
+        EJBReceiverContext getReceiverContext(final EJBClientContext clientContext) {
+            return null;
+        }
+
+        public int hashCode() {
+            return 17;
+        }
+
+        public boolean equals(final Object obj) {
+            return obj == this;
+        }
+
+        protected Object readResolve() {
+            return NONE;
+        }
+    }
 }
