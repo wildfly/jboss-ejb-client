@@ -132,7 +132,7 @@ class EjbNamingContext implements Context {
         final Map<String,String> options = identifier.getOptions();
         final boolean stateful = options.containsKey("stateful") && ! "false".equalsIgnoreCase(options.get("stateful"));
         if (stateful) {
-            locator = new StatefulEJBLocator<T>(viewClass, identifier.getApplication(), identifier.getModule(), identifier.getEjbName(), identifier.getDistinctName(), EJBClient.createSession(identifier.getApplication(), identifier.getModule(), identifier.getEjbName(), identifier.getDistinctName()));
+            locator = EJBClient.createSession(viewClass, identifier.getApplication(), identifier.getModule(), identifier.getEjbName(), identifier.getDistinctName());
         } else {
             locator = new StatelessEJBLocator<T>(viewClass, identifier.getApplication(), identifier.getModule(), identifier.getEjbName(), identifier.getDistinctName());
         }

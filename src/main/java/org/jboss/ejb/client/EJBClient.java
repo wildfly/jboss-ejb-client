@@ -148,6 +148,7 @@ public final class EJBClient {
     /**
      * Create a new EJB session.
      *
+     * @param viewType the view type
      * @param appName the application name
      * @param moduleName the module name
      * @param beanName the EJB name
@@ -156,11 +157,11 @@ public final class EJBClient {
      * @throws Exception if an error occurs
      */
     // TODO: narrow exception type(s)
-    public static SessionID createSession(final String appName, final String moduleName, final String beanName, final String distinctName) throws Exception {
+    public static <T> StatefulEJBLocator<T> createSession(final Class<T> viewType, final String appName, final String moduleName, final String beanName, final String distinctName) throws Exception {
         EJBClientContext clientContext = EJBClientContext.requireCurrent();
         EJBReceiver ejbReceiver = clientContext.requireEJBReceiver(appName, moduleName, distinctName);
         EJBReceiverContext receiverContext = clientContext.requireEJBReceiverContext(ejbReceiver);
-        return ejbReceiver.openSession(receiverContext, appName, moduleName, distinctName, beanName);
+        return ejbReceiver.openSession(receiverContext, viewType, appName, moduleName, distinctName, beanName);
     }
 
     /**

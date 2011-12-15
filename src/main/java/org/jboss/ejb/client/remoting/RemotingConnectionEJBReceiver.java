@@ -36,6 +36,7 @@ import org.jboss.ejb.client.EJBReceiver;
 import org.jboss.ejb.client.EJBReceiverContext;
 import org.jboss.ejb.client.EJBReceiverInvocationContext;
 import org.jboss.ejb.client.SessionID;
+import org.jboss.ejb.client.StatefulEJBLocator;
 import org.jboss.ejb.client.TransactionID;
 import org.jboss.logging.Logger;
 import org.jboss.marshalling.MarshallerFactory;
@@ -186,7 +187,7 @@ public final class RemotingConnectionEJBReceiver extends EJBReceiver {
     }
 
     @Override
-    public SessionID openSession(final EJBReceiverContext receiverContext, final String appName, final String moduleName, final String distinctName, final String beanName) throws Exception {
+    protected <T> StatefulEJBLocator<T> openSession(final EJBReceiverContext receiverContext, final Class<T> viewType, final String appName, final String moduleName, final String distinctName, final String beanName) throws Exception {
         final ChannelAssociation channelAssociation = this.requireChannelAssociation(receiverContext);
         final Channel channel = channelAssociation.getChannel();
         final SessionOpenRequestWriter sessionOpenRequestWriter = new SessionOpenRequestWriter(this.clientProtocolVersion);
@@ -200,7 +201,7 @@ public final class RemotingConnectionEJBReceiver extends EJBReceiver {
         }
         final EJBReceiverInvocationContext.ResultProducer resultProducer = futureResultProducer.get();
         final SessionID sessionId = (SessionID) resultProducer.getResult();
-        return sessionId;
+        return new StatefulEJBLocator<T>(viewType, appName, moduleName, beanName, distinctName, sessionId);
     }
 
     @Override

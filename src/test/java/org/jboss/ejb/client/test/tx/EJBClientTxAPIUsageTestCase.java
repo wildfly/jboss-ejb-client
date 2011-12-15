@@ -33,7 +33,7 @@ import org.jboss.ejb.client.EJBClientTransactionContext;
 import org.jboss.ejb.client.EJBReceiver;
 import org.jboss.ejb.client.EJBReceiverContext;
 import org.jboss.ejb.client.EJBReceiverInvocationContext;
-import org.jboss.ejb.client.SessionID;
+import org.jboss.ejb.client.StatefulEJBLocator;
 import org.jboss.ejb.client.TransactionID;
 import org.junit.Test;
 
@@ -71,9 +71,8 @@ public class EJBClientTxAPIUsageTestCase {
         protected void processInvocation(EJBClientInvocationContext mapEJBClientInvocationContext, EJBReceiverInvocationContext receiverContext) throws Exception {
         }
 
-
         @Override
-        protected SessionID openSession(EJBReceiverContext ejbReceiverContext, String appName, String moduleName, String distinctName, String beanName) throws Exception {
+        protected <T> StatefulEJBLocator<T> openSession(final EJBReceiverContext context, final Class<T> viewType, final String appName, final String moduleName, final String distinctName, final String beanName) {
             return null;
         }
 

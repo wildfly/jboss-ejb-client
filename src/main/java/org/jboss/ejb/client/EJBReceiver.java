@@ -23,9 +23,12 @@
 package org.jboss.ejb.client;
 
 import javax.transaction.xa.XAException;
+
+import java.io.IOException;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.Set;
+import java.util.concurrent.ExecutionException;
 
 /**
  * A receiver for EJB invocations.  Receivers can be associated with one or more client contexts.  This interface is
@@ -108,18 +111,7 @@ public abstract class EJBReceiver extends Attachable {
         return false;
     }
 
-    /**
-     * Open a session.  TODO: determine correct exception types.
-     *
-     * @param ejbReceiverContext The EJB receiver context
-     * @param appName
-     * @param moduleName
-     * @param distinctName
-     * @param beanName
-     * @return the new session ID
-     * @throws Exception if the target is not stateful or does not exist
-     */
-    protected abstract SessionID openSession(EJBReceiverContext ejbReceiverContext, String appName, String moduleName, String distinctName, String beanName) throws Exception;
+    protected abstract <T> StatefulEJBLocator<T> openSession(final EJBReceiverContext context, final Class<T> viewType, final String appName, final String moduleName, final String distinctName, final String beanName) throws Exception;
 
     /**
      * Verify the existence of a remote EJB.
