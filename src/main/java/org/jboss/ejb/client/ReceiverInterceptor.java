@@ -53,9 +53,36 @@ public final class ReceiverInterceptor implements EJBClientInterceptor {
             if (affinity instanceof NodeAffinity) {
                 receiverContext = clientContext.requireNodeEJBReceiverContext(((NodeAffinity)affinity).getNodeName());
             } else if (affinity instanceof ClusterAffinity) {
-                receiverContext = clientContext.requireClusterEJBReceiverContext(((ClusterAffinity)affinity).getClusterName());
+                final Affinity weakAffinity = context.getInvocationHandler().getWeakAffinity();
+                if (weakAffinity instanceof NodeAffinity) {
+                    final EJBReceiver nodeReceiver = clientContext.getNodeEJBReceiver(((NodeAffinity) weakAffinity).getNodeName());
+                    if (nodeReceiver != null && clientContext.clusterContains(((ClusterAffinity) affinity).getClusterName(), nodeReceiver.getNodeName())) {
+                        receiverContext = clientContext.requireEJBReceiverContext(nodeReceiver);
+                    } else {
+                        receiverContext = clientContext.requireClusterEJBReceiverContext(((ClusterAffinity)affinity).getClusterName());
+                    }
+                } else {
+                    receiverContext = clientContext.requireClusterEJBReceiverContext(((ClusterAffinity)affinity).getClusterName());
+                }
             } else if (affinity == Affinity.NONE) {
-                receiverContext = clientContext.requireEJBReceiverContext(clientContext.requireEJBReceiver(locator.getAppName(), locator.getModuleName(), locator.getDistinctName()));
+                final Affinity weakAffinity = context.getInvocationHandler().getWeakAffinity();
+                if (weakAffinity instanceof NodeAffinity) {
+                    final EJBReceiver receiver = clientContext.getNodeEJBReceiver(((NodeAffinity) weakAffinity).getNodeName());
+                    if (receiver != null) {
+                        receiverContext = clientContext.requireEJBReceiverContext(receiver);
+                    } else {
+                        receiverContext = clientContext.requireEJBReceiverContext(clientContext.requireEJBReceiver(locator.getAppName(), locator.getModuleName(), locator.getDistinctName()));
+                    }
+                } else if (weakAffinity instanceof ClusterAffinity) {
+                    final EJBReceiver receiver = clientContext.getClusterEJBReceiver(((ClusterAffinity) weakAffinity).getClusterName());
+                    if (receiver != null) {
+                        receiverContext = clientContext.requireEJBReceiverContext(receiver);
+                    } else {
+                        receiverContext = clientContext.requireEJBReceiverContext(clientContext.requireEJBReceiver(locator.getAppName(), locator.getModuleName(), locator.getDistinctName()));
+                    }
+                } else {
+                    receiverContext = clientContext.requireEJBReceiverContext(clientContext.requireEJBReceiver(locator.getAppName(), locator.getModuleName(), locator.getDistinctName()));
+                }
             } else {
                 // should never happen
                 throw new IllegalStateException("Unknown affinity type");

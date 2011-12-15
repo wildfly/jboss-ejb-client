@@ -35,9 +35,9 @@ public final class AttachmentKeys {
      */
     public static final AttachmentKey<TransactionID> TRANSACTION_ID_KEY = new AttachmentKey<TransactionID>();
     /**
-     * The preferred node for invocations from this proxy.  Note that this node name is only a
-     * recommendation and is not required to be used, and if the node is not available then the invocation
-     * may proceed to another node.  This key is normally associated with a proxy, and copied to an invocation.
+     * The preferred node or cluster for invocations from this proxy.  Note that this name is only a
+     * recommendation and is not required to be used, and if the node or cluster is not available then the invocation
+     * may proceed to another node or cluster.  This key is normally associated with a proxy, and copied to an invocation.
      */
-    public static final AttachmentKey<String> PREFERRED_NODE = new AttachmentKey<String>();
+    public static final AttachmentKey<Affinity> WEAK_AFFINITY = new AttachmentKey<Affinity>();
 }

@@ -115,6 +115,10 @@ public final class EJBClientInvocationContext extends Attachable {
         return invocationHandler.removeAttachment(key);
     }
 
+    EJBInvocationHandler<?> getInvocationHandler() {
+        return invocationHandler;
+    }
+
     /**
      * Get the EJB client context associated with this invocation.
      *
@@ -199,9 +203,9 @@ public final class EJBClientInvocationContext extends Attachable {
             return chain[idx].handleInvocationResult(this);
         } finally {
             resultDone = true;
-            final String nodeName = getAttachment(AttachmentKeys.PREFERRED_NODE);
-            if (nodeName != null) {
-                invocationHandler.setAffinity(nodeName);
+            final Affinity weakAffinity = getAttachment(AttachmentKeys.WEAK_AFFINITY);
+            if (weakAffinity != null) {
+                invocationHandler.setWeakAffinity(weakAffinity);
             }
         } else try {
             if (chain.length == idx) {

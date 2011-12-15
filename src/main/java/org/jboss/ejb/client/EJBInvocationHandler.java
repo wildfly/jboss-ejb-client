@@ -51,9 +51,9 @@ final class EJBInvocationHandler<T> extends Attachable implements InvocationHand
      */
     private final EJBLocator<T> locator;
     /**
-     * @serial the name of the node to which this proxy has a weak affinity; may be {@code null}
+     * @serial the weak affinity
      */
-    private volatile String nodeAffinity;
+    private volatile Affinity weakAffinity = Affinity.NONE;
 
     /**
      * map of methods that can be handled on the client side
@@ -90,12 +90,12 @@ final class EJBInvocationHandler<T> extends Attachable implements InvocationHand
         return doInvoke(locator.getViewType().cast(proxy), method, args);
     }
 
-    void setAffinity(String newNodeAffinity) {
-        nodeAffinity = newNodeAffinity;
+    void setWeakAffinity(Affinity newWeakAffinity) {
+        weakAffinity = newWeakAffinity;
     }
 
-    String getNodeAffinity() {
-        return nodeAffinity;
+    Affinity getWeakAffinity() {
+        return weakAffinity;
     }
 
     Object doInvoke(final T proxy, final Method method, final Object[] args) throws Throwable {
@@ -104,14 +104,7 @@ final class EJBInvocationHandler<T> extends Attachable implements InvocationHand
             return handler.invoke(this, proxy, method, args);
         }
         final EJBClientContext context = EJBClientContext.requireCurrent();
-        EJBReceiver receiver = null;
-        if (nodeAffinity != null) {
-            receiver = context.getNodeEJBReceiver(nodeAffinity);
-        }
-        if (receiver == null) {
-            receiver = context.requireEJBReceiver(locator.getAppName(), locator.getModuleName(), locator.getDistinctName());
-        }
-        return doInvoke(this, async, proxy, method, args, receiver, context);
+        return doInvoke(this, async, proxy, method, args, context);
     }
 
     @SuppressWarnings("unchecked")
@@ -123,8 +116,7 @@ final class EJBInvocationHandler<T> extends Attachable implements InvocationHand
         throw Logs.MAIN.proxyNotOurs(proxy, EJBClient.class.getName());
     }
 
-    private static <T> Object doInvoke(final EJBInvocationHandler<T> ejbInvocationHandler, final boolean async, final T proxy, final Method method, final Object[] args, final EJBReceiver receiver, EJBClientContext clientContext) throws Throwable {
-        final EJBReceiverContext ejbReceiverContext = clientContext.requireEJBReceiverContext(receiver);
+    private static <T> Object doInvoke(final EJBInvocationHandler<T> ejbInvocationHandler, final boolean async, final T proxy, final Method method, final Object[] args, EJBClientContext clientContext) throws Throwable {
         final EJBClientInvocationContext invocationContext = new EJBClientInvocationContext(ejbInvocationHandler, clientContext, proxy, method, args);
 
         invocationContext.sendRequest();

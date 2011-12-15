@@ -430,4 +430,8 @@ public final class EJBClientContext extends Attachable {
         }
         return interceptors;
     }
+
+    EJBReceiver getClusterEJBReceiver(final String clusterName) {
+        return null;
+    }
 }

@@ -182,7 +182,7 @@ public final class EJBClient {
      * @return the name of the node, or {@code null} if there is no set affinity or if the object is not a valid proxy
      */
     public static String getNodeAffinity(final Object proxy) {
-        return isEJBProxy(proxy) ? EJBInvocationHandler.forProxy(proxy).getNodeAffinity() : null;
+        return isEJBProxy(proxy) ? EJBInvocationHandler.forProxy(proxy).getWeakAffinity() : null;
     }
 
     /**
