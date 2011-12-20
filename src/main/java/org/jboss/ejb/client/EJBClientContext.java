@@ -56,9 +56,9 @@ public final class EJBClientContext extends Attachable {
     private volatile EJBClientInterceptor.Registration[] registrations = NO_INTERCEPTORS;
 
     /**
-     * Cluster managers mapped against their cluster name
+     * Cluster contexts mapped against their cluster name
      */
-    private final Map<String, ClusterManager> clusterManagers = Collections.synchronizedMap(new HashMap<String, ClusterManager>());
+    private final Map<String, ClusterContext> clusterContexts = Collections.synchronizedMap(new HashMap<String, ClusterContext>());
 
 
     private EJBClientContext() {
@@ -423,7 +423,7 @@ public final class EJBClientContext extends Attachable {
      * @return
      */
     boolean clusterContains(final String clusterName, final String nodeName) {
-        final ClusterManager clusterManager = this.clusterManagers.get(clusterName);
+        final ClusterContext clusterManager = this.clusterContexts.get(clusterName);
         if (clusterManager == null) {
             return false;
         }
@@ -439,7 +439,7 @@ public final class EJBClientContext extends Attachable {
      * @throws IllegalArgumentException If there's no EJB receiver context available for the cluster
      */
     EJBReceiverContext requireClusterEJBReceiverContext(final String clusterName) throws IllegalArgumentException {
-        final ClusterManager clusterManager = this.clusterManagers.get(clusterName);
+        final ClusterContext clusterManager = this.clusterContexts.get(clusterName);
         if (clusterManager == null) {
             throw new IllegalArgumentException("No EJB receiver context available for cluster name " + clusterName);
         }
@@ -464,7 +464,7 @@ public final class EJBClientContext extends Attachable {
      * @return
      */
     EJBReceiver getClusterEJBReceiver(final String clusterName) {
-        final ClusterManager clusterManager = this.clusterManagers.get(clusterName);
+        final ClusterContext clusterManager = this.clusterContexts.get(clusterName);
         if (clusterManager == null) {
             return null;
         }
@@ -473,21 +473,21 @@ public final class EJBClientContext extends Attachable {
     }
 
     /**
-     * Returns a {@link ClusterManager} corresponding to the passed <code>clusterName</code>. If no
-     * such cluster manager exists, a new one is created and returned. Subsequent invocations on this
-     * {@link EJBClientContext} for the same cluster name return this same {@link ClusterManager}, unless
+     * Returns a {@link ClusterContext} corresponding to the passed <code>clusterName</code>. If no
+     * such cluster context exists, a new one is created and returned. Subsequent invocations on this
+     * {@link EJBClientContext} for the same cluster name will return this same {@link ClusterContext}, unless
      * the cluster has been removed from this client context.
      *
      * @param clusterName The name of the cluster
      * @return
      */
-    synchronized ClusterManager getOrCreateCluster(final String clusterName) {
-        ClusterManager clusterManager = this.clusterManagers.get(clusterName);
-        if (clusterManager == null) {
-            clusterManager = new ClusterManager(clusterName);
-            this.clusterManagers.put(clusterName, clusterManager);
+    public synchronized ClusterContext getOrCreateClusterContext(final String clusterName) {
+        ClusterContext clusterContext = this.clusterContexts.get(clusterName);
+        if (clusterContext == null) {
+            clusterContext = new ClusterContext(clusterName, this);
+            this.clusterContexts.put(clusterName, clusterContext);
         }
-        return clusterManager;
+        return clusterContext;
     }
 
     /**
@@ -495,17 +495,17 @@ public final class EJBClientContext extends Attachable {
      *
      * @param clusterName The name of the cluster
      */
-    synchronized void removeCluster(final String clusterName) {
-        final ClusterManager clusterManager = this.clusterManagers.remove(clusterName);
-        if (clusterManager == null) {
+    public synchronized void removeCluster(final String clusterName) {
+        final ClusterContext clusterContext = this.clusterContexts.remove(clusterName);
+        if (clusterContext == null) {
             return;
         }
         try {
-            // close the cluster manager to allow it to cleanup any resources
-            clusterManager.close();
+            // close the cluster context to allow it to cleanup any resources
+            clusterContext.close();
         } catch (Throwable t) {
             // ignore
-            logger.debug("Ignoring an error that occured while closing a cluster manager for cluster named " + clusterName, t);
+            logger.debug("Ignoring an error that occured while closing a cluster context for cluster named " + clusterName, t);
         }
     }
 }

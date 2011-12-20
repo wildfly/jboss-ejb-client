@@ -22,6 +22,7 @@
 
 package org.jboss.ejb.client.remoting;
 
+import org.jboss.ejb.client.EJBClientContext;
 import org.jboss.ejb.client.EJBReceiverContext;
 import org.jboss.remoting3.MessageInputStream;
 
@@ -63,9 +64,11 @@ class ClusterRemovalMessageHandler extends ProtocolMessageHandler {
         } finally {
             messageInputStream.close();
         }
-        // let the receiver context know that about the removed clusters
+        // let the client context know that about the removed clusters
+        final EJBClientContext clientContext = this.ejbReceiverContext.getClientContext();
         for (final String clusterName : removedClusters) {
-            this.ejbReceiverContext.clusterRemoved(clusterName);
+            // remove the cluster from the client context
+            clientContext.removeCluster(clusterName);
         }
     }
 }

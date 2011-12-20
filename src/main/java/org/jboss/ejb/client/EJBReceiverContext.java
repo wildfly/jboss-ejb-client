@@ -25,7 +25,6 @@ package org.jboss.ejb.client;
 import org.jboss.logging.Logger;
 
 import java.io.Closeable;
-import java.util.Collection;
 
 /**
  * The context used by receivers to communicate state changes with the EJB client context.
@@ -42,7 +41,7 @@ public final class EJBReceiverContext extends Attachable implements Closeable {
         this.clientContext = clientContext;
     }
 
-    EJBClientContext getClientContext() {
+    public EJBClientContext getClientContext() {
         return clientContext;
     }
 
@@ -57,14 +56,4 @@ public final class EJBReceiverContext extends Attachable implements Closeable {
         this.clientContext.unregisterEJBReceiver(this.receiver);
     }
 
-    public void clusterViewReceived(final String clusterName, final Collection<ClusterNode> clusterNodes) {
-        logger.debug("Received a cluster topology for cluster named " + clusterName + " with " + clusterNodes.size() + " nodes");
-        final ClusterManager clusterManager = this.clientContext.getOrCreateCluster(clusterName);
-        clusterManager.addClusterNodes(clusterNodes);
-    }
-
-    public void clusterRemoved(final String clusterName) {
-        logger.debug("Received a cluster removal notification for cluster named " + clusterName);
-        this.clientContext.removeCluster(clusterName);
-    }
 }

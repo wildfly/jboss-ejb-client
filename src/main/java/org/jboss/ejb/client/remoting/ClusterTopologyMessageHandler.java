@@ -22,8 +22,11 @@
 
 package org.jboss.ejb.client.remoting;
 
+import org.jboss.ejb.client.ClusterContext;
 import org.jboss.ejb.client.ClusterNode;
+import org.jboss.ejb.client.EJBClientContext;
 import org.jboss.ejb.client.EJBReceiverContext;
+import org.jboss.logging.Logger;
 import org.jboss.remoting3.MessageInputStream;
 
 import java.io.DataInput;
@@ -42,6 +45,8 @@ import java.util.Map;
  * @author Jaikiran Pai
  */
 class ClusterTopologyMessageHandler extends ProtocolMessageHandler {
+
+    private static final Logger logger = Logger.getLogger(ClusterTopologyMessageHandler.class);
 
     private final EJBReceiverContext ejbReceiverContext;
 
@@ -84,11 +89,15 @@ class ClusterTopologyMessageHandler extends ProtocolMessageHandler {
         } finally {
             messageInputStream.close();
         }
-        // let the receiver context know about the cluster topologies
+        // let the client context know about the cluster topologies
+        final EJBClientContext clientContext = this.ejbReceiverContext.getClientContext();
         for (final Map.Entry<String, Collection<ClusterNode>> entry : clusterTopologies.entrySet()) {
             final String clusterName = entry.getKey();
             final Collection<ClusterNode> nodes = entry.getValue();
-            this.ejbReceiverContext.clusterViewReceived(clusterName, nodes);
+            logger.debug("Received a cluster topology for cluster named " + clusterName + " with " + nodes.size() + " nodes");
+            // create a cluster context and add the nodes to it
+            final ClusterContext clusterContext = clientContext.getOrCreateClusterContext(clusterName);
+            clusterContext.addClusterNodes(nodes);
         }
     }
 }
