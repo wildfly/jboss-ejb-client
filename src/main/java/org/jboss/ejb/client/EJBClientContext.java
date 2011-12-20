@@ -22,17 +22,12 @@
 
 package org.jboss.ejb.client;
 
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.HashSet;
-import java.util.IdentityHashMap;
-import java.util.Iterator;
-import java.util.Map;
-import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
-
 import org.jboss.ejb.client.remoting.RemotingConnectionEJBReceiver;
 import org.jboss.logging.Logger;
 import org.jboss.remoting3.Connection;
+
+import java.util.*;
+import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 
 /**
  * The public API for an EJB client context.  An EJB client context may be associated with (and used by) one or more threads concurrently.
@@ -59,6 +54,11 @@ public final class EJBClientContext extends Attachable {
 
     private final Map<EJBReceiver, EJBReceiverContext> ejbReceiverAssociations = new IdentityHashMap<EJBReceiver, EJBReceiverContext>();
     private volatile EJBClientInterceptor.Registration[] registrations = NO_INTERCEPTORS;
+
+    /**
+     * Cluster managers mapped against their cluster name
+     */
+    private final Map<String, ClusterManager> clusterManagers = Collections.synchronizedMap(new HashMap<String, ClusterManager>());
 
 
     private EJBClientContext() {
@@ -139,6 +139,7 @@ public final class EJBClientContext extends Attachable {
 
     /**
      * Prevent the selector from being changed again.  Attempts to do so will result in a {@code SecurityException}.
+     *
      * @throws SecurityException if a security manager is installed and you do not have the {@code setEJBClientContextSelector}
      *                           {@link RuntimePermission}
      */
@@ -413,14 +414,38 @@ public final class EJBClientContext extends Attachable {
         return ejbReceiver == null ? null : requireEJBReceiverContext(ejbReceiver);
     }
 
+    /**
+     * Returns true if the <code>nodeName</code> belongs to a cluster named <code>clusterName</code>. Else
+     * returns false.
+     *
+     * @param clusterName The name of the cluster
+     * @param nodeName    The name of the node within the cluster
+     * @return
+     */
     boolean clusterContains(final String clusterName, final String nodeName) {
-        // todo - use cluster->node mappings for this
-        return false;
+        final ClusterManager clusterManager = this.clusterManagers.get(clusterName);
+        if (clusterManager == null) {
+            return false;
+        }
+        return clusterManager.isNodeAvailable(nodeName);
     }
 
-    EJBReceiverContext requireClusterEJBReceiverContext(final String clusterName) {
-        throw new IllegalStateException("Implement me");
+    /**
+     * Returns a {@link EJBReceiverContext} for the <code>clusterName</code>. If there's no such receiver context
+     * for the cluster, then this method throws an {@link IllegalArgumentException}
+     *
+     * @param clusterName The name of the cluster
+     * @return
+     * @throws IllegalArgumentException If there's no EJB receiver context available for the cluster
+     */
+    EJBReceiverContext requireClusterEJBReceiverContext(final String clusterName) throws IllegalArgumentException {
+        final ClusterManager clusterManager = this.clusterManagers.get(clusterName);
+        if (clusterManager == null) {
+            throw new IllegalArgumentException("No EJB receiver context available for cluster name " + clusterName);
+        }
+        return clusterManager.requireEJBReceiverContext();
     }
+
     EJBClientInterceptor[] getInterceptorChain() {
         // todo optimize to eliminate copy
         final EJBClientInterceptor.Registration[] registrations = this.registrations;
@@ -431,7 +456,56 @@ public final class EJBClientContext extends Attachable {
         return interceptors;
     }
 
+    /**
+     * Returns a {@link EJBReceiver} for the passed <code>clusterName</code>. If there's no such EJB receiver
+     * for the cluster name, then this method returns null.
+     *
+     * @param clusterName The name of the cluster
+     * @return
+     */
     EJBReceiver getClusterEJBReceiver(final String clusterName) {
-        return null;
+        final ClusterManager clusterManager = this.clusterManagers.get(clusterName);
+        if (clusterManager == null) {
+            return null;
+        }
+        final EJBReceiverContext ejbReceiverContext = clusterManager.getEJBReceiverContext();
+        return ejbReceiverContext == null ? null : ejbReceiverContext.getReceiver();
+    }
+
+    /**
+     * Returns a {@link ClusterManager} corresponding to the passed <code>clusterName</code>. If no
+     * such cluster manager exists, a new one is created and returned. Subsequent invocations on this
+     * {@link EJBClientContext} for the same cluster name return this same {@link ClusterManager}, unless
+     * the cluster has been removed from this client context.
+     *
+     * @param clusterName The name of the cluster
+     * @return
+     */
+    synchronized ClusterManager getOrCreateCluster(final String clusterName) {
+        ClusterManager clusterManager = this.clusterManagers.get(clusterName);
+        if (clusterManager == null) {
+            clusterManager = new ClusterManager(clusterName);
+            this.clusterManagers.put(clusterName, clusterManager);
+        }
+        return clusterManager;
+    }
+
+    /**
+     * Removes the cluster identified by the <code>clusterName</code> from this client context
+     *
+     * @param clusterName The name of the cluster
+     */
+    synchronized void removeCluster(final String clusterName) {
+        final ClusterManager clusterManager = this.clusterManagers.remove(clusterName);
+        if (clusterManager == null) {
+            return;
+        }
+        try {
+            // close the cluster manager to allow it to cleanup any resources
+            clusterManager.close();
+        } catch (Throwable t) {
+            // ignore
+            logger.debug("Ignoring an error that occured while closing a cluster manager for cluster named " + clusterName, t);
+        }
     }
 }

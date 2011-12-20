@@ -215,6 +215,10 @@ class ChannelAssociation {
                 return new AsyncMethodNotificationHandler(this);
             case 0x14:
                 return new TransactionInvocationResponseHandler(this);
+            case 0x15:
+                return new ClusterTopologyMessageHandler(this.ejbReceiverContext);
+            case 0x16:
+                return new ClusterRemovalMessageHandler(this.ejbReceiverContext);
             default:
                 return null;
         }
