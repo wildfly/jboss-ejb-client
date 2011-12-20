@@ -22,11 +22,10 @@
 
 package org.jboss.ejb.client;
 
+import javax.transaction.UserTransaction;
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Proxy;
 import java.util.concurrent.Future;
-
-import javax.transaction.UserTransaction;
 
 /**
  * The main EJB client API class.  This class contains helper methods which may be used to create proxies, open sessions,
@@ -124,7 +123,7 @@ public final class EJBClient {
      * Create a new proxy for the remote object identified by the given locator.
      *
      * @param locator the locator
-     * @param <T> the proxy type
+     * @param <T>     the proxy type
      * @return the new proxy
      * @throws IllegalArgumentException if the locator parameter is {@code null} or is invalid
      */
@@ -148,10 +147,10 @@ public final class EJBClient {
     /**
      * Create a new EJB session.
      *
-     * @param viewType the view type
-     * @param appName the application name
-     * @param moduleName the module name
-     * @param beanName the EJB name
+     * @param viewType     the view type
+     * @param appName      the application name
+     * @param moduleName   the module name
+     * @param beanName     the EJB name
      * @param distinctName the module distinct name
      * @return the new session ID
      * @throws Exception if an error occurs
@@ -182,7 +181,17 @@ public final class EJBClient {
      * @return the name of the node, or {@code null} if there is no set affinity or if the object is not a valid proxy
      */
     public static String getNodeAffinity(final Object proxy) {
-        return isEJBProxy(proxy) ? EJBInvocationHandler.forProxy(proxy).getWeakAffinity() : null;
+        if (!isEJBProxy(proxy)) {
+            return null;
+        }
+        final Affinity affinity = EJBInvocationHandler.forProxy(proxy).getWeakAffinity();
+        if (affinity instanceof NodeAffinity) {
+            return ((NodeAffinity) affinity).getNodeName();
+        }
+        if (affinity instanceof ClusterAffinity) {
+            return ((ClusterAffinity) affinity).getClusterName();
+        }
+        return null;
     }
 
     /**
