@@ -22,10 +22,6 @@
 
 package org.jboss.ejb.client;
 
-import javax.security.auth.callback.Callback;
-import javax.security.auth.callback.CallbackHandler;
-import javax.security.auth.callback.NameCallback;
-import javax.security.auth.callback.UnsupportedCallbackException;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
@@ -40,6 +36,14 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.StringTokenizer;
 import java.util.concurrent.TimeUnit;
+
+import javax.security.auth.callback.Callback;
+import javax.security.auth.callback.CallbackHandler;
+import javax.security.auth.callback.NameCallback;
+import javax.security.auth.callback.PasswordCallback;
+import javax.security.auth.callback.UnsupportedCallbackException;
+import javax.security.sasl.RealmCallback;
+import javax.xml.bind.DatatypeConverter;
 
 import org.jboss.ejb.client.remoting.IoFutureHelper;
 import org.jboss.logging.Logger;
@@ -80,6 +84,14 @@ class ConfigBasedEJBClientContextSelector implements ContextSelector<EJBClientCo
 
     private static final String EJB_CLIENT_PROP_KEY_ENDPOINT_NAME = "endpoint.name";
     private static final String EJB_CLIENT_DEFAULT_ENDPOINT_NAME = "config-based-ejb-client-endpoint";
+
+
+    private static final String USERNAME_KEY = "username";
+    private static final String PASSWORD_KEY = "password";
+    private static final String PASSWORD_BASE64_KEY = "password.base64";
+    private static final String REALM_KEY = "realm";
+
+    private static final String CALLBACK_HANDLER_KEY = "callback.handler.class";
 
     private static final String ENDPOINT_CREATION_OPTIONS_PREFIX = "endpoint.create.options.";
     private static final String REMOTE_CONNECTION_PROVIDER_CREATE_OPTIONS_PREFIX = "remote.connectionprovider.create.options.";
@@ -268,12 +280,90 @@ class ConfigBasedEJBClientContextSelector implements ContextSelector<EJBClientCo
                         + connectionName + ". Falling back to default connection timeout value " + DEFAULT_CONNECTION_TIMEOUT_IN_MILLIS + " milli secondss");
             }
         }
+
+        final CallbackHandler callbackHandler = createCallbackHandler(connectionName, connectionSpecificProps, ejbClientProperties);
+
+
         final URI connectionURI = new URI("remote://" + host.trim() + ":" + port);
         // TODO: FIXME: The AnonymousCallbackHandler being passed here is a hack, till we have
         // a better way of configuring security via EJB client configuration file
-        final IoFuture<Connection> futureConnection = this.clientEndpoint.connect(connectionURI, connectOptions, new AnonymousCallbackHandler());
+        final IoFuture<Connection> futureConnection = this.clientEndpoint.connect(connectionURI, connectOptions, callbackHandler);
         // wait for the connection to be established
         return IoFutureHelper.get(futureConnection, connectionTimeout, TimeUnit.MILLISECONDS);
+    }
+
+    /**
+     * Creates a callback handler for the given remote connection.
+     *
+     * @param connectionName          The connection name
+     * @param connectionSpecificProps
+     * @param ejbClientProperties     The connection properties  @return The CallbackHandler.
+     */
+    private CallbackHandler createCallbackHandler(final String connectionName, final Map<String, String> connectionSpecificProps, final Properties ejbClientProperties) {
+        String callbackClass = connectionSpecificProps.get(CALLBACK_HANDLER_KEY);
+        String userName = connectionSpecificProps.get(USERNAME_KEY);
+        String password = connectionSpecificProps.get(PASSWORD_KEY);
+        String passwordBase64 = connectionSpecificProps.get(PASSWORD_BASE64_KEY);
+        String realm = connectionSpecificProps.get(REALM_KEY);
+
+        CallbackHandler handler = resolveCallbackHandler(connectionName, callbackClass, userName, password, passwordBase64, realm);
+        if (handler != null) {
+            return handler;
+        }
+
+        //nothing was specified for this connection, now check the defaults
+        callbackClass = ejbClientProperties.getProperty(CALLBACK_HANDLER_KEY);
+        userName = ejbClientProperties.getProperty(USERNAME_KEY);
+        password = ejbClientProperties.getProperty(PASSWORD_KEY);
+        passwordBase64 = ejbClientProperties.getProperty(PASSWORD_BASE64_KEY);
+        realm = ejbClientProperties.getProperty(REALM_KEY);
+
+        handler = resolveCallbackHandler(connectionName, callbackClass, userName, password, passwordBase64, realm);
+        if (handler != null) {
+            return handler;
+        }
+        //no auth specified, just use the default
+        return new AnonymousCallbackHandler();
+    }
+
+    private CallbackHandler resolveCallbackHandler(final String connectionName, final String callbackClass, final String userName, final String password, final String passwordBase64, final String realm) {
+
+        if (callbackClass != null && (userName != null || password != null)) {
+            throw new RuntimeException("Cannot specify both a callback handler and a username/password for connection " + connectionName);
+        }
+        if (callbackClass != null) {
+            ClassLoader classLoader = SecurityActions.getContextClassLoader();
+            if (classLoader == null) {
+                classLoader = ConfigBasedEJBClientContextSelector.class.getClassLoader();
+            }
+            try {
+                final Class<?> clazz = Class.forName(callbackClass, true, classLoader);
+                return (CallbackHandler) clazz.newInstance();
+            } catch (ClassNotFoundException e) {
+                throw new RuntimeException("Could not load callback handler class " + callbackClass + " for connection " + connectionName, e);
+            } catch (Exception e) {
+                throw new RuntimeException("Could not instantiate handler instance of type " + callbackClass + " for connection " + connectionName, e);
+            }
+        } else if (userName != null) {
+            if(password != null && passwordBase64 != null) {
+                throw new RuntimeException("Cannot specify both a plain text and base64 encoded password for connection " + connectionName);
+            }
+
+            final String decodedPassword;
+            if (passwordBase64 != null) {
+                try {
+                    decodedPassword = DatatypeConverter.printBase64Binary(password.getBytes());
+                } catch (Exception e) {
+                    throw new RuntimeException("Could not decode base64 encoded password for connection " + connectionName, e);
+                }
+            } else if(password != null) {
+                decodedPassword = password;
+            } else {
+                decodedPassword = null;
+            }
+            return new AuthenticationCallbackHandler(userName, decodedPassword.toCharArray(), realm);
+        }
+        return null;
     }
 
     private Map<String, String> getConnectionSpecificProperties(final String connectionName, final Properties ejbClientProperties) {
@@ -370,4 +460,42 @@ class ConfigBasedEJBClientContextSelector implements ContextSelector<EJBClientCo
             }
         }
     }
+
+
+    private class AuthenticationCallbackHandler implements CallbackHandler {
+
+        private final String realm;
+        private final String username;
+        private final char[] password;
+
+        private AuthenticationCallbackHandler(final String username, final char[] password, final String realm) {
+            this.username = username;
+            this.password = password;
+            this.realm = realm;
+        }
+
+        public void handle(Callback[] callbacks) throws IOException, UnsupportedCallbackException {
+
+            for (Callback current : callbacks) {
+                if (current instanceof RealmCallback) {
+                    RealmCallback rcb = (RealmCallback) current;
+                    if (realm == null) {
+                        String defaultText = rcb.getDefaultText();
+                        rcb.setText(defaultText); // For now just use the realm suggested.
+                    } else {
+                        rcb.setText(realm);
+                    }
+                } else if (current instanceof NameCallback) {
+                    NameCallback ncb = (NameCallback) current;
+                    ncb.setName(username);
+                } else if (current instanceof PasswordCallback) {
+                    PasswordCallback pcb = (PasswordCallback) current;
+                    pcb.setPassword(password);
+                } else {
+                    throw new UnsupportedCallbackException(current);
+                }
+            }
+        }
+    }
+
 }
