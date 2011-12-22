@@ -352,7 +352,7 @@ class ConfigBasedEJBClientContextSelector implements ContextSelector<EJBClientCo
             final String decodedPassword;
             if (passwordBase64 != null) {
                 try {
-                    decodedPassword = DatatypeConverter.printBase64Binary(password.getBytes());
+                    decodedPassword = DatatypeConverter.printBase64Binary(passwordBase64.getBytes());
                 } catch (Exception e) {
                     throw new RuntimeException("Could not decode base64 encoded password for connection " + connectionName, e);
                 }
