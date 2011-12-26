@@ -22,11 +22,20 @@
 
 package org.jboss.ejb.client;
 
+import org.jboss.ejb.client.remoting.ConfigBasedEJBClientContextSelector;
 import org.jboss.ejb.client.remoting.RemotingConnectionEJBReceiver;
 import org.jboss.logging.Logger;
 import org.jboss.remoting3.Connection;
 
-import java.util.*;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.IdentityHashMap;
+import java.util.Iterator;
+import java.util.Map;
+import java.util.Properties;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 
 /**
@@ -49,7 +58,11 @@ public final class EJBClientContext extends Attachable {
     /**
      * EJB client context selector. By default the {@link ConfigBasedEJBClientContextSelector} is used.
      */
-    private static volatile ContextSelector<EJBClientContext> SELECTOR = ConfigBasedEJBClientContextSelector.INSTANCE;
+    private static volatile ContextSelector<EJBClientContext> SELECTOR;
+    static {
+        final Properties ejbClientProperties = EJBClientPropertiesLoader.loadEJBClientProperties();
+        SELECTOR = new ConfigBasedEJBClientContextSelector(ejbClientProperties);
+    }
     private static volatile boolean SELECTOR_LOCKED;
 
     private final Map<EJBReceiver, EJBReceiverContext> ejbReceiverAssociations = new IdentityHashMap<EJBReceiver, EJBReceiverContext>();

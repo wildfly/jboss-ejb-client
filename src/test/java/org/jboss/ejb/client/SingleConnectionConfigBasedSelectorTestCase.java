@@ -22,9 +22,7 @@
 
 package org.jboss.ejb.client;
 
-import java.net.URL;
-import java.util.Collection;
-
+import org.jboss.ejb.client.remoting.ConfigBasedEJBClientContextSelector;
 import org.jboss.ejb.client.remoting.RemotingConnectionEJBReceiver;
 import org.jboss.ejb.client.test.client.EchoBean;
 import org.jboss.ejb.client.test.common.DummyServer;
@@ -33,6 +31,10 @@ import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Test;
+
+import java.net.URL;
+import java.util.Collection;
+import java.util.Properties;
 
 /**
  * Note that this testcase *must* be run in a new JVM instance so that the {@link ConfigBasedEJBClientContextSelector}
@@ -74,14 +76,16 @@ public class SingleConnectionConfigBasedSelectorTestCase {
 
     @Test
     public void testEJBClientContextAvailability() throws Exception {
-        final ConfigBasedEJBClientContextSelector configBasedEJBClientContextSelector = ConfigBasedEJBClientContextSelector.INSTANCE;
+        final Properties properties = EJBClientPropertiesLoader.loadEJBClientProperties();
+        final ConfigBasedEJBClientContextSelector configBasedEJBClientContextSelector = new ConfigBasedEJBClientContextSelector(properties);
         final EJBClientContext ejbClientContext = configBasedEJBClientContextSelector.getCurrent();
         Assert.assertNotNull("No client context found ", ejbClientContext);
     }
 
     @Test
     public void testRemotingEJBReceiver() throws Exception {
-        final ConfigBasedEJBClientContextSelector configBasedEJBClientContextSelector = ConfigBasedEJBClientContextSelector.INSTANCE;
+        final Properties properties = EJBClientPropertiesLoader.loadEJBClientProperties();
+        final ConfigBasedEJBClientContextSelector configBasedEJBClientContextSelector = new ConfigBasedEJBClientContextSelector(properties);
 
         final EJBClientContext ejbClientContext = configBasedEJBClientContextSelector.getCurrent();
         logger.info("Found EJB client context " + ejbClientContext);

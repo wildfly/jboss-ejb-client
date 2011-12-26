@@ -29,9 +29,9 @@ public final class ReceiverInterceptor implements EJBClientInterceptor {
 
     public void handleInvocation(final EJBClientInvocationContext context) throws Exception {
         final EJBClientContext clientContext = context.getClientContext();
-        final EJBClientTransactionContext transactionContext = EJBClientTransactionContext.getCurrent();
         final EJBLocator<?> locator = context.getLocator();
-        final String transactionNode = transactionContext.getTransactionNode();
+        final EJBClientTransactionContext transactionContext = EJBClientTransactionContext.getCurrent();
+        final String transactionNode = transactionContext == null ? null : transactionContext.getTransactionNode();
         final EJBReceiverContext receiverContext;
         if (transactionNode != null) {
             receiverContext = clientContext.requireNodeEJBReceiverContext(transactionNode);

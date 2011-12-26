@@ -22,11 +22,7 @@
 
 package org.jboss.ejb.client;
 
-import java.net.URL;
-import java.util.Collection;
-import java.util.HashSet;
-import java.util.Set;
-
+import org.jboss.ejb.client.remoting.ConfigBasedEJBClientContextSelector;
 import org.jboss.ejb.client.remoting.RemotingConnectionEJBReceiver;
 import org.jboss.ejb.client.test.client.EchoBean;
 import org.jboss.ejb.client.test.common.DummyServer;
@@ -36,11 +32,17 @@ import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
+import java.net.URL;
+import java.util.Collection;
+import java.util.HashSet;
+import java.util.Properties;
+import java.util.Set;
+
 /**
  * Note that this testcase *must* be run in a new JVM instance so that the {@link ConfigBasedEJBClientContextSelector}
  * is initialized with the correct set of properties that are set in the {@link #beforeClass()} of this testcase. We
  * use the forkMode=always of the Maven surefire plugin to ensure this behaviour (see the pom.xml of this project).
- * 
+ *
  * @author Jaikiran Pai
  */
 public class MultipleConnectionsConfigBasedSelectorTestCase {
@@ -86,7 +88,8 @@ public class MultipleConnectionsConfigBasedSelectorTestCase {
 
     @Test
     public void testRemotingEJBReceivers() throws Exception {
-        final ConfigBasedEJBClientContextSelector configBasedEJBClientContextSelector = ConfigBasedEJBClientContextSelector.INSTANCE;
+        final Properties properties = EJBClientPropertiesLoader.loadEJBClientProperties();
+        final ConfigBasedEJBClientContextSelector configBasedEJBClientContextSelector = new ConfigBasedEJBClientContextSelector(properties);
 
         final EJBClientContext ejbClientContext = configBasedEJBClientContextSelector.getCurrent();
         Assert.assertNotNull("No client context found " + ejbClientContext);

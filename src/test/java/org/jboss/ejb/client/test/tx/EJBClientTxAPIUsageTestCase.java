@@ -25,6 +25,7 @@ package org.jboss.ejb.client.test.tx;
 import javax.transaction.UserTransaction;
 import javax.transaction.xa.XAException;
 
+import org.jboss.ejb.client.ConstantContextSelector;
 import org.jboss.ejb.client.ContextSelector;
 import org.jboss.ejb.client.EJBClient;
 import org.jboss.ejb.client.EJBClientContext;
@@ -53,6 +54,7 @@ public class EJBClientTxAPIUsageTestCase {
             final UserTransaction userTransaction = EJBClient.getUserTransaction("dummynodename");
             userTransaction.begin();
         } finally {
+            EJBClientTransactionContext.setSelector(new ConstantContextSelector<EJBClientTransactionContext>(null));
             EJBClientContext.setSelector(oldClientContextSelector);
         }
     }
