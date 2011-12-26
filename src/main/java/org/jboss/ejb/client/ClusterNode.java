@@ -61,7 +61,7 @@ public final class ClusterNode {
      *
      * @return
      */
-    String getClusterName() {
+    public String getClusterName() {
         return this.clusterName;
     }
 
@@ -70,7 +70,7 @@ public final class ClusterNode {
      *
      * @return
      */
-    String getAddress() {
+    public String getAddress() {
         return this.address;
     }
 
@@ -79,7 +79,7 @@ public final class ClusterNode {
      *
      * @return
      */
-    int getEjbRemotingConnectorPort() {
+    public int getEjbRemotingConnectorPort() {
         return this.ejbRemotingConnectorPort;
     }
 
@@ -88,7 +88,7 @@ public final class ClusterNode {
      *
      * @return
      */
-    String getNodeName() {
+    public String getNodeName() {
         return this.nodeName;
     }
 }

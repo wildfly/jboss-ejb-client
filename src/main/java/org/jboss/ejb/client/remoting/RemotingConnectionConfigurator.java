@@ -22,6 +22,7 @@
 
 package org.jboss.ejb.client.remoting;
 
+import org.jboss.ejb.client.ClusterNode;
 import org.jboss.logging.Logger;
 import org.jboss.remoting3.Connection;
 import org.jboss.remoting3.Endpoint;
@@ -164,6 +165,26 @@ class RemotingConnectionConfigurator extends RemotingConfigurator {
         final IoFuture<Connection> futureConnection = this.endpoint.connect(connectionURI, connectOptions, callbackHandler);
         // wait for the connection to be established
         return IoFutureHelper.get(futureConnection, connectionTimeout, TimeUnit.MILLISECONDS);
+
+    }
+
+    Connection createConnection(final ClusterNode clusterNode, final OptionMap connectionOptions, final CallbackHandler callbackHandler,
+                                final long connectionTimeout, final TimeUnit unit) throws IOException, URISyntaxException {
+        if (clusterNode == null) {
+            throw new IllegalArgumentException("ClusterNode cannot be null while creating a connection");
+        }
+        // get "host" for the connection
+        final String host = clusterNode.getAddress();
+        if (host == null || host.trim().isEmpty()) {
+            throw new IllegalArgumentException("Host address cannot be null for cluster node");
+        }
+        // get "port" for the connection
+        final int ejbRemotingPort = clusterNode.getEjbRemotingConnectorPort();
+
+        final URI connectionURI = new URI("remote://" + host.trim() + ":" + ejbRemotingPort);
+        final IoFuture<Connection> futureConnection = this.endpoint.connect(connectionURI, connectionOptions, callbackHandler);
+        // wait for the connection to be established
+        return IoFutureHelper.get(futureConnection, connectionTimeout, unit);
 
     }
 

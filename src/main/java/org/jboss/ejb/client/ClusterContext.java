@@ -22,10 +22,17 @@
 
 package org.jboss.ejb.client;
 
+import org.jboss.ejb.client.remoting.ClusterNodeConnectionCreationTask;
 import org.jboss.ejb.client.remoting.RemotingConnectionEJBReceiver;
 import org.jboss.remoting3.Connection;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.IdentityHashMap;
+import java.util.Map;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 /**
  * A {@link ClusterContext} keeps track of a specific cluster and the {@link ClusterNode}s
@@ -42,6 +49,9 @@ public final class ClusterContext {
      * Map of EJB recevier context per cluster node name
      */
     private final Map<String, EJBReceiverContext> nodeEJBReceiverContexts = Collections.synchronizedMap(new IdentityHashMap<String, EJBReceiverContext>());
+
+    // TODO: Externalize this
+    private final ExecutorService executorService = Executors.newFixedThreadPool(5);
 
     ClusterContext(final String clusterName, final EJBClientContext clientContext) {
         this.clusterName = clusterName;
@@ -102,11 +112,9 @@ public final class ClusterContext {
      */
     public void addClusterNodes(final Collection<ClusterNode> nodes) {
         this.clusterNodes.addAll(nodes);
-        // TODO: implement this
-        // Executor.submit(new NodeAdditionTask() {
-        //                      final Connection connection = RemoteConnectionManager.createConnection(clusterNode);
-        //                      this.registerConnection(nodeName,connection);
-        //                 });
+        for (final ClusterNode clusterNode : nodes) {
+            this.executorService.submit(new ClusterNodeConnectionCreationTask(this, clusterNode));
+        }
     }
 
     /**
@@ -115,7 +123,9 @@ public final class ClusterContext {
      * behave like a cluster context which contains no nodes
      */
     void close() {
-
+        if (this.executorService != null) {
+            this.executorService.shutdownNow();
+        }
     }
 
     /**
@@ -123,7 +133,7 @@ public final class ClusterContext {
      *
      * @param connection the connection to register
      */
-    private void registerConnection(final String nodeName, final Connection connection) {
+    public void registerConnection(final String nodeName, final Connection connection) {
         this.registerEJBReceiver(nodeName, new RemotingConnectionEJBReceiver(connection));
     }
 
