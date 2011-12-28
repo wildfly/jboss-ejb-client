@@ -36,8 +36,8 @@ import org.jboss.marshalling.Unmarshaller;
 /**
  * @author <a href="mailto:david.lloyd@redhat.com">David M. Lloyd</a>
  */
-final class ProtocolV1ObjectTable implements ObjectTable {
-    static final ProtocolV1ObjectTable INSTANCE = new ProtocolV1ObjectTable();
+public final class ProtocolV1ObjectTable implements ObjectTable {
+    public static final ProtocolV1ObjectTable INSTANCE = new ProtocolV1ObjectTable();
 
     private static final Map<Object, ByteWriter> writers;
     /**

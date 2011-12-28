@@ -73,8 +73,8 @@ import javax.transaction.TransactionRolledbackException;
 /**
  * @author <a href="mailto:david.lloyd@redhat.com">David M. Lloyd</a>
  */
-final class ProtocolV1ClassTable implements ClassTable {
-    static final ProtocolV1ClassTable INSTANCE = new ProtocolV1ClassTable();
+public final class ProtocolV1ClassTable implements ClassTable {
+    public static final ProtocolV1ClassTable INSTANCE = new ProtocolV1ClassTable();
 
     private static final Map<Class<?>, ByteWriter> writers;
     /**
