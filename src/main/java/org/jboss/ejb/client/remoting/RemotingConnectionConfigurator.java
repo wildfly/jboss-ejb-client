@@ -22,7 +22,6 @@
 
 package org.jboss.ejb.client.remoting;
 
-import org.jboss.ejb.client.ClusterNode;
 import org.jboss.logging.Logger;
 import org.jboss.remoting3.Connection;
 import org.jboss.remoting3.Endpoint;

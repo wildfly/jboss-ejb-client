@@ -35,23 +35,23 @@ public final class ReceiverInterceptor implements EJBClientInterceptor {
         final EJBReceiverContext receiverContext;
         if (transactionNode != null) {
             receiverContext = clientContext.requireNodeEJBReceiverContext(transactionNode);
-            if (! receiverContext.getReceiver().acceptsModule(locator.getAppName(), locator.getModuleName(), locator.getDistinctName())) {
+            if (!receiverContext.getReceiver().acceptsModule(locator.getAppName(), locator.getModuleName(), locator.getDistinctName())) {
                 throw new IllegalStateException(String.format("Node of the current transaction (%s) does not accept (%s)", locator));
             }
             final Affinity affinity = locator.getAffinity();
             if (affinity instanceof NodeAffinity) {
-                if (! transactionNode.equals(((NodeAffinity)affinity).getNodeName())) {
+                if (!transactionNode.equals(((NodeAffinity) affinity).getNodeName())) {
                     throw new IllegalStateException(String.format("Node of the current transaction (%s) does not accept (%s)", transactionNode, locator));
                 }
             } else if (affinity instanceof ClusterAffinity) {
-                if (! clientContext.clusterContains(((ClusterAffinity)affinity).getClusterName(), transactionNode)) {
+                if (!clientContext.clusterContains(((ClusterAffinity) affinity).getClusterName(), transactionNode)) {
                     throw new IllegalStateException(String.format("Node of the current transaction (%s) does not accept (%s)", transactionNode, locator));
                 }
             }
         } else {
             final Affinity affinity = locator.getAffinity();
             if (affinity instanceof NodeAffinity) {
-                receiverContext = clientContext.requireNodeEJBReceiverContext(((NodeAffinity)affinity).getNodeName());
+                receiverContext = clientContext.requireNodeEJBReceiverContext(((NodeAffinity) affinity).getNodeName());
             } else if (affinity instanceof ClusterAffinity) {
                 final Affinity weakAffinity = context.getInvocationHandler().getWeakAffinity();
                 if (weakAffinity instanceof NodeAffinity) {
@@ -59,10 +59,10 @@ public final class ReceiverInterceptor implements EJBClientInterceptor {
                     if (nodeReceiver != null && clientContext.clusterContains(((ClusterAffinity) affinity).getClusterName(), nodeReceiver.getNodeName())) {
                         receiverContext = clientContext.requireEJBReceiverContext(nodeReceiver);
                     } else {
-                        receiverContext = clientContext.requireClusterEJBReceiverContext(((ClusterAffinity)affinity).getClusterName());
+                        receiverContext = clientContext.requireClusterEJBReceiverContext(((ClusterAffinity) affinity).getClusterName());
                     }
                 } else {
-                    receiverContext = clientContext.requireClusterEJBReceiverContext(((ClusterAffinity)affinity).getClusterName());
+                    receiverContext = clientContext.requireClusterEJBReceiverContext(((ClusterAffinity) affinity).getClusterName());
                 }
             } else if (affinity == Affinity.NONE) {
                 final Affinity weakAffinity = context.getInvocationHandler().getWeakAffinity();
@@ -74,9 +74,9 @@ public final class ReceiverInterceptor implements EJBClientInterceptor {
                         receiverContext = clientContext.requireEJBReceiverContext(clientContext.requireEJBReceiver(locator.getAppName(), locator.getModuleName(), locator.getDistinctName()));
                     }
                 } else if (weakAffinity instanceof ClusterAffinity) {
-                    final EJBReceiver receiver = clientContext.getClusterEJBReceiver(((ClusterAffinity) weakAffinity).getClusterName());
-                    if (receiver != null) {
-                        receiverContext = clientContext.requireEJBReceiverContext(receiver);
+                    final EJBReceiverContext clusterReceiverContext = clientContext.getClusterEJBReceiverContext(((ClusterAffinity) weakAffinity).getClusterName());
+                    if (clusterReceiverContext != null) {
+                        receiverContext = clusterReceiverContext;
                     } else {
                         receiverContext = clientContext.requireEJBReceiverContext(clientContext.requireEJBReceiver(locator.getAppName(), locator.getModuleName(), locator.getDistinctName()));
                     }

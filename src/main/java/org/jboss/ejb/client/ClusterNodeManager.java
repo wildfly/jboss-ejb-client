@@ -23,35 +23,24 @@
 package org.jboss.ejb.client;
 
 /**
- * A cluster affinity specification.
+ * A {@link ClusterNodeManager} is responsible for creating and managing the {@link EJBReceiver} associated
+ * with a cluster node
  *
- * @author <a href="mailto:david.lloyd@redhat.com">David M. Lloyd</a>
+ * @author Jaikiran Pai
  */
-public final class ClusterAffinity extends Affinity {
-
-    private static final long serialVersionUID = -8078602613739377911L;
-
-    private final String clusterName;
+public interface ClusterNodeManager {
 
     /**
-     * Construct a new instance.
+     * Returns the name of the node
      *
-     * @param clusterName the associated cluster name
+     * @return
      */
-    public ClusterAffinity(final String clusterName) {
-        this.clusterName = clusterName;
-    }
+    String getNodeName();
 
     /**
-     * Get the associated cluster name.
+     * Returns a {@link EJBReceiver} for the node
      *
-     * @return the associated cluster name
+     * @return
      */
-    public String getClusterName() {
-        return clusterName;
-    }
-
-    EJBReceiverContext requireReceiverContext(final EJBClientContext clientContext) {
-        return clientContext.requireClusterEJBReceiverContext(this.clusterName);
-    }
+    EJBReceiver getEJBReceiver();
 }

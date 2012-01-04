@@ -41,13 +41,13 @@ public abstract class Affinity implements Serializable {
     Affinity() {
     }
 
-    abstract EJBReceiverContext getReceiverContext(EJBClientContext clientContext);
+    abstract EJBReceiverContext requireReceiverContext(EJBClientContext clientContext);
 
     static class NoAffinity extends Affinity {
 
         private static final long serialVersionUID = -2052559528672779420L;
 
-        EJBReceiverContext getReceiverContext(final EJBClientContext clientContext) {
+        EJBReceiverContext requireReceiverContext(final EJBClientContext clientContext) {
             return null;
         }
 

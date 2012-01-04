@@ -59,10 +59,12 @@ public final class EJBClientContext extends Attachable {
      * EJB client context selector. By default the {@link ConfigBasedEJBClientContextSelector} is used.
      */
     private static volatile ContextSelector<EJBClientContext> SELECTOR;
+
     static {
         final Properties ejbClientProperties = EJBClientPropertiesLoader.loadEJBClientProperties();
         SELECTOR = new ConfigBasedEJBClientContextSelector(ejbClientProperties);
     }
+
     private static volatile boolean SELECTOR_LOCKED;
 
     private final Map<EJBReceiver, EJBReceiverContext> ejbReceiverAssociations = new IdentityHashMap<EJBReceiver, EJBReceiverContext>();
@@ -445,6 +447,21 @@ public final class EJBClientContext extends Attachable {
 
     /**
      * Returns a {@link EJBReceiverContext} for the <code>clusterName</code>. If there's no such receiver context
+     * for the cluster, then this method returns null
+     *
+     * @param clusterName The name of the cluster
+     * @return
+     */
+    EJBReceiverContext getClusterEJBReceiverContext(final String clusterName) throws IllegalArgumentException {
+        final ClusterContext clusterContext = this.clusterContexts.get(clusterName);
+        if (clusterContext == null) {
+            return null;
+        }
+        return clusterContext.getEJBReceiverContext();
+    }
+
+    /**
+     * Returns a {@link EJBReceiverContext} for the <code>clusterName</code>. If there's no such receiver context
      * for the cluster, then this method throws an {@link IllegalArgumentException}
      *
      * @param clusterName The name of the cluster
@@ -452,11 +469,11 @@ public final class EJBClientContext extends Attachable {
      * @throws IllegalArgumentException If there's no EJB receiver context available for the cluster
      */
     EJBReceiverContext requireClusterEJBReceiverContext(final String clusterName) throws IllegalArgumentException {
-        final ClusterContext clusterManager = this.clusterContexts.get(clusterName);
-        if (clusterManager == null) {
+        final ClusterContext clusterContext = this.clusterContexts.get(clusterName);
+        if (clusterContext == null) {
             throw new IllegalArgumentException("No EJB receiver context available for cluster name " + clusterName);
         }
-        return clusterManager.requireEJBReceiverContext();
+        return clusterContext.requireEJBReceiverContext();
     }
 
     EJBClientInterceptor[] getInterceptorChain() {
@@ -501,6 +518,17 @@ public final class EJBClientContext extends Attachable {
             this.clusterContexts.put(clusterName, clusterContext);
         }
         return clusterContext;
+    }
+
+    /**
+     * Returns a {@link ClusterContext} corresponding to the passed <code>clusterName</code>. If no
+     * such cluster context exists, then this method returns null.
+     *
+     * @param clusterName The name of the cluster
+     * @return
+     */
+    public synchronized ClusterContext getClusterContext(final String clusterName) {
+        return this.clusterContexts.get(clusterName);
     }
 
     /**

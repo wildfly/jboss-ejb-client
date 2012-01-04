@@ -225,9 +225,15 @@ class ChannelAssociation {
             case 0x14:
                 return new TransactionInvocationResponseHandler(this);
             case 0x15:
-                return new ClusterTopologyMessageHandler(this);
+                // complete cluster topology message handler
+                return new ClusterTopologyMessageHandler(this, true);
             case 0x16:
                 return new ClusterRemovalMessageHandler(this.ejbReceiverContext);
+            case 0x17:
+                // new node additions message handler
+                return new ClusterTopologyMessageHandler(this, false);
+            case 0x18:
+                return new ClusterNodeRemovalHandler(this);
             default:
                 return null;
         }

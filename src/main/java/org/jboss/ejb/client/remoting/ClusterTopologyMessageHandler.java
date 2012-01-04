@@ -23,10 +23,10 @@
 package org.jboss.ejb.client.remoting;
 
 import org.jboss.ejb.client.ClusterContext;
-import org.jboss.ejb.client.ClusterNode;
 import org.jboss.ejb.client.EJBClientContext;
 import org.jboss.ejb.client.EJBReceiverContext;
 import org.jboss.logging.Logger;
+import org.jboss.remoting3.Endpoint;
 import org.jboss.remoting3.MessageInputStream;
 
 import java.io.DataInput;
@@ -38,9 +38,12 @@ import java.util.HashMap;
 import java.util.Map;
 
 /**
- * Responsible for parsing the EJB remoting protocol messages which contain the complete clustering topology
- * which is sent from the server, when a cluster is formed or whenever a client connects to the server and the
- * cluster is already available
+ * Responsible for parsing the EJB remoting protocol messages which contain the information about the nodes that
+ * are part of the cluster. If this {@link ClusterTopologyMessageHandler} was created by passing <code>true</code>
+ * as the <code>completeTopology</code> param during {@link #ClusterTopologyMessageHandler(ChannelAssociation, boolean)} construction}
+ * then the message will be parsed as a complete topology i.e. any previous nodes in the cluster context corresponding
+ * to the cluster will be removed before adding this nodes to the context. Else, the nodes will be considered as new
+ * nodes and will just be added to the cluster context (without removing any existing nodes from the context).
  *
  * @author Jaikiran Pai
  */
@@ -48,10 +51,12 @@ class ClusterTopologyMessageHandler extends ProtocolMessageHandler {
 
     private static final Logger logger = Logger.getLogger(ClusterTopologyMessageHandler.class);
 
-    private final EJBReceiverContext ejbReceiverContext;
+    private final ChannelAssociation channelAssociation;
+    private final boolean completeTopology;
 
-    ClusterTopologyMessageHandler(final EJBReceiverContext ejbReceiverContext) {
-        this.ejbReceiverContext = ejbReceiverContext;
+    ClusterTopologyMessageHandler(final ChannelAssociation channelAssociation, final boolean completeTopology) {
+        this.channelAssociation = channelAssociation;
+        this.completeTopology = completeTopology;
     }
 
     @Override
@@ -59,7 +64,7 @@ class ClusterTopologyMessageHandler extends ProtocolMessageHandler {
         if (messageInputStream == null) {
             throw new IllegalArgumentException("Cannot read from null stream");
         }
-        final Map<String, Collection<ClusterNode>> clusterTopologies = new HashMap<String, Collection<ClusterNode>>();
+        final Map<String, Collection<ClusterNode>> clusterNodes = new HashMap<String, Collection<ClusterNode>>();
         try {
             final DataInput input = new DataInputStream(messageInputStream);
             // read the cluster count
@@ -84,20 +89,34 @@ class ClusterTopologyMessageHandler extends ProtocolMessageHandler {
                     nodes.add(clusterNode);
                 }
                 // add ito the map of cluster topologies
-                clusterTopologies.put(clusterName, nodes);
+                clusterNodes.put(clusterName, nodes);
             }
         } finally {
             messageInputStream.close();
         }
         // let the client context know about the cluster topologies
-        final EJBClientContext clientContext = this.ejbReceiverContext.getClientContext();
-        for (final Map.Entry<String, Collection<ClusterNode>> entry : clusterTopologies.entrySet()) {
+        final EJBReceiverContext ejbReceiverContext = this.channelAssociation.getEjbReceiverContext();
+        final EJBClientContext clientContext = ejbReceiverContext.getClientContext();
+        final Endpoint endpoint = this.channelAssociation.getChannel().getConnection().getEndpoint();
+        for (final Map.Entry<String, Collection<ClusterNode>> entry : clusterNodes.entrySet()) {
             final String clusterName = entry.getKey();
             final Collection<ClusterNode> nodes = entry.getValue();
-            logger.debug("Received a cluster topology for cluster named " + clusterName + " with " + nodes.size() + " nodes");
+            logger.debug("Received a cluster node(s) addition message, for cluster named " + clusterName + " with " + nodes.size() + " nodes");
             // create a cluster context and add the nodes to it
             final ClusterContext clusterContext = clientContext.getOrCreateClusterContext(clusterName);
-            clusterContext.addClusterNodes(nodes);
+            // if this is a complete topology message, then we'll first remove any existing nodes from the cluster context
+            if (this.completeTopology) {
+                clusterContext.removeAllClusterNodes();
+            }
+            this.addNodesToClusterContext(clusterContext, nodes, endpoint);
+        }
+    }
+
+    private void addNodesToClusterContext(final ClusterContext clusterContext, final Collection<ClusterNode> clusterNodes,
+                                          final Endpoint endpoint) {
+        for (final ClusterNode clusterNode : clusterNodes) {
+            final RemotingConnectionClusterNodeManager clusterNodeManager = new RemotingConnectionClusterNodeManager(clusterNode, endpoint);
+            clusterContext.addClusterNode(clusterNode.getNodeName(), clusterNodeManager);
         }
     }
 }

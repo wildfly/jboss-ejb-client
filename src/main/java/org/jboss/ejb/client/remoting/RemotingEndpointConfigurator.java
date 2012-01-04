@@ -35,15 +35,18 @@ import java.util.Properties;
  */
 class RemotingEndpointConfigurator extends RemotingConfigurator {
 
-    private static final String EJB_CLIENT_PROP_KEY_ENDPOINT_NAME = "endpoint.name";
+    static final String EJB_CLIENT_PROP_KEY_ENDPOINT_NAME = "endpoint.name";
     private static final String EJB_CLIENT_DEFAULT_ENDPOINT_NAME = "config-based-ejb-client-endpoint";
 
-    private static final String ENDPOINT_CREATION_OPTIONS_PREFIX = "endpoint.create.options.";
+    static final String ENDPOINT_CREATION_OPTIONS_PREFIX = "endpoint.create.options.";
     // The default options that will be used (unless overridden by the config file) for endpoint creation
     private static final OptionMap DEFAULT_ENDPOINT_CREATION_OPTIONS = OptionMap.create(Options.THREAD_DAEMON, true);
 
 
     static Endpoint createFrom(final Properties properties) throws IOException {
+        if (properties == null) {
+            throw new IllegalArgumentException("Properties cannot be null while creating a remoting endpoint");
+        }
         final String clientEndpointName = properties.getProperty(EJB_CLIENT_PROP_KEY_ENDPOINT_NAME, EJB_CLIENT_DEFAULT_ENDPOINT_NAME);
         final OptionMap endPointCreationOptionsFromConfiguration = getOptionMapFromProperties(properties, ENDPOINT_CREATION_OPTIONS_PREFIX, getClientClassLoader());
         // merge with defaults

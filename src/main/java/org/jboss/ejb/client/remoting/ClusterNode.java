@@ -20,7 +20,7 @@
  * 02110-1301 USA, or see the FSF site: http://www.fsf.org.
  */
 
-package org.jboss.ejb.client;
+package org.jboss.ejb.client.remoting;
 
 /**
  * A {@link ClusterNode} holds the information of a server side cluster server instance
