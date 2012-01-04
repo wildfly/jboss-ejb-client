@@ -33,17 +33,11 @@ import java.util.Collection;
 import java.util.Properties;
 
 /**
- * An EJB client context selector which parses a properties file to create {@link org.jboss.ejb.client.remoting.RemotingConnectionEJBReceiver}s
- * out of the properties configured in that file.
- * <p/>
- * By default this selector looks for a file named <code>jboss-ejb-client.properties</code> in the classpath of the application. The
- * location and the name of the file can be explicitly specified by passing setting the value for <code>jboss.ejb.client.properties.file.path</code>
- * system property. If this system property is set then this selector uses the value as the file path for the EJB client
- * context configuration properties file and <i></i>doesn't</i> further look for the <code>jboss-ejb-client.properties</code>
- * in the classpath.
- * <p/>
- * Applications can also disable classpath scanning of <code>jboss-ejb-client.properties</code>, by this selector,
- * by setting the <code>jboss.ejb.client.properties.skip.classloader.scan</code> system property to <code>true</code>
+ * An EJB client context selector which uses {@link Properties} to create {@link org.jboss.ejb.client.remoting.RemotingConnectionEJBReceiver}s.
+ * The {@link Properties} could possibly be read from some file or could be constructed in some other way. This {@link ConfigBasedEJBClientContextSelector}
+ * looks for certain EJB client API specified/regulated properties in the {@link Properties}, that was passed while
+ * {@link #ConfigBasedEJBClientContextSelector(java.util.Properties) constructing} this selector, for creating the
+ * remoting EJB receivers.
  *
  * @author Jaikiran Pai
  */

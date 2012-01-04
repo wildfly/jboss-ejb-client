@@ -31,6 +31,26 @@ import java.io.InputStream;
 import java.util.Properties;
 
 /**
+ * A {@link EJBClientPropertiesLoader} loads a EJB client properties file based on the following algorithm:
+ * <ol>
+ * <li>Checks if the <code>jboss.ejb.client.properties.file.path</code> system property is set. If it's set then this
+ * {@link EJBClientPropertiesLoader} uses that as the file path to the properties file and loads and returns the properties.
+ * </li>
+ * <li>If the <code>jboss.ejb.client.properties.file.path</code> system property is <i>not</i> set then this {@link EJBClientPropertiesLoader}
+ * then looks for a file named <code>jboss-ejb-client.properties</code> using an appropriate {@link ClassLoader}. If the
+ * {@link Thread#getContextClassLoader() thread context classloader} is set, then it uses that to find the <code>jboss-ejb-client.properties</code>
+ * file. Else it uses the {@link ClassLoader} which loaded the {@link EJBClientPropertiesLoader} class.
+ * <p>
+ * If such a file is found by the classloader, then this {@link EJBClientPropertiesLoader} loads and returns
+ * those properties. Else it returns null</p>.
+ * <p>
+ * This step of looking for a <code>jboss-ejb-client.properties</code> file using a {@link ClassLoader} can be
+ * completely skipped by setting the <code>jboss.ejb.client.properties.skip.classloader.scan</code> system property
+ * to <code>true</code>
+ * </p>
+ * </li>
+ * </ol>
+ *
  * @author Jaikiran Pai
  */
 class EJBClientPropertiesLoader {
