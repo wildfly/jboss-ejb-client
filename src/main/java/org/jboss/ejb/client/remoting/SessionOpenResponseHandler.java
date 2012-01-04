@@ -22,13 +22,16 @@
 
 package org.jboss.ejb.client.remoting;
 
-import java.io.DataInputStream;
-import java.io.IOException;
-
+import org.jboss.ejb.client.Affinity;
 import org.jboss.ejb.client.EJBReceiverInvocationContext;
 import org.jboss.ejb.client.SessionID;
 import org.jboss.logging.Logger;
+import org.jboss.marshalling.MarshallerFactory;
+import org.jboss.marshalling.Unmarshaller;
 import org.jboss.remoting3.MessageInputStream;
+
+import java.io.DataInputStream;
+import java.io.IOException;
 
 /**
  * Responsible for parsing a stream for a (prior) session open request's response, as per the EJB remote client protocol
@@ -40,9 +43,11 @@ class SessionOpenResponseHandler extends ProtocolMessageHandler {
     private static final Logger logger = Logger.getLogger(SessionOpenResponseHandler.class);
 
     private final ChannelAssociation channelAssociation;
+    private final MarshallerFactory marshallerFactory;
 
-    SessionOpenResponseHandler(final ChannelAssociation channelAssociation) {
+    SessionOpenResponseHandler(final ChannelAssociation channelAssociation, final MarshallerFactory marshallerFactory) {
         this.channelAssociation = channelAssociation;
+        this.marshallerFactory = marshallerFactory;
     }
 
     /**
@@ -85,7 +90,16 @@ class SessionOpenResponseHandler extends ProtocolMessageHandler {
                 final byte[] sessionIdBytes = new byte[sessionIdLength];
                 // read the session id
                 this.input.read(sessionIdBytes);
-                return SessionID.createSessionID(sessionIdBytes);
+                final SessionID sessionID = SessionID.createSessionID(sessionIdBytes);
+                // now read/unmarshal the affinity associated with this session
+                final Unmarshaller unmarshaller = SessionOpenResponseHandler.this.prepareForUnMarshalling(SessionOpenResponseHandler.this.marshallerFactory, input);
+                final Affinity affinity = (Affinity) unmarshaller.readObject();
+
+                // finish unmarshalling
+                unmarshaller.finish();
+                // return the result
+                return new SessionOpenResponse(sessionID, affinity);
+
             } finally {
                 this.input.close();
             }
@@ -93,6 +107,28 @@ class SessionOpenResponseHandler extends ProtocolMessageHandler {
 
         @Override
         public void discardResult() {
+        }
+    }
+
+    /**
+     * A session open response which holds the session id that was generated for a session open request and
+     * also the affinity associated with that session
+     */
+    final class SessionOpenResponse {
+        private final SessionID sessionID;
+        private final Affinity affinity;
+
+        SessionOpenResponse(final SessionID sessionID, final Affinity affinity) {
+            this.sessionID = sessionID;
+            this.affinity = affinity;
+        }
+
+        SessionID getSessionID() {
+            return this.sessionID;
+        }
+
+        Affinity getAffinity() {
+            return this.affinity;
         }
     }
 }

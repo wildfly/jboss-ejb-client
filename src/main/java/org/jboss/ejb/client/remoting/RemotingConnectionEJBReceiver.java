@@ -200,8 +200,8 @@ public final class RemotingConnectionEJBReceiver extends EJBReceiver {
             dataOutputStream.close();
         }
         final EJBReceiverInvocationContext.ResultProducer resultProducer = futureResultProducer.get();
-        final SessionID sessionId = (SessionID) resultProducer.getResult();
-        return new StatefulEJBLocator<T>(viewType, appName, moduleName, beanName, distinctName, sessionId);
+        final SessionOpenResponseHandler.SessionOpenResponse sessionOpenResponse = (SessionOpenResponseHandler.SessionOpenResponse) resultProducer.getResult();
+        return new StatefulEJBLocator<T>(viewType, appName, moduleName, beanName, distinctName, sessionOpenResponse.getSessionID(), sessionOpenResponse.getAffinity());
     }
 
     @Override

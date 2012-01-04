@@ -109,6 +109,15 @@ class ChannelAssociation {
     }
 
     /**
+     * Returns the {@link EJBReceiverContext} applicable for this {@link ChannelAssociation}
+     *
+     * @return
+     */
+    EJBReceiverContext getEjbReceiverContext() {
+        return this.ejbReceiverContext;
+    }
+    
+    /**
      * Returns the next invocation id that can be used for invocations on the channel corresponding to
      * this {@link ChannelAssociation association}
      *
@@ -196,7 +205,7 @@ class ChannelAssociation {
     private ProtocolMessageHandler getProtocolMessageHandler(final byte header) {
         switch (header) {
             case 0x02:
-                return new SessionOpenResponseHandler(this);
+                return new SessionOpenResponseHandler(this, this.marshallerFactory);
             case 0x05:
                 return new MethodInvocationResponseHandler(this, this.marshallerFactory);
             case 0x06:
@@ -216,7 +225,7 @@ class ChannelAssociation {
             case 0x14:
                 return new TransactionInvocationResponseHandler(this);
             case 0x15:
-                return new ClusterTopologyMessageHandler(this.ejbReceiverContext);
+                return new ClusterTopologyMessageHandler(this);
             case 0x16:
                 return new ClusterRemovalMessageHandler(this.ejbReceiverContext);
             default:

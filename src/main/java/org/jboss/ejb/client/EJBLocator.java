@@ -75,7 +75,7 @@ public abstract class EJBLocator<T> implements Serializable {
         this.moduleName = moduleName;
         this.beanName = beanName;
         this.distinctName = distinctName;
-        this.affinity = affinity;
+        this.affinity = affinity == null ? Affinity.NONE : affinity;
         proxyClass = Proxy.getProxyClass(viewType.getClassLoader(), viewType).asSubclass(viewType);
         try {
             proxyConstructor = proxyClass.getConstructor(InvocationHandler.class);
