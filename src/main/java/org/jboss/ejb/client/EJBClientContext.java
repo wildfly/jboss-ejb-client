@@ -384,6 +384,9 @@ public final class EJBClientContext extends Attachable {
      * Returns a {@link EJBReceiverContext} for the passed <code>receiver</code>. If the <code>receiver</code>
      * hasn't been registered with this {@link EJBClientContext}, either through a call to {@link #registerConnection(org.jboss.remoting3.Connection)}
      * or to {@link #requireEJBReceiver(String, String, String)}, then this method throws an {@link IllegalStateException}
+     * <p/>
+     * Note that this method does <b>not</b> consider the {@link EJBReceiver}s that might belong to the cluster contexts
+     * associated with this {@link EJBClientContext}. If a cluster receiver context is required then use {@link #requireClusterEJBReceiverContext(String)}
      *
      * @param receiver The {@link EJBReceiver} for which the {@link EJBReceiverContext} is being requested
      * @return The {@link EJBReceiverContext}
