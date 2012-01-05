@@ -1,0 +1,198 @@
+/*
+ * JBoss, Home of Professional Open Source.
+ * Copyright 2011, Red Hat, Inc., and individual contributors
+ * as indicated by the @author tags. See the copyright.txt file in the
+ * distribution for a full listing of individual contributors.
+ *
+ * This is free software; you can redistribute it and/or modify it
+ * under the terms of the GNU Lesser General Public License as
+ * published by the Free Software Foundation; either version 2.1 of
+ * the License, or (at your option) any later version.
+ *
+ * This software is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+ * Lesser General Public License for more details.
+ *
+ * You should have received a copy of the GNU Lesser General Public
+ * License along with this software; if not, write to the Free
+ * Software Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
+ * 02110-1301 USA, or see the FSF site: http://www.fsf.org.
+ */
+
+package org.jboss.ejb.client.remoting;
+
+import org.xnio.OptionMap;
+
+import javax.security.auth.callback.CallbackHandler;
+import java.util.Iterator;
+
+/**
+ * {@link RemotingEJBReceiversConfiguration} is responsible for providing the configurations that will be used
+ * for creating remoting endpoints, connections and subsequently the {@link RemotingConnectionEJBReceiver}s
+ *
+ * @author Jaikiran Pai
+ */
+public interface RemotingEJBReceiversConfiguration {
+
+    /**
+     * Returns the endpoint name to be used for creating the remoting endpoint. This method must <b>not</b>
+     * return null
+     *
+     * @return
+     */
+    String getEndpointName();
+
+    /**
+     * Returns the endpoint creation {@link OptionMap options} that will be used for creating the remoting
+     * endpoint. This method must <b>not</b> return null.
+     *
+     * @return
+     */
+    OptionMap getEndpointCreationOptions();
+
+    /**
+     * Returns the {@link OptionMap options} that will be used for creating a remote connection provider.
+     * This method must <b>not</b> return null.
+     *
+     * @return
+     */
+    OptionMap getRemoteConnectionProviderCreationOptions();
+
+    /**
+     * Returns the default {@link CallbackHandler} that will be used while creating remoting connections.
+     * Individual connection configurations, cluster configurations, cluster node configurations can override
+     * the {@link CallbackHandler} to be used while creating the connections
+     * <p/>
+     * This method must <b>not</b> return null.
+     *
+     * @return
+     */
+    CallbackHandler getCallbackHandler();
+
+    /**
+     * Returns the connection configurations. If there are no such configurations, then this method will return
+     * an empty {@link Iterator}
+     *
+     * @return
+     */
+    Iterator<RemotingConnectionConfiguration> getConnectionConfigurations();
+
+    /**
+     * Returns the cluster configurations. If there are no such configurations, then this method will return an
+     * empty {@link Iterator}
+     *
+     * @return
+     */
+    Iterator<RemotingClusterConfiguration> getClusterConfigurations();
+
+    /**
+     * Returns a cluster configuration corresponding to the passed <code>clusterName</code>.
+     * Returns null if no such cluster configuration exists.
+     *
+     * @param clusterName The name of the cluster
+     * @return
+     */
+    RemotingClusterConfiguration getClusterConfiguration(final String clusterName);
+
+    /**
+     * Holds the common configurations that are required for connection creation
+     */
+    interface CommonConnectionCreationConfiguration {
+        /**
+         * Returns the {@link OptionMap options} that will be used during connection creation. This method must
+         * <b>not</b> return null
+         *
+         * @return
+         */
+        OptionMap getConnectionCreationOptions();
+
+        /**
+         * Returns the {@link CallbackHandler} that will be used during connection creation. This method must
+         * <b>not</b> return null
+         *
+         * @return
+         */
+        CallbackHandler getCallbackHandler();
+
+        /**
+         * Returns the connection timeout in milli seconds, that will be used during connection creation
+         *
+         * @return
+         */
+        long getConnectionTimeout();
+    }
+
+    /**
+     * Holds the connection specific configurations
+     */
+    interface RemotingConnectionConfiguration extends CommonConnectionCreationConfiguration {
+
+        /**
+         * Returns the host name/IP address to be used during connection creation. This method must <b>not</b>
+         * return null
+         *
+         * @return
+         */
+        String getHost();
+
+        /**
+         * Returns the port that will be used during connection creation
+         *
+         * @return
+         */
+        int getPort();
+
+    }
+
+    /**
+     * Holds cluster specific configurations
+     */
+    interface RemotingClusterConfiguration extends CommonConnectionCreationConfiguration {
+        /**
+         * Returns the cluster name. This method must <b>not</b> return null
+         *
+         * @return
+         */
+        String getClusterName();
+
+        /**
+         * Returns the maximum number of nodes which are allowed to be connected at a given time, in this cluster
+         *
+         * @return
+         */
+        long getMaximumAllowedConnectedNodes();
+
+        /**
+         * Returns the configurations of individual nodes in this cluster. If there are no such node specific
+         * configurations, then this method returns an empty {@link Iterator}
+         *
+         * @return
+         */
+        Iterator<RemotingClusterNodeConfiguration> getNodeConfigurations();
+
+        /**
+         * Returns the configuration corresponding to the <code>nodeName</code> in this cluster. Returns null
+         * if no such configuration exists
+         *
+         * @param nodeName The name of the node in this cluster
+         * @return
+         */
+        RemotingClusterNodeConfiguration getNodeConfiguration(final String nodeName);
+
+    }
+
+    /**
+     * Holds the cluster node specific configuration
+     */
+    interface RemotingClusterNodeConfiguration extends CommonConnectionCreationConfiguration {
+        /**
+         * Returns the name of the node. This method must <b>not</b> return null
+         *
+         * @return
+         */
+        String getNodeName();
+
+    }
+
+}

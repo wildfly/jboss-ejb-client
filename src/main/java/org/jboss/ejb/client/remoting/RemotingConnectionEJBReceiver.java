@@ -35,7 +35,6 @@ import org.jboss.ejb.client.EJBClientInvocationContext;
 import org.jboss.ejb.client.EJBReceiver;
 import org.jboss.ejb.client.EJBReceiverContext;
 import org.jboss.ejb.client.EJBReceiverInvocationContext;
-import org.jboss.ejb.client.SessionID;
 import org.jboss.ejb.client.StatefulEJBLocator;
 import org.jboss.ejb.client.TransactionID;
 import org.jboss.logging.Logger;
@@ -76,14 +75,26 @@ public final class RemotingConnectionEJBReceiver extends EJBReceiver {
 
     private final MarshallerFactory marshallerFactory;
 
+    private final RemotingEJBReceiversConfiguration receiversConfiguration;
+
     /**
      * Construct a new instance.
      *
      * @param connection the connection to associate with
      */
     public RemotingConnectionEJBReceiver(final Connection connection) {
+        this(connection, null);
+    }
+
+    /**
+     * Construct a new instance.
+     *
+     * @param connection the connection to associate with
+     */
+    RemotingConnectionEJBReceiver(final Connection connection, final RemotingEJBReceiversConfiguration configuration) {
         super(connection.getRemoteEndpointName());
         this.connection = connection;
+        this.receiversConfiguration = configuration;
 
         this.cachedToString = new StringBuffer("Remoting connection EJB receiver [connection=").append(this.connection)
                 .append(",channel=").append(EJB_CHANNEL_NAME).append(",nodename=").append(this.getNodeName())
@@ -383,6 +394,10 @@ public final class RemotingConnectionEJBReceiver extends EJBReceiver {
     void moduleUnavailable(final EJBReceiverContext receiverContext, final String appName, final String moduleName, final String distinctName) {
         logger.debug("Received module un-availability message for appName: " + appName + " moduleName: " + moduleName + " distinctName: " + distinctName + " for receiver context " + receiverContext);
         this.deregisterModule(appName, moduleName, distinctName);
+    }
+
+    RemotingEJBReceiversConfiguration getRemotingEJBReceiversConfiguration() {
+        return this.receiversConfiguration;
     }
 
     private ChannelAssociation requireChannelAssociation(final EJBReceiverContext ejbReceiverContext) {

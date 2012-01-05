@@ -116,6 +116,14 @@ class ChannelAssociation {
     EJBReceiverContext getEjbReceiverContext() {
         return this.ejbReceiverContext;
     }
+
+    /**
+     * Returns the {@link RemotingConnectionEJBReceiver} applicable for this {@link ChannelAssociation}
+     * @return
+     */
+    RemotingConnectionEJBReceiver getRemotingEJBReceiver() {
+        return this.ejbReceiver;
+    }
     
     /**
      * Returns the next invocation id that can be used for invocations on the channel corresponding to

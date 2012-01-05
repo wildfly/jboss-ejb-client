@@ -27,6 +27,7 @@ import org.jboss.ejb.client.EJBReceiver;
 import org.jboss.logging.Logger;
 import org.jboss.remoting3.Connection;
 import org.jboss.remoting3.Endpoint;
+import org.xnio.IoFuture;
 import org.xnio.OptionMap;
 
 import javax.security.auth.callback.Callback;
@@ -34,6 +35,7 @@ import javax.security.auth.callback.CallbackHandler;
 import javax.security.auth.callback.NameCallback;
 import javax.security.auth.callback.UnsupportedCallbackException;
 import java.io.IOException;
+import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.concurrent.TimeUnit;
 
@@ -47,12 +49,16 @@ class RemotingConnectionClusterNodeManager implements ClusterNodeManager {
 
     private static final Logger logger = Logger.getLogger(RemotingConnectionClusterNodeManager.class);
 
+    private final String clusterName;
     private final ClusterNode clusterNode;
     private final Endpoint endpoint;
+    private final RemotingEJBReceiversConfiguration receiversConfiguration;
 
-    RemotingConnectionClusterNodeManager(final ClusterNode clusterNode, final Endpoint endpoint) {
+    RemotingConnectionClusterNodeManager(final String clusterName, final ClusterNode clusterNode, final Endpoint endpoint, final RemotingEJBReceiversConfiguration receiversConfiguration) {
+        this.clusterName = clusterName;
         this.clusterNode = clusterNode;
         this.endpoint = endpoint;
+        this.receiversConfiguration = receiversConfiguration;
     }
 
     @Override
@@ -66,21 +72,42 @@ class RemotingConnectionClusterNodeManager implements ClusterNodeManager {
         try {
             connection = this.createConnection();
         } catch (Exception e) {
-            throw new RuntimeException("Could not create a connection for cluster node " + this.clusterNode);
+            throw new RuntimeException("Could not create a connection for cluster node " + this.clusterNode + " in cluster " + this.clusterName);
         }
-        return new RemotingConnectionEJBReceiver(connection);
+        return new RemotingConnectionEJBReceiver(connection, this.receiversConfiguration);
     }
 
     private Connection createConnection() throws IOException, URISyntaxException {
-        final RemotingConnectionConfigurator remotingConnectionConfigurator = RemotingConnectionConfigurator.configuratorFor(this.endpoint);
-        // TODO: We need a better way to manage these connection options for each cluster node
-        return remotingConnectionConfigurator.createConnection(this.clusterNode, OptionMap.EMPTY, new AnonymousCallbackHandler(), 5, TimeUnit.SECONDS);
+        final URI connectionURI = new URI("remote://" + this.clusterNode.getAddress() + ":" + this.clusterNode.getEjbRemotingConnectorPort());
+        if (this.receiversConfiguration != null) {
+            final RemotingEJBReceiversConfiguration.RemotingClusterConfiguration clusterConfiguration = this.receiversConfiguration.getClusterConfiguration(this.clusterName);
+            if (clusterConfiguration == null) {
+                // use default configurations
+                final IoFuture<Connection> futureConnection = endpoint.connect(connectionURI, OptionMap.EMPTY, receiversConfiguration.getCallbackHandler());
+                // wait for the connection to be established
+                return IoFutureHelper.get(futureConnection, 5000, TimeUnit.MILLISECONDS);
+            } else {
+                // use the specified configurations
+                final IoFuture<Connection> futureConnection = endpoint.connect(connectionURI, clusterConfiguration.getConnectionCreationOptions(), clusterConfiguration.getCallbackHandler());
+                // wait for the connection to be established
+                return IoFutureHelper.get(futureConnection, clusterConfiguration.getConnectionTimeout(), TimeUnit.MILLISECONDS);
+            }
+
+        }
+        return createConnectionUsingDefaults();
+    }
+
+    private Connection createConnectionUsingDefaults() throws IOException, URISyntaxException {
+        final URI connectionURI = new URI("remote://" + this.clusterNode.getAddress() + ":" + this.clusterNode.getEjbRemotingConnectorPort());
+        // use default configurations
+        final IoFuture<Connection> futureConnection = endpoint.connect(connectionURI, OptionMap.EMPTY, new AnonymousCallbackHandler());
+        // wait for the connection to be established
+        return IoFutureHelper.get(futureConnection, 5000, TimeUnit.MILLISECONDS);
     }
 
     /**
      * A {@link javax.security.auth.callback.CallbackHandler} which sets <code>anonymous</code> as the name during a {@link javax.security.auth.callback.NameCallback}
      */
-    // TODO: Get rid of this class as soon as we have a better way for configuring cluster node properties
     private class AnonymousCallbackHandler implements CallbackHandler {
 
         @Override

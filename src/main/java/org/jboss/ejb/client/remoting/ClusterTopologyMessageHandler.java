@@ -97,7 +97,6 @@ class ClusterTopologyMessageHandler extends ProtocolMessageHandler {
         // let the client context know about the cluster topologies
         final EJBReceiverContext ejbReceiverContext = this.channelAssociation.getEjbReceiverContext();
         final EJBClientContext clientContext = ejbReceiverContext.getClientContext();
-        final Endpoint endpoint = this.channelAssociation.getChannel().getConnection().getEndpoint();
         for (final Map.Entry<String, Collection<ClusterNode>> entry : clusterNodes.entrySet()) {
             final String clusterName = entry.getKey();
             final Collection<ClusterNode> nodes = entry.getValue();
@@ -108,14 +107,15 @@ class ClusterTopologyMessageHandler extends ProtocolMessageHandler {
             if (this.completeTopology) {
                 clusterContext.removeAllClusterNodes();
             }
-            this.addNodesToClusterContext(clusterContext, nodes, endpoint);
+            this.addNodesToClusterContext(clusterContext, nodes);
         }
     }
 
-    private void addNodesToClusterContext(final ClusterContext clusterContext, final Collection<ClusterNode> clusterNodes,
-                                          final Endpoint endpoint) {
+    private void addNodesToClusterContext(final ClusterContext clusterContext, final Collection<ClusterNode> clusterNodes) {
+        final Endpoint endpoint = this.channelAssociation.getChannel().getConnection().getEndpoint();
+        final RemotingEJBReceiversConfiguration remotingEJBReceiversConfiguration = this.channelAssociation.getRemotingEJBReceiver().getRemotingEJBReceiversConfiguration();
         for (final ClusterNode clusterNode : clusterNodes) {
-            final RemotingConnectionClusterNodeManager clusterNodeManager = new RemotingConnectionClusterNodeManager(clusterNode, endpoint);
+            final RemotingConnectionClusterNodeManager clusterNodeManager = new RemotingConnectionClusterNodeManager(clusterContext.getClusterName(), clusterNode, endpoint, remotingEJBReceiversConfiguration);
             clusterContext.addClusterNode(clusterNode.getNodeName(), clusterNodeManager);
         }
     }
