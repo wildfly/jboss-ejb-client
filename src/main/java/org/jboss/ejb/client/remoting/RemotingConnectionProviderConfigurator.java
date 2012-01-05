@@ -69,10 +69,10 @@ class RemotingConnectionProviderConfigurator extends RemotingConfigurator {
      */
     RemotingConnectionProviderConfigurator from(final Properties properties) throws IOException {
         // add a connection provider for the "remote" URI scheme
-        final OptionMap remoteConnectionProivderOptionsFromConfiguration = getOptionMapFromProperties(properties, REMOTE_CONNECTION_PROVIDER_CREATE_OPTIONS_PREFIX, getClientClassLoader());
+        final OptionMap remoteConnectionProviderOptionsFromConfiguration = getOptionMapFromProperties(properties, REMOTE_CONNECTION_PROVIDER_CREATE_OPTIONS_PREFIX, getClientClassLoader());
         // merge with defaults
-        final OptionMap remoteConnectionProivderOptions = mergeWithDefaults(DEFAULT_CONNECTION_PROVIDER_CREATION_OPTIONS, remoteConnectionProivderOptionsFromConfiguration);
-        this.endpoint.addConnectionProvider("remote", new RemoteConnectionProviderFactory(), remoteConnectionProivderOptions);
+        final OptionMap remoteConnectionProviderOptions = mergeWithDefaults(DEFAULT_CONNECTION_PROVIDER_CREATION_OPTIONS, remoteConnectionProviderOptionsFromConfiguration);
+        this.endpoint.addConnectionProvider("remote", new RemoteConnectionProviderFactory(), remoteConnectionProviderOptions);
 
         return this;
     }
