@@ -27,7 +27,7 @@ package org.jboss.ejb.client.remoting;
  *
  * @author Jaikiran Pai
  */
-public final class ClusterNode {
+final class ClusterNode {
 
     /**
      * The name of the cluster to which this cluster node belongs
