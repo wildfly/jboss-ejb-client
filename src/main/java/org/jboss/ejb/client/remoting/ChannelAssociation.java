@@ -241,6 +241,7 @@ class ChannelAssociation {
                 // new node additions message handler
                 return new ClusterTopologyMessageHandler(this, false);
             case 0x18:
+                // node removal message handler
                 return new ClusterNodeRemovalHandler(this);
             default:
                 return null;
