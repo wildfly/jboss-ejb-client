@@ -38,6 +38,12 @@ public abstract class Affinity implements Serializable {
      */
     public static final Affinity NONE = new NoAffinity();
 
+    /**
+     * Key which will be used in the invocation context data for passing around the weak affinity
+     * associated with a EJB
+     */
+    public static final String WEAK_AFFINITY_CONTEXT_KEY = "jboss.ejb.weak.affinity";
+
     Affinity() {
     }
 

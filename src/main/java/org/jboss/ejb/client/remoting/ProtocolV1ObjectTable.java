@@ -46,6 +46,7 @@ public final class ProtocolV1ObjectTable implements ObjectTable {
     private static final Object[] objects = {
         TransactionID.PRIVATE_DATA_KEY,
         Affinity.NONE,
+        Affinity.WEAK_AFFINITY_CONTEXT_KEY
     };
 
     static {

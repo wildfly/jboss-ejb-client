@@ -203,6 +203,10 @@ class ChannelAssociation {
         receiverInvocationContext.proceedAsynchronously();
     }
 
+    EJBReceiverInvocationContext getEJBReceiverInvocationContext(short invocationId) {
+        return this.waitingMethodInvocations.get(invocationId);
+    }
+
     /**
      * Returns a {@link ProtocolMessageHandler} for the passed message <code>header</code>. Returns
      * null if there's no such {@link ProtocolMessageHandler}.

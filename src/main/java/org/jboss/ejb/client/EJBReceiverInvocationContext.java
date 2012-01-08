@@ -46,6 +46,14 @@ public final class EJBReceiverInvocationContext {
     }
 
     /**
+     * Returns the {@link EJBClientInvocationContext} associated with this EJB receiver invocation context
+     * @return
+     */
+    public EJBClientInvocationContext getClientInvocationContext() {
+        return this.clientInvocationContext;
+    }
+
+    /**
      * Indicate that the invocation should proceed asynchronously, if it isn't already.
      */
     public void proceedAsynchronously() {

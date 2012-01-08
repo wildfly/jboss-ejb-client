@@ -34,7 +34,7 @@ import java.util.Collection;
 public interface ClusterNodeSelector {
 
     /**
-     * Returns the node, from among the <code>availableNodes</code> as the target node for EJB invocations
+     * Returns a node from among the <code>availableNodes</code>, as the target node for EJB invocations
      *
      * @param clusterName    The name of the cluster to which the nodes belong
      * @param availableNodes The available nodes in the cluster

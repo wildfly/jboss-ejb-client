@@ -22,15 +22,18 @@
 
 package org.jboss.ejb.client.remoting;
 
-import java.io.DataInputStream;
-import java.io.IOException;
-import java.util.Map;
-
+import org.jboss.ejb.client.Affinity;
+import org.jboss.ejb.client.AttachmentKeys;
+import org.jboss.ejb.client.EJBClientInvocationContext;
 import org.jboss.ejb.client.EJBReceiverInvocationContext;
 import org.jboss.logging.Logger;
 import org.jboss.marshalling.MarshallerFactory;
 import org.jboss.marshalling.Unmarshaller;
 import org.jboss.remoting3.MessageInputStream;
+
+import java.io.DataInputStream;
+import java.io.IOException;
+import java.util.Map;
 
 /**
  * Responsible for processing a message and parsing the method invocation response from it, as per the
@@ -70,8 +73,14 @@ class MethodInvocationResponseHandler extends ProtocolMessageHandler {
         final DataInputStream input = new DataInputStream(messageInputStream);
         // read the invocation id
         final short invocationId = input.readShort();
+
+        final EJBReceiverInvocationContext receiverInvocationContext = this.channelAssociation.getEJBReceiverInvocationContext(invocationId);
+        EJBClientInvocationContext clientInvocationContext = null;
+        if (receiverInvocationContext != null) {
+            clientInvocationContext = receiverInvocationContext.getClientInvocationContext();
+        }
         // create a ResultProducer which can unmarshall and return the result, later
-        final EJBReceiverInvocationContext.ResultProducer resultProducer = new MethodInvocationResultProducer(input);
+        final EJBReceiverInvocationContext.ResultProducer resultProducer = new MethodInvocationResultProducer(clientInvocationContext, input);
         // make it known that the result is available
         this.channelAssociation.resultReady(invocationId, resultProducer);
     }
@@ -82,9 +91,11 @@ class MethodInvocationResponseHandler extends ProtocolMessageHandler {
     private class MethodInvocationResultProducer implements EJBReceiverInvocationContext.ResultProducer {
 
         private final DataInputStream input;
+        private final EJBClientInvocationContext clientInvocationContext;
 
-        MethodInvocationResultProducer(final DataInputStream input) {
+        MethodInvocationResultProducer(final EJBClientInvocationContext clientInvocationContext, final DataInputStream input) {
             this.input = input;
+            this.clientInvocationContext = clientInvocationContext;
         }
 
         @Override
@@ -99,6 +110,13 @@ class MethodInvocationResponseHandler extends ProtocolMessageHandler {
 
                 // finish unmarshalling
                 unmarshaller.finish();
+                // see if there's a weak affinity passed as an attachment. If yes, then attach it to the client invocation
+                // context
+                if (this.clientInvocationContext != null && attachments != null && attachments.containsKey(Affinity.WEAK_AFFINITY_CONTEXT_KEY)) {
+                    final Affinity weakAffinity = (Affinity) attachments.get(Affinity.WEAK_AFFINITY_CONTEXT_KEY);
+                    this.clientInvocationContext.putAttachment(AttachmentKeys.WEAK_AFFINITY, weakAffinity);
+                }
+                // return the result
                 return result;
             } finally {
                 this.input.close();
