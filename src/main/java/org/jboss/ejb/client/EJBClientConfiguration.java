@@ -20,7 +20,7 @@
  * 02110-1301 USA, or see the FSF site: http://www.fsf.org.
  */
 
-package org.jboss.ejb.client.remoting;
+package org.jboss.ejb.client;
 
 import org.xnio.OptionMap;
 
@@ -28,12 +28,14 @@ import javax.security.auth.callback.CallbackHandler;
 import java.util.Iterator;
 
 /**
- * {@link RemotingEJBReceiversConfiguration} is responsible for providing the configurations that will be used
- * for creating remoting endpoints, connections and subsequently the {@link RemotingConnectionEJBReceiver}s
+ * {@link EJBClientConfiguration} is responsible for providing the configurations that will be used
+ * for creating EJB receivers and managing the EJB client context. Some of these configurations are related
+ * to remoting endpoints, connections which will be used to create {@link org.jboss.ejb.client.remoting.RemotingConnectionEJBReceiver}s
+ * for the {@link org.jboss.ejb.client.EJBClientContext}
  *
  * @author Jaikiran Pai
  */
-public interface RemotingEJBReceiversConfiguration {
+public interface EJBClientConfiguration {
 
     /**
      * Returns the endpoint name to be used for creating the remoting endpoint. This method must <b>not</b>
@@ -84,7 +86,7 @@ public interface RemotingEJBReceiversConfiguration {
      *
      * @return
      */
-    Iterator<RemotingClusterConfiguration> getClusterConfigurations();
+    Iterator<ClusterConfiguration> getClusterConfigurations();
 
     /**
      * Returns a cluster configuration corresponding to the passed <code>clusterName</code>.
@@ -93,7 +95,7 @@ public interface RemotingEJBReceiversConfiguration {
      * @param clusterName The name of the cluster
      * @return
      */
-    RemotingClusterConfiguration getClusterConfiguration(final String clusterName);
+    ClusterConfiguration getClusterConfiguration(final String clusterName);
 
     /**
      * Holds the common configurations that are required for connection creation
@@ -148,7 +150,7 @@ public interface RemotingEJBReceiversConfiguration {
     /**
      * Holds cluster specific configurations
      */
-    interface RemotingClusterConfiguration extends CommonConnectionCreationConfiguration {
+    interface ClusterConfiguration extends CommonConnectionCreationConfiguration {
         /**
          * Returns the cluster name. This method must <b>not</b> return null
          *
@@ -164,12 +166,19 @@ public interface RemotingEJBReceiversConfiguration {
         long getMaximumAllowedConnectedNodes();
 
         /**
+         * Returns the {@link ClusterNodeSelector} to be used for this cluster. This method <b>can</b> return
+         * null, in which case the cluster will use some default {@link ClusterNodeSelector}
+         * @return
+         */
+        ClusterNodeSelector getClusterNodeSelector();
+
+        /**
          * Returns the configurations of individual nodes in this cluster. If there are no such node specific
          * configurations, then this method returns an empty {@link Iterator}
          *
          * @return
          */
-        Iterator<RemotingClusterNodeConfiguration> getNodeConfigurations();
+        Iterator<ClusterNodeConfiguration> getNodeConfigurations();
 
         /**
          * Returns the configuration corresponding to the <code>nodeName</code> in this cluster. Returns null
@@ -178,14 +187,14 @@ public interface RemotingEJBReceiversConfiguration {
          * @param nodeName The name of the node in this cluster
          * @return
          */
-        RemotingClusterNodeConfiguration getNodeConfiguration(final String nodeName);
+        ClusterNodeConfiguration getNodeConfiguration(final String nodeName);
 
     }
 
     /**
      * Holds the cluster node specific configuration
      */
-    interface RemotingClusterNodeConfiguration extends CommonConnectionCreationConfiguration {
+    interface ClusterNodeConfiguration extends CommonConnectionCreationConfiguration {
         /**
          * Returns the name of the node. This method must <b>not</b> return null
          *

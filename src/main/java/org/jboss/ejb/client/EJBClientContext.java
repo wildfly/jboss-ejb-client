@@ -512,12 +512,14 @@ public final class EJBClientContext extends Attachable {
      * the cluster has been removed from this client context.
      *
      * @param clusterName The name of the cluster
+     * @param ejbClientConfiguration The EJB client configuration to be used with the cluster context. The EJB client configuration
+     *                               can be null.
      * @return
      */
-    public synchronized ClusterContext getOrCreateClusterContext(final String clusterName) {
+    public synchronized ClusterContext getOrCreateClusterContext(final String clusterName, final EJBClientConfiguration ejbClientConfiguration) {
         ClusterContext clusterContext = this.clusterContexts.get(clusterName);
         if (clusterContext == null) {
-            clusterContext = new ClusterContext(clusterName, this);
+            clusterContext = new ClusterContext(clusterName, this, ejbClientConfiguration);
             this.clusterContexts.put(clusterName, clusterContext);
         }
         return clusterContext;

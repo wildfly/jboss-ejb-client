@@ -22,6 +22,8 @@
 
 package org.jboss.ejb.client.remoting;
 
+import org.jboss.ejb.client.ClusterNodeSelector;
+import org.jboss.ejb.client.EJBClientConfiguration;
 import org.jboss.logging.Logger;
 import org.xnio.Option;
 import org.xnio.OptionMap;
@@ -45,15 +47,15 @@ import java.util.Properties;
 import java.util.StringTokenizer;
 
 /**
- * A {@link RemotingEJBReceiversConfiguration} which is configured through {@link Properties}. Some well known
- * properties will be looked for in the {@link Properties} that is passed to the {@link #PropertiesBasedRemotingEJBReceiversConfiguration(java.util.Properties) constructor},
+ * A {@link EJBClientConfiguration} which is configured through {@link Properties}. Some well known
+ * properties will be looked for in the {@link Properties} that is passed to the {@link #PropertiesBasedEJBClientConfiguration(java.util.Properties) constructor},
  * for setting up the configurations
  *
  * @author Jaikiran Pai
  */
-class PropertiesBasedRemotingEJBReceiversConfiguration implements RemotingEJBReceiversConfiguration {
+class PropertiesBasedEJBClientConfiguration implements EJBClientConfiguration {
 
-    private static final Logger logger = Logger.getLogger(PropertiesBasedRemotingEJBReceiversConfiguration.class);
+    private static final Logger logger = Logger.getLogger(PropertiesBasedEJBClientConfiguration.class);
 
     private static final String PROPERTY_KEY_ENDPOINT_NAME = "endpoint.name";
     private static final String DEFAULT_ENDPOINT_NAME = "config-based-ejb-client-endpoint";
@@ -88,9 +90,9 @@ class PropertiesBasedRemotingEJBReceiversConfiguration implements RemotingEJBRec
     private OptionMap remoteConnectionProviderCreationOptions;
     private CallbackHandler callbackHandler;
     private Collection<RemotingConnectionConfiguration> remotingConnectionConfigurations = new ArrayList<RemotingConnectionConfiguration>();
-    private Map<String, RemotingClusterConfiguration> clusterConfigurations = new HashMap<String, RemotingClusterConfiguration>();
+    private Map<String, ClusterConfiguration> clusterConfigurations = new HashMap<String, ClusterConfiguration>();
 
-    PropertiesBasedRemotingEJBReceiversConfiguration(final Properties properties) {
+    PropertiesBasedEJBClientConfiguration(final Properties properties) {
         this.ejbReceiversConfigurationProperties = properties == null ? new Properties() : properties;
         // parse the properties and setup this configuration
         this.parseProperties();
@@ -122,12 +124,12 @@ class PropertiesBasedRemotingEJBReceiversConfiguration implements RemotingEJBRec
     }
 
     @Override
-    public Iterator<RemotingClusterConfiguration> getClusterConfigurations() {
+    public Iterator<ClusterConfiguration> getClusterConfigurations() {
         return this.clusterConfigurations.values().iterator();
     }
 
     @Override
-    public RemotingClusterConfiguration getClusterConfiguration(String clusterName) {
+    public ClusterConfiguration getClusterConfiguration(String clusterName) {
         return this.clusterConfigurations.get(clusterName);
     }
 
@@ -197,7 +199,7 @@ class PropertiesBasedRemotingEJBReceiversConfiguration implements RemotingEJBRec
 
     /**
      * If {@link Thread#getContextClassLoader()} is null then returns the classloader which loaded
-     * {@link PropertiesBasedRemotingEJBReceiversConfiguration} class. Else returns the {@link Thread#getContextClassLoader()}
+     * {@link PropertiesBasedEJBClientConfiguration} class. Else returns the {@link Thread#getContextClassLoader()}
      *
      * @return
      */
@@ -206,7 +208,7 @@ class PropertiesBasedRemotingEJBReceiversConfiguration implements RemotingEJBRec
         if (tccl != null) {
             return tccl;
         }
-        return PropertiesBasedRemotingEJBReceiversConfiguration.class.getClassLoader();
+        return PropertiesBasedEJBClientConfiguration.class.getClassLoader();
     }
 
     private void parseClusterConfigurations() {
@@ -223,7 +225,7 @@ class PropertiesBasedRemotingEJBReceiversConfiguration implements RemotingEJBRec
             if (clusterName.isEmpty()) {
                 continue;
             }
-            RemotingClusterConfiguration clusterConfiguration = null;
+            ClusterConfiguration clusterConfiguration = null;
             try {
                 clusterConfiguration = this.createClusterConfiguration(clusterName);
             } catch (Exception e) {
@@ -238,7 +240,7 @@ class PropertiesBasedRemotingEJBReceiversConfiguration implements RemotingEJBRec
         }
     }
 
-    private RemotingClusterConfiguration createClusterConfiguration(final String clusterName) {
+    private ClusterConfiguration createClusterConfiguration(final String clusterName) {
         final String clusterSpecificPrefix = this.getClusterSpecificPrefix(clusterName);
         final Map<String, String> clusterSpecificProperties = this.getPropertiesWithPrefix(clusterSpecificPrefix);
         if (clusterSpecificProperties.isEmpty()) {
@@ -273,21 +275,38 @@ class PropertiesBasedRemotingEJBReceiversConfiguration implements RemotingEJBRec
                         + clusterName + ". Falling back to default connection timeout value " + DEFAULT_CONNECTION_TIMEOUT_IN_MILLIS + " milli secondss");
             }
         }
-
+        // cluster node selector for this cluster
+        final String clusterNodeSelectorClassName = clusterSpecificProperties.get("clusternode.selector");
+        final ClusterNodeSelector clusterNodeSelector;
+        if (clusterNodeSelectorClassName != null) {
+            final ClassLoader classLoader = this.getClientClassLoader();
+            try {
+                final Class clusterNodeSelectorClass = Class.forName(clusterNodeSelectorClassName.trim(), true, classLoader);
+                if (!ClusterNodeSelector.class.isAssignableFrom(clusterNodeSelectorClass)) {
+                    throw new RuntimeException(clusterNodeSelectorClass + " for cluster " + clusterName + " is not of type " + ClusterNodeSelector.class);
+                }
+                clusterNodeSelector = (ClusterNodeSelector) clusterNodeSelectorClass.newInstance();
+            } catch (Exception e) {
+                throw new RuntimeException("Could not create the cluster node selector for cluster " + clusterName, e);
+            }
+        } else {
+            clusterNodeSelector = null;
+        }
         // create the CallbackHandler applicable for all nodes (unless explicitly overridden) in this cluster
         final CallbackHandler callbackHandler = createCallbackHandler(clusterSpecificProperties, this.getDefaultCallbackHandler());
 
-        final RemotingClusterConfigurationImpl clusterConfiguration = new RemotingClusterConfigurationImpl(clusterName, maxAllowedConnectedNodes, connectOptions, callbackHandler, connectionTimeout);
+        final ClusterConfigurationImpl clusterConfiguration = new ClusterConfigurationImpl(clusterName, maxAllowedConnectedNodes,
+                connectOptions, callbackHandler, connectionTimeout, clusterNodeSelector);
         // parse the node configurations for this cluster
-        final Collection<RemotingClusterNodeConfiguration> nodeConfigurations = this.parseClusterNodeConfigurations(clusterConfiguration, clusterSpecificProperties);
+        final Collection<ClusterNodeConfiguration> nodeConfigurations = this.parseClusterNodeConfigurations(clusterConfiguration, clusterSpecificProperties);
         // add them to the cluster configuration
         clusterConfiguration.addNodeConfigurations(nodeConfigurations);
         // return the cluster configuration
         return clusterConfiguration;
     }
 
-    private Collection<RemotingClusterNodeConfiguration> parseClusterNodeConfigurations(final RemotingClusterConfiguration clusterConfiguration, final Map<String, String> clusterSpecificProperties) {
-        final Collection<RemotingClusterNodeConfiguration> nodeConfigurations = new ArrayList<RemotingClusterNodeConfiguration>();
+    private Collection<ClusterNodeConfiguration> parseClusterNodeConfigurations(final ClusterConfiguration clusterConfiguration, final Map<String, String> clusterSpecificProperties) {
+        final Collection<ClusterNodeConfiguration> nodeConfigurations = new ArrayList<ClusterNodeConfiguration>();
         for (final String key : clusterSpecificProperties.keySet()) {
             if (!key.startsWith("node.")) {
                 continue;
@@ -299,7 +318,7 @@ class PropertiesBasedRemotingEJBReceiversConfiguration implements RemotingEJBRec
             }
             final String nodeName = keyWithoutNodeDotPrefix.substring(0, nextDotIndex);
             // create a node configuration for the node name
-            final RemotingClusterNodeConfiguration nodeConfiguration = this.createClusterNodeConfiguration(clusterConfiguration, nodeName);
+            final ClusterNodeConfiguration nodeConfiguration = this.createClusterNodeConfiguration(clusterConfiguration, nodeName);
             if (nodeConfiguration == null) {
                 continue;
             }
@@ -309,7 +328,7 @@ class PropertiesBasedRemotingEJBReceiversConfiguration implements RemotingEJBRec
         return nodeConfigurations;
     }
 
-    private RemotingClusterNodeConfiguration createClusterNodeConfiguration(final RemotingClusterConfiguration clusterConfiguration, final String nodeName) {
+    private ClusterNodeConfiguration createClusterNodeConfiguration(final ClusterConfiguration clusterConfiguration, final String nodeName) {
         final String clusterName = clusterConfiguration.getClusterName();
         final String nodeSpecificPrefix = this.getClusterSpecificPrefix(clusterName) + "node." + nodeName + ".";
         // get the cluster node specific properties
@@ -339,7 +358,7 @@ class PropertiesBasedRemotingEJBReceiversConfiguration implements RemotingEJBRec
         // create the CallbackHandler applicable for the cluster node (default to the callback handler applicable to the entire cluster)
         final CallbackHandler callbackHandler = createCallbackHandler(nodeSpecificProperties, clusterConfiguration.getCallbackHandler());
 
-        return new RemotingClusterNodeConfigurationImpl(nodeName, connectOptions, callbackHandler, connectionTimeout);
+        return new ClusterNodeConfigurationImpl(nodeName, connectOptions, callbackHandler, connectionTimeout);
     }
 
     private void parseConnectionConfigurations() {
@@ -625,22 +644,24 @@ class PropertiesBasedRemotingEJBReceiversConfiguration implements RemotingEJBRec
         }
     }
 
-    private class RemotingClusterConfigurationImpl implements RemotingClusterConfiguration {
+    private class ClusterConfigurationImpl implements ClusterConfiguration {
 
         private final String clusterName;
         private final long maxAllowedConnectedNodes;
-        private final Map<String, RemotingClusterNodeConfiguration> nodeConfigurations = new HashMap<String, RemotingClusterNodeConfiguration>();
+        private final Map<String, ClusterNodeConfiguration> nodeConfigurations = new HashMap<String, ClusterNodeConfiguration>();
         private final CallbackHandler callbackHandler;
         private final OptionMap connectionCreationOptions;
         private final long connectionTimeout;
+        private final ClusterNodeSelector clusterNodeSelector;
 
-        RemotingClusterConfigurationImpl(final String clusterName, final long maxAllowedConnectedNodes, final OptionMap connectionCreationOptions,
-                                         final CallbackHandler callbackHandler, final long connectionTimeout) {
+        ClusterConfigurationImpl(final String clusterName, final long maxAllowedConnectedNodes, final OptionMap connectionCreationOptions,
+                                 final CallbackHandler callbackHandler, final long connectionTimeout, final ClusterNodeSelector clusterNodeSelector) {
             this.clusterName = clusterName;
             this.maxAllowedConnectedNodes = maxAllowedConnectedNodes;
             this.connectionCreationOptions = connectionCreationOptions;
             this.callbackHandler = callbackHandler;
             this.connectionTimeout = connectionTimeout;
+            this.clusterNodeSelector = clusterNodeSelector;
         }
 
         @Override
@@ -654,12 +675,12 @@ class PropertiesBasedRemotingEJBReceiversConfiguration implements RemotingEJBRec
         }
 
         @Override
-        public Iterator<RemotingClusterNodeConfiguration> getNodeConfigurations() {
+        public Iterator<ClusterNodeConfiguration> getNodeConfigurations() {
             return this.nodeConfigurations.values().iterator();
         }
 
         @Override
-        public RemotingClusterNodeConfiguration getNodeConfiguration(String nodeName) {
+        public ClusterNodeConfiguration getNodeConfiguration(String nodeName) {
             return this.nodeConfigurations.get(nodeName);
         }
 
@@ -678,9 +699,14 @@ class PropertiesBasedRemotingEJBReceiversConfiguration implements RemotingEJBRec
             return this.connectionTimeout;
         }
 
-        void addNodeConfigurations(final Collection<RemotingClusterNodeConfiguration> nodeConfigurations) {
+        @Override
+        public ClusterNodeSelector getClusterNodeSelector() {
+            return this.clusterNodeSelector;
+        }
+
+        void addNodeConfigurations(final Collection<ClusterNodeConfiguration> nodeConfigurations) {
             if (nodeConfigurations != null) {
-                for (final RemotingClusterNodeConfiguration nodeConfiguration : nodeConfigurations) {
+                for (final ClusterNodeConfiguration nodeConfiguration : nodeConfigurations) {
                     this.nodeConfigurations.put(nodeConfiguration.getNodeName(), nodeConfiguration);
                 }
             }
@@ -689,15 +715,15 @@ class PropertiesBasedRemotingEJBReceiversConfiguration implements RemotingEJBRec
 
     }
 
-    private class RemotingClusterNodeConfigurationImpl implements RemotingClusterNodeConfiguration {
+    private class ClusterNodeConfigurationImpl implements ClusterNodeConfiguration {
 
         private final String nodeName;
         private final OptionMap connectionCreationOptions;
         private final CallbackHandler callbackHandler;
         private final long connectionTimeout;
 
-        RemotingClusterNodeConfigurationImpl(final String nodeName, final OptionMap connectionCreationOptions, final CallbackHandler callbackHandler,
-                                             final long connectionTimeout) {
+        ClusterNodeConfigurationImpl(final String nodeName, final OptionMap connectionCreationOptions, final CallbackHandler callbackHandler,
+                                     final long connectionTimeout) {
             this.nodeName = nodeName;
             this.connectionCreationOptions = connectionCreationOptions;
             this.callbackHandler = callbackHandler;

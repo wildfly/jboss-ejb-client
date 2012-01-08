@@ -23,6 +23,7 @@
 package org.jboss.ejb.client.remoting;
 
 import org.jboss.ejb.client.ContextSelector;
+import org.jboss.ejb.client.EJBClientConfiguration;
 import org.jboss.ejb.client.EJBClientContext;
 import org.jboss.ejb.client.EJBReceiver;
 import org.jboss.logging.Logger;
@@ -53,12 +54,12 @@ public class ConfigBasedEJBClientContextSelector implements ContextSelector<EJBC
     private static final Logger logger = Logger.getLogger(ConfigBasedEJBClientContextSelector.class);
 
     private final Properties ejbClientProperties;
-    private final RemotingEJBReceiversConfiguration receiversConfiguration;
+    private final EJBClientConfiguration ejbClientConfiguration;
     private final EJBClientContext ejbClientContext;
 
     public ConfigBasedEJBClientContextSelector(final Properties properties) {
         this.ejbClientProperties = properties == null ? new Properties() : properties;
-        this.receiversConfiguration = new PropertiesBasedRemotingEJBReceiversConfiguration(this.ejbClientProperties);
+        this.ejbClientConfiguration = new PropertiesBasedEJBClientConfiguration(this.ejbClientProperties);
         // create a empty context
         this.ejbClientContext = EJBClientContext.create();
         // now setup the receivers (if any) for the context
@@ -75,20 +76,20 @@ public class ConfigBasedEJBClientContextSelector implements ContextSelector<EJBC
     }
 
     private void setupEJBReceivers() throws IOException {
-        if (!this.receiversConfiguration.getConnectionConfigurations().hasNext()) {
+        if (!this.ejbClientConfiguration.getConnectionConfigurations().hasNext()) {
             // no connections configured so no EJB receivers to create
             return;
         }
         // create the endpoint
-        final Endpoint endpoint = Remoting.createEndpoint(this.receiversConfiguration.getEndpointName(), this.receiversConfiguration.getEndpointCreationOptions());
+        final Endpoint endpoint = Remoting.createEndpoint(this.ejbClientConfiguration.getEndpointName(), this.ejbClientConfiguration.getEndpointCreationOptions());
         // register the remote connection provider
-        final OptionMap remoteConnectionProviderOptions = this.receiversConfiguration.getRemoteConnectionProviderCreationOptions();
+        final OptionMap remoteConnectionProviderOptions = this.ejbClientConfiguration.getRemoteConnectionProviderCreationOptions();
         endpoint.addConnectionProvider("remote", new RemoteConnectionProviderFactory(), remoteConnectionProviderOptions);
 
-        final Iterator<RemotingEJBReceiversConfiguration.RemotingConnectionConfiguration> connectionConfigurations = this.receiversConfiguration.getConnectionConfigurations();
+        final Iterator<EJBClientConfiguration.RemotingConnectionConfiguration> connectionConfigurations = this.ejbClientConfiguration.getConnectionConfigurations();
         int successfulEJBReceiverRegistrations = 0;
         while (connectionConfigurations.hasNext()) {
-            final RemotingEJBReceiversConfiguration.RemotingConnectionConfiguration connectionConfiguration = connectionConfigurations.next();
+            final EJBClientConfiguration.RemotingConnectionConfiguration connectionConfiguration = connectionConfigurations.next();
             final String host = connectionConfiguration.getHost();
             final int port = connectionConfiguration.getPort();
             try {
@@ -97,7 +98,7 @@ public class ConfigBasedEJBClientContextSelector implements ContextSelector<EJBC
                 // wait for the connection to be established
                 final Connection connection = IoFutureHelper.get(futureConnection, connectionConfiguration.getConnectionTimeout(), TimeUnit.MILLISECONDS);
                 // create a remoting EJB receiver for this connection and the receiver configuration
-                final EJBReceiver remotingEJBReceiver = new RemotingConnectionEJBReceiver(connection, this.receiversConfiguration);
+                final EJBReceiver remotingEJBReceiver = new RemotingConnectionEJBReceiver(connection, this.ejbClientConfiguration);
                 // associate it with the client context
                 this.ejbClientContext.registerEJBReceiver(remotingEJBReceiver);
                 // keep track of successful registrations for logging purposes

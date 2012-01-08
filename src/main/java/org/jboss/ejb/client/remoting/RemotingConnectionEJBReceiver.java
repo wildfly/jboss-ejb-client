@@ -31,6 +31,7 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 
+import org.jboss.ejb.client.EJBClientConfiguration;
 import org.jboss.ejb.client.EJBClientInvocationContext;
 import org.jboss.ejb.client.EJBReceiver;
 import org.jboss.ejb.client.EJBReceiverContext;
@@ -75,7 +76,7 @@ public final class RemotingConnectionEJBReceiver extends EJBReceiver {
 
     private final MarshallerFactory marshallerFactory;
 
-    private final RemotingEJBReceiversConfiguration receiversConfiguration;
+    private final EJBClientConfiguration ejbClientConfiguration;
 
     /**
      * Construct a new instance.
@@ -91,10 +92,10 @@ public final class RemotingConnectionEJBReceiver extends EJBReceiver {
      *
      * @param connection the connection to associate with
      */
-    RemotingConnectionEJBReceiver(final Connection connection, final RemotingEJBReceiversConfiguration configuration) {
+    RemotingConnectionEJBReceiver(final Connection connection, final EJBClientConfiguration clientConfiguration) {
         super(connection.getRemoteEndpointName());
         this.connection = connection;
-        this.receiversConfiguration = configuration;
+        this.ejbClientConfiguration = clientConfiguration;
 
         this.cachedToString = new StringBuffer("Remoting connection EJB receiver [connection=").append(this.connection)
                 .append(",channel=").append(EJB_CHANNEL_NAME).append(",nodename=").append(this.getNodeName())
@@ -396,8 +397,8 @@ public final class RemotingConnectionEJBReceiver extends EJBReceiver {
         this.deregisterModule(appName, moduleName, distinctName);
     }
 
-    RemotingEJBReceiversConfiguration getRemotingEJBReceiversConfiguration() {
-        return this.receiversConfiguration;
+    EJBClientConfiguration getEJBClientConfiguration() {
+        return this.ejbClientConfiguration;
     }
 
     private ChannelAssociation requireChannelAssociation(final EJBReceiverContext ejbReceiverContext) {

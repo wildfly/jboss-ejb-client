@@ -23,6 +23,7 @@
 package org.jboss.ejb.client.remoting;
 
 import org.jboss.ejb.client.ClusterContext;
+import org.jboss.ejb.client.EJBClientConfiguration;
 import org.jboss.ejb.client.EJBClientContext;
 import org.jboss.ejb.client.EJBReceiverContext;
 import org.jboss.logging.Logger;
@@ -97,12 +98,13 @@ class ClusterTopologyMessageHandler extends ProtocolMessageHandler {
         // let the client context know about the cluster topologies
         final EJBReceiverContext ejbReceiverContext = this.channelAssociation.getEjbReceiverContext();
         final EJBClientContext clientContext = ejbReceiverContext.getClientContext();
+        final EJBClientConfiguration ejbClientConfiguration = this.channelAssociation.getRemotingEJBReceiver().getEJBClientConfiguration();
         for (final Map.Entry<String, Collection<ClusterNode>> entry : clusterNodes.entrySet()) {
             final String clusterName = entry.getKey();
             final Collection<ClusterNode> nodes = entry.getValue();
             logger.debug("Received a cluster node(s) addition message, for cluster named " + clusterName + " with " + nodes.size() + " nodes");
             // create a cluster context and add the nodes to it
-            final ClusterContext clusterContext = clientContext.getOrCreateClusterContext(clusterName);
+            final ClusterContext clusterContext = clientContext.getOrCreateClusterContext(clusterName, ejbClientConfiguration);
             // if this is a complete topology message, then we'll first remove any existing nodes from the cluster context
             if (this.completeTopology) {
                 clusterContext.removeAllClusterNodes();
@@ -113,9 +115,9 @@ class ClusterTopologyMessageHandler extends ProtocolMessageHandler {
 
     private void addNodesToClusterContext(final ClusterContext clusterContext, final Collection<ClusterNode> clusterNodes) {
         final Endpoint endpoint = this.channelAssociation.getChannel().getConnection().getEndpoint();
-        final RemotingEJBReceiversConfiguration remotingEJBReceiversConfiguration = this.channelAssociation.getRemotingEJBReceiver().getRemotingEJBReceiversConfiguration();
+        final EJBClientConfiguration ejbClientConfiguration = this.channelAssociation.getRemotingEJBReceiver().getEJBClientConfiguration();
         for (final ClusterNode clusterNode : clusterNodes) {
-            final RemotingConnectionClusterNodeManager clusterNodeManager = new RemotingConnectionClusterNodeManager(clusterContext.getClusterName(), clusterNode, endpoint, remotingEJBReceiversConfiguration);
+            final RemotingConnectionClusterNodeManager clusterNodeManager = new RemotingConnectionClusterNodeManager(clusterContext.getClusterName(), clusterNode, endpoint, ejbClientConfiguration);
             clusterContext.addClusterNode(clusterNode.getNodeName(), clusterNodeManager);
         }
     }

@@ -28,6 +28,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.IdentityHashMap;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -44,8 +45,10 @@ public final class ClusterContext {
     private final String clusterName;
     private final EJBClientContext clientContext;
     private final Map<String, ClusterNodeManager> nodeManagers = new HashMap<String, ClusterNodeManager>();
-    // TODO: needs to be configurable
-    private final long maxClusterNodeOpenConnections = 10;
+    // default to 10, will (optionally) be overridden by the ClusterConfiguration
+    private long maxClusterNodeOpenConnections = 10;
+    // default to RoundRobin selector
+    private ClusterNodeSelector clusterNodeSelector;
 
     /**
      * Map of EJB recevier context per cluster node name
@@ -55,9 +58,15 @@ public final class ClusterContext {
     // TODO: Externalize this
     private final ExecutorService executorService = Executors.newFixedThreadPool(5);
 
-    ClusterContext(final String clusterName, final EJBClientContext clientContext) {
+    ClusterContext(final String clusterName, final EJBClientContext clientContext, final EJBClientConfiguration ejbClientConfiguration) {
         this.clusterName = clusterName;
         this.clientContext = clientContext;
+        if (ejbClientConfiguration != null && ejbClientConfiguration.getClusterConfiguration(this.clusterName) != null) {
+            final EJBClientConfiguration.ClusterConfiguration clusterConfiguration = ejbClientConfiguration.getClusterConfiguration(this.clusterName);
+            this.setupClusterSpecificConfigurations(clusterConfiguration);
+        } else {
+            this.maxClusterNodeOpenConnections = 10; // default to 10
+        }
     }
 
     public String getClusterName() {
@@ -88,7 +97,17 @@ public final class ClusterContext {
         if (nodeEJBReceiverContexts.isEmpty()) {
             return null;
         }
-        // TODO: We need some kind of load balancing policy here
+        final Set<String> availableNodes = this.nodeEJBReceiverContexts.keySet();
+        // Let the cluster node selector decide which node to use from among the available nodes
+        final String selectedNodeName = this.clusterNodeSelector.selectNode(this.clusterName, availableNodes.toArray(new String[availableNodes.size()]));
+        // only use the selected node name, if it's valid
+        if (selectedNodeName != null && this.nodeEJBReceiverContexts.containsKey(selectedNodeName)) {
+            return this.nodeEJBReceiverContexts.get(selectedNodeName);
+        }
+        // the cluster node selector returned an invalid node name, so let's just randomly select a
+        // node from this cluster and also log a warning
+        logger.warn("Using a random node from among the available cluster nodes in cluster " + clusterName + " since the cluster node selector "
+                + clusterNodeSelector + " selected an invalid node: " + selectedNodeName);
         return nodeEJBReceiverContexts.values().iterator().next();
     }
 
@@ -174,6 +193,19 @@ public final class ClusterContext {
         // add it to our per node receiver contexts
         this.nodeEJBReceiverContexts.put(nodeName, ejbReceiverContext);
         logger.info("Added a new EJB receiver in cluster context " + clusterName + " for node " + nodeName + ". Total nodes in cluster context = " + this.nodeEJBReceiverContexts.size());
+    }
+
+    private void setupClusterSpecificConfigurations(final EJBClientConfiguration.ClusterConfiguration clusterConfiguration) {
+        final long maxLimit = clusterConfiguration.getMaximumAllowedConnectedNodes();
+        // don't use 0 or negative values
+        if (maxLimit > 0) {
+            this.maxClusterNodeOpenConnections = maxLimit;
+        }
+        final ClusterNodeSelector nodeSelector = clusterConfiguration.getClusterNodeSelector();
+        if (nodeSelector != null) {
+            this.clusterNodeSelector = nodeSelector;
+        }
+
     }
 
     /**

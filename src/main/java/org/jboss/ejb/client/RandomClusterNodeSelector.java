@@ -23,22 +23,20 @@
 package org.jboss.ejb.client;
 
 import java.util.Collection;
+import java.util.Random;
 
 /**
- * A selector which selects and returns a node from the available nodes in a cluster. The {@link EJBReceiver}
- * corresponding to the selected node will then be used to forward the invocations on a EJB. Typical usage of a
- * {@link ClusterNodeSelector} involve load balancing of calls to various nodes in the cluster
- *
  * @author Jaikiran Pai
  */
-public interface ClusterNodeSelector {
+class RandomClusterNodeSelector implements ClusterNodeSelector {
 
-    /**
-     * Returns a node from among the <code>availableNodes</code>, as the target node for EJB invocations
-     *
-     * @param clusterName    The name of the cluster to which the nodes belong
-     * @param availableNodes The available nodes in the cluster
-     * @return
-     */
-    String selectNode(final String clusterName, final String[] availableNodes);
+    @Override
+    public String selectNode(String clusterName, String[] availableNodes) {
+        if (availableNodes.length == 1) {
+            return availableNodes[0];
+        }
+        final Random random = new Random();
+        final int randomSelection = random.nextInt(availableNodes.length);
+        return availableNodes[randomSelection];
+    }
 }

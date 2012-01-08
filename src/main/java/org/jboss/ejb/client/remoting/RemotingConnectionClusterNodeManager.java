@@ -23,6 +23,7 @@
 package org.jboss.ejb.client.remoting;
 
 import org.jboss.ejb.client.ClusterNodeManager;
+import org.jboss.ejb.client.EJBClientConfiguration;
 import org.jboss.ejb.client.EJBReceiver;
 import org.jboss.logging.Logger;
 import org.jboss.remoting3.Connection;
@@ -52,13 +53,13 @@ class RemotingConnectionClusterNodeManager implements ClusterNodeManager {
     private final String clusterName;
     private final ClusterNode clusterNode;
     private final Endpoint endpoint;
-    private final RemotingEJBReceiversConfiguration receiversConfiguration;
+    private final EJBClientConfiguration ejbClientConfiguration;
 
-    RemotingConnectionClusterNodeManager(final String clusterName, final ClusterNode clusterNode, final Endpoint endpoint, final RemotingEJBReceiversConfiguration receiversConfiguration) {
+    RemotingConnectionClusterNodeManager(final String clusterName, final ClusterNode clusterNode, final Endpoint endpoint, final EJBClientConfiguration ejbClientConfiguration) {
         this.clusterName = clusterName;
         this.clusterNode = clusterNode;
         this.endpoint = endpoint;
-        this.receiversConfiguration = receiversConfiguration;
+        this.ejbClientConfiguration = ejbClientConfiguration;
     }
 
     @Override
@@ -74,16 +75,16 @@ class RemotingConnectionClusterNodeManager implements ClusterNodeManager {
         } catch (Exception e) {
             throw new RuntimeException("Could not create a connection for cluster node " + this.clusterNode + " in cluster " + this.clusterName);
         }
-        return new RemotingConnectionEJBReceiver(connection, this.receiversConfiguration);
+        return new RemotingConnectionEJBReceiver(connection, this.ejbClientConfiguration);
     }
 
     private Connection createConnection() throws IOException, URISyntaxException {
         final URI connectionURI = new URI("remote://" + this.clusterNode.getAddress() + ":" + this.clusterNode.getEjbRemotingConnectorPort());
-        if (this.receiversConfiguration != null) {
-            final RemotingEJBReceiversConfiguration.RemotingClusterConfiguration clusterConfiguration = this.receiversConfiguration.getClusterConfiguration(this.clusterName);
+        if (this.ejbClientConfiguration != null) {
+            final EJBClientConfiguration.ClusterConfiguration clusterConfiguration = this.ejbClientConfiguration.getClusterConfiguration(this.clusterName);
             if (clusterConfiguration == null) {
                 // use default configurations
-                final IoFuture<Connection> futureConnection = endpoint.connect(connectionURI, OptionMap.EMPTY, receiversConfiguration.getCallbackHandler());
+                final IoFuture<Connection> futureConnection = endpoint.connect(connectionURI, OptionMap.EMPTY, ejbClientConfiguration.getCallbackHandler());
                 // wait for the connection to be established
                 return IoFutureHelper.get(futureConnection, 5000, TimeUnit.MILLISECONDS);
             } else {
