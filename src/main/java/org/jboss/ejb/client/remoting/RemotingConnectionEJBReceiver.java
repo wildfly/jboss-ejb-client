@@ -22,16 +22,6 @@
 
 package org.jboss.ejb.client.remoting;
 
-import javax.transaction.xa.XAException;
-import java.io.DataOutputStream;
-import java.io.IOException;
-import java.util.IdentityHashMap;
-import java.util.Map;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.Future;
-import java.util.concurrent.TimeUnit;
-
-import org.jboss.ejb.client.EJBClientConfiguration;
 import org.jboss.ejb.client.EJBClientInvocationContext;
 import org.jboss.ejb.client.EJBReceiver;
 import org.jboss.ejb.client.EJBReceiverContext;
@@ -46,6 +36,15 @@ import org.jboss.remoting3.CloseHandler;
 import org.jboss.remoting3.Connection;
 import org.xnio.IoFuture;
 import org.xnio.OptionMap;
+
+import javax.transaction.xa.XAException;
+import java.io.DataOutputStream;
+import java.io.IOException;
+import java.util.IdentityHashMap;
+import java.util.Map;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 
 /**
  * A {@link EJBReceiver} which uses JBoss Remoting to communicate with the server for EJB invocations
@@ -76,26 +75,14 @@ public final class RemotingConnectionEJBReceiver extends EJBReceiver {
 
     private final MarshallerFactory marshallerFactory;
 
-    private final EJBClientConfiguration ejbClientConfiguration;
-
     /**
      * Construct a new instance.
      *
      * @param connection the connection to associate with
      */
     public RemotingConnectionEJBReceiver(final Connection connection) {
-        this(connection, null);
-    }
-
-    /**
-     * Construct a new instance.
-     *
-     * @param connection the connection to associate with
-     */
-    RemotingConnectionEJBReceiver(final Connection connection, final EJBClientConfiguration clientConfiguration) {
         super(connection.getRemoteEndpointName());
         this.connection = connection;
-        this.ejbClientConfiguration = clientConfiguration;
 
         this.cachedToString = new StringBuffer("Remoting connection EJB receiver [connection=").append(this.connection)
                 .append(",channel=").append(EJB_CHANNEL_NAME).append(",nodename=").append(this.getNodeName())
@@ -395,10 +382,6 @@ public final class RemotingConnectionEJBReceiver extends EJBReceiver {
     void moduleUnavailable(final EJBReceiverContext receiverContext, final String appName, final String moduleName, final String distinctName) {
         logger.debug("Received module un-availability message for appName: " + appName + " moduleName: " + moduleName + " distinctName: " + distinctName + " for receiver context " + receiverContext);
         this.deregisterModule(appName, moduleName, distinctName);
-    }
-
-    EJBClientConfiguration getEJBClientConfiguration() {
-        return this.ejbClientConfiguration;
     }
 
     private ChannelAssociation requireChannelAssociation(final EJBReceiverContext ejbReceiverContext) {

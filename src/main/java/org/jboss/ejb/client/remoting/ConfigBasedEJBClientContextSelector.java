@@ -61,7 +61,7 @@ public class ConfigBasedEJBClientContextSelector implements ContextSelector<EJBC
         this.ejbClientProperties = properties == null ? new Properties() : properties;
         this.ejbClientConfiguration = new PropertiesBasedEJBClientConfiguration(this.ejbClientProperties);
         // create a empty context
-        this.ejbClientContext = EJBClientContext.create();
+        this.ejbClientContext = EJBClientContext.create(this.ejbClientConfiguration);
         // now setup the receivers (if any) for the context
         try {
             this.setupEJBReceivers();
@@ -97,8 +97,8 @@ public class ConfigBasedEJBClientContextSelector implements ContextSelector<EJBC
                 final IoFuture<Connection> futureConnection = endpoint.connect(connectionURI, connectionConfiguration.getConnectionCreationOptions(), connectionConfiguration.getCallbackHandler());
                 // wait for the connection to be established
                 final Connection connection = IoFutureHelper.get(futureConnection, connectionConfiguration.getConnectionTimeout(), TimeUnit.MILLISECONDS);
-                // create a remoting EJB receiver for this connection and the receiver configuration
-                final EJBReceiver remotingEJBReceiver = new RemotingConnectionEJBReceiver(connection, this.ejbClientConfiguration);
+                // create a remoting EJB receiver for this connection
+                final EJBReceiver remotingEJBReceiver = new RemotingConnectionEJBReceiver(connection);
                 // associate it with the client context
                 this.ejbClientContext.registerEJBReceiver(remotingEJBReceiver);
                 // keep track of successful registrations for logging purposes

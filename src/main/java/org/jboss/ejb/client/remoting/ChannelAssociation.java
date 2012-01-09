@@ -22,14 +22,6 @@
 
 package org.jboss.ejb.client.remoting;
 
-import java.io.IOException;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.concurrent.Future;
-import java.util.concurrent.atomic.AtomicInteger;
-
 import org.jboss.ejb.client.EJBReceiverContext;
 import org.jboss.ejb.client.EJBReceiverInvocationContext;
 import org.jboss.logging.Logger;
@@ -38,6 +30,14 @@ import org.jboss.remoting3.Channel;
 import org.jboss.remoting3.CloseHandler;
 import org.jboss.remoting3.MessageInputStream;
 import org.xnio.FutureResult;
+
+import java.io.IOException;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.concurrent.Future;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * A {@link ChannelAssociation} keeps track of the association between the {@link EJBReceiverContext}
@@ -117,14 +117,6 @@ class ChannelAssociation {
         return this.ejbReceiverContext;
     }
 
-    /**
-     * Returns the {@link RemotingConnectionEJBReceiver} applicable for this {@link ChannelAssociation}
-     * @return
-     */
-    RemotingConnectionEJBReceiver getRemotingEJBReceiver() {
-        return this.ejbReceiver;
-    }
-    
     /**
      * Returns the next invocation id that can be used for invocations on the channel corresponding to
      * this {@link ChannelAssociation association}

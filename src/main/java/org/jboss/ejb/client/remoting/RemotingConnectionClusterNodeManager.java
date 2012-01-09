@@ -75,7 +75,7 @@ class RemotingConnectionClusterNodeManager implements ClusterNodeManager {
         } catch (Exception e) {
             throw new RuntimeException("Could not create a connection for cluster node " + this.clusterNode + " in cluster " + this.clusterName);
         }
-        return new RemotingConnectionEJBReceiver(connection, this.ejbClientConfiguration);
+        return new RemotingConnectionEJBReceiver(connection);
     }
 
     private Connection createConnection() throws IOException, URISyntaxException {

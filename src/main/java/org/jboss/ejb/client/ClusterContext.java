@@ -47,8 +47,8 @@ public final class ClusterContext {
     private final Map<String, ClusterNodeManager> nodeManagers = new HashMap<String, ClusterNodeManager>();
     // default to 10, will (optionally) be overridden by the ClusterConfiguration
     private long maxClusterNodeOpenConnections = 10;
-    // default to RoundRobin selector
-    private ClusterNodeSelector clusterNodeSelector;
+    // default to RandomClusterNodeSelector
+    private ClusterNodeSelector clusterNodeSelector = new RandomClusterNodeSelector();
 
     /**
      * Map of EJB recevier context per cluster node name
@@ -71,6 +71,10 @@ public final class ClusterContext {
 
     public String getClusterName() {
         return this.clusterName;
+    }
+
+    public EJBClientContext getEJBClientContext() {
+        return this.clientContext;
     }
 
     /**
@@ -102,6 +106,7 @@ public final class ClusterContext {
         final String selectedNodeName = this.clusterNodeSelector.selectNode(this.clusterName, availableNodes.toArray(new String[availableNodes.size()]));
         // only use the selected node name, if it's valid
         if (selectedNodeName != null && this.nodeEJBReceiverContexts.containsKey(selectedNodeName)) {
+            logger.debug(this.clusterNodeSelector + " has selected node " + selectedNodeName + ", in cluster " + this.clusterName);
             return this.nodeEJBReceiverContexts.get(selectedNodeName);
         }
         // the cluster node selector returned an invalid node name, so let's just randomly select a
@@ -134,7 +139,7 @@ public final class ClusterContext {
     public void addClusterNode(final String nodeName, final ClusterNodeManager clusterNodeManager) {
         this.nodeManagers.put(nodeName, clusterNodeManager);
         // If the EJB receiver contexts haven't yet reached the max allowed limit, then create a new receiver
-        // and associate it with a receiver context
+        // and associate it with a receiver context (if we don't yet have a receiver for that node name in this cluster)
         if (!this.nodeEJBReceiverContexts.containsKey(nodeName) && this.nodeEJBReceiverContexts.size() < maxClusterNodeOpenConnections) {
             // submit a task which will create and associate a EJB receiver with this cluster context
             this.executorService.submit(new EJBReceiverAssociationTask(this, nodeName));

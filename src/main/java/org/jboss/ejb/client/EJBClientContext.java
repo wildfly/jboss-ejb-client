@@ -75,8 +75,10 @@ public final class EJBClientContext extends Attachable {
      */
     private final Map<String, ClusterContext> clusterContexts = Collections.synchronizedMap(new HashMap<String, ClusterContext>());
 
+    private final EJBClientConfiguration ejbClientConfiguration;
 
-    private EJBClientContext() {
+    private EJBClientContext(final EJBClientConfiguration ejbClientConfiguration) {
+        this.ejbClientConfiguration = ejbClientConfiguration;
     }
 
     private void init(ClassLoader classLoader) {
@@ -98,21 +100,47 @@ public final class EJBClientContext extends Attachable {
      * @return the newly created context
      */
     public static EJBClientContext create() {
-        return create(EJBClientContext.class.getClassLoader());
+        return create(null, EJBClientContext.class.getClassLoader());
     }
 
     /**
      * Creates and returns a new client context, using the given class loader to look for initializers.
      *
-     * @param classLoader the class loader
+     * @param classLoader the class loader. Cannot be null
      * @return the newly created context
      */
     public static EJBClientContext create(ClassLoader classLoader) {
+        return create(null, classLoader);
+    }
+
+    /**
+     * Creates and returns a new client context. The passed <code>ejbClientConfiguration</code> will
+     * be used by this client context during any of the context management activities (like auto-creation
+     * of remoting EJB receivers)
+     *
+     * @param ejbClientConfiguration The EJB client configuration. Can be null.
+     * @return
+     */
+    public static EJBClientContext create(final EJBClientConfiguration ejbClientConfiguration) {
+        return create(ejbClientConfiguration, EJBClientContext.class.getClassLoader());
+    }
+
+    /**
+     * Creates and returns a new client context, using the given class loader to look for initializers.
+     * The passed <code>ejbClientConfiguration</code> will be used by this client context during any of
+     * the context management activities (like auto-creation of remoting EJB receivers)
+     *
+     * @param ejbClientConfiguration The EJB client configuration. Can be null.
+     * @param classLoader            The class loader. Cannot be null
+     * @return
+     */
+    public static EJBClientContext create(final EJBClientConfiguration ejbClientConfiguration, final ClassLoader classLoader) {
         final SecurityManager sm = System.getSecurityManager();
         if (sm != null) {
             sm.checkPermission(CREATE_CONTEXT_PERMISSION);
         }
-        final EJBClientContext context = new EJBClientContext();
+        final EJBClientContext context = new EJBClientContext(ejbClientConfiguration);
+        // run it through the initializers
         context.init(classLoader);
         return context;
     }
@@ -284,6 +312,16 @@ public final class EJBClientContext extends Attachable {
             Arrays.sort(newRegistrations);
         } while (!registrationsUpdater.compareAndSet(this, oldRegistrations, newRegistrations));
         return newRegistration;
+    }
+
+    /**
+     * Returns the {@link EJBClientConfiguration} applicable to this EJB client context. Returns null
+     * if this EJB client context isn't configured with a {@link EJBClientConfiguration}
+     *
+     * @return
+     */
+    public EJBClientConfiguration getEJBClientConfiguration() {
+        return this.ejbClientConfiguration;
     }
 
     void removeInterceptor(final EJBClientInterceptor.Registration registration) {
@@ -512,14 +550,12 @@ public final class EJBClientContext extends Attachable {
      * the cluster has been removed from this client context.
      *
      * @param clusterName The name of the cluster
-     * @param ejbClientConfiguration The EJB client configuration to be used with the cluster context. The EJB client configuration
-     *                               can be null.
      * @return
      */
-    public synchronized ClusterContext getOrCreateClusterContext(final String clusterName, final EJBClientConfiguration ejbClientConfiguration) {
+    public synchronized ClusterContext getOrCreateClusterContext(final String clusterName) {
         ClusterContext clusterContext = this.clusterContexts.get(clusterName);
         if (clusterContext == null) {
-            clusterContext = new ClusterContext(clusterName, this, ejbClientConfiguration);
+            clusterContext = new ClusterContext(clusterName, this, this.ejbClientConfiguration);
             this.clusterContexts.put(clusterName, clusterContext);
         }
         return clusterContext;
