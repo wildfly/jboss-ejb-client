@@ -33,6 +33,7 @@ import org.jboss.remoting3.MessageInputStream;
 import java.io.DataInput;
 import java.io.DataInputStream;
 import java.io.IOException;
+import java.net.InetAddress;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
@@ -80,13 +81,26 @@ class ClusterTopologyMessageHandler extends ProtocolMessageHandler {
                 for (int j = 0; i < clusterMemberCount; j++) {
                     // read the cluster member's node name
                     final String nodeName = input.readUTF();
-                    // read the cluster member's IP/hostname
-                    final String clusterNodeAddress = input.readUTF();
-                    // read the EJB remoting connector port of the cluster member
-                    final int ejbRemotingPort = PackedInteger.readPackedInteger(input);
-
-                    // form a cluster node out of the available information 
-                    final ClusterNode clusterNode = new ClusterNode(clusterName, nodeName, clusterNodeAddress, ejbRemotingPort);
+                    // read the client-mapping count
+                    final int clientMappingCount = PackedInteger.readPackedInteger(input);
+                    final ClientMapping[] clientMappings = new ClientMapping[clientMappingCount];
+                    // read each of the client-mapping(s)
+                    for (int c = 0; c < clientMappingCount; c++) {
+                        // read the client network address
+                        final byte[] clientNetworkAddressBytes = new byte[16];
+                        input.readFully(clientNetworkAddressBytes);
+                        final InetAddress clientNetworkAddress = InetAddress.getByAddress(clientNetworkAddressBytes);
+                        // read the client netmask
+                        final byte clientNetMask = input.readByte();
+                        // read the destination address
+                        final String destinationAddress = input.readUTF();
+                        // read the destination port
+                        final short destinationPort = input.readShort();
+                        // create a ClientMapping out of this
+                        clientMappings[c] = new ClientMapping(clientNetworkAddress, clientNetMask, destinationAddress, destinationPort);
+                    }
+                    // form a cluster node out of the available information
+                    final ClusterNode clusterNode = new ClusterNode(clusterName, nodeName, clientMappings);
                     nodes.add(clusterNode);
                 }
                 // add ito the map of cluster topologies

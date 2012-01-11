@@ -79,7 +79,7 @@ class RemotingConnectionClusterNodeManager implements ClusterNodeManager {
     }
 
     private Connection createConnection() throws IOException, URISyntaxException {
-        final URI connectionURI = new URI("remote://" + this.clusterNode.getAddress() + ":" + this.clusterNode.getEjbRemotingConnectorPort());
+        final URI connectionURI = new URI("remote://" + this.clusterNode.getDestinationAddress() + ":" + this.clusterNode.getDestinationPort());
         if (this.ejbClientConfiguration != null) {
             final EJBClientConfiguration.ClusterConfiguration clusterConfiguration = this.ejbClientConfiguration.getClusterConfiguration(this.clusterName);
             if (clusterConfiguration == null) {
@@ -99,7 +99,7 @@ class RemotingConnectionClusterNodeManager implements ClusterNodeManager {
     }
 
     private Connection createConnectionUsingDefaults() throws IOException, URISyntaxException {
-        final URI connectionURI = new URI("remote://" + this.clusterNode.getAddress() + ":" + this.clusterNode.getEjbRemotingConnectorPort());
+        final URI connectionURI = new URI("remote://" + this.clusterNode.getDestinationAddress() + ":" + this.clusterNode.getDestinationPort());
         // use default configurations
         final IoFuture<Connection> futureConnection = endpoint.connect(connectionURI, OptionMap.EMPTY, new AnonymousCallbackHandler());
         // wait for the connection to be established

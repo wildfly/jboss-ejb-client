@@ -22,6 +22,9 @@
 
 package org.jboss.ejb.client.remoting;
 
+import java.net.InetAddress;
+import java.net.NetworkInterface;
+
 /**
  * A {@link ClusterNode} holds the information of a server side cluster server instance
  *
@@ -39,21 +42,15 @@ final class ClusterNode {
      */
     private final String nodeName;
 
-    /**
-     * The hostname/IP address of this cluster node
-     */
-    private final String address;
+    private final ClientMapping[] clientMappings;
+    private ResolvedDestination resolvedDestination;
 
-    /**
-     * The EJB remoting connector service port of this cluster node
-     */
-    private final int ejbRemotingConnectorPort;
-
-    public ClusterNode(final String clusterName, final String nodeName, final String address, final int ejbRemotingConnectorPort) {
+    public ClusterNode(final String clusterName, final String nodeName, final ClientMapping[] clientMappings) {
         this.clusterName = clusterName;
         this.nodeName = nodeName;
-        this.ejbRemotingConnectorPort = ejbRemotingConnectorPort;
-        this.address = address;
+        this.clientMappings = clientMappings;
+        // resolve the destination from among the client mappings for this cluster node
+        this.resolveDestination();
     }
 
     /**
@@ -61,26 +58,8 @@ final class ClusterNode {
      *
      * @return
      */
-    public String getClusterName() {
+    String getClusterName() {
         return this.clusterName;
-    }
-
-    /**
-     * The returns the address (which can be a hostname or the IP address) of this cluster node
-     *
-     * @return
-     */
-    public String getAddress() {
-        return this.address;
-    }
-
-    /**
-     * Returns the EJB remoting connector service port of this cluster node
-     *
-     * @return
-     */
-    public int getEjbRemotingConnectorPort() {
-        return this.ejbRemotingConnectorPort;
     }
 
     /**
@@ -88,7 +67,54 @@ final class ClusterNode {
      *
      * @return
      */
-    public String getNodeName() {
+    String getNodeName() {
         return this.nodeName;
+    }
+
+    /**
+     * Returns the destination address of the cluster node
+     * @return
+     */
+    String getDestinationAddress() {
+        return this.resolvedDestination.destinationAddress;
+    }
+
+    /**
+     * Returns the destination port of the cluster node
+     * @return
+     */
+    int getDestinationPort() {
+        return this.resolvedDestination.destinationPort;
+    }
+    
+    boolean isDestinationResolved() {
+        return this.resolvedDestination != null;
+    }
+
+    private void resolveDestination() {
+        for (final ClientMapping clientMapping : this.clientMappings) {
+            final InetAddress sourceNetworkAddress = clientMapping.getSourceNetworkAddress();
+            final int netMask = clientMapping.getSourceNetworkMaskBits();
+            final boolean match = NetworkUtil.belongsToNetwork(getOurAddress(), sourceNetworkAddress, (byte) (netMask & 0xff));
+            if (match) {
+                this.resolvedDestination = new ResolvedDestination(clientMapping.getDestinationAddress(), clientMapping.getDestinationPort());
+                return;
+            }
+        }
+    }
+    
+    private final class ResolvedDestination {
+        private final String destinationAddress;
+        private final int destinationPort;
+        
+        ResolvedDestination(final String destinationAddress, final int destinationPort) {
+            this.destinationAddress = destinationAddress;
+            this.destinationPort = destinationPort;
+        }
+    }
+
+    // TODO: This is a hack and will go soon, once we allow configuring client IP
+    private InetAddress getOurAddress() {
+        return null;
     }
 }
