@@ -68,6 +68,7 @@ public final class EJBClientContext extends Attachable {
     private static volatile boolean SELECTOR_LOCKED;
 
     private final Map<EJBReceiver, EJBReceiverContext> ejbReceiverAssociations = new IdentityHashMap<EJBReceiver, EJBReceiverContext>();
+    private final Map<EJBReceiverContext, EJBReceiverContextCloseHandler> receiverContextCloseHandlers = Collections.synchronizedMap(new IdentityHashMap<EJBReceiverContext, EJBReceiverContextCloseHandler>());
     private volatile EJBClientInterceptor.Registration[] registrations = NO_INTERCEPTORS;
 
     /**
@@ -224,6 +225,10 @@ public final class EJBClientContext extends Attachable {
      * @throws IllegalArgumentException If the passed <code>receiver</code> is null
      */
     public void registerEJBReceiver(final EJBReceiver receiver) {
+        this.registerEJBReceiver(receiver, null);
+    }
+    
+    void registerEJBReceiver(final EJBReceiver receiver, final EJBReceiverContextCloseHandler receiverContextCloseHandler) {
         if (receiver == null) {
             throw new IllegalArgumentException("receiver is null");
         }
@@ -235,6 +240,10 @@ public final class EJBClientContext extends Attachable {
             }
             ejbReceiverContext = new EJBReceiverContext(receiver, this);
             this.ejbReceiverAssociations.put(receiver, ejbReceiverContext);
+            // register a close handler, if any, for this receiver context
+            if (receiverContextCloseHandler != null) {
+                this.receiverContextCloseHandlers.put(ejbReceiverContext, receiverContextCloseHandler);
+            }
         }
         receiver.associate(ejbReceiverContext);
     }
@@ -253,7 +262,13 @@ public final class EJBClientContext extends Attachable {
             throw new IllegalArgumentException("Receiver cannot be null");
         }
         synchronized (this.ejbReceiverAssociations) {
-            this.ejbReceiverAssociations.remove(receiver);
+            final EJBReceiverContext receiverContext = this.ejbReceiverAssociations.remove(receiver);
+            if (receiverContext != null) {
+                final EJBReceiverContextCloseHandler receiverContextCloseHandler = this.receiverContextCloseHandlers.remove(receiverContext);
+                if (receiverContextCloseHandler != null) {
+                    receiverContextCloseHandler.receiverContextClosed(receiverContext);
+                }
+            }
         }
     }
 
@@ -423,8 +438,6 @@ public final class EJBClientContext extends Attachable {
      * hasn't been registered with this {@link EJBClientContext}, either through a call to {@link #registerConnection(org.jboss.remoting3.Connection)}
      * or to {@link #requireEJBReceiver(String, String, String)}, then this method throws an {@link IllegalStateException}
      * <p/>
-     * Note that this method does <b>not</b> consider the {@link EJBReceiver}s that might belong to the cluster contexts
-     * associated with this {@link EJBClientContext}. If a cluster receiver context is required then use {@link #requireClusterEJBReceiverContext(String)}
      *
      * @param receiver The {@link EJBReceiver} for which the {@link EJBReceiverContext} is being requested
      * @return The {@link EJBReceiverContext}
@@ -590,4 +603,8 @@ public final class EJBClientContext extends Attachable {
             logger.debug("Ignoring an error that occured while closing a cluster context for cluster named " + clusterName, t);
         }
     }
+    
+    interface EJBReceiverContextCloseHandler {
+        void receiverContextClosed(final EJBReceiverContext receiverContext);
+    } 
 }

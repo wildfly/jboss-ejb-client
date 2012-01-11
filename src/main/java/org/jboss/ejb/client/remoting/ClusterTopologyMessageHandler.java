@@ -78,7 +78,7 @@ class ClusterTopologyMessageHandler extends ProtocolMessageHandler {
                 final int clusterMemberCount = PackedInteger.readPackedInteger(input);
                 final Collection<ClusterNode> nodes = new ArrayList<ClusterNode>();
                 // read the individual cluster member information
-                for (int j = 0; i < clusterMemberCount; j++) {
+                for (int j = 0; j < clusterMemberCount; j++) {
                     // read the cluster member's node name
                     final String nodeName = input.readUTF();
                     // read the client-mapping count
@@ -119,9 +119,9 @@ class ClusterTopologyMessageHandler extends ProtocolMessageHandler {
             // create a cluster context and add the nodes to it
             final ClusterContext clusterContext = clientContext.getOrCreateClusterContext(clusterName);
             // if this is a complete topology message, then we'll first remove any existing nodes from the cluster context
-            if (this.completeTopology) {
-                clusterContext.removeAllClusterNodes();
-            }
+//            if (this.completeTopology) {
+//                clusterContext.removeAllClusterNodes();
+//            }
             this.addNodesToClusterContext(clusterContext, nodes);
         }
     }

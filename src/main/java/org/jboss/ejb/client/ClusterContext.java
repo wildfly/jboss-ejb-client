@@ -26,11 +26,8 @@ import org.jboss.logging.Logger;
 
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.IdentityHashMap;
 import java.util.Map;
 import java.util.Set;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 
 /**
  * A {@link ClusterContext} keeps track of a specific cluster and the {@link org.jboss.ejb.client.remoting.ClusterNode}s
@@ -38,13 +35,13 @@ import java.util.concurrent.Executors;
  *
  * @author Jaikiran Pai
  */
-public final class ClusterContext {
+public final class ClusterContext implements EJBClientContext.EJBReceiverContextCloseHandler {
 
     private static final Logger logger = Logger.getLogger(ClusterContext.class);
 
     private final String clusterName;
     private final EJBClientContext clientContext;
-    private final Map<String, ClusterNodeManager> nodeManagers = new HashMap<String, ClusterNodeManager>();
+    private final Map<String, ClusterNodeManager> nodeManagers = Collections.synchronizedMap(new HashMap<String, ClusterNodeManager>());
     // default to 10, will (optionally) be overridden by the ClusterConfiguration
     private long maxClusterNodeOpenConnections = 10;
     // default to RandomClusterNodeSelector
@@ -53,10 +50,8 @@ public final class ClusterContext {
     /**
      * Map of EJB recevier context per cluster node name
      */
-    private final Map<String, EJBReceiverContext> nodeEJBReceiverContexts = Collections.synchronizedMap(new IdentityHashMap<String, EJBReceiverContext>());
+    private final Map<String, EJBReceiverContext> nodeEJBReceiverContexts = Collections.synchronizedMap(new HashMap<String, EJBReceiverContext>());
 
-    // TODO: Externalize this
-    private final ExecutorService executorService = Executors.newFixedThreadPool(5);
 
     ClusterContext(final String clusterName, final EJBClientContext clientContext, final EJBClientConfiguration ejbClientConfiguration) {
         this.clusterName = clusterName;
@@ -142,7 +137,10 @@ public final class ClusterContext {
         // and associate it with a receiver context (if we don't yet have a receiver for that node name in this cluster)
         if (!this.nodeEJBReceiverContexts.containsKey(nodeName) && this.nodeEJBReceiverContexts.size() < maxClusterNodeOpenConnections) {
             // submit a task which will create and associate a EJB receiver with this cluster context
-            this.executorService.submit(new EJBReceiverAssociationTask(this, nodeName));
+            // TODO: This will be changed later to be better handled via a ExecutorService
+            final Thread connectionCreationThread = new Thread(new EJBReceiverAssociationTask(this, nodeName));
+            connectionCreationThread.setDaemon(true);
+            connectionCreationThread.start();
         }
     }
 
@@ -172,9 +170,6 @@ public final class ClusterContext {
      * behave like a cluster context which contains no nodes
      */
     void close() {
-        if (this.executorService != null) {
-            this.executorService.shutdownNow();
-        }
         this.removeAllClusterNodes();
     }
 
@@ -192,9 +187,11 @@ public final class ClusterContext {
             // nothing to do
             return;
         }
-        final EJBReceiverContext ejbReceiverContext = new EJBReceiverContext(receiver, this.clientContext);
-        // associate the receiver with the receiver context
-        receiver.associate(ejbReceiverContext);
+        // let the client context manage the registering
+        this.clientContext.registerEJBReceiver(receiver, this);
+        // now let's get back the receiver context that got associated, so that we too can keep a track of those
+        // receiver contexts
+        final EJBReceiverContext ejbReceiverContext = this.clientContext.getNodeEJBReceiverContext(nodeName);
         // add it to our per node receiver contexts
         this.nodeEJBReceiverContexts.put(nodeName, ejbReceiverContext);
         logger.info("Added a new EJB receiver in cluster context " + clusterName + " for node " + nodeName + ". Total nodes in cluster context = " + this.nodeEJBReceiverContexts.size());
@@ -211,6 +208,12 @@ public final class ClusterContext {
             this.clusterNodeSelector = nodeSelector;
         }
 
+    }
+
+    @Override
+    public void receiverContextClosed(EJBReceiverContext receiverContext) {
+        final String nodeName = receiverContext.getReceiver().getNodeName();
+        this.nodeEJBReceiverContexts.remove(nodeName);
     }
 
     /**

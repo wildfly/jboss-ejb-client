@@ -321,7 +321,7 @@ class ChannelAssociation {
                 messageHandler.processMessage(messageInputStream);
 
             } catch (IOException e) {
-                throw new RuntimeException(e);
+                this.handleError(channel, e);
             } finally {
                 // receive next message
                 channel.receiveMessage(this);

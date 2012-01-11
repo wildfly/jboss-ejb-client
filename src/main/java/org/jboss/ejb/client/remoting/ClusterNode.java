@@ -24,6 +24,10 @@ package org.jboss.ejb.client.remoting;
 
 import java.net.InetAddress;
 import java.net.NetworkInterface;
+import java.net.SocketException;
+import java.util.Collection;
+import java.util.Enumeration;
+import java.util.HashSet;
 
 /**
  * A {@link ClusterNode} holds the information of a server side cluster server instance
@@ -95,10 +99,22 @@ final class ClusterNode {
         for (final ClientMapping clientMapping : this.clientMappings) {
             final InetAddress sourceNetworkAddress = clientMapping.getSourceNetworkAddress();
             final int netMask = clientMapping.getSourceNetworkMaskBits();
-            final boolean match = NetworkUtil.belongsToNetwork(getOurAddress(), sourceNetworkAddress, (byte) (netMask & 0xff));
-            if (match) {
+            if (netMask == 0) {
                 this.resolvedDestination = new ResolvedDestination(clientMapping.getDestinationAddress(), clientMapping.getDestinationPort());
                 return;
+            }
+            final Collection<InetAddress> ourAddresses;
+            try {
+                ourAddresses = this.getOurAddress();
+            } catch (SocketException e) {
+                throw new RuntimeException(e);
+            }
+            for (final InetAddress address : ourAddresses) {
+                final boolean match = NetworkUtil.belongsToNetwork(address, sourceNetworkAddress, (byte) (netMask & 0xff));
+                if (match) {
+                    this.resolvedDestination = new ResolvedDestination(clientMapping.getDestinationAddress(), clientMapping.getDestinationPort());
+                    return;
+                }
             }
         }
     }
@@ -114,7 +130,16 @@ final class ClusterNode {
     }
 
     // TODO: This is a hack and will go soon, once we allow configuring client IP
-    private InetAddress getOurAddress() {
-        return null;
+    private Collection<InetAddress> getOurAddress() throws SocketException {
+        final Collection<InetAddress> addresses = new HashSet<InetAddress>();
+        final Enumeration<NetworkInterface> networkInterfaces = NetworkInterface.getNetworkInterfaces();
+        while (networkInterfaces.hasMoreElements()) {
+            final NetworkInterface networkInterface = networkInterfaces.nextElement();
+            final Enumeration<InetAddress> inetAddresses = networkInterface.getInetAddresses();
+            while (inetAddresses.hasMoreElements()) {
+                addresses.add(inetAddresses.nextElement());
+            }
+        }
+        return addresses;
     }
 }
