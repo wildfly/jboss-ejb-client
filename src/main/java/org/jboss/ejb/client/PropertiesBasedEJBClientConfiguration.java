@@ -20,10 +20,8 @@
  * 02110-1301 USA, or see the FSF site: http://www.fsf.org.
  */
 
-package org.jboss.ejb.client.remoting;
+package org.jboss.ejb.client;
 
-import org.jboss.ejb.client.ClusterNodeSelector;
-import org.jboss.ejb.client.EJBClientConfiguration;
 import org.jboss.logging.Logger;
 import org.xnio.Option;
 import org.xnio.OptionMap;

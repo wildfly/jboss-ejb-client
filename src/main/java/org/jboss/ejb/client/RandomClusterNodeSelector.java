@@ -22,7 +22,6 @@
 
 package org.jboss.ejb.client;
 
-import java.util.Collection;
 import java.util.Random;
 
 /**
@@ -31,11 +30,21 @@ import java.util.Random;
 class RandomClusterNodeSelector implements ClusterNodeSelector {
 
     @Override
-    public String selectNode(String clusterName, String[] availableNodes) {
+    public String selectNode(final String clusterName, final String[] connectedNodes, final String[] availableNodes) {
+        final Random random = new Random();
+        // check if there are any connected nodes. If there are then just reuse them
+        if (connectedNodes.length > 0) {
+            if (connectedNodes.length == 1) {
+                return connectedNodes[0];
+            }
+            final int randomConnectedNode = random.nextInt(connectedNodes.length);
+            return connectedNodes[randomConnectedNode];
+        }
+        // there are no connected nodes. so use the available nodes and let the cluster context
+        // establish a connection for the selected node
         if (availableNodes.length == 1) {
             return availableNodes[0];
         }
-        final Random random = new Random();
         final int randomSelection = random.nextInt(availableNodes.length);
         return availableNodes[randomSelection];
     }

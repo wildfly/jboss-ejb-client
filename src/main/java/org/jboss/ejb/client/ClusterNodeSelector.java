@@ -22,8 +22,6 @@
 
 package org.jboss.ejb.client;
 
-import java.util.Collection;
-
 /**
  * A selector which selects and returns a node from the available nodes in a cluster. The {@link EJBReceiver}
  * corresponding to the selected node will then be used to forward the invocations on a EJB. Typical usage of a
@@ -34,11 +32,19 @@ import java.util.Collection;
 public interface ClusterNodeSelector {
 
     /**
-     * Returns a node from among the <code>availableNodes</code>, as the target node for EJB invocations
+     * Returns a node from among the <code>totalAvailableNodes</code>, as the target node for EJB invocations.
+     * The selector can decide whether to pick an already connected node (from the passed <code>connectedNodes</code>)
+     * or decide to select a node to which a connection hasn't yet been established. If a node to which a connection
+     * hasn't been established, is selected then the cluster context will create a connection to it before letting
+     * the corresponding {@link EJBReceiver} to handle the EJB invocation.
      *
-     * @param clusterName    The name of the cluster to which the nodes belong
-     * @param availableNodes The available nodes in the cluster
+     * @param clusterName         The name of the cluster to which the nodes belong
+     * @param connectedNodes      The cluster context auto-connects to only a maximum allowed limit of nodes. This
+     *                            <code>connectedNodes</code> array contains the node names to which a connection has
+     *                            been established. This can be an empty array but will not be null.
+     * @param totalAvailableNodes Total available nodes in the cluster. This even includes the connected nodes.
+     *                            This array will neither be empty nor null.
      * @return
      */
-    String selectNode(final String clusterName, final String[] availableNodes);
+    String selectNode(final String clusterName, final String[] connectedNodes, final String[] totalAvailableNodes);
 }

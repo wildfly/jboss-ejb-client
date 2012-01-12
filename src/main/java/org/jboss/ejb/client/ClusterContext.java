@@ -26,6 +26,7 @@ import org.jboss.logging.Logger;
 
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 
@@ -48,9 +49,9 @@ public final class ClusterContext implements EJBClientContext.EJBReceiverContext
     private ClusterNodeSelector clusterNodeSelector = new RandomClusterNodeSelector();
 
     /**
-     * Map of EJB recevier context per cluster node name
+     * The nodes to which a connected has already been established in this cluster context
      */
-    private final Map<String, EJBReceiverContext> nodeEJBReceiverContexts = Collections.synchronizedMap(new HashMap<String, EJBReceiverContext>());
+    private final Set<String> connectedNodes = Collections.synchronizedSet(new HashSet<String>());
 
 
     ClusterContext(final String clusterName, final EJBClientContext clientContext, final EJBClientConfiguration ejbClientConfiguration) {
@@ -93,22 +94,41 @@ public final class ClusterContext implements EJBClientContext.EJBReceiverContext
      * @return
      */
     EJBReceiverContext getEJBReceiverContext() {
-        if (nodeEJBReceiverContexts.isEmpty()) {
+        if (nodeManagers.isEmpty()) {
             return null;
         }
-        final Set<String> availableNodes = this.nodeEJBReceiverContexts.keySet();
+        final Set<String> availableNodes = this.nodeManagers.keySet();
         // Let the cluster node selector decide which node to use from among the available nodes
-        final String selectedNodeName = this.clusterNodeSelector.selectNode(this.clusterName, availableNodes.toArray(new String[availableNodes.size()]));
+        final String selectedNodeName = this.clusterNodeSelector.selectNode(this.clusterName, this.connectedNodes.toArray(new String[connectedNodes.size()]), availableNodes.toArray(new String[availableNodes.size()]));
         // only use the selected node name, if it's valid
-        if (selectedNodeName != null && this.nodeEJBReceiverContexts.containsKey(selectedNodeName)) {
-            logger.debug(this.clusterNodeSelector + " has selected node " + selectedNodeName + ", in cluster " + this.clusterName);
-            return this.nodeEJBReceiverContexts.get(selectedNodeName);
+        if (selectedNodeName == null || !this.nodeManagers.containsKey(selectedNodeName)) {
+            logger.warn(clusterNodeSelector + " selected an invalid node name: " + selectedNodeName + " for cluster: "
+                    + clusterName + ". No EJB receiver context can be selected");
+            return null;
         }
-        // the cluster node selector returned an invalid node name, so let's just randomly select a
-        // node from this cluster and also log a warning
-        logger.warn("Using a random node from among the available cluster nodes in cluster " + clusterName + " since the cluster node selector "
-                + clusterNodeSelector + " selected an invalid node: " + selectedNodeName);
-        return nodeEJBReceiverContexts.values().iterator().next();
+        logger.debug(this.clusterNodeSelector + " has selected node " + selectedNodeName + ", in cluster " + this.clusterName);
+        final EJBReceiverContext selectedNodeReceiverContext = this.clientContext.getNodeEJBReceiverContext(selectedNodeName);
+        // the node is already connected, so return it
+        if (selectedNodeReceiverContext != null) {
+            return selectedNodeReceiverContext;
+        }
+        // A receiver hasn't been associated for the given node name, so let's do it now
+        final ClusterNodeManager clusterNodeManager = this.nodeManagers.get(selectedNodeName);
+        if (clusterNodeManager == null) {
+            // we don't have a cluster node manager which could create the EJB receiver, for this
+            // node name
+            logger.error("Cannot create EJBReceiver since no cluster node manager found for node "
+                    + selectedNodeName + " in cluster context for cluster " + clusterName);
+            return null;
+        }
+        // get the receiver from the node manager
+        final EJBReceiver ejbReceiver = clusterNodeManager.getEJBReceiver();
+        // register the receiver and let it create the receiver context
+        this.registerEJBReceiver(selectedNodeName, ejbReceiver);
+        // let the client context return the newly associated receiver context for the node name.
+        // if it wasn't successfully associated (for example version handshake not completing)
+        // then this will return null.
+        return this.clientContext.getNodeEJBReceiverContext(selectedNodeName);
     }
 
     /**
@@ -133,9 +153,9 @@ public final class ClusterContext implements EJBClientContext.EJBReceiverContext
      */
     public void addClusterNode(final String nodeName, final ClusterNodeManager clusterNodeManager) {
         this.nodeManagers.put(nodeName, clusterNodeManager);
-        // If the EJB receiver contexts haven't yet reached the max allowed limit, then create a new receiver
-        // and associate it with a receiver context (if we don't yet have a receiver for that node name in this cluster)
-        if (!this.nodeEJBReceiverContexts.containsKey(nodeName) && this.nodeEJBReceiverContexts.size() < maxClusterNodeOpenConnections) {
+        // If the connected nodes in this cluster context hasn't yet reached the max allowed limit, then create a new
+        // receiver and associate it with a receiver context (if the node isn't already connected to)
+        if (!this.connectedNodes.contains(nodeName) && this.connectedNodes.size() < maxClusterNodeOpenConnections) {
             // submit a task which will create and associate a EJB receiver with this cluster context
             // TODO: This will be changed later to be better handled via a ExecutorService
             final Thread connectionCreationThread = new Thread(new EJBReceiverAssociationTask(this, nodeName));
@@ -153,7 +173,7 @@ public final class ClusterContext implements EJBClientContext.EJBReceiverContext
         // remove from the node managers
         this.nodeManagers.remove(nodeName);
         // remove any EJB receiver contexts for this node name
-        this.nodeEJBReceiverContexts.remove(nodeName);
+        this.connectedNodes.remove(nodeName);
     }
 
     /**
@@ -161,7 +181,7 @@ public final class ClusterContext implements EJBClientContext.EJBReceiverContext
      */
     public void removeAllClusterNodes() {
         this.nodeManagers.clear();
-        this.nodeEJBReceiverContexts.clear();
+        this.connectedNodes.clear();
     }
 
     /**
@@ -183,7 +203,7 @@ public final class ClusterContext implements EJBClientContext.EJBReceiverContext
         if (receiver == null) {
             throw new IllegalArgumentException("receiver is null");
         }
-        if (this.nodeEJBReceiverContexts.containsKey(nodeName)) {
+        if (this.connectedNodes.contains(nodeName)) {
             // nothing to do
             return;
         }
@@ -192,9 +212,14 @@ public final class ClusterContext implements EJBClientContext.EJBReceiverContext
         // now let's get back the receiver context that got associated, so that we too can keep a track of those
         // receiver contexts
         final EJBReceiverContext ejbReceiverContext = this.clientContext.getNodeEJBReceiverContext(nodeName);
-        // add it to our per node receiver contexts
-        this.nodeEJBReceiverContexts.put(nodeName, ejbReceiverContext);
-        logger.info("Added a new EJB receiver in cluster context " + clusterName + " for node " + nodeName + ". Total nodes in cluster context = " + this.nodeEJBReceiverContexts.size());
+        // it's possible that while associating a receiver context to a receiver, there were problems (like
+        // version handshake not being completed) which might have resulted in the receiver context not being
+        // created for this node. So let's do a null check here
+        if (ejbReceiverContext != null) {
+            // add it to our connected nodes
+            this.connectedNodes.add(nodeName);
+            logger.info("Added a new EJB receiver in cluster context " + clusterName + " for node " + nodeName + ". Total nodes in cluster context = " + this.connectedNodes.size());
+        }
     }
 
     private void setupClusterSpecificConfigurations(final EJBClientConfiguration.ClusterConfiguration clusterConfiguration) {
@@ -213,7 +238,7 @@ public final class ClusterContext implements EJBClientContext.EJBReceiverContext
     @Override
     public void receiverContextClosed(EJBReceiverContext receiverContext) {
         final String nodeName = receiverContext.getReceiver().getNodeName();
-        this.nodeEJBReceiverContexts.remove(nodeName);
+        this.connectedNodes.remove(nodeName);
     }
 
     /**

@@ -89,7 +89,8 @@ public class MultipleConnectionsConfigBasedSelectorTestCase {
     @Test
     public void testRemotingEJBReceivers() throws Exception {
         final Properties properties = EJBClientPropertiesLoader.loadEJBClientProperties();
-        final ConfigBasedEJBClientContextSelector configBasedEJBClientContextSelector = new ConfigBasedEJBClientContextSelector(properties);
+        final EJBClientConfiguration ejbClientConfiguration = new PropertiesBasedEJBClientConfiguration(properties);
+        final ConfigBasedEJBClientContextSelector configBasedEJBClientContextSelector = new ConfigBasedEJBClientContextSelector(ejbClientConfiguration);
 
         final EJBClientContext ejbClientContext = configBasedEJBClientContextSelector.getCurrent();
         Assert.assertNotNull("No client context found " + ejbClientContext);

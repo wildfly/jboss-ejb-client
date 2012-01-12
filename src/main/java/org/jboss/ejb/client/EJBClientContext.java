@@ -62,7 +62,12 @@ public final class EJBClientContext extends Attachable {
 
     static {
         final Properties ejbClientProperties = EJBClientPropertiesLoader.loadEJBClientProperties();
-        SELECTOR = new ConfigBasedEJBClientContextSelector(ejbClientProperties);
+        if (ejbClientProperties == null) {
+            SELECTOR = new ConfigBasedEJBClientContextSelector(null);
+        } else {
+            final EJBClientConfiguration clientConfiguration = new PropertiesBasedEJBClientConfiguration(ejbClientProperties);
+            SELECTOR = new ConfigBasedEJBClientContextSelector(clientConfiguration);
+        }
     }
 
     private static volatile boolean SELECTOR_LOCKED;
@@ -227,7 +232,7 @@ public final class EJBClientContext extends Attachable {
     public void registerEJBReceiver(final EJBReceiver receiver) {
         this.registerEJBReceiver(receiver, null);
     }
-    
+
     void registerEJBReceiver(final EJBReceiver receiver, final EJBReceiverContextCloseHandler receiverContextCloseHandler) {
         if (receiver == null) {
             throw new IllegalArgumentException("receiver is null");
@@ -603,8 +608,21 @@ public final class EJBClientContext extends Attachable {
             logger.debug("Ignoring an error that occured while closing a cluster context for cluster named " + clusterName, t);
         }
     }
-    
+
+    /**
+     * A {@link EJBReceiverContextCloseHandler} will be notified through a call to
+     * {@link #receiverContextClosed(EJBReceiverContext)} whenever a {@link EJBReceiverContext}, to which
+     * the {@link EJBReceiverContextCloseHandler}, has been {@link EJBClientContext#registerEJBReceiver(EJBReceiver, org.jboss.ejb.client.EJBClientContext.EJBReceiverContextCloseHandler) associated}
+     * is closed by this {@link EJBClientContext}
+     */
     interface EJBReceiverContextCloseHandler {
+        /**
+         * A callback method which will be invoked when the {@link EJBReceiverContext receiverContext}
+         * is closed. This method can do the necessary cleanup (if any) of resources associated with the
+         * receiver context
+         *
+         * @param receiverContext The receiver context which was closed
+         */
         void receiverContextClosed(final EJBReceiverContext receiverContext);
-    } 
+    }
 }

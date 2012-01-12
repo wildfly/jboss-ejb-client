@@ -41,11 +41,7 @@ import java.util.Properties;
 import java.util.concurrent.TimeUnit;
 
 /**
- * An EJB client context selector which uses {@link Properties} to create {@link org.jboss.ejb.client.remoting.RemotingConnectionEJBReceiver}s.
- * The {@link Properties} could possibly be read from some file or could be constructed in some other way. This {@link ConfigBasedEJBClientContextSelector}
- * looks for certain EJB client API specified/regulated properties in the {@link Properties}, that was passed while
- * {@link #ConfigBasedEJBClientContextSelector(java.util.Properties) constructing} this selector, for creating the
- * remoting EJB receivers.
+ * An EJB client context selector which uses {@link EJBClientConfiguration} to create {@link org.jboss.ejb.client.remoting.RemotingConnectionEJBReceiver}s.
  *
  * @author Jaikiran Pai
  */
@@ -53,16 +49,28 @@ public class ConfigBasedEJBClientContextSelector implements ContextSelector<EJBC
 
     private static final Logger logger = Logger.getLogger(ConfigBasedEJBClientContextSelector.class);
 
-    private final Properties ejbClientProperties;
     private final EJBClientConfiguration ejbClientConfiguration;
     private final EJBClientContext ejbClientContext;
 
-    public ConfigBasedEJBClientContextSelector(final Properties properties) {
-        this.ejbClientProperties = properties == null ? new Properties() : properties;
-        this.ejbClientConfiguration = new PropertiesBasedEJBClientConfiguration(this.ejbClientProperties);
+    /**
+     * Creates a {@link ConfigBasedEJBClientContextSelector} using the passed <code>ejbClientConfiguration</code>.
+     * <p/>
+     * This constructor creates a {@link EJBClientContext} and uses the passed <code>ejbClientConfiguration</code> to create and
+     * associated EJB receivers to that context. If the passed <code>ejbClientConfiguration</code> is null, then this selector will create a {@link EJBClientContext}
+     * without any associated EJB receivers.
+     *
+     * @param ejbClientConfiguration The EJB client configuration to use
+     */
+    public ConfigBasedEJBClientContextSelector(final EJBClientConfiguration ejbClientConfiguration) {
+        this.ejbClientConfiguration = ejbClientConfiguration;
         // create a empty context
         this.ejbClientContext = EJBClientContext.create(this.ejbClientConfiguration);
         // now setup the receivers (if any) for the context
+        if (this.ejbClientConfiguration == null) {
+            logger.debug("EJB client context " + this.ejbClientContext + " will have no EJB receivers associated with it since there was no " +
+                    "EJB client configuration available to create the receivers");
+            return;
+        }
         try {
             this.setupEJBReceivers();
         } catch (IOException ioe) {

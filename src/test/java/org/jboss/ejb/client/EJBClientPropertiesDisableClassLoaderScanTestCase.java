@@ -85,7 +85,8 @@ public class EJBClientPropertiesDisableClassLoaderScanTestCase {
     @Test
     public void testRemotingEJBReceiver() throws Exception {
         final Properties properties = EJBClientPropertiesLoader.loadEJBClientProperties();
-        final ConfigBasedEJBClientContextSelector configBasedEJBClientContextSelector = new ConfigBasedEJBClientContextSelector(properties);
+        final EJBClientConfiguration ejbClientConfiguration = new PropertiesBasedEJBClientConfiguration(properties);
+        final ConfigBasedEJBClientContextSelector configBasedEJBClientContextSelector = new ConfigBasedEJBClientContextSelector(ejbClientConfiguration);
 
         final EJBClientContext ejbClientContext = configBasedEJBClientContextSelector.getCurrent();
         logger.info("Found EJB client context " + ejbClientContext);
