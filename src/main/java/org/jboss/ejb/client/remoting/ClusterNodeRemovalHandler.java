@@ -68,7 +68,7 @@ class ClusterNodeRemovalHandler extends ProtocolMessageHandler {
                 final int clusterMemberCount = PackedInteger.readPackedInteger(input);
                 final Collection<String> removedNodes = new ArrayList<String>();
                 // read the removed cluster names
-                for (int j = 0; i < clusterMemberCount; j++) {
+                for (int j = 0; j < clusterMemberCount; j++) {
                     final String nodeName = input.readUTF();
                     removedNodes.add(nodeName);
                 }
