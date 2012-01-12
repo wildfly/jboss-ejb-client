@@ -123,6 +123,9 @@ public final class ClusterContext implements EJBClientContext.EJBReceiverContext
         }
         // get the receiver from the node manager
         final EJBReceiver ejbReceiver = clusterNodeManager.getEJBReceiver();
+        if (ejbReceiver == null) {
+            return null;
+        }
         // register the receiver and let it create the receiver context
         this.registerEJBReceiver(selectedNodeName, ejbReceiver);
         // let the client context return the newly associated receiver context for the node name.
@@ -272,6 +275,9 @@ public final class ClusterContext implements EJBClientContext.EJBReceiverContext
             }
             // get the EJB receiver from the node manager
             final EJBReceiver ejbReceiver = clusterNodeManager.getEJBReceiver();
+            if (ejbReceiver == null) {
+                return;
+            }
             // associate the receiver with the cluster context
             this.clusterContext.registerEJBReceiver(this.nodeName, ejbReceiver);
         }

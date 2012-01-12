@@ -31,14 +31,14 @@ package org.jboss.ejb.client;
 public interface ClusterNodeManager {
 
     /**
-     * Returns the name of the node
+     * Returns the name of the node. This method should <i>not</i> return null.
      *
      * @return
      */
     String getNodeName();
 
     /**
-     * Returns a {@link EJBReceiver} for the node
+     * Returns a {@link EJBReceiver} for the node. This method can return null.
      *
      * @return
      */

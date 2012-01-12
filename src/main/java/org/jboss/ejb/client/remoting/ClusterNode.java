@@ -22,10 +22,14 @@
 
 package org.jboss.ejb.client.remoting;
 
+import org.jboss.logging.Logger;
+
 import java.net.InetAddress;
 import java.net.NetworkInterface;
 import java.net.SocketException;
+import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.Enumeration;
 import java.util.HashSet;
 
@@ -35,6 +39,23 @@ import java.util.HashSet;
  * @author Jaikiran Pai
  */
 final class ClusterNode {
+
+    private static final Logger logger = Logger.getLogger(ClusterNode.class);
+
+    private static final Collection<InetAddress> ALL_INET_ADDRESSES;
+
+    static {
+        Collection<InetAddress> addresses;
+        try {
+            addresses = getAllApplicableInetAddresses();
+        } catch (Throwable t) {
+            logger.warn("Could not fetch the InetAddress(es) of this system due to " + t.getMessage());
+            logger.debug("Failed while fetching InetAddress(es) of this system ", t);
+            
+            addresses = Collections.emptySet();
+        }
+        ALL_INET_ADDRESSES = addresses;
+    }
 
     /**
      * The name of the cluster to which this cluster node belongs
@@ -48,6 +69,7 @@ final class ClusterNode {
 
     private final ClientMapping[] clientMappings;
     private ResolvedDestination resolvedDestination;
+    private final String cachedToString;
 
     public ClusterNode(final String clusterName, final String nodeName, final ClientMapping[] clientMappings) {
         this.clusterName = clusterName;
@@ -55,6 +77,8 @@ final class ClusterNode {
         this.clientMappings = clientMappings;
         // resolve the destination from among the client mappings for this cluster node
         this.resolveDestination();
+
+        this.cachedToString = this.generateToString();
     }
 
     /**
@@ -77,6 +101,7 @@ final class ClusterNode {
 
     /**
      * Returns the destination address of the cluster node
+     *
      * @return
      */
     String getDestinationAddress() {
@@ -85,31 +110,42 @@ final class ClusterNode {
 
     /**
      * Returns the destination port of the cluster node
+     *
      * @return
      */
     int getDestinationPort() {
         return this.resolvedDestination.destinationPort;
     }
-    
+
     boolean isDestinationResolved() {
         return this.resolvedDestination != null;
+    }
+
+    @Override
+    public String toString() {
+        return this.cachedToString;
+    }
+
+    private String generateToString() {
+        return "ClusterNode{" +
+                "clusterName='" + clusterName + '\'' +
+                ", nodeName='" + nodeName + '\'' +
+                ", clientMappings=" + (clientMappings == null ? null : Arrays.asList(clientMappings)) +
+                ", resolvedDestination=" + resolvedDestination +
+                '}';
     }
 
     private void resolveDestination() {
         for (final ClientMapping clientMapping : this.clientMappings) {
             final InetAddress sourceNetworkAddress = clientMapping.getSourceNetworkAddress();
             final int netMask = clientMapping.getSourceNetworkMaskBits();
+            // a netmask of 0 means, it matches everything. So consider the current client-mapping
+            // as a match
             if (netMask == 0) {
                 this.resolvedDestination = new ResolvedDestination(clientMapping.getDestinationAddress(), clientMapping.getDestinationPort());
                 return;
             }
-            final Collection<InetAddress> ourAddresses;
-            try {
-                ourAddresses = this.getOurAddress();
-            } catch (SocketException e) {
-                throw new RuntimeException(e);
-            }
-            for (final InetAddress address : ourAddresses) {
+            for (final InetAddress address : ALL_INET_ADDRESSES) {
                 final boolean match = NetworkUtil.belongsToNetwork(address, sourceNetworkAddress, (byte) (netMask & 0xff));
                 if (match) {
                     this.resolvedDestination = new ResolvedDestination(clientMapping.getDestinationAddress(), clientMapping.getDestinationPort());
@@ -118,19 +154,26 @@ final class ClusterNode {
             }
         }
     }
-    
+
     private final class ResolvedDestination {
         private final String destinationAddress;
         private final int destinationPort;
-        
+
         ResolvedDestination(final String destinationAddress, final int destinationPort) {
             this.destinationAddress = destinationAddress;
             this.destinationPort = destinationPort;
         }
     }
 
-    // TODO: This is a hack and will go soon, once we allow configuring client IP
-    private Collection<InetAddress> getOurAddress() throws SocketException {
+    /**
+     * Returns all the {@link InetAddress}es that are applicable for the current system. This is done
+     * by fetching all the {@link NetworkInterface network interfaces} and then getting the {@link InetAddress}es
+     * for each of the network interface.
+     *
+     * @return
+     * @throws SocketException
+     */
+    private static Collection<InetAddress> getAllApplicableInetAddresses() throws SocketException {
         final Collection<InetAddress> addresses = new HashSet<InetAddress>();
         final Enumeration<NetworkInterface> networkInterfaces = NetworkInterface.getNetworkInterfaces();
         while (networkInterfaces.hasMoreElements()) {
