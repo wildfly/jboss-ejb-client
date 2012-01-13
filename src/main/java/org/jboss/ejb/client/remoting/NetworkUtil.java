@@ -23,17 +23,36 @@
 package org.jboss.ejb.client.remoting;
 
 import java.net.InetAddress;
-import java.net.UnknownHostException;
 
 /**
  * @author Jaikiran Pai
  */
 class NetworkUtil {
 
+    /**
+     * Returns true if the passed <code>address</code> is part of the network represented by the passed <code>networkAddress</code>
+     * and <code>networkMask</code>. Else returns false
+     *
+     * @param address        The address being checked
+     * @param networkAddress The network address
+     * @param networkMask    The network mask bits
+     * @return
+     */
     static boolean belongsToNetwork(final InetAddress address, final InetAddress networkAddress, final byte networkMask) {
-        // conver to bytes
+        if (address == null || networkAddress == null) {
+            return false;
+        }
+        // a netmask of 0 means, it matches everything
+        if (networkMask == 0) {
+            return true;
+        }
+        // convert to bytes
         final byte[] addressBytes = address.getAddress();
         final byte[] networkAddressBytes = networkAddress.getAddress();
+        // we can't match a IPv4 (4 byte) address with a IPv6 (16 byte) address
+        if (addressBytes.length != networkAddressBytes.length) {
+            return false;
+        }
         // start processing each of those bytes
         int currentByte = 0;
         byte networkAddressByte = networkAddressBytes[currentByte];
@@ -63,11 +82,11 @@ class NetworkUtil {
         }
         return true;
     }
-    
-    public static void main(String[] args) throws UnknownHostException {
-        final InetAddress ipAddress = InetAddress.getByName("10.10.10.15");
-        final InetAddress networkAddress = InetAddress.getByName("10.10.22.0");
-        byte netmask = 16;
-        System.out.println(ipAddress + " belongs to " + networkAddress + "/" + netmask + " -> " + belongsToNetwork(ipAddress, networkAddress, netmask));
-    }
+
+//    public static void main(String[] args) throws UnknownHostException {
+//        final InetAddress ipAddress = InetAddress.getByName("10.10.10.15");
+//        final InetAddress networkAddress = InetAddress.getByName("10.10.22.0");
+//        byte netmask = 16;
+//        System.out.println(ipAddress + " belongs to " + networkAddress + "/" + netmask + " -> " + belongsToNetwork(ipAddress, networkAddress, netmask));
+//    }
 }

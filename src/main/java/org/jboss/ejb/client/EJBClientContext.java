@@ -530,7 +530,7 @@ public final class EJBClientContext extends Attachable {
     EJBReceiverContext requireClusterEJBReceiverContext(final String clusterName) throws IllegalArgumentException {
         final ClusterContext clusterContext = this.clusterContexts.get(clusterName);
         if (clusterContext == null) {
-            throw new IllegalArgumentException("No EJB receiver context available for cluster name " + clusterName);
+            throw new IllegalArgumentException("No cluster context (and as a result EJB receiver contex) available for cluster named " + clusterName);
         }
         return clusterContext.requireEJBReceiverContext();
     }

@@ -29,6 +29,10 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ThreadFactory;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * A {@link ClusterContext} keeps track of a specific cluster and the {@link org.jboss.ejb.client.remoting.ClusterNode}s
@@ -39,6 +43,8 @@ import java.util.Set;
 public final class ClusterContext implements EJBClientContext.EJBReceiverContextCloseHandler {
 
     private static final Logger logger = Logger.getLogger(ClusterContext.class);
+
+    private static final ExecutorService executorService = Executors.newCachedThreadPool(new DaemonThreadFactory());
 
     private final String clusterName;
     private final EJBClientContext clientContext;
@@ -160,10 +166,7 @@ public final class ClusterContext implements EJBClientContext.EJBReceiverContext
         // receiver and associate it with a receiver context (if the node isn't already connected to)
         if (!this.connectedNodes.contains(nodeName) && this.connectedNodes.size() < maxClusterNodeOpenConnections) {
             // submit a task which will create and associate a EJB receiver with this cluster context
-            // TODO: This will be changed later to be better handled via a ExecutorService
-            final Thread connectionCreationThread = new Thread(new EJBReceiverAssociationTask(this, nodeName));
-            connectionCreationThread.setDaemon(true);
-            connectionCreationThread.start();
+            executorService.submit(new EJBReceiverAssociationTask(this, nodeName));
         }
     }
 
@@ -176,6 +179,7 @@ public final class ClusterContext implements EJBClientContext.EJBReceiverContext
         // remove from the node managers
         this.nodeManagers.remove(nodeName);
         // remove any EJB receiver contexts for this node name
+        // TODO: Should we close the associated EJB receiver too, from the EJB client context?
         this.connectedNodes.remove(nodeName);
     }
 
@@ -280,6 +284,33 @@ public final class ClusterContext implements EJBClientContext.EJBReceiverContext
             }
             // associate the receiver with the cluster context
             this.clusterContext.registerEJBReceiver(this.nodeName, ejbReceiver);
+        }
+    }
+
+    /**
+     * A thread factory which creates daemon threads which will be used for
+     * creating connections to cluster nodes
+     */
+    private static class DaemonThreadFactory implements ThreadFactory {
+
+        private static final AtomicInteger poolNumber = new AtomicInteger(1);
+        private final ThreadGroup group;
+        private final AtomicInteger threadNumber = new AtomicInteger(1);
+        private final String namePrefix;
+
+        DaemonThreadFactory() {
+            SecurityManager s = System.getSecurityManager();
+            group = (s != null) ? s.getThreadGroup() :
+                    Thread.currentThread().getThreadGroup();
+            namePrefix = "ejb-client-cluster-node-connection-creation-" +
+                    poolNumber.getAndIncrement() +
+                    "-thread-";
+        }
+
+        public Thread newThread(Runnable r) {
+            Thread t = new Thread(group, r, namePrefix + threadNumber.getAndIncrement(), 0);
+            t.setDaemon(true);
+            return t;
         }
     }
 }

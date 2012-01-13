@@ -51,7 +51,7 @@ import java.util.StringTokenizer;
  *
  * @author Jaikiran Pai
  */
-class PropertiesBasedEJBClientConfiguration implements EJBClientConfiguration {
+public class PropertiesBasedEJBClientConfiguration implements EJBClientConfiguration {
 
     private static final Logger logger = Logger.getLogger(PropertiesBasedEJBClientConfiguration.class);
 
@@ -90,7 +90,7 @@ class PropertiesBasedEJBClientConfiguration implements EJBClientConfiguration {
     private Collection<RemotingConnectionConfiguration> remotingConnectionConfigurations = new ArrayList<RemotingConnectionConfiguration>();
     private Map<String, ClusterConfiguration> clusterConfigurations = new HashMap<String, ClusterConfiguration>();
 
-    PropertiesBasedEJBClientConfiguration(final Properties properties) {
+    public PropertiesBasedEJBClientConfiguration(final Properties properties) {
         this.ejbReceiversConfigurationProperties = properties == null ? new Properties() : properties;
         // parse the properties and setup this configuration
         this.parseProperties();

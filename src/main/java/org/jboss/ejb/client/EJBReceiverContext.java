@@ -35,10 +35,13 @@ public final class EJBReceiverContext extends Attachable implements Closeable {
     private static final Logger logger = Logger.getLogger(EJBReceiverContext.class);
     private final EJBReceiver receiver;
     private final EJBClientContext clientContext;
+    private final String cachedToString;
 
     EJBReceiverContext(final EJBReceiver receiver, final EJBClientContext clientContext) {
         this.receiver = receiver;
         this.clientContext = clientContext;
+
+        this.cachedToString = this.generateToString();
     }
 
     public EJBClientContext getClientContext() {
@@ -56,4 +59,15 @@ public final class EJBReceiverContext extends Attachable implements Closeable {
         this.clientContext.unregisterEJBReceiver(this.receiver);
     }
 
+    @Override
+    public String toString() {
+        return this.cachedToString;
+    }
+
+    private String generateToString() {
+        return "EJBReceiverContext{" +
+                "clientContext=" + clientContext +
+                ", receiver=" + receiver +
+                '}';
+    }
 }

@@ -24,11 +24,13 @@ package org.jboss.ejb.client.remoting;
 
 import org.jboss.ejb.client.EJBClientContext;
 import org.jboss.ejb.client.EJBReceiverContext;
+import org.jboss.logging.Logger;
 import org.jboss.remoting3.MessageInputStream;
 
 import java.io.DataInput;
 import java.io.DataInputStream;
 import java.io.IOException;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashSet;
 
@@ -38,6 +40,8 @@ import java.util.HashSet;
  * @author Jaikiran Pai
  */
 class ClusterRemovalMessageHandler extends ProtocolMessageHandler {
+
+    private static final Logger logger = Logger.getLogger(ClusterRemovalMessageHandler.class);
 
     private final EJBReceiverContext ejbReceiverContext;
 
@@ -66,6 +70,7 @@ class ClusterRemovalMessageHandler extends ProtocolMessageHandler {
         }
         // let the client context know that about the removed clusters
         final EJBClientContext clientContext = this.ejbReceiverContext.getClientContext();
+        logger.debug("Received a cluster removal message for " + removedClusters.size() + " clusters " + Arrays.toString(removedClusters.toArray()));
         for (final String clusterName : removedClusters) {
             // remove the cluster from the client context
             clientContext.removeCluster(clusterName);

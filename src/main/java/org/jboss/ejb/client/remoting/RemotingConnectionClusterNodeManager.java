@@ -69,7 +69,7 @@ class RemotingConnectionClusterNodeManager implements ClusterNodeManager {
 
     @Override
     public EJBReceiver getEJBReceiver() {
-        if (this.clusterNode.isDestinationResolved()) {
+        if (!this.clusterNode.isDestinationResolved()) {
             logger.error("Cannot create a EJB receiver for " + this.clusterNode + " since there was no match for a target destination");
             return null;
         }

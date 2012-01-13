@@ -36,21 +36,25 @@ class ClientMapping {
     private final String destinationAddress;
     private final int destinationPort;
 
+    private final String cachedToString;
+
 
     /**
      * Construct a new client mapping.
      *
-     * @param sourceNetworkAddress The IP of the source network to match the outbound interface against
+     * @param sourceNetworkAddress  The IP of the source network to match the outbound interface against
      * @param sourceNetworkMaskBits The masked portion of the source network to match the outbound interface against
-     * @param destinationAddress The destination host/ip the client should connect to.
-     * @param destinationPort The destination port the client should connect to.  A value of -1 indicates that
-     * the effective server listening port should be used.
+     * @param destinationAddress    The destination host/ip the client should connect to.
+     * @param destinationPort       The destination port the client should connect to.  A value of -1 indicates that
+     *                              the effective server listening port should be used.
      */
     public ClientMapping(InetAddress sourceNetworkAddress, int sourceNetworkMaskBits, String destinationAddress, int destinationPort) {
         this.sourceNetworkAddress = sourceNetworkAddress;
         this.sourceNetworkMaskBits = (byte) sourceNetworkMaskBits;
         this.destinationAddress = destinationAddress;
         this.destinationPort = destinationPort;
+
+        this.cachedToString = this.generateToString();
     }
 
 
@@ -96,5 +100,20 @@ class ClientMapping {
      */
     public int getDestinationPort() {
         return destinationPort;
+    }
+
+    @Override
+    public String toString() {
+        return this.cachedToString;
+    }
+
+    private String generateToString() {
+        return "ClientMapping{" +
+                "sourceNetworkAddress=" + sourceNetworkAddress +
+                ", sourceNetworkMaskBits=" + sourceNetworkMaskBits +
+                ", destinationAddress='" + destinationAddress + '\'' +
+                ", destinationPort=" + destinationPort +
+                '}';
+
     }
 }

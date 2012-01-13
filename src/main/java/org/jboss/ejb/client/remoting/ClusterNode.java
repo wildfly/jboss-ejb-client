@@ -51,7 +51,7 @@ final class ClusterNode {
         } catch (Throwable t) {
             logger.warn("Could not fetch the InetAddress(es) of this system due to " + t.getMessage());
             logger.debug("Failed while fetching InetAddress(es) of this system ", t);
-            
+
             addresses = Collections.emptySet();
         }
         ALL_INET_ADDRESSES = addresses;
@@ -75,10 +75,10 @@ final class ClusterNode {
         this.clusterName = clusterName;
         this.nodeName = nodeName;
         this.clientMappings = clientMappings;
-        // resolve the destination from among the client mappings for this cluster node
-        this.resolveDestination();
 
         this.cachedToString = this.generateToString();
+        // resolve the destination from among the client mappings for this cluster node
+        this.resolveDestination();
     }
 
     /**
@@ -139,15 +139,11 @@ final class ClusterNode {
         for (final ClientMapping clientMapping : this.clientMappings) {
             final InetAddress sourceNetworkAddress = clientMapping.getSourceNetworkAddress();
             final int netMask = clientMapping.getSourceNetworkMaskBits();
-            // a netmask of 0 means, it matches everything. So consider the current client-mapping
-            // as a match
-            if (netMask == 0) {
-                this.resolvedDestination = new ResolvedDestination(clientMapping.getDestinationAddress(), clientMapping.getDestinationPort());
-                return;
-            }
             for (final InetAddress address : ALL_INET_ADDRESSES) {
+                logger.debug("Checking for a match of client address " + address + " with client mapping " + clientMapping);
                 final boolean match = NetworkUtil.belongsToNetwork(address, sourceNetworkAddress, (byte) (netMask & 0xff));
                 if (match) {
+                    logger.debug("Client mapping " + clientMapping + " matches client address " + address);
                     this.resolvedDestination = new ResolvedDestination(clientMapping.getDestinationAddress(), clientMapping.getDestinationPort());
                     return;
                 }
@@ -162,6 +158,12 @@ final class ClusterNode {
         ResolvedDestination(final String destinationAddress, final int destinationPort) {
             this.destinationAddress = destinationAddress;
             this.destinationPort = destinationPort;
+        }
+
+        @Override
+        public String toString() {
+            return "[Destination address=" + this.destinationAddress + ", destination port="
+                    + this.destinationPort + "]";
         }
     }
 
