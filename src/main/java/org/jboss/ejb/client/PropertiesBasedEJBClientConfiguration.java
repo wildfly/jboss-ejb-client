@@ -39,6 +39,7 @@ import java.net.URISyntaxException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.Properties;
@@ -305,16 +306,21 @@ public class PropertiesBasedEJBClientConfiguration implements EJBClientConfigura
 
     private Collection<ClusterNodeConfiguration> parseClusterNodeConfigurations(final ClusterConfiguration clusterConfiguration, final Map<String, String> clusterSpecificProperties) {
         final Collection<ClusterNodeConfiguration> nodeConfigurations = new ArrayList<ClusterNodeConfiguration>();
+        final Collection<String> parsedNodes = new HashSet<String>();
         for (final String key : clusterSpecificProperties.keySet()) {
             if (!key.startsWith("node.")) {
                 continue;
             }
-            final String keyWithoutNodeDotPrefix = key.substring(0, "node.".length());
+            final String keyWithoutNodeDotPrefix = key.substring("node.".length());
             final int nextDotIndex = keyWithoutNodeDotPrefix.indexOf(".");
             if (nextDotIndex == -1) {
                 continue;
             }
             final String nodeName = keyWithoutNodeDotPrefix.substring(0, nextDotIndex);
+            // already parsed, so skip
+            if (parsedNodes.contains(nodeName)) {
+                continue;
+            }
             // create a node configuration for the node name
             final ClusterNodeConfiguration nodeConfiguration = this.createClusterNodeConfiguration(clusterConfiguration, nodeName);
             if (nodeConfiguration == null) {
@@ -322,6 +328,8 @@ public class PropertiesBasedEJBClientConfiguration implements EJBClientConfigura
             }
             // add it to the collection to be returned
             nodeConfigurations.add(nodeConfiguration);
+            // mark the node as parsed
+            parsedNodes.add(nodeConfiguration.getNodeName());
         }
         return nodeConfigurations;
     }
@@ -469,7 +477,7 @@ public class PropertiesBasedEJBClientConfiguration implements EJBClientConfigura
     }
 
     private String getClusterNodeSpecificConnectOptionsPrefix(final String clusterName, final String nodeName) {
-        return "remote.cluster." + clusterName + "node." + nodeName + ".connect.options.";
+        return "remote.cluster." + clusterName + ".node." + nodeName + ".connect.options.";
     }
 
 

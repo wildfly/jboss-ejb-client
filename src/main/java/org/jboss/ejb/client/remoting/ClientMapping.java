@@ -48,7 +48,7 @@ class ClientMapping {
      * @param destinationPort       The destination port the client should connect to.  A value of -1 indicates that
      *                              the effective server listening port should be used.
      */
-    public ClientMapping(InetAddress sourceNetworkAddress, int sourceNetworkMaskBits, String destinationAddress, int destinationPort) {
+    ClientMapping(InetAddress sourceNetworkAddress, int sourceNetworkMaskBits, String destinationAddress, int destinationPort) {
         this.sourceNetworkAddress = sourceNetworkAddress;
         this.sourceNetworkMaskBits = (byte) sourceNetworkMaskBits;
         this.destinationAddress = destinationAddress;
@@ -65,7 +65,7 @@ class ClientMapping {
      *
      * @return The IP to match with
      */
-    public InetAddress getSourceNetworkAddress() {
+    InetAddress getSourceNetworkAddress() {
         return sourceNetworkAddress;
     }
 
@@ -76,7 +76,7 @@ class ClientMapping {
      *
      * @return the number of mask bits starting from the LSB
      */
-    public int getSourceNetworkMaskBits() {
+    int getSourceNetworkMaskBits() {
         return sourceNetworkMaskBits & 0xFF;
     }
 
@@ -88,7 +88,7 @@ class ClientMapping {
      *
      * @return the host/ip to connect to should this mapping match
      */
-    public String getDestinationAddress() {
+    String getDestinationAddress() {
         return destinationAddress;
     }
 
@@ -98,7 +98,7 @@ class ClientMapping {
      *
      * @return the port to connect to, or -1 if the server side port should be used.
      */
-    public int getDestinationPort() {
+    int getDestinationPort() {
         return destinationPort;
     }
 

@@ -35,6 +35,7 @@ import java.io.DataInputStream;
 import java.io.IOException;
 import java.net.InetAddress;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
@@ -115,7 +116,7 @@ class ClusterTopologyMessageHandler extends ProtocolMessageHandler {
         for (final Map.Entry<String, Collection<ClusterNode>> entry : clusterNodes.entrySet()) {
             final String clusterName = entry.getKey();
             final Collection<ClusterNode> nodes = entry.getValue();
-            logger.debug("Received a cluster node(s) addition message, for cluster named " + clusterName + " with " + nodes.size() + " nodes");
+            logger.debug("Received a cluster node(s) addition message, for cluster named " + clusterName + " with " + nodes.size() + " nodes " + Arrays.toString(nodes.toArray()));
             // create a cluster context and add the nodes to it
             final ClusterContext clusterContext = clientContext.getOrCreateClusterContext(clusterName);
             // if this is a complete topology message, then we'll first remove any existing nodes from the cluster context

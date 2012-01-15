@@ -179,7 +179,9 @@ public final class ClusterContext implements EJBClientContext.EJBReceiverContext
         // remove from the node managers
         this.nodeManagers.remove(nodeName);
         // remove any EJB receiver contexts for this node name
-        // TODO: Should we close the associated EJB receiver too, from the EJB client context?
+        // Note, we do *not* close the associated EJBReceiverContext for the node name, from the
+        // EJB client context, because the node receiver might have been created outside of this
+        // cluster context (either auto-created or associated explicitly by the user code).
         this.connectedNodes.remove(nodeName);
     }
 

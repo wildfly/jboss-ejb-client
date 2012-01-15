@@ -71,7 +71,7 @@ final class ClusterNode {
     private ResolvedDestination resolvedDestination;
     private final String cachedToString;
 
-    public ClusterNode(final String clusterName, final String nodeName, final ClientMapping[] clientMappings) {
+    ClusterNode(final String clusterName, final String nodeName, final ClientMapping[] clientMappings) {
         this.clusterName = clusterName;
         this.nodeName = nodeName;
         this.clientMappings = clientMappings;
