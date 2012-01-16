@@ -228,9 +228,10 @@ public final class RemotingConnectionEJBReceiver extends EJBReceiver {
     }
 
     @Override
-    public void verify(final String appName, final String moduleName, final String distinctName, final String beanName) throws Exception {
+    public boolean exists(final String appName, final String moduleName, final String distinctName, final String beanName) {
         // TODO: Implement
         logger.warn("Not yet implemented RemotingConnectionEJBReceiver#verify");
+        return false;
     }
 
     @Override

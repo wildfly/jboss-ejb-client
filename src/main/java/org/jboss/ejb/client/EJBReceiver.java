@@ -126,15 +126,15 @@ public abstract class EJBReceiver extends Attachable {
     protected abstract <T> StatefulEJBLocator<T> openSession(final EJBReceiverContext context, final Class<T> viewType, final String appName, final String moduleName, final String distinctName, final String beanName) throws IllegalArgumentException;
 
     /**
-     * Verify the existence of a remote EJB.
+     * Verify the existence of a remote EJB. Returns true if a bean identified by the passed appname, module name,
+     * distinct name and bean name combination exists. Else returns false.
      *
-     * @param appName
-     * @param moduleName
-     * @param distinctName
-     * @param beanName
-     * @throws Exception if the target does not exist
+     * @param appName      The application name
+     * @param moduleName   The module name
+     * @param distinctName The distinct name
+     * @param beanName     The bean name
      */
-    protected abstract void verify(String appName, String moduleName, String distinctName, String beanName) throws Exception;
+    protected abstract boolean exists(String appName, String moduleName, String distinctName, String beanName);
 
     /**
      * Send a transaction-prepare message for the given transaction ID.

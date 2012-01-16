@@ -79,7 +79,8 @@ public class EJBClientTxAPIUsageTestCase {
         }
 
         @Override
-        protected void verify(String appName, String moduleName, String distinctName, String beanName) throws Exception {
+        protected boolean exists(String appName, String moduleName, String distinctName, String beanName) {
+            return false;
         }
 
         @Override
