@@ -87,18 +87,28 @@ class ClusterTopologyMessageHandler extends ProtocolMessageHandler {
                     final ClientMapping[] clientMappings = new ClientMapping[clientMappingCount];
                     // read each of the client-mapping(s)
                     for (int c = 0; c < clientMappingCount; c++) {
+                        // read the client netmask which also contains the ipv4/ipv6 differentiator
+                        final int netMaskWithIPFamilyDifferentiator = PackedInteger.readPackedInteger(input);
+
+                        final int ipFamilyDifferentiator = netMaskWithIPFamilyDifferentiator & 1;
+                        final int clientNetMask = netMaskWithIPFamilyDifferentiator >> 1;
+                        final byte[] clientNetworkAddressBytes;
+                        if (ipFamilyDifferentiator == 0) {
+                            // ipv6
+                            clientNetworkAddressBytes = new byte[16];
+                        } else {
+                            // ipv4
+                            clientNetworkAddressBytes = new byte[4];
+                        }
                         // read the client network address
-                        final byte[] clientNetworkAddressBytes = new byte[16];
                         input.readFully(clientNetworkAddressBytes);
                         final InetAddress clientNetworkAddress = InetAddress.getByAddress(clientNetworkAddressBytes);
-                        // read the client netmask
-                        final byte clientNetMask = input.readByte();
                         // read the destination address
                         final String destinationAddress = input.readUTF();
                         // read the destination port
                         final short destinationPort = input.readShort();
                         // create a ClientMapping out of this
-                        clientMappings[c] = new ClientMapping(clientNetworkAddress, clientNetMask, destinationAddress, destinationPort);
+                        clientMappings[c] = new ClientMapping(clientNetworkAddress, clientNetMask & 0xff, destinationAddress, destinationPort);
                     }
                     // form a cluster node out of the available information
                     final ClusterNode clusterNode = new ClusterNode(clusterName, nodeName, clientMappings);
