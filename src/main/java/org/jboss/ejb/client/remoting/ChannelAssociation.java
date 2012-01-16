@@ -224,6 +224,8 @@ class ChannelAssociation {
                 return new GeneralInvocationFailureResponseHandler(this, GeneralInvocationFailureResponseHandler.FailureType.NO_SUCH_METHOD);
             case 0x0C:
                 return new GeneralInvocationFailureResponseHandler(this, GeneralInvocationFailureResponseHandler.FailureType.SESSION_NOT_ACTIVE);
+            case 0x0D:
+                return new NonStatefulBeanSessionOpenFailureHandler(this);
             case 0x0E:
                 return new AsyncMethodNotificationHandler(this);
             case 0x14:
