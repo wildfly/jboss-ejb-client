@@ -76,9 +76,10 @@ final class ClusterNode {
         this.nodeName = nodeName;
         this.clientMappings = clientMappings;
 
-        this.cachedToString = this.generateToString();
         // resolve the destination from among the client mappings for this cluster node
         this.resolveDestination();
+
+        this.cachedToString = this.generateToString();
     }
 
     /**
@@ -187,4 +188,5 @@ final class ClusterNode {
         }
         return addresses;
     }
+
 }
