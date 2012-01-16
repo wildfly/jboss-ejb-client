@@ -23,12 +23,9 @@
 package org.jboss.ejb.client;
 
 import javax.transaction.xa.XAException;
-
-import java.io.IOException;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.Set;
-import java.util.concurrent.ExecutionException;
 
 /**
  * A receiver for EJB invocations.  Receivers can be associated with one or more client contexts.  This interface is
@@ -111,7 +108,22 @@ public abstract class EJBReceiver extends Attachable {
         return false;
     }
 
-    protected abstract <T> StatefulEJBLocator<T> openSession(final EJBReceiverContext context, final Class<T> viewType, final String appName, final String moduleName, final String distinctName, final String beanName) throws Exception;
+    /**
+     * Creates a session for a stateful session bean represented by the passed app name, module name, distinct name
+     * and bean name combination. Returns a {@link StatefulEJBLocator} representing the newly created session.
+     *
+     * @param context      The receiver context
+     * @param viewType     View class
+     * @param appName      The application name
+     * @param moduleName   The module name
+     * @param distinctName The distinct name
+     * @param beanName     The name of the bean
+     * @param <T>
+     * @return
+     * @throws IllegalArgumentException If the session creation request is made for a bean which is <i>not</i> a stateful
+     *                                  session bean.
+     */
+    protected abstract <T> StatefulEJBLocator<T> openSession(final EJBReceiverContext context, final Class<T> viewType, final String appName, final String moduleName, final String distinctName, final String beanName) throws IllegalArgumentException;
 
     /**
      * Verify the existence of a remote EJB.

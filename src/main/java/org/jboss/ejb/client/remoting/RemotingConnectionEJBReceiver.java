@@ -186,20 +186,44 @@ public final class RemotingConnectionEJBReceiver extends EJBReceiver {
     }
 
     @Override
-    protected <T> StatefulEJBLocator<T> openSession(final EJBReceiverContext receiverContext, final Class<T> viewType, final String appName, final String moduleName, final String distinctName, final String beanName) throws Exception {
+    protected <T> StatefulEJBLocator<T> openSession(final EJBReceiverContext receiverContext, final Class<T> viewType, final String appName, final String moduleName, final String distinctName, final String beanName) throws IllegalArgumentException {
         final ChannelAssociation channelAssociation = this.requireChannelAssociation(receiverContext);
         final Channel channel = channelAssociation.getChannel();
         final SessionOpenRequestWriter sessionOpenRequestWriter = new SessionOpenRequestWriter(this.clientProtocolVersion);
-        final DataOutputStream dataOutputStream = new DataOutputStream(channel.writeMessage());
+        final DataOutputStream dataOutputStream;
+        try {
+            dataOutputStream = new DataOutputStream(channel.writeMessage());
+        } catch (IOException ioe) {
+            throw new RuntimeException(ioe);
+        }
         final short invocationId = channelAssociation.getNextInvocationId();
         final Future<EJBReceiverInvocationContext.ResultProducer> futureResultProducer = channelAssociation.enrollForResult(invocationId);
         try {
             sessionOpenRequestWriter.writeMessage(dataOutputStream, invocationId, appName, moduleName, distinctName, beanName);
+        } catch (IOException ioe) {
+            throw new RuntimeException(ioe);
         } finally {
-            dataOutputStream.close();
+            try {
+                dataOutputStream.close();
+            } catch (IOException ioe) {
+                throw new RuntimeException(ioe);
+            }
         }
-        final EJBReceiverInvocationContext.ResultProducer resultProducer = futureResultProducer.get();
-        final SessionOpenResponseHandler.SessionOpenResponse sessionOpenResponse = (SessionOpenResponseHandler.SessionOpenResponse) resultProducer.getResult();
+        final EJBReceiverInvocationContext.ResultProducer resultProducer;
+        try {
+            resultProducer = futureResultProducer.get();
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+
+        final SessionOpenResponseHandler.SessionOpenResponse sessionOpenResponse;
+        try {
+            sessionOpenResponse = (SessionOpenResponseHandler.SessionOpenResponse) resultProducer.getResult();
+        } catch (IllegalArgumentException iae) {
+            throw iae;
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
         return new StatefulEJBLocator<T>(viewType, appName, moduleName, beanName, distinctName, sessionOpenResponse.getSessionID(), sessionOpenResponse.getAffinity());
     }
 
