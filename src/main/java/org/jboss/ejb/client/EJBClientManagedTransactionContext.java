@@ -22,6 +22,7 @@
 
 package org.jboss.ejb.client;
 
+import javax.transaction.Status;
 import javax.transaction.Synchronization;
 import javax.transaction.Transaction;
 import javax.transaction.TransactionManager;
@@ -72,6 +73,15 @@ public final class EJBClientManagedTransactionContext extends EJBClientTransacti
         if (transaction == null) {
             // no txn
             return null;
+        }
+        final int txStatus = transaction.getStatus();
+        switch (txStatus) {
+            case Status.STATUS_ACTIVE:
+                // this is the only state we are interested in, for enlisting our XAResource
+                break;
+            default:
+                // we won't be enlisting our XAResource for tx state other than ACTIVE
+                return null;
         }
         final Object transactionKey = synchronizationRegistry.getTransactionKey();
 
