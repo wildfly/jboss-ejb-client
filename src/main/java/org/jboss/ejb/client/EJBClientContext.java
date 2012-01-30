@@ -22,11 +22,6 @@
 
 package org.jboss.ejb.client;
 
-import org.jboss.ejb.client.remoting.ConfigBasedEJBClientContextSelector;
-import org.jboss.ejb.client.remoting.RemotingConnectionEJBReceiver;
-import org.jboss.logging.Logger;
-import org.jboss.remoting3.Connection;
-
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
@@ -37,6 +32,11 @@ import java.util.Iterator;
 import java.util.Map;
 import java.util.Properties;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
+
+import org.jboss.ejb.client.remoting.ConfigBasedEJBClientContextSelector;
+import org.jboss.ejb.client.remoting.RemotingConnectionEJBReceiver;
+import org.jboss.logging.Logger;
+import org.jboss.remoting3.Connection;
 
 /**
  * The public API for an EJB client context.  An EJB client context may be associated with (and used by) one or more threads concurrently.
@@ -72,7 +72,7 @@ public final class EJBClientContext extends Attachable {
 
     private static volatile boolean SELECTOR_LOCKED;
 
-    private final Map<EJBReceiver, EJBReceiverContext> ejbReceiverAssociations = new IdentityHashMap<EJBReceiver, EJBReceiverContext>();
+    private final Map<EJBReceiver, ReceiverAssociation> ejbReceiverAssociations = new IdentityHashMap<EJBReceiver, ReceiverAssociation>();
     private final Map<EJBReceiverContext, EJBReceiverContextCloseHandler> receiverContextCloseHandlers = Collections.synchronizedMap(new IdentityHashMap<EJBReceiverContext, EJBReceiverContextCloseHandler>());
     private volatile EJBClientInterceptor.Registration[] registrations = NO_INTERCEPTORS;
 
@@ -237,20 +237,25 @@ public final class EJBClientContext extends Attachable {
         if (receiver == null) {
             throw new IllegalArgumentException("receiver is null");
         }
-        EJBReceiverContext ejbReceiverContext;
+        final EJBReceiverContext ejbReceiverContext;
+        final ReceiverAssociation association;
         synchronized (this.ejbReceiverAssociations) {
             if (this.ejbReceiverAssociations.containsKey(receiver)) {
                 // nothing to do
                 return;
             }
             ejbReceiverContext = new EJBReceiverContext(receiver, this);
-            this.ejbReceiverAssociations.put(receiver, ejbReceiverContext);
+            association = new ReceiverAssociation(ejbReceiverContext);
+            this.ejbReceiverAssociations.put(receiver, association);
             // register a close handler, if any, for this receiver context
             if (receiverContextCloseHandler != null) {
                 this.receiverContextCloseHandlers.put(ejbReceiverContext, receiverContextCloseHandler);
             }
         }
         receiver.associate(ejbReceiverContext);
+        synchronized (this.ejbReceiverAssociations) {
+            association.associated = true;
+        }
     }
 
     /**
@@ -267,8 +272,9 @@ public final class EJBClientContext extends Attachable {
             throw new IllegalArgumentException("Receiver cannot be null");
         }
         synchronized (this.ejbReceiverAssociations) {
-            final EJBReceiverContext receiverContext = this.ejbReceiverAssociations.remove(receiver);
-            if (receiverContext != null) {
+            final ReceiverAssociation association = this.ejbReceiverAssociations.remove(receiver);
+            if (association != null) {
+                final EJBReceiverContext receiverContext = association.context;
                 final EJBReceiverContextCloseHandler receiverContextCloseHandler = this.receiverContextCloseHandlers.remove(receiverContext);
                 if (receiverContextCloseHandler != null) {
                     receiverContextCloseHandler.receiverContextClosed(receiverContext);
@@ -379,9 +385,12 @@ public final class EJBClientContext extends Attachable {
     Collection<EJBReceiver> getEJBReceivers(final String appName, final String moduleName, final String distinctName) {
         final Collection<EJBReceiver> eligibleEJBReceivers = new HashSet<EJBReceiver>();
         synchronized (this.ejbReceiverAssociations) {
-            for (final EJBReceiver ejbReceiver : this.ejbReceiverAssociations.keySet()) {
-                if (ejbReceiver.acceptsModule(appName, moduleName, distinctName)) {
-                    eligibleEJBReceivers.add(ejbReceiver);
+            for (final Map.Entry<EJBReceiver, ReceiverAssociation> entry : this.ejbReceiverAssociations.entrySet()) {
+                if (entry.getValue().associated) {
+                    final EJBReceiver ejbReceiver = entry.getKey();
+                    if (ejbReceiver.acceptsModule(appName, moduleName, distinctName)) {
+                        eligibleEJBReceivers.add(ejbReceiver);
+                    }
                 }
             }
         }
@@ -450,11 +459,11 @@ public final class EJBClientContext extends Attachable {
      */
     EJBReceiverContext requireEJBReceiverContext(final EJBReceiver receiver) throws IllegalStateException {
         synchronized (this.ejbReceiverAssociations) {
-            final EJBReceiverContext receiverContext = this.ejbReceiverAssociations.get(receiver);
-            if (receiverContext == null) {
+            final ReceiverAssociation association = this.ejbReceiverAssociations.get(receiver);
+            if (association == null) {
                 throw new IllegalStateException(receiver + " has not been associated with " + this);
             }
-            return receiverContext;
+            return association.context;
         }
     }
 
@@ -469,9 +478,12 @@ public final class EJBClientContext extends Attachable {
             throw new IllegalArgumentException("Node name cannot be null");
         }
         synchronized (this.ejbReceiverAssociations) {
-            for (final EJBReceiver ejbReceiver : this.ejbReceiverAssociations.keySet()) {
-                if (nodeName.equals(ejbReceiver.getNodeName())) {
-                    return ejbReceiver;
+            for (final Map.Entry<EJBReceiver, ReceiverAssociation> entry : this.ejbReceiverAssociations.entrySet()) {
+                if (entry.getValue().associated) {
+                    final EJBReceiver ejbReceiver = entry.getKey();
+                    if (nodeName.equals(ejbReceiver.getNodeName())) {
+                        return ejbReceiver;
+                    }
                 }
             }
         }
@@ -624,5 +636,14 @@ public final class EJBClientContext extends Attachable {
          * @param receiverContext The receiver context which was closed
          */
         void receiverContextClosed(final EJBReceiverContext receiverContext);
+    }
+
+    private static final class ReceiverAssociation {
+        final EJBReceiverContext context;
+        boolean associated = false;
+
+        private ReceiverAssociation(final EJBReceiverContext context) {
+            this.context = context;
+        }
     }
 }
