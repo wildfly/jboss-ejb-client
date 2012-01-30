@@ -22,11 +22,6 @@
 
 package org.jboss.ejb.client;
 
-import org.jboss.ejb.client.remoting.ConfigBasedEJBClientContextSelector;
-import org.jboss.ejb.client.remoting.RemotingConnectionEJBReceiver;
-import org.jboss.logging.Logger;
-import org.jboss.remoting3.Connection;
-
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
@@ -37,6 +32,11 @@ import java.util.Iterator;
 import java.util.Map;
 import java.util.Properties;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
+
+import org.jboss.ejb.client.remoting.ConfigBasedEJBClientContextSelector;
+import org.jboss.ejb.client.remoting.RemotingConnectionEJBReceiver;
+import org.jboss.logging.Logger;
+import org.jboss.remoting3.Connection;
 
 /**
  * The public API for an EJB client context.  An EJB client context may be associated with (and used by) one or more threads concurrently.
@@ -73,6 +73,12 @@ public final class EJBClientContext extends Attachable {
     private static volatile boolean SELECTOR_LOCKED;
 
     private final Map<EJBReceiver, EJBReceiverContext> ejbReceiverAssociations = new IdentityHashMap<EJBReceiver, EJBReceiverContext>();
+
+    /**
+     * recievers that are in the process of having associate() called. Access to this map should be synchronized on {@link #ejbReceiverAssociations}.
+     */
+    private final Map<EJBReceiver, EJBReceiverContext> associatingEjbReceivers = new IdentityHashMap<EJBReceiver, EJBReceiverContext>();
+
     private final Map<EJBReceiverContext, EJBReceiverContextCloseHandler> receiverContextCloseHandlers = Collections.synchronizedMap(new IdentityHashMap<EJBReceiverContext, EJBReceiverContextCloseHandler>());
     private volatile EJBClientInterceptor.Registration[] registrations = NO_INTERCEPTORS;
 
@@ -239,18 +245,26 @@ public final class EJBClientContext extends Attachable {
         }
         EJBReceiverContext ejbReceiverContext;
         synchronized (this.ejbReceiverAssociations) {
-            if (this.ejbReceiverAssociations.containsKey(receiver)) {
+            if (this.ejbReceiverAssociations.containsKey(receiver) ||
+                    this.associatingEjbReceivers.containsKey(receiver)) {
                 // nothing to do
                 return;
             }
             ejbReceiverContext = new EJBReceiverContext(receiver, this);
-            this.ejbReceiverAssociations.put(receiver, ejbReceiverContext);
+            associatingEjbReceivers.put(receiver, ejbReceiverContext);
             // register a close handler, if any, for this receiver context
             if (receiverContextCloseHandler != null) {
                 this.receiverContextCloseHandlers.put(ejbReceiverContext, receiverContextCloseHandler);
             }
         }
         receiver.associate(ejbReceiverContext);
+        synchronized (ejbReceiverAssociations) {
+            //if the associate failed then it would have been removed from the associating set
+            if(associatingEjbReceivers.containsKey(receiver)) {
+                this.ejbReceiverAssociations.put(receiver, ejbReceiverContext);
+                this.associatingEjbReceivers.remove(receiver);
+            }
+        }
     }
 
     /**
@@ -267,7 +281,10 @@ public final class EJBClientContext extends Attachable {
             throw new IllegalArgumentException("Receiver cannot be null");
         }
         synchronized (this.ejbReceiverAssociations) {
-            final EJBReceiverContext receiverContext = this.ejbReceiverAssociations.remove(receiver);
+            EJBReceiverContext receiverContext = this.ejbReceiverAssociations.remove(receiver);
+            if(receiverContext == null) {
+                receiverContext = this.associatingEjbReceivers.remove(receiver);
+            }
             if (receiverContext != null) {
                 final EJBReceiverContextCloseHandler receiverContextCloseHandler = this.receiverContextCloseHandlers.remove(receiverContext);
                 if (receiverContextCloseHandler != null) {
