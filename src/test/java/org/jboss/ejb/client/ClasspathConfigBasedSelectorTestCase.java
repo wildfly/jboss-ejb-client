@@ -50,6 +50,7 @@ public class ClasspathConfigBasedSelectorTestCase {
     private static final String SERVER_ENDPOINT_NAME = "classpath-config-based-test-case-endpoint";
 
     private static ClassLoader originalTCCL;
+    private static String skipClassLoaderScanSysPropPreviousValue;
 
     @BeforeClass
     public static void beforeClass() throws Exception {
@@ -62,6 +63,10 @@ public class ClasspathConfigBasedSelectorTestCase {
         server = new DummyServer("localhost", 7999, SERVER_ENDPOINT_NAME);
         server.start();
         server.register("dummy-app", "dummy-module", "", EchoBean.class.getSimpleName(), new EchoBean());
+
+        // make sure that some other test hasn't set the system property to disable classpath scanning
+        skipClassLoaderScanSysPropPreviousValue = System.getProperty("jboss.ejb.client.properties.skip.classloader.scan");
+        System.getProperties().remove("jboss.ejb.client.properties.skip.classloader.scan");
     }
 
 
@@ -74,6 +79,10 @@ public class ClasspathConfigBasedSelectorTestCase {
         final ClassLoader tccl = Thread.currentThread().getContextClassLoader();
         if (tccl != null && tccl.getClass().getName().equals(ResourceSwitchingClassLoader.class.getName())) {
             Thread.currentThread().setContextClassLoader(originalTCCL);
+        }
+        // reset the skip classloader scan system property if it was already set before this test was run
+        if (skipClassLoaderScanSysPropPreviousValue != null) {
+            System.setProperty("jboss.ejb.client.properties.skip.classloader.scan", skipClassLoaderScanSysPropPreviousValue);
         }
     }
 

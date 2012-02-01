@@ -80,6 +80,8 @@ public class EJBClientPropertiesDisableClassLoaderScanTestCase {
         if (tccl != null && tccl.getClass().getName().equals(ResourceSwitchingClassLoader.class.getName())) {
             Thread.currentThread().setContextClassLoader(originalTCCL);
         }
+        // remove the system property we had set
+        System.getProperties().remove("jboss.ejb.client.properties.skip.classloader.scan");
     }
 
     @Test
