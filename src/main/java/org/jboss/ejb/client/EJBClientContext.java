@@ -22,6 +22,12 @@
 
 package org.jboss.ejb.client;
 
+import org.jboss.ejb.client.remoting.ConfigBasedEJBClientContextSelector;
+import org.jboss.ejb.client.remoting.RemotingConnectionEJBReceiver;
+import org.jboss.logging.Logger;
+import org.jboss.remoting3.Connection;
+
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
@@ -29,14 +35,12 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.IdentityHashMap;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
 import java.util.Properties;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
-
-import org.jboss.ejb.client.remoting.ConfigBasedEJBClientContextSelector;
-import org.jboss.ejb.client.remoting.RemotingConnectionEJBReceiver;
-import org.jboss.logging.Logger;
-import org.jboss.remoting3.Connection;
 
 /**
  * The public API for an EJB client context.  An EJB client context may be associated with (and used by) one or more threads concurrently.
@@ -82,6 +86,8 @@ public final class EJBClientContext extends Attachable {
     private final Map<String, ClusterContext> clusterContexts = Collections.synchronizedMap(new HashMap<String, ClusterContext>());
 
     private final EJBClientConfiguration ejbClientConfiguration;
+
+    private final ClusterFormationNotifier clusterFormationNotifier = new ClusterFormationNotifier();
 
     private EJBClientContext(final EJBClientConfiguration ejbClientConfiguration) {
         this.ejbClientConfiguration = ejbClientConfiguration;
@@ -575,9 +581,19 @@ public final class EJBClientContext extends Attachable {
      * @throws IllegalArgumentException If there's no EJB receiver context available for the cluster
      */
     EJBReceiverContext requireClusterEJBReceiverContext(final String clusterName) throws IllegalArgumentException {
-        final ClusterContext clusterContext = this.clusterContexts.get(clusterName);
+        ClusterContext clusterContext = this.clusterContexts.get(clusterName);
         if (clusterContext == null) {
-            throw new IllegalArgumentException("No cluster context (and as a result EJB receiver context) available for cluster named " + clusterName);
+            // let's wait for some time to see if the asynchronous cluster topology becomes available.
+            // Note that this isn't a great thing to do for clusters which might have been removed or for clusters
+            // which will never be formed, since this wait results in a 5 second delay in the invocation. But ideally
+            // such cases should be pretty low.
+            logger.debug("Waiting for cluster topology information to be available for cluster named " + clusterName);
+            this.waitForClusterTopology(clusterName);
+            // see if the cluster context was created during this wait time
+            clusterContext = this.clusterContexts.get(clusterName);
+            if (clusterContext == null) {
+                throw new IllegalArgumentException("No cluster context (and as a result EJB receiver context) available for cluster named " + clusterName);
+            }
         }
         return clusterContext.requireEJBReceiverContext();
     }
@@ -622,6 +638,8 @@ public final class EJBClientContext extends Attachable {
         if (clusterContext == null) {
             clusterContext = new ClusterContext(clusterName, this, this.ejbClientConfiguration);
             this.clusterContexts.put(clusterName, clusterContext);
+            // notify any waiting listeners about cluster formation
+            this.clusterFormationNotifier.notifyClusterFormation(clusterName);
         }
         return clusterContext;
     }
@@ -657,6 +675,29 @@ public final class EJBClientContext extends Attachable {
     }
 
     /**
+     * Waits for (a maximum of 5 seconds for) a cluster topology to be available for <code>clusterName</code>
+     *
+     * @param clusterName The name of the cluster
+     */
+    private void waitForClusterTopology(final String clusterName) {
+        final CountDownLatch clusterFormationLatch = new CountDownLatch(1);
+        // register for the notification
+        this.clusterFormationNotifier.registerForClusterFormation(clusterName, clusterFormationLatch);
+        // now wait (max 5 seconds)
+        try {
+            final boolean receivedClusterTopology = clusterFormationLatch.await(5, TimeUnit.SECONDS);
+            if (receivedClusterTopology) {
+                logger.debug("Received the cluster topology for cluster named " + clusterName + " during the wait time");
+            }
+        } catch (InterruptedException e) {
+            // ignore
+        } finally {
+            // unregister from the cluster formation notification
+            this.clusterFormationNotifier.unregisterFromClusterNotification(clusterName, clusterFormationLatch);
+        }
+    }
+
+    /**
      * A {@link EJBReceiverContextCloseHandler} will be notified through a call to
      * {@link #receiverContextClosed(EJBReceiverContext)} whenever a {@link EJBReceiverContext}, to which
      * the {@link EJBReceiverContextCloseHandler}, has been {@link EJBClientContext#registerEJBReceiver(EJBReceiver, org.jboss.ejb.client.EJBClientContext.EJBReceiverContextCloseHandler) associated}
@@ -679,6 +720,70 @@ public final class EJBClientContext extends Attachable {
 
         private ReceiverAssociation(final EJBReceiverContext context) {
             this.context = context;
+        }
+    }
+
+    /**
+     * A notifier which can be used for waiting for cluster formation events
+     */
+    private final class ClusterFormationNotifier {
+
+        private final Map<String, List<CountDownLatch>> clusterFormationListeners = new HashMap<String, List<CountDownLatch>>();
+
+        /**
+         * Register for cluster formation event notification.
+         *
+         * @param clusterName The name of the cluster
+         * @param latch       The {@link CountDownLatch} which the caller can use to wait for the cluster formation
+         *                    to take place. The {@link ClusterFormationNotifier} will invoke the {@link java.util.concurrent.CountDownLatch#countDown()}
+         *                    when the cluster is formed
+         */
+        void registerForClusterFormation(final String clusterName, final CountDownLatch latch) {
+            synchronized (this.clusterFormationListeners) {
+                List<CountDownLatch> listeners = this.clusterFormationListeners.get(clusterName);
+                if (listeners == null) {
+                    listeners = new ArrayList<CountDownLatch>();
+                    this.clusterFormationListeners.put(clusterName, listeners);
+                }
+                listeners.add(latch);
+            }
+        }
+
+        /**
+         * Callback invocation for the cluster formation event. This method will invoke {@link java.util.concurrent.CountDownLatch#countDown()}
+         * on each of the waiting {@link CountDownLatch} for the cluster.
+         *
+         * @param clusterName The name of the cluster
+         */
+        void notifyClusterFormation(final String clusterName) {
+            final List<CountDownLatch> listeners;
+            synchronized (this.clusterFormationListeners) {
+                // remove the waiting listeners
+                listeners = this.clusterFormationListeners.remove(clusterName);
+            }
+            if (listeners == null) {
+                return;
+            }
+            // notify any waiting listeners
+            for (final CountDownLatch latch : listeners) {
+                latch.countDown();
+            }
+        }
+
+        /**
+         * Unregisters from cluster formation notifications for the cluster
+         *
+         * @param clusterName The name of the cluster
+         * @param latch       The {@link CountDownLatch} which will be unregistered from the waiting {@link CountDownLatch}es
+         */
+        void unregisterFromClusterNotification(final String clusterName, final CountDownLatch latch) {
+            synchronized (this.clusterFormationListeners) {
+                final List<CountDownLatch> listeners = this.clusterFormationListeners.get(clusterName);
+                if (listeners == null) {
+                    return;
+                }
+                listeners.remove(latch);
+            }
         }
     }
 }
