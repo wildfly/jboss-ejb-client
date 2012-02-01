@@ -225,25 +225,51 @@ public final class EJBClientContext extends Attachable {
 
     /**
      * Register an EJB receiver with this client context.
+     * <p/>
+     * If the same {@link EJBReceiver} has already been associated in this client context or if a {@link EJBReceiver receiver}
+     * with the same {@link org.jboss.ejb.client.EJBReceiver#getNodeName() node name} has already been associated in this client
+     * context, then this method does <i>not</i> register the passed <code>receiver</code> and returns false.
      *
      * @param receiver the receiver to register
+     * @return Returns true if the receiver was registered in this client context. Else returns false.
      * @throws IllegalArgumentException If the passed <code>receiver</code> is null
      */
-    public void registerEJBReceiver(final EJBReceiver receiver) {
-        this.registerEJBReceiver(receiver, null);
+    public boolean registerEJBReceiver(final EJBReceiver receiver) {
+        return this.registerEJBReceiver(receiver, null);
     }
 
-    void registerEJBReceiver(final EJBReceiver receiver, final EJBReceiverContextCloseHandler receiverContextCloseHandler) {
+    /**
+     * Registers a {@link EJBReceiver} in this context and uses the {@link EJBReceiverContextCloseHandler receiverContextCloseHandler}
+     * to notify of a {@link EJBReceiverContext} being closed.
+     * <p/>
+     * If the same {@link EJBReceiver} has already been associated in this client context or if a {@link EJBReceiver receiver}
+     * with the same {@link org.jboss.ejb.client.EJBReceiver#getNodeName() node name} has already been associated in this client
+     * context, then this method does <i>not</i> register the passed <code>receiver</code> and returns false.
+     *
+     * @param receiver                    The EJB receiver to register
+     * @param receiverContextCloseHandler The receiver context close handler. Can be null.
+     * @return Returns true if the receiver was registered in this client context. Else returns false.
+     */
+    boolean registerEJBReceiver(final EJBReceiver receiver, final EJBReceiverContextCloseHandler receiverContextCloseHandler) {
         if (receiver == null) {
-            throw new IllegalArgumentException("receiver is null");
+            throw new IllegalArgumentException("Cannot register a null receiver");
         }
         final EJBReceiverContext ejbReceiverContext;
         final ReceiverAssociation association;
         synchronized (this.ejbReceiverAssociations) {
             if (this.ejbReceiverAssociations.containsKey(receiver)) {
                 // nothing to do
-                return;
+                return false;
             }
+            // see if we already have a receiver for the node name corresponding to the receiver
+            // being registered
+            final EJBReceiver existingReceiverForNode = this.getNodeEJBReceiver(receiver.getNodeName());
+            if (existingReceiverForNode != null) {
+                logger.debug("Skipping registration of receiver " + receiver + " since an EJB receiver already exists for " +
+                        "node name " + receiver.getNodeName() + " in client context " + this);
+                return false;
+            }
+
             ejbReceiverContext = new EJBReceiverContext(receiver, this);
             association = new ReceiverAssociation(ejbReceiverContext);
             this.ejbReceiverAssociations.put(receiver, association);
@@ -252,9 +278,18 @@ public final class EJBClientContext extends Attachable {
                 this.receiverContextCloseHandlers.put(ejbReceiverContext, receiverContextCloseHandler);
             }
         }
+        // associate it with a context
         receiver.associate(ejbReceiverContext);
+
         synchronized (this.ejbReceiverAssociations) {
+
             association.associated = true;
+            // Associating a receiver with a context might be either successful or might fail (for example:
+            // failure in version handshake between client/server), in which case the receiver context
+            // will be closed and ultimately the association removed from this client context.
+            // So registration is successful only if the association is still in the associations map of this
+            // client context
+            return this.ejbReceiverAssociations.get(receiver) != null;
         }
     }
 

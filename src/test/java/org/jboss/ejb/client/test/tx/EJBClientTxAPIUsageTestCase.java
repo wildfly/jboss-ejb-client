@@ -23,19 +23,14 @@
 package org.jboss.ejb.client.test.tx;
 
 import javax.transaction.UserTransaction;
-import javax.transaction.xa.XAException;
 
 import org.jboss.ejb.client.ConstantContextSelector;
 import org.jboss.ejb.client.ContextSelector;
 import org.jboss.ejb.client.EJBClient;
 import org.jboss.ejb.client.EJBClientContext;
-import org.jboss.ejb.client.EJBClientInvocationContext;
 import org.jboss.ejb.client.EJBClientTransactionContext;
 import org.jboss.ejb.client.EJBReceiver;
-import org.jboss.ejb.client.EJBReceiverContext;
-import org.jboss.ejb.client.EJBReceiverInvocationContext;
-import org.jboss.ejb.client.StatefulEJBLocator;
-import org.jboss.ejb.client.TransactionID;
+import org.jboss.ejb.client.test.common.DummyEJBReceiver;
 import org.junit.Test;
 
 /**
@@ -59,34 +54,4 @@ public class EJBClientTxAPIUsageTestCase {
         }
     }
 
-    private class DummyEJBReceiver extends EJBReceiver {
-
-        DummyEJBReceiver(String nodeName) {
-            super(nodeName);
-        }
-
-        @Override
-        protected void associate(EJBReceiverContext context) {
-        }
-
-        @Override
-        protected void processInvocation(EJBClientInvocationContext mapEJBClientInvocationContext, EJBReceiverInvocationContext receiverContext) throws Exception {
-        }
-
-        @Override
-        protected <T> StatefulEJBLocator<T> openSession(final EJBReceiverContext context, final Class<T> viewType, final String appName, final String moduleName, final String distinctName, final String beanName) {
-            return null;
-        }
-
-        @Override
-        protected boolean exists(String appName, String moduleName, String distinctName, String beanName) {
-            return false;
-        }
-
-        @Override
-        protected void sendCommit(EJBReceiverContext context, TransactionID transactionID, boolean onePhase) throws XAException {
-            // do nothing
-        }
-
-    }
 }
