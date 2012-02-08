@@ -33,6 +33,8 @@ import java.net.URI;
 import java.util.concurrent.TimeUnit;
 
 /**
+ * A {@link ReconnectHandler} which has a upper bound on the reconnect attempt
+ *
  * @author Jaikiran Pai
  */
 abstract class MaxAttemptsReconnectHandler implements ReconnectHandler {
@@ -74,7 +76,7 @@ abstract class MaxAttemptsReconnectHandler implements ReconnectHandler {
         }
 
     }
-    
+
     protected boolean hasMoreAttempts() {
         return this.reconnectAttempts < maxReconnectAttempts;
     }

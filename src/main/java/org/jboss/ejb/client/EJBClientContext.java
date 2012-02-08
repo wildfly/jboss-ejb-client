@@ -398,10 +398,23 @@ public final class EJBClientContext extends Attachable {
         return this.ejbClientConfiguration;
     }
 
+    /**
+     * Registers a {@link ReconnectHandler} in this {@link EJBClientContext}
+     *
+     * @param reconnectHandler The reconnect handler. Cannot be null
+     */
     public void registerReconnectHandler(final ReconnectHandler reconnectHandler) {
+        if (reconnectHandler == null) {
+            throw new IllegalArgumentException("Reconnect handler cannot be null");
+        }
         this.reconnectHandlers.add(reconnectHandler);
     }
 
+    /**
+     * Unregisters a {@link ReconnectHandler} from this {@link EJBClientContext}
+     *
+     * @param reconnectHandler The reconnect handler to unregister
+     */
     public void unregisterReconnectHandler(final ReconnectHandler reconnectHandler) {
         this.reconnectHandlers.remove(reconnectHandler);
     }

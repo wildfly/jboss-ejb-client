@@ -22,17 +22,23 @@
 
 package org.jboss.ejb.client.remoting;
 
-import org.jboss.ejb.client.EJBClientContext;
 import org.jboss.remoting3.Connection;
 
 import java.io.IOException;
-import java.util.concurrent.TimeUnit;
 
 /**
+ * A reconnect handler is responsible for re-creating a broken {@link Connection}
+ *
  * @author Jaikiran Pai
  */
 public interface ReconnectHandler {
 
-    void reconnect();
+    /**
+     * Try recreating a {@link Connection} and register a corresponding {@link org.jboss.ejb.client.EJBReceiver}
+     * in the context to which the original (broken) connection belonged
+     *
+     * @throws IOException
+     */
+    void reconnect() throws IOException;
 
 }
