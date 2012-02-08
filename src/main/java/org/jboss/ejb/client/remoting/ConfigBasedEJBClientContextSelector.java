@@ -22,6 +22,14 @@
 
 package org.jboss.ejb.client.remoting;
 
+import java.io.Closeable;
+import java.io.IOException;
+import java.net.URI;
+import java.util.ArrayList;
+import java.util.Iterator;
+import java.util.List;
+import java.util.concurrent.TimeUnit;
+
 import org.jboss.ejb.client.ContextSelector;
 import org.jboss.ejb.client.EJBClientConfiguration;
 import org.jboss.ejb.client.EJBClientContext;
@@ -33,12 +41,6 @@ import org.jboss.remoting3.Remoting;
 import org.jboss.remoting3.remote.RemoteConnectionProviderFactory;
 import org.xnio.IoFuture;
 import org.xnio.OptionMap;
-
-import java.io.IOException;
-import java.net.URI;
-import java.util.Iterator;
-import java.util.Properties;
-import java.util.concurrent.TimeUnit;
 
 /**
  * An EJB client context selector which uses {@link EJBClientConfiguration} to create {@link org.jboss.ejb.client.remoting.RemotingConnectionEJBReceiver}s.
@@ -95,6 +97,7 @@ public class ConfigBasedEJBClientContextSelector implements ContextSelector<EJBC
         endpoint.addConnectionProvider("remote", new RemoteConnectionProviderFactory(), remoteConnectionProviderOptions);
 
         final Iterator<EJBClientConfiguration.RemotingConnectionConfiguration> connectionConfigurations = this.ejbClientConfiguration.getConnectionConfigurations();
+        final List<Connection> connections = new ArrayList<Connection>();
         int successfulEJBReceiverRegistrations = 0;
         while (connectionConfigurations.hasNext()) {
             final EJBClientConfiguration.RemotingConnectionConfiguration connectionConfiguration = connectionConfigurations.next();
@@ -105,6 +108,7 @@ public class ConfigBasedEJBClientContextSelector implements ContextSelector<EJBC
                 final IoFuture<Connection> futureConnection = endpoint.connect(connectionURI, connectionConfiguration.getConnectionCreationOptions(), connectionConfiguration.getCallbackHandler());
                 // wait for the connection to be established
                 final Connection connection = IoFutureHelper.get(futureConnection, connectionConfiguration.getConnectionTimeout(), TimeUnit.MILLISECONDS);
+                connections.add(connection);
                 // create a remoting EJB receiver for this connection
                 final EJBReceiver remotingEJBReceiver = new RemotingConnectionEJBReceiver(connection);
                 // associate it with the client context
@@ -116,7 +120,25 @@ public class ConfigBasedEJBClientContextSelector implements ContextSelector<EJBC
                 logger.warn("Could not register a EJB receiver for connection to remote://" + host + ":" + port, e);
             }
         }
+        //close our connections on JVM exit
+        Runtime.getRuntime().addShutdownHook(new Thread(new Runnable() {
+            @Override
+            public void run() {
+                for(final Connection connection : connections) {
+                    safeClose(connection);
+                }
+                safeClose(endpoint);
+            }
+        }));
         logger.debug("Registered " + successfulEJBReceiverRegistrations + " remoting EJB receivers for EJB client context " + this.ejbClientContext);
+    }
+
+    private static void safeClose(Closeable closable) {
+        try {
+            closable.close();
+        } catch (Throwable e) {
+            logger.debug("Exception closing connection ", e);
+        }
     }
 
 }
