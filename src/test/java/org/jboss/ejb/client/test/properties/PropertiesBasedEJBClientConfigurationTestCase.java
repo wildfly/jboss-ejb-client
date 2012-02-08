@@ -25,6 +25,7 @@ package org.jboss.ejb.client.test.properties;
 import org.jboss.ejb.client.ClusterNodeSelector;
 import org.jboss.ejb.client.EJBClientConfiguration;
 import org.jboss.ejb.client.PropertiesBasedEJBClientConfiguration;
+import org.jboss.remoting3.RemotingOptions;
 import org.junit.Assert;
 import org.junit.Test;
 import org.xnio.OptionMap;
@@ -94,6 +95,11 @@ public class PropertiesBasedEJBClientConfigurationTestCase {
 
         // connection timeout
         Assert.assertEquals("Unexpected connection timeout for connection configuration", 8000, connectionConfig.getConnectionTimeout());
+
+        // channel creation options
+        final OptionMap channelCreationOptions = connectionConfig.getChannelCreationOptions();
+        Assert.assertNotNull("Channel creations options were null for connection configuration", channelCreationOptions);
+        Assert.assertEquals("Unexpected channel creation options", new Integer(12345), channelCreationOptions.get(RemotingOptions.MAX_OUTBOUND_MESSAGES));
     }
 
     private void testConnectionConfigTwo(final EJBClientConfiguration.RemotingConnectionConfiguration connectionConfig) {

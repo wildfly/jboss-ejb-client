@@ -76,6 +76,7 @@ public final class RemotingConnectionEJBReceiver extends EJBReceiver {
     private final MarshallerFactory marshallerFactory;
 
     private final ReconnectHandler reconnectHandler;
+    private final OptionMap channelCreationOptions;
 
     /**
      * Construct a new instance.
@@ -83,7 +84,7 @@ public final class RemotingConnectionEJBReceiver extends EJBReceiver {
      * @param connection the connection to associate with
      */
     public RemotingConnectionEJBReceiver(final Connection connection) {
-        this(connection, null);
+        this(connection, null, OptionMap.EMPTY);
     }
 
 
@@ -93,10 +94,11 @@ public final class RemotingConnectionEJBReceiver extends EJBReceiver {
      * @param connection       the connection to associate with
      * @param reconnectHandler The {@link ReconnectHandler} to use when the connection breaks
      */
-    RemotingConnectionEJBReceiver(final Connection connection, final ReconnectHandler reconnectHandler) {
+    RemotingConnectionEJBReceiver(final Connection connection, final ReconnectHandler reconnectHandler, final OptionMap channelCreationOptions) {
         super(connection.getRemoteEndpointName());
         this.connection = connection;
         this.reconnectHandler = reconnectHandler;
+        this.channelCreationOptions = channelCreationOptions == null ? OptionMap.EMPTY : channelCreationOptions;
 
         this.cachedToString = new StringBuffer("Remoting connection EJB receiver [connection=").append(this.connection)
                 .append(",channel=").append(EJB_CHANNEL_NAME).append(",nodename=").append(this.getNodeName())
@@ -119,7 +121,7 @@ public final class RemotingConnectionEJBReceiver extends EJBReceiver {
         }
 
         final VersionReceiver versionReceiver = new VersionReceiver(versionHandshakeLatch, this.clientProtocolVersion, this.clientMarshallingStrategy);
-        final IoFuture<Channel> futureChannel = connection.openChannel(EJB_CHANNEL_NAME, OptionMap.EMPTY);
+        final IoFuture<Channel> futureChannel = connection.openChannel(EJB_CHANNEL_NAME, this.channelCreationOptions);
         futureChannel.addNotifier(new IoFuture.HandlingNotifier<Channel, EJBReceiverContext>() {
             public void handleCancelled(final EJBReceiverContext context) {
                 logger.debug("Channel open requested cancelled for context " + context);

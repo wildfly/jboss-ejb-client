@@ -122,7 +122,7 @@ public class ConfigBasedEJBClientContextSelector implements ContextSelector<EJBC
                 final int MAX_RECONNECT_ATTEMPTS = 65535; // TODO: Let's keep this high for now and later allow configuration and a smaller default value
                 final ReconnectHandler reconnectHandler = new EJBClientContextConnectionReconnectHandler(ejbClientContext, endpoint, connectionURI, connectionCreationOptions, callbackHandler, MAX_RECONNECT_ATTEMPTS);
                 // create a remoting EJB receiver for this connection
-                final EJBReceiver remotingEJBReceiver = new RemotingConnectionEJBReceiver(connection, reconnectHandler);
+                final EJBReceiver remotingEJBReceiver = new RemotingConnectionEJBReceiver(connection, reconnectHandler, connectionConfiguration.getChannelCreationOptions());
                 // associate it with the client context
                 this.ejbClientContext.registerEJBReceiver(remotingEJBReceiver);
                 // keep track of successful registrations for logging purposes

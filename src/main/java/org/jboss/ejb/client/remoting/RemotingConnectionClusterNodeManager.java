@@ -75,6 +75,7 @@ class RemotingConnectionClusterNodeManager implements ClusterNodeManager {
         }
         final Connection connection;
         final ReconnectHandler reconnectHandler;
+        OptionMap channelCreationOptions = OptionMap.EMPTY;
         final int MAX_RECONNECT_ATTEMPTS = 65535; // TODO: Let's keep this high for now and later allow configuration and a smaller default value
         try {
             // if the client configuration is available create the connection using those configs
@@ -92,12 +93,15 @@ class RemotingConnectionClusterNodeManager implements ClusterNodeManager {
                     reconnectHandler = new ClusterContextConnectionReconnectHandler(clusterContext, endpoint, connectionURI, connectionCreationOptions, callbackHandler, MAX_RECONNECT_ATTEMPTS);
 
                 } else {
+                    final EJBClientConfiguration.ClusterNodeConfiguration clusterNodeConfiguration = clusterConfiguration.getNodeConfiguration(this.getNodeName());
                     // use the specified configurations
-                    final OptionMap connectionCreationOptions = clusterConfiguration.getConnectionCreationOptions();
-                    final CallbackHandler callbackHandler = clusterConfiguration.getCallbackHandler();
+                    channelCreationOptions = clusterNodeConfiguration == null ? clusterConfiguration.getChannelCreationOptions() : clusterNodeConfiguration.getChannelCreationOptions();
+                    final OptionMap connectionCreationOptions = clusterNodeConfiguration == null ? clusterConfiguration.getConnectionCreationOptions() : clusterNodeConfiguration.getConnectionCreationOptions();
+                    final CallbackHandler callbackHandler = clusterNodeConfiguration == null ? clusterConfiguration.getCallbackHandler() : clusterNodeConfiguration.getCallbackHandler();
                     final IoFuture<Connection> futureConnection = endpoint.connect(connectionURI, connectionCreationOptions, callbackHandler);
+                    final long timeout = clusterNodeConfiguration == null ? clusterConfiguration.getConnectionTimeout() : clusterNodeConfiguration.getConnectionTimeout();
                     // wait for the connection to be established
-                    connection = IoFutureHelper.get(futureConnection, clusterConfiguration.getConnectionTimeout(), TimeUnit.MILLISECONDS);
+                    connection = IoFutureHelper.get(futureConnection, timeout, TimeUnit.MILLISECONDS);
                     // create a re-connect handler (which will be used on connection breaking down)
                     reconnectHandler = new ClusterContextConnectionReconnectHandler(clusterContext, endpoint, connectionURI, connectionCreationOptions, callbackHandler, MAX_RECONNECT_ATTEMPTS);
                 }
@@ -118,7 +122,7 @@ class RemotingConnectionClusterNodeManager implements ClusterNodeManager {
         } catch (Exception e) {
             throw new RuntimeException("Could not create a connection for cluster node " + this.clusterNode + " in cluster " + clusterContext.getClusterName());
         }
-        return new RemotingConnectionEJBReceiver(connection, reconnectHandler);
+        return new RemotingConnectionEJBReceiver(connection, reconnectHandler, channelCreationOptions);
     }
 
     /**

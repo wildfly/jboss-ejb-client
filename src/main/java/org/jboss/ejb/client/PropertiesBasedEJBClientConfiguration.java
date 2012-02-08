@@ -295,8 +295,11 @@ public class PropertiesBasedEJBClientConfiguration implements EJBClientConfigura
         // create the CallbackHandler applicable for all nodes (unless explicitly overridden) in this cluster
         final CallbackHandler callbackHandler = createCallbackHandler(clusterSpecificProperties, this.getDefaultCallbackHandler());
 
+        // Channel creation options for this cluster
+        final String channelOptionsPrefix = this.getClusterSpecificChannelOptionsPrefix(clusterName);
+        final OptionMap channelOptions = getOptionMapFromProperties(ejbReceiversConfigurationProperties, channelOptionsPrefix, getClientClassLoader());
         final ClusterConfigurationImpl clusterConfiguration = new ClusterConfigurationImpl(clusterName, maxAllowedConnectedNodes,
-                connectOptions, callbackHandler, connectionTimeout, clusterNodeSelector);
+                connectOptions, callbackHandler, connectionTimeout, clusterNodeSelector, channelOptions);
         // parse the node configurations for this cluster
         final Collection<ClusterNodeConfiguration> nodeConfigurations = this.parseClusterNodeConfigurations(clusterConfiguration, clusterSpecificProperties);
         // add them to the cluster configuration
@@ -365,7 +368,10 @@ public class PropertiesBasedEJBClientConfiguration implements EJBClientConfigura
         // create the CallbackHandler applicable for the cluster node (default to the callback handler applicable to the entire cluster)
         final CallbackHandler callbackHandler = createCallbackHandler(nodeSpecificProperties, clusterConfiguration.getCallbackHandler());
 
-        return new ClusterNodeConfigurationImpl(nodeName, connectOptions, callbackHandler, connectionTimeout);
+        // Channel creation options for this cluster node
+        final String channelOptionsPrefix = this.getClusterNodeSpecificChannelOptionsPrefix(clusterName, nodeName);
+        final OptionMap channelOptions = getOptionMapFromProperties(ejbReceiversConfigurationProperties, channelOptionsPrefix, getClientClassLoader());
+        return new ClusterNodeConfigurationImpl(nodeName, connectOptions, callbackHandler, connectionTimeout, channelOptions);
     }
 
     private void parseConnectionConfigurations() {
@@ -441,7 +447,10 @@ public class PropertiesBasedEJBClientConfiguration implements EJBClientConfigura
         // create the CallbackHandler for this connection configuration
         final CallbackHandler callbackHandler = createCallbackHandler(connectionSpecificProps, this.getDefaultCallbackHandler());
 
-        return new RemotingConnectionConfigurationImpl(host, port, connectOptions, connectionTimeout, callbackHandler);
+        // Channel creation options for this connection
+        final String channelOptionsPrefix = this.getConnectionSpecificChannelOptionsPrefix(connectionName);
+        final OptionMap channelOptions = getOptionMapFromProperties(ejbReceiversConfigurationProperties, channelOptionsPrefix, getClientClassLoader());
+        return new RemotingConnectionConfigurationImpl(host, port, connectOptions, connectionTimeout, callbackHandler, channelOptions);
 
     }
 
@@ -451,6 +460,10 @@ public class PropertiesBasedEJBClientConfiguration implements EJBClientConfigura
 
     private String getConnectionSpecificConnectOptionsPrefix(final String connectionName) {
         return "remote.connection." + connectionName + ".connect.options.";
+    }
+
+    private String getConnectionSpecificChannelOptionsPrefix(final String connectionName) {
+        return "remote.connection." + connectionName + ".channel.options.";
     }
 
     private Map<String, String> getPropertiesWithPrefix(final String prefix) {
@@ -477,8 +490,16 @@ public class PropertiesBasedEJBClientConfiguration implements EJBClientConfigura
         return "remote.cluster." + clusterName + ".connect.options.";
     }
 
+    private String getClusterSpecificChannelOptionsPrefix(final String clusterName) {
+        return "remote.cluster." + clusterName + ".channel.options.";
+    }
+
     private String getClusterNodeSpecificConnectOptionsPrefix(final String clusterName, final String nodeName) {
         return "remote.cluster." + clusterName + ".node." + nodeName + ".connect.options.";
+    }
+
+    private String getClusterNodeSpecificChannelOptionsPrefix(final String clusterName, final String nodeName) {
+        return "remote.cluster." + clusterName + ".node." + nodeName + ".channel.options.";
     }
 
 
@@ -615,14 +636,16 @@ public class PropertiesBasedEJBClientConfiguration implements EJBClientConfigura
         final OptionMap connectionCreationOptions;
         final long connectionTimeout;
         final CallbackHandler callbackHandler;
+        final OptionMap channelCreationOptions;
 
         RemotingConnectionConfigurationImpl(final String host, final int port, final OptionMap connectionCreationOptions,
-                                            final long connectionTimeout, final CallbackHandler callbackHandler) {
+                                            final long connectionTimeout, final CallbackHandler callbackHandler, final OptionMap channelCreationOptions) {
             this.host = host;
             this.port = port;
             this.connectionCreationOptions = connectionCreationOptions;
             this.connectionTimeout = connectionTimeout;
             this.callbackHandler = callbackHandler;
+            this.channelCreationOptions = channelCreationOptions == null ? OptionMap.EMPTY : channelCreationOptions;
         }
 
         @Override
@@ -649,6 +672,11 @@ public class PropertiesBasedEJBClientConfiguration implements EJBClientConfigura
         public CallbackHandler getCallbackHandler() {
             return this.callbackHandler;
         }
+
+        @Override
+        public OptionMap getChannelCreationOptions() {
+            return this.channelCreationOptions;
+        }
     }
 
     private class ClusterConfigurationImpl implements ClusterConfiguration {
@@ -660,15 +688,18 @@ public class PropertiesBasedEJBClientConfiguration implements EJBClientConfigura
         private final OptionMap connectionCreationOptions;
         private final long connectionTimeout;
         private final ClusterNodeSelector clusterNodeSelector;
+        private final OptionMap channelCreationOptions;
 
         ClusterConfigurationImpl(final String clusterName, final long maxAllowedConnectedNodes, final OptionMap connectionCreationOptions,
-                                 final CallbackHandler callbackHandler, final long connectionTimeout, final ClusterNodeSelector clusterNodeSelector) {
+                                 final CallbackHandler callbackHandler, final long connectionTimeout, final ClusterNodeSelector clusterNodeSelector,
+                                 final OptionMap channelCreationOptions) {
             this.clusterName = clusterName;
             this.maxAllowedConnectedNodes = maxAllowedConnectedNodes;
             this.connectionCreationOptions = connectionCreationOptions;
             this.callbackHandler = callbackHandler;
             this.connectionTimeout = connectionTimeout;
             this.clusterNodeSelector = clusterNodeSelector;
+            this.channelCreationOptions = channelCreationOptions == null ? OptionMap.EMPTY : channelCreationOptions;
         }
 
         @Override
@@ -720,6 +751,10 @@ public class PropertiesBasedEJBClientConfiguration implements EJBClientConfigura
 
         }
 
+        @Override
+        public OptionMap getChannelCreationOptions() {
+            return this.channelCreationOptions;
+        }
     }
 
     private class ClusterNodeConfigurationImpl implements ClusterNodeConfiguration {
@@ -728,13 +763,15 @@ public class PropertiesBasedEJBClientConfiguration implements EJBClientConfigura
         private final OptionMap connectionCreationOptions;
         private final CallbackHandler callbackHandler;
         private final long connectionTimeout;
+        private final OptionMap channelCreationOptions;
 
         ClusterNodeConfigurationImpl(final String nodeName, final OptionMap connectionCreationOptions, final CallbackHandler callbackHandler,
-                                     final long connectionTimeout) {
+                                     final long connectionTimeout, OptionMap channelCreationOptions) {
             this.nodeName = nodeName;
             this.connectionCreationOptions = connectionCreationOptions;
             this.callbackHandler = callbackHandler;
             this.connectionTimeout = connectionTimeout;
+            this.channelCreationOptions = channelCreationOptions == null ? OptionMap.EMPTY : channelCreationOptions;
         }
 
         @Override
@@ -755,6 +792,11 @@ public class PropertiesBasedEJBClientConfiguration implements EJBClientConfigura
         @Override
         public long getConnectionTimeout() {
             return this.connectionTimeout;
+        }
+
+        @Override
+        public OptionMap getChannelCreationOptions() {
+            return this.channelCreationOptions;
         }
     }
 }

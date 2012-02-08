@@ -123,6 +123,14 @@ public interface EJBClientConfiguration {
          * @return
          */
         long getConnectionTimeout();
+
+        /**
+         * Returns the {@link OptionMap options} that will be used during creation of a {@link org.jboss.remoting3.Channel}
+         * for the connection
+         *
+         * @return
+         */
+        OptionMap getChannelCreationOptions();
     }
 
     /**
