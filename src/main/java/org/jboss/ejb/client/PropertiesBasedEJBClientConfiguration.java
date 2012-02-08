@@ -22,18 +22,6 @@
 
 package org.jboss.ejb.client;
 
-import org.jboss.logging.Logger;
-import org.xnio.Option;
-import org.xnio.OptionMap;
-import org.xnio.Options;
-
-import javax.security.auth.callback.Callback;
-import javax.security.auth.callback.CallbackHandler;
-import javax.security.auth.callback.NameCallback;
-import javax.security.auth.callback.PasswordCallback;
-import javax.security.auth.callback.UnsupportedCallbackException;
-import javax.security.sasl.RealmCallback;
-import javax.xml.bind.DatatypeConverter;
 import java.io.IOException;
 import java.net.URISyntaxException;
 import java.util.ArrayList;
@@ -44,6 +32,19 @@ import java.util.Iterator;
 import java.util.Map;
 import java.util.Properties;
 import java.util.StringTokenizer;
+
+import javax.security.auth.callback.Callback;
+import javax.security.auth.callback.CallbackHandler;
+import javax.security.auth.callback.NameCallback;
+import javax.security.auth.callback.PasswordCallback;
+import javax.security.auth.callback.UnsupportedCallbackException;
+import javax.security.sasl.RealmCallback;
+import javax.xml.bind.DatatypeConverter;
+
+import org.jboss.logging.Logger;
+import org.xnio.Option;
+import org.xnio.OptionMap;
+import org.xnio.Options;
 
 /**
  * A {@link EJBClientConfiguration} which is configured through {@link Properties}. Some well known
@@ -534,7 +535,7 @@ public class PropertiesBasedEJBClientConfiguration implements EJBClientConfigura
             } else {
                 decodedPassword = null;
             }
-            return new AuthenticationCallbackHandler(userName, decodedPassword.toCharArray(), realm);
+            return new AuthenticationCallbackHandler(userName, decodedPassword == null ? null : decodedPassword.toCharArray(), realm);
         }
         return null;
     }
