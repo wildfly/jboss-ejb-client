@@ -45,6 +45,8 @@ import org.jboss.logging.Logger;
 import org.xnio.Option;
 import org.xnio.OptionMap;
 import org.xnio.Options;
+import org.xnio.Property;
+import org.xnio.Sequence;
 
 /**
  * A {@link EJBClientConfiguration} which is configured through {@link Properties}. Some well known
@@ -71,7 +73,7 @@ public class PropertiesBasedEJBClientConfiguration implements EJBClientConfigura
 
     private static final String PROPERTY_KEY_REMOTE_CONNECTIONS = "remote.connections";
     // The default options that will be used (unless overridden by the config file) while creating a connection
-    private static final OptionMap DEFAULT_CONNECTION_CREATION_OPTIONS = OptionMap.EMPTY;
+    private static final OptionMap DEFAULT_CONNECTION_CREATION_OPTIONS = OptionMap.create(Options.SASL_PROPERTIES, Sequence.of(Property.of("jboss.sasl.local-user.quiet-auth", "true")), Options.SASL_POLICY_NOPLAINTEXT, false);
     private static final long DEFAULT_CONNECTION_TIMEOUT_IN_MILLIS = 5000;
 
     private static final String PROPERTY_KEY_USERNAME = "username";
