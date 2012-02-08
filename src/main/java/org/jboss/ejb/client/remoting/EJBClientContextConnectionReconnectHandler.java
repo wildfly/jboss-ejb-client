@@ -29,10 +29,14 @@ import org.jboss.remoting3.Endpoint;
 import org.xnio.OptionMap;
 
 import javax.security.auth.callback.CallbackHandler;
+import java.io.IOException;
 import java.net.URI;
 import java.util.concurrent.TimeUnit;
 
 /**
+ * A {@link MaxAttemptsReconnectHandler} which creates a {@link RemotingConnectionEJBReceiver} out of the
+ * recreated connection and adds it to the {@link EJBClientContext}
+ *
  * @author Jaikiran Pai
  */
 class EJBClientContextConnectionReconnectHandler extends MaxAttemptsReconnectHandler {
@@ -45,7 +49,7 @@ class EJBClientContextConnectionReconnectHandler extends MaxAttemptsReconnectHan
     }
 
     @Override
-    public void reconnect() {
+    public void reconnect() throws IOException {
         Connection connection = null;
         try {
             connection = this.tryConnect(5000, TimeUnit.SECONDS);
