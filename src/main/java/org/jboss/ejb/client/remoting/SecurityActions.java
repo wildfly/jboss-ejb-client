@@ -86,6 +86,20 @@ final class SecurityActions {
         }
     }
 
+    static void addShutdownHook(final Thread shutdownHook) {
+        final SecurityManager sm = System.getSecurityManager();
+        if (sm == null) {
+            Runtime.getRuntime().addShutdownHook(shutdownHook);
+        } else {
+            AccessController.doPrivileged(new PrivilegedAction<Void>() {
+                public Void run() {
+                    Runtime.getRuntime().addShutdownHook(shutdownHook);
+                    return null;
+                }
+            });
+        }
+    }
+
     private SecurityActions() {
 
     }

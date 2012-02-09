@@ -73,7 +73,7 @@ class RemotingConnectionClusterNodeManager implements ClusterNodeManager {
             logger.error("Cannot create a EJB receiver for " + this.clusterNode + " since there was no match for a target destination");
             return null;
         }
-        final Connection connection;
+        Connection connection = null;
         final ReconnectHandler reconnectHandler;
         OptionMap channelCreationOptions = OptionMap.EMPTY;
         final int MAX_RECONNECT_ATTEMPTS = 65535; // TODO: Let's keep this high for now and later allow configuration and a smaller default value
@@ -121,6 +121,11 @@ class RemotingConnectionClusterNodeManager implements ClusterNodeManager {
             }
         } catch (Exception e) {
             throw new RuntimeException("Could not create a connection for cluster node " + this.clusterNode + " in cluster " + clusterContext.getClusterName());
+        } finally {
+            if (connection != null) {
+                // keep track of the created connection to auto close on JVM shutdown
+                AutoConnectionCloser.INSTANCE.addConnection(connection);
+            }
         }
         return new RemotingConnectionEJBReceiver(connection, reconnectHandler, channelCreationOptions);
     }
