@@ -69,6 +69,8 @@ abstract class MaxAttemptsReconnectHandler implements ReconnectHandler {
         try {
             final IoFuture<Connection> futureConnection = endpoint.connect(connectionURI, connectionCreationOptions, callbackHandler);
             final Connection connection = IoFutureHelper.get(futureConnection, connectionTimeout, unit);
+            // keep track of the created connection to auto-close on JVM shutdown
+            AutoConnectionCloser.INSTANCE.addConnection(connection);
             logger.debug("Successfully reconnected on attempt#" + reconnectAttempts + " to connection " + connection);
             return connection;
 

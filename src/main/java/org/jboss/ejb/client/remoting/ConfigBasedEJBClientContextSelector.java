@@ -35,7 +35,6 @@ import org.xnio.IoFuture;
 import org.xnio.OptionMap;
 
 import javax.security.auth.callback.CallbackHandler;
-import java.io.Closeable;
 import java.io.IOException;
 import java.net.URI;
 import java.util.ArrayList;
@@ -93,6 +92,9 @@ public class ConfigBasedEJBClientContextSelector implements ContextSelector<EJBC
         }
         // create the endpoint
         final Endpoint endpoint = Remoting.createEndpoint(this.ejbClientConfiguration.getEndpointName(), this.ejbClientConfiguration.getEndpointCreationOptions());
+        // Keep track of this endpoint for closing on shutdown
+        AutoConnectionCloser.INSTANCE.addEndpoint(endpoint);
+
         // register the remote connection provider
         final OptionMap remoteConnectionProviderOptions = this.ejbClientConfiguration.getRemoteConnectionProviderCreationOptions();
         endpoint.addConnectionProvider("remote", new RemoteConnectionProviderFactory(), remoteConnectionProviderOptions);
@@ -111,8 +113,9 @@ public class ConfigBasedEJBClientContextSelector implements ContextSelector<EJBC
                 final IoFuture<Connection> futureConnection = endpoint.connect(connectionURI, connectionCreationOptions, callbackHandler);
                 // wait for the connection to be established
                 final Connection connection = IoFutureHelper.get(futureConnection, connectionConfiguration.getConnectionTimeout(), TimeUnit.MILLISECONDS);
-                // keep track of created connections
-                connections.add(connection);
+                // keep track of the created connection for auto-close on shutdown
+                AutoConnectionCloser.INSTANCE.addConnection(connection);
+
                 // create a re-connect handler (which will be used on connection breaking down)
                 final int MAX_RECONNECT_ATTEMPTS = 65535; // TODO: Let's keep this high for now and later allow configuration and a smaller default value
                 final ReconnectHandler reconnectHandler = new EJBClientContextConnectionReconnectHandler(ejbClientContext, endpoint, connectionURI, connectionCreationOptions, callbackHandler, connectionConfiguration.getChannelCreationOptions(), MAX_RECONNECT_ATTEMPTS);
@@ -127,25 +130,7 @@ public class ConfigBasedEJBClientContextSelector implements ContextSelector<EJBC
                 logger.warn("Could not register a EJB receiver for connection to remote://" + host + ":" + port, e);
             }
         }
-        //close our connections on JVM exit
-        Runtime.getRuntime().addShutdownHook(new Thread(new Runnable() {
-            @Override
-            public void run() {
-                for (final Connection connection : connections) {
-                    safeClose(connection);
-                }
-                safeClose(endpoint);
-            }
-        }));
         logger.debug("Registered " + successfulEJBReceiverRegistrations + " remoting EJB receivers for EJB client context " + this.ejbClientContext);
-    }
-
-    private static void safeClose(Closeable closable) {
-        try {
-            closable.close();
-        } catch (Throwable e) {
-            logger.debug("Exception closing connection ", e);
-        }
     }
 
 }
