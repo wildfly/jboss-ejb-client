@@ -141,7 +141,7 @@ class ClusterTopologyMessageHandler extends ProtocolMessageHandler {
         final Endpoint endpoint = this.channelAssociation.getChannel().getConnection().getEndpoint();
         final EJBClientConfiguration ejbClientConfiguration = clusterContext.getEJBClientContext().getEJBClientConfiguration();
         for (final ClusterNode clusterNode : clusterNodes) {
-            final RemotingConnectionClusterNodeManager clusterNodeManager = new RemotingConnectionClusterNodeManager(clusterContext.getClusterName(), clusterNode, endpoint, ejbClientConfiguration);
+            final RemotingConnectionClusterNodeManager clusterNodeManager = new RemotingConnectionClusterNodeManager(clusterContext, clusterNode, endpoint, ejbClientConfiguration);
             clusterContext.addClusterNode(clusterNode.getNodeName(), clusterNodeManager);
         }
     }

@@ -22,6 +22,7 @@
 
 package org.jboss.ejb.client.remoting;
 
+import org.jboss.ejb.client.ClusterContext;
 import org.jboss.ejb.client.ClusterNodeManager;
 import org.jboss.ejb.client.EJBClientConfiguration;
 import org.jboss.ejb.client.EJBReceiver;
@@ -37,7 +38,6 @@ import javax.security.auth.callback.NameCallback;
 import javax.security.auth.callback.UnsupportedCallbackException;
 import java.io.IOException;
 import java.net.URI;
-import java.net.URISyntaxException;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -50,13 +50,13 @@ class RemotingConnectionClusterNodeManager implements ClusterNodeManager {
 
     private static final Logger logger = Logger.getLogger(RemotingConnectionClusterNodeManager.class);
 
-    private final String clusterName;
+    private final ClusterContext clusterContext;
     private final ClusterNode clusterNode;
     private final Endpoint endpoint;
     private final EJBClientConfiguration ejbClientConfiguration;
 
-    RemotingConnectionClusterNodeManager(final String clusterName, final ClusterNode clusterNode, final Endpoint endpoint, final EJBClientConfiguration ejbClientConfiguration) {
-        this.clusterName = clusterName;
+    RemotingConnectionClusterNodeManager(final ClusterContext clusterContext, final ClusterNode clusterNode, final Endpoint endpoint, final EJBClientConfiguration ejbClientConfiguration) {
+        this.clusterContext = clusterContext;
         this.clusterNode = clusterNode;
         this.endpoint = endpoint;
         this.ejbClientConfiguration = ejbClientConfiguration;
@@ -74,40 +74,51 @@ class RemotingConnectionClusterNodeManager implements ClusterNodeManager {
             return null;
         }
         final Connection connection;
+        final ReconnectHandler reconnectHandler;
+        final int MAX_RECONNECT_ATTEMPTS = 65535; // TODO: Let's keep this high for now and later allow configuration and a smaller default value
         try {
-            connection = this.createConnection();
-        } catch (Exception e) {
-            throw new RuntimeException("Could not create a connection for cluster node " + this.clusterNode + " in cluster " + this.clusterName);
-        }
-        return new RemotingConnectionEJBReceiver(connection);
-    }
+            // if the client configuration is available create the connection using those configs
+            if (this.ejbClientConfiguration != null) {
+                final URI connectionURI = new URI("remote://" + this.clusterNode.getDestinationAddress() + ":" + this.clusterNode.getDestinationPort());
+                final EJBClientConfiguration.ClusterConfiguration clusterConfiguration = this.ejbClientConfiguration.getClusterConfiguration(clusterContext.getClusterName());
+                if (clusterConfiguration == null) {
+                    // use default configurations
+                    final OptionMap connectionCreationOptions = OptionMap.EMPTY;
+                    final CallbackHandler callbackHandler = ejbClientConfiguration.getCallbackHandler();
+                    final IoFuture<Connection> futureConnection = endpoint.connect(connectionURI, connectionCreationOptions, callbackHandler);
+                    // wait for the connection to be established
+                    connection = IoFutureHelper.get(futureConnection, 5000, TimeUnit.MILLISECONDS);
+                    // create a re-connect handler (which will be used on connection breaking down)
+                    reconnectHandler = new ClusterContextConnectionReconnectHandler(clusterContext, endpoint, connectionURI, connectionCreationOptions, callbackHandler, MAX_RECONNECT_ATTEMPTS);
 
-    private Connection createConnection() throws IOException, URISyntaxException {
-        final URI connectionURI = new URI("remote://" + this.clusterNode.getDestinationAddress() + ":" + this.clusterNode.getDestinationPort());
-        if (this.ejbClientConfiguration != null) {
-            final EJBClientConfiguration.ClusterConfiguration clusterConfiguration = this.ejbClientConfiguration.getClusterConfiguration(this.clusterName);
-            if (clusterConfiguration == null) {
-                // use default configurations
-                final IoFuture<Connection> futureConnection = endpoint.connect(connectionURI, OptionMap.EMPTY, ejbClientConfiguration.getCallbackHandler());
-                // wait for the connection to be established
-                return IoFutureHelper.get(futureConnection, 5000, TimeUnit.MILLISECONDS);
+                } else {
+                    // use the specified configurations
+                    final OptionMap connectionCreationOptions = clusterConfiguration.getConnectionCreationOptions();
+                    final CallbackHandler callbackHandler = clusterConfiguration.getCallbackHandler();
+                    final IoFuture<Connection> futureConnection = endpoint.connect(connectionURI, connectionCreationOptions, callbackHandler);
+                    // wait for the connection to be established
+                    connection = IoFutureHelper.get(futureConnection, clusterConfiguration.getConnectionTimeout(), TimeUnit.MILLISECONDS);
+                    // create a re-connect handler (which will be used on connection breaking down)
+                    reconnectHandler = new ClusterContextConnectionReconnectHandler(clusterContext, endpoint, connectionURI, connectionCreationOptions, callbackHandler, MAX_RECONNECT_ATTEMPTS);
+                }
+
             } else {
-                // use the specified configurations
-                final IoFuture<Connection> futureConnection = endpoint.connect(connectionURI, clusterConfiguration.getConnectionCreationOptions(), clusterConfiguration.getCallbackHandler());
+                // create the connection using defaults
+                final URI connectionURI = new URI("remote://" + this.clusterNode.getDestinationAddress() + ":" + this.clusterNode.getDestinationPort());
+                // use default configurations
+                final OptionMap connectionCreationOptions = OptionMap.EMPTY;
+                final CallbackHandler callbackHandler = new AnonymousCallbackHandler();
+                final IoFuture<Connection> futureConnection = endpoint.connect(connectionURI, connectionCreationOptions, callbackHandler);
                 // wait for the connection to be established
-                return IoFutureHelper.get(futureConnection, clusterConfiguration.getConnectionTimeout(), TimeUnit.MILLISECONDS);
+                connection = IoFutureHelper.get(futureConnection, 5000, TimeUnit.MILLISECONDS);
+                // create a re-connect handler (which will be used on connection breaking down)
+                reconnectHandler = new ClusterContextConnectionReconnectHandler(clusterContext, endpoint, connectionURI, connectionCreationOptions, callbackHandler, MAX_RECONNECT_ATTEMPTS);
+
             }
-
+        } catch (Exception e) {
+            throw new RuntimeException("Could not create a connection for cluster node " + this.clusterNode + " in cluster " + clusterContext.getClusterName());
         }
-        return createConnectionUsingDefaults();
-    }
-
-    private Connection createConnectionUsingDefaults() throws IOException, URISyntaxException {
-        final URI connectionURI = new URI("remote://" + this.clusterNode.getDestinationAddress() + ":" + this.clusterNode.getDestinationPort());
-        // use default configurations
-        final IoFuture<Connection> futureConnection = endpoint.connect(connectionURI, OptionMap.EMPTY, new AnonymousCallbackHandler());
-        // wait for the connection to be established
-        return IoFutureHelper.get(futureConnection, 5000, TimeUnit.MILLISECONDS);
+        return new RemotingConnectionEJBReceiver(connection, reconnectHandler);
     }
 
     /**
