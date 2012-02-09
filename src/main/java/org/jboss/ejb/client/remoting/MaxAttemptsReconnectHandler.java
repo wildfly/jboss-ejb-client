@@ -41,21 +41,23 @@ abstract class MaxAttemptsReconnectHandler implements ReconnectHandler {
 
     private static final Logger logger = Logger.getLogger(MaxAttemptsReconnectHandler.class);
 
-    private final Endpoint endpoint;
-    private final URI connectionURI;
-    private final OptionMap connectionCreationOptions;
-    private final CallbackHandler callbackHandler;
-    private final int maxReconnectAttempts;
+    protected final Endpoint endpoint;
+    protected final URI connectionURI;
+    protected final OptionMap connectionCreationOptions;
+    protected final CallbackHandler callbackHandler;
+    protected final OptionMap channelCreationOptions;
+    protected final int maxReconnectAttempts;
 
-    private volatile int reconnectAttempts;
+    protected volatile int reconnectAttempts;
 
 
     MaxAttemptsReconnectHandler(final Endpoint endpoint, final URI uri, final OptionMap connectionCreationOptions,
-                                final CallbackHandler callbackHandler, final int maxReconnectAttempts) {
+                                final CallbackHandler callbackHandler, final OptionMap channelCreationOptions, final int maxReconnectAttempts) {
         this.endpoint = endpoint;
         this.connectionURI = uri;
         this.connectionCreationOptions = connectionCreationOptions;
         this.callbackHandler = callbackHandler;
+        this.channelCreationOptions = channelCreationOptions == null ? OptionMap.EMPTY : channelCreationOptions;
         this.maxReconnectAttempts = maxReconnectAttempts;
     }
 

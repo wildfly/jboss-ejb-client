@@ -43,8 +43,9 @@ class EJBClientContextConnectionReconnectHandler extends MaxAttemptsReconnectHan
 
     private final EJBClientContext ejbClientContext;
 
-    EJBClientContextConnectionReconnectHandler(final EJBClientContext clientContext, final Endpoint endpoint, final URI uri, final OptionMap connectionCreationOptions, final CallbackHandler callbackHandler, final int maxReconnectAttempts) {
-        super(endpoint, uri, connectionCreationOptions, callbackHandler, maxReconnectAttempts);
+    EJBClientContextConnectionReconnectHandler(final EJBClientContext clientContext, final Endpoint endpoint, final URI uri, final OptionMap connectionCreationOptions, final CallbackHandler callbackHandler, final OptionMap channelCreationOptions,
+                                               final int maxReconnectAttempts) {
+        super(endpoint, uri, connectionCreationOptions, callbackHandler, channelCreationOptions, maxReconnectAttempts);
         this.ejbClientContext = clientContext;
     }
 
@@ -56,7 +57,7 @@ class EJBClientContextConnectionReconnectHandler extends MaxAttemptsReconnectHan
             if (connection == null) {
                 return;
             }
-            final EJBReceiver ejbReceiver = new RemotingConnectionEJBReceiver(connection);
+            final EJBReceiver ejbReceiver = new RemotingConnectionEJBReceiver(connection, this, channelCreationOptions);
             this.ejbClientContext.registerEJBReceiver(ejbReceiver);
         } finally {
             // if we successfully re-connected or if no more attempts are allowed for re-connecting
