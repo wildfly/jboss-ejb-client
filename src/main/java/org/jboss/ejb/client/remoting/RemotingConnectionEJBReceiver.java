@@ -75,14 +75,28 @@ public final class RemotingConnectionEJBReceiver extends EJBReceiver {
 
     private final MarshallerFactory marshallerFactory;
 
+    private final ReconnectHandler reconnectHandler;
+
     /**
      * Construct a new instance.
      *
      * @param connection the connection to associate with
      */
     public RemotingConnectionEJBReceiver(final Connection connection) {
+        this(connection, null);
+    }
+
+
+    /**
+     * Construct a new instance.
+     *
+     * @param connection       the connection to associate with
+     * @param reconnectHandler The {@link ReconnectHandler} to use when the connection breaks
+     */
+    RemotingConnectionEJBReceiver(final Connection connection, final ReconnectHandler reconnectHandler) {
         super(connection.getRemoteEndpointName());
         this.connection = connection;
+        this.reconnectHandler = reconnectHandler;
 
         this.cachedToString = new StringBuffer("Remoting connection EJB receiver [connection=").append(this.connection)
                 .append(",channel=").append(EJB_CHANNEL_NAME).append(",nodename=").append(this.getNodeName())
@@ -137,7 +151,7 @@ public final class RemotingConnectionEJBReceiver extends EJBReceiver {
             successfulHandshake = versionHandshakeLatch.await(5, TimeUnit.SECONDS);
             if (successfulHandshake) {
                 final Channel compatibleChannel = versionReceiver.getCompatibleChannel();
-                final ChannelAssociation channelAssociation = new ChannelAssociation(this, context, compatibleChannel, this.clientProtocolVersion, this.marshallerFactory);
+                final ChannelAssociation channelAssociation = new ChannelAssociation(this, context, compatibleChannel, this.clientProtocolVersion, this.marshallerFactory, this.reconnectHandler);
                 synchronized (this.channelAssociations) {
                     this.channelAssociations.put(context, channelAssociation);
                 }
@@ -391,10 +405,13 @@ public final class RemotingConnectionEJBReceiver extends EJBReceiver {
         }
     }
 
-    void moduleAvailable(final EJBReceiverContext receiverContext, final String appName, final String moduleName, final String distinctName) {
-        logger.debug("Received module availability message for appName: " + appName + " moduleName: " + moduleName + " distinctName: " + distinctName + " for receiver context " + receiverContext);
-        this.registerModule(appName, moduleName, distinctName);
-        // notify of module availability if anyone's waiting on the latch
+    void modulesAvailable(final EJBReceiverContext receiverContext, final ModuleAvailabilityMessageHandler.EJBModuleIdentifier[] ejbModules) {
+        logger.debug("Received module availability report for " + ejbModules.length + " modules");
+        for (final ModuleAvailabilityMessageHandler.EJBModuleIdentifier moduleIdentifier : ejbModules) {
+            logger.debug("Registering module " + moduleIdentifier + " availability for receiver context " + receiverContext);
+            this.registerModule(moduleIdentifier.appName, moduleIdentifier.moduleName, moduleIdentifier.distinctName);
+        }
+        // notify of module availability report if anyone's waiting on the latch
         final CountDownLatch moduleAvailabilityReportLatch;
         synchronized (this.moduleAvailabilityReportLatches) {
             moduleAvailabilityReportLatch = this.moduleAvailabilityReportLatches.remove(receiverContext);
@@ -404,9 +421,12 @@ public final class RemotingConnectionEJBReceiver extends EJBReceiver {
         }
     }
 
-    void moduleUnavailable(final EJBReceiverContext receiverContext, final String appName, final String moduleName, final String distinctName) {
-        logger.debug("Received module un-availability message for appName: " + appName + " moduleName: " + moduleName + " distinctName: " + distinctName + " for receiver context " + receiverContext);
-        this.deregisterModule(appName, moduleName, distinctName);
+    void modulesUnavailable(final EJBReceiverContext receiverContext, final ModuleAvailabilityMessageHandler.EJBModuleIdentifier[] ejbModules) {
+        logger.debug("Received module un-availability report for " + ejbModules.length + " modules");
+        for (final ModuleAvailabilityMessageHandler.EJBModuleIdentifier moduleIdentifier : ejbModules) {
+            logger.debug("Un-registering module " + moduleIdentifier + " from receiver context " + receiverContext);
+            this.deregisterModule(moduleIdentifier.appName, moduleIdentifier.moduleName, moduleIdentifier.distinctName);
+        }
     }
 
     private ChannelAssociation requireChannelAssociation(final EJBReceiverContext ejbReceiverContext) {

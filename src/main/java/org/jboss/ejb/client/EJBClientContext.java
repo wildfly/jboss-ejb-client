@@ -23,6 +23,7 @@
 package org.jboss.ejb.client;
 
 import org.jboss.ejb.client.remoting.ConfigBasedEJBClientContextSelector;
+import org.jboss.ejb.client.remoting.ReconnectHandler;
 import org.jboss.ejb.client.remoting.RemotingConnectionEJBReceiver;
 import org.jboss.logging.Logger;
 import org.jboss.remoting3.Connection;
@@ -39,6 +40,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 
@@ -88,6 +91,9 @@ public final class EJBClientContext extends Attachable {
     private final EJBClientConfiguration ejbClientConfiguration;
 
     private final ClusterFormationNotifier clusterFormationNotifier = new ClusterFormationNotifier();
+
+    private final ExecutorService reconnectionExecutorService = Executors.newCachedThreadPool(new DaemonThreadFactory("ejb-client-remote-connection-reconnect"));
+    private final List<ReconnectHandler> reconnectHandlers = new ArrayList<ReconnectHandler>();
 
     private EJBClientContext(final EJBClientConfiguration ejbClientConfiguration) {
         this.ejbClientConfiguration = ejbClientConfiguration;
@@ -264,12 +270,13 @@ public final class EJBClientContext extends Attachable {
         final ReceiverAssociation association;
         synchronized (this.ejbReceiverAssociations) {
             if (this.ejbReceiverAssociations.containsKey(receiver)) {
+                logger.debug("Skipping registration of receiver " + receiver + " since the same instance already exists in this client context " + this);
                 // nothing to do
                 return false;
             }
             // see if we already have a receiver for the node name corresponding to the receiver
             // being registered
-            final EJBReceiver existingReceiverForNode = this.getNodeEJBReceiver(receiver.getNodeName());
+            final EJBReceiver existingReceiverForNode = this.getNodeEJBReceiver(receiver.getNodeName(), false);
             if (existingReceiverForNode != null) {
                 logger.debug("Skipping registration of receiver " + receiver + " since an EJB receiver already exists for " +
                         "node name " + receiver.getNodeName() + " in client context " + this);
@@ -391,6 +398,14 @@ public final class EJBClientContext extends Attachable {
         return this.ejbClientConfiguration;
     }
 
+    public void registerReconnectHandler(final ReconnectHandler reconnectHandler) {
+        this.reconnectHandlers.add(reconnectHandler);
+    }
+
+    public void unregisterReconnectHandler(final ReconnectHandler reconnectHandler) {
+        this.reconnectHandlers.remove(reconnectHandler);
+    }
+
     void removeInterceptor(final EJBClientInterceptor.Registration registration) {
         EJBClientInterceptor.Registration[] oldRegistrations, newRegistrations;
         do {
@@ -424,6 +439,11 @@ public final class EJBClientContext extends Attachable {
     }
 
     Collection<EJBReceiver> getEJBReceivers(final String appName, final String moduleName, final String distinctName) {
+        return this.getEJBReceivers(appName, moduleName, distinctName, true);
+    }
+
+    private Collection<EJBReceiver> getEJBReceivers(final String appName, final String moduleName, final String distinctName,
+                                                    final boolean attemptReconnect) {
         final Collection<EJBReceiver> eligibleEJBReceivers = new HashSet<EJBReceiver>();
         synchronized (this.ejbReceiverAssociations) {
             for (final Map.Entry<EJBReceiver, ReceiverAssociation> entry : this.ejbReceiverAssociations.entrySet()) {
@@ -434,6 +454,14 @@ public final class EJBClientContext extends Attachable {
                     }
                 }
             }
+        }
+        if (eligibleEJBReceivers.isEmpty() && attemptReconnect) {
+            // we found no receivers, so see if we there are re-connect handlers which can create possible
+            // receivers
+            this.attemptReconnections();
+            // now that the re-connect handlers have run, let's fetch the receivers (if any) for this app/module/distinct-name
+            // combination. We won't attempt any reconnections now.
+            eligibleEJBReceivers.addAll(this.getEJBReceivers(appName, moduleName, distinctName, false));
         }
         return eligibleEJBReceivers;
     }
@@ -515,9 +543,14 @@ public final class EJBClientContext extends Attachable {
     }
 
     EJBReceiver getNodeEJBReceiver(final String nodeName) {
+        return this.getNodeEJBReceiver(nodeName, true);
+    }
+
+    private EJBReceiver getNodeEJBReceiver(final String nodeName, final boolean attemptReconnect) {
         if (nodeName == null) {
             throw new IllegalArgumentException("Node name cannot be null");
         }
+
         synchronized (this.ejbReceiverAssociations) {
             for (final Map.Entry<EJBReceiver, ReceiverAssociation> entry : this.ejbReceiverAssociations.entrySet()) {
                 if (entry.getValue().associated) {
@@ -528,6 +561,15 @@ public final class EJBClientContext extends Attachable {
                 }
             }
         }
+        // no EJB receiver found for the node name, so let's see if there are re-connect handlers which can
+        // create the EJB receivers
+        if (attemptReconnect) {
+            this.attemptReconnections();
+            // now that re-connections have been attempted, let's fetch any EJB receiver for this node name.
+            // we won't try reconnecting again now
+            return this.getNodeEJBReceiver(nodeName, false);
+        }
+
         return null;
     }
 
@@ -550,11 +592,11 @@ public final class EJBClientContext extends Attachable {
      * @return
      */
     boolean clusterContains(final String clusterName, final String nodeName) {
-        final ClusterContext clusterManager = this.clusterContexts.get(clusterName);
-        if (clusterManager == null) {
+        final ClusterContext clusterContext = this.clusterContexts.get(clusterName);
+        if (clusterContext == null) {
             return false;
         }
-        return clusterManager.isNodeAvailable(nodeName);
+        return clusterContext.isNodeAvailable(nodeName);
     }
 
     /**
@@ -565,11 +607,24 @@ public final class EJBClientContext extends Attachable {
      * @return
      */
     EJBReceiverContext getClusterEJBReceiverContext(final String clusterName) throws IllegalArgumentException {
+        return this.getClusterEJBReceiverContext(clusterName, true);
+    }
+
+    private EJBReceiverContext getClusterEJBReceiverContext(final String clusterName, final boolean attemptReconnect) throws IllegalArgumentException {
         final ClusterContext clusterContext = this.clusterContexts.get(clusterName);
         if (clusterContext == null) {
             return null;
         }
-        return clusterContext.getEJBReceiverContext();
+        final EJBReceiverContext ejbReceiverContext = clusterContext.getEJBReceiverContext();
+        if (ejbReceiverContext == null && attemptReconnect) {
+            // no receiver context was found for the cluster. So let's see if there are any re-connect handlers
+            // which can generate the EJB receivers
+            this.attemptReconnections();
+            // now that we have attempted the re-connections, let's fetch any EJB receiver context for the cluster.
+            // we won't try re-connecting again now
+            return this.getClusterEJBReceiverContext(clusterName, false);
+        }
+        return ejbReceiverContext;
     }
 
     /**
@@ -595,7 +650,11 @@ public final class EJBClientContext extends Attachable {
                 throw new IllegalArgumentException("No cluster context (and as a result EJB receiver context) available for cluster named " + clusterName);
             }
         }
-        return clusterContext.requireEJBReceiverContext();
+        final EJBReceiverContext ejbReceiverContext = this.getClusterEJBReceiverContext(clusterName);
+        if (ejbReceiverContext == null) {
+            throw new IllegalStateException("No EJB receiver contexts available in cluster " + clusterName);
+        }
+        return ejbReceiverContext;
     }
 
     EJBClientInterceptor[] getInterceptorChain() {
@@ -606,22 +665,6 @@ public final class EJBClientContext extends Attachable {
             interceptors[i] = registrations[i].getInterceptor();
         }
         return interceptors;
-    }
-
-    /**
-     * Returns a {@link EJBReceiver} for the passed <code>clusterName</code>. If there's no such EJB receiver
-     * for the cluster name, then this method returns null.
-     *
-     * @param clusterName The name of the cluster
-     * @return
-     */
-    EJBReceiver getClusterEJBReceiver(final String clusterName) {
-        final ClusterContext clusterManager = this.clusterContexts.get(clusterName);
-        if (clusterManager == null) {
-            return null;
-        }
-        final EJBReceiverContext ejbReceiverContext = clusterManager.getEJBReceiverContext();
-        return ejbReceiverContext == null ? null : ejbReceiverContext.getReceiver();
     }
 
     /**
@@ -694,6 +737,25 @@ public final class EJBClientContext extends Attachable {
         } finally {
             // unregister from the cluster formation notification
             this.clusterFormationNotifier.unregisterFromClusterNotification(clusterName, clusterFormationLatch);
+        }
+    }
+
+    private synchronized void attemptReconnections() {
+        final CountDownLatch reconnectTasksCompletionNotifierLatch;
+        if (this.reconnectHandlers.isEmpty()) {
+            // no reconnections to attempt just return
+            return;
+        }
+        reconnectTasksCompletionNotifierLatch = new CountDownLatch(this.reconnectHandlers.size());
+        for (final ReconnectHandler reconnectHandler : this.reconnectHandlers) {
+            // submit each of the reconnection tasks
+            this.reconnectionExecutorService.submit(new ReconnectAttempt(reconnectHandler, reconnectTasksCompletionNotifierLatch));
+        }
+        // wait for all tasks to complete (with a upper bound on time limit)
+        try {
+            reconnectTasksCompletionNotifierLatch.await(10, TimeUnit.SECONDS);
+        } catch (InterruptedException e) {
+            // ignore
         }
     }
 
@@ -783,6 +845,28 @@ public final class EJBClientContext extends Attachable {
                     return;
                 }
                 listeners.remove(latch);
+            }
+        }
+    }
+
+    private class ReconnectAttempt implements Runnable {
+
+        private final ReconnectHandler reconnectHandler;
+        private final CountDownLatch taskCompletionNotifierLatch;
+
+        ReconnectAttempt(final ReconnectHandler reconnectHandler, final CountDownLatch taskCompletionNotifierLatch) {
+            this.reconnectHandler = reconnectHandler;
+            this.taskCompletionNotifierLatch = taskCompletionNotifierLatch;
+        }
+
+        @Override
+        public void run() {
+            try {
+                this.reconnectHandler.reconnect();
+            } catch (Exception e) {
+                logger.debug("Exception trying to re-establish a connection from EJB client context " + EJBClientContext.this, e);
+            } finally {
+                this.taskCompletionNotifierLatch.countDown();
             }
         }
     }

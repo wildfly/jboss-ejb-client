@@ -22,12 +22,12 @@
 
 package org.jboss.ejb.client.remoting;
 
+import org.jboss.ejb.client.EJBReceiverContext;
+import org.jboss.remoting3.MessageInputStream;
+
 import java.io.DataInput;
 import java.io.DataInputStream;
 import java.io.IOException;
-
-import org.jboss.ejb.client.EJBReceiverContext;
-import org.jboss.remoting3.MessageInputStream;
 
 /**
  * Responsible for parsing module availability and unavailability messages from a stream, as per the EJB remoting client
@@ -93,26 +93,22 @@ class ModuleAvailabilityMessageHandler extends ProtocolMessageHandler {
         }
         switch (this.type) {
             case MODULE_AVAILABLE:
-                for (final EJBModuleIdentifier ejbModule : ejbModules) {
-                    this.ejbReceiver.moduleAvailable(this.receiverContext, ejbModule.appName, ejbModule.moduleName, ejbModule.distinctName);
-                }
+                this.ejbReceiver.modulesAvailable(this.receiverContext, ejbModules);
                 break;
             case MODULE_UNAVAILABLE:
-                for (final EJBModuleIdentifier ejbModule : ejbModules) {
-                    this.ejbReceiver.moduleUnavailable(this.receiverContext, ejbModule.appName, ejbModule.moduleName, ejbModule.distinctName);
-                }
+                this.ejbReceiver.modulesUnavailable(this.receiverContext, ejbModules);
                 break;
         }
 
 
     }
 
-    private class EJBModuleIdentifier {
-        private final String appName;
+    class EJBModuleIdentifier {
+        final String appName;
 
-        private final String moduleName;
+        final String moduleName;
 
-        private final String distinctName;
+        final String distinctName;
 
         EJBModuleIdentifier(final String appname, final String moduleName, final String distinctName) {
             this.appName = appname;
@@ -141,6 +137,15 @@ class ModuleAvailabilityMessageHandler extends ProtocolMessageHandler {
             result = 31 * result + moduleName.hashCode();
             result = 31 * result + (distinctName != null ? distinctName.hashCode() : 0);
             return result;
+        }
+
+        @Override
+        public String toString() {
+            return "EJBModuleIdentifier{" +
+                    "appName='" + appName + '\'' +
+                    ", moduleName='" + moduleName + '\'' +
+                    ", distinctName='" + distinctName + '\'' +
+                    '}';
         }
     }
 }

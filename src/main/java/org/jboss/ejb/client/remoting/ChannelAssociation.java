@@ -22,6 +22,7 @@
 
 package org.jboss.ejb.client.remoting;
 
+import org.jboss.ejb.client.EJBClientContext;
 import org.jboss.ejb.client.EJBReceiverContext;
 import org.jboss.ejb.client.EJBReceiverInvocationContext;
 import org.jboss.logging.Logger;
@@ -65,9 +66,11 @@ class ChannelAssociation {
 
     private final AtomicInteger nextInvocationId = new AtomicInteger(0);
 
-    private Map<Short, EJBReceiverInvocationContext> waitingMethodInvocations = Collections.synchronizedMap(new HashMap<Short, EJBReceiverInvocationContext>());
+    private final Map<Short, EJBReceiverInvocationContext> waitingMethodInvocations = Collections.synchronizedMap(new HashMap<Short, EJBReceiverInvocationContext>());
 
-    private Map<Short, FutureResult<EJBReceiverInvocationContext.ResultProducer>> waitingFutureResults = Collections.synchronizedMap(new HashMap<Short, FutureResult<EJBReceiverInvocationContext.ResultProducer>>());
+    private final Map<Short, FutureResult<EJBReceiverInvocationContext.ResultProducer>> waitingFutureResults = Collections.synchronizedMap(new HashMap<Short, FutureResult<EJBReceiverInvocationContext.ResultProducer>>());
+
+    private final ReconnectHandler reconnectHandler;
 
     /**
      * Creates a channel association for the passed {@link EJBReceiverContext} and the {@link Channel}
@@ -77,14 +80,18 @@ class ChannelAssociation {
      * @param channel            The channel that will be used for remoting communication
      * @param protocolVersion    The protocol version
      * @param marshallerFactory  The marshalling factory
+     * @param reconnectHandler   The reconnect handler to use for broken connections/channels. Can be null.
      */
     ChannelAssociation(final RemotingConnectionEJBReceiver ejbReceiver, final EJBReceiverContext ejbReceiverContext,
-                       final Channel channel, final byte protocolVersion, final MarshallerFactory marshallerFactory) {
+                       final Channel channel, final byte protocolVersion, final MarshallerFactory marshallerFactory,
+                       final ReconnectHandler reconnectHandler) {
         this.ejbReceiver = ejbReceiver;
         this.ejbReceiverContext = ejbReceiverContext;
         this.channel = channel;
         this.protocolVersion = protocolVersion;
         this.marshallerFactory = marshallerFactory;
+        this.reconnectHandler = reconnectHandler;
+
         this.channel.addCloseHandler(new CloseHandler<Channel>() {
             @Override
             public void handleClose(Channel closed, IOException exception) {
@@ -268,6 +275,12 @@ class ChannelAssociation {
         } finally {
             // close the receiver context
             this.ejbReceiverContext.close();
+            // register a re-connect handler (if available) to the EJB client context
+            if (this.reconnectHandler != null) {
+                final EJBClientContext ejbClientContext = this.ejbReceiverContext.getClientContext();
+                logger.debug("Registering a re-connect handler " + this.reconnectHandler + " for broken channel " + this.channel + " in EJB client context " + ejbClientContext);
+                ejbClientContext.registerReconnectHandler(this.reconnectHandler);
+            }
         }
 
     }

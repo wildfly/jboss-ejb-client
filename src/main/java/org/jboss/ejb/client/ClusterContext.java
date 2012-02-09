@@ -31,8 +31,6 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.ThreadFactory;
-import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * A {@link ClusterContext} keeps track of a specific cluster and the {@link org.jboss.ejb.client.remoting.ClusterNode}s
@@ -44,7 +42,7 @@ public final class ClusterContext implements EJBClientContext.EJBReceiverContext
 
     private static final Logger logger = Logger.getLogger(ClusterContext.class);
 
-    private static final ExecutorService executorService = Executors.newCachedThreadPool(new DaemonThreadFactory());
+    private static final ExecutorService executorService = Executors.newCachedThreadPool(new DaemonThreadFactory("ejb-client-cluster-node-connection-creation"));
 
     private final String clusterName;
     private final EJBClientContext clientContext;
@@ -133,7 +131,7 @@ public final class ClusterContext implements EJBClientContext.EJBReceiverContext
             return null;
         }
         // register the receiver and let it create the receiver context
-        this.registerEJBReceiver(selectedNodeName, ejbReceiver);
+        this.registerEJBReceiver(ejbReceiver);
         // let the client context return the newly associated receiver context for the node name.
         // if it wasn't successfully associated (for example version handshake not completing)
         // then this will return null.
@@ -203,15 +201,15 @@ public final class ClusterContext implements EJBClientContext.EJBReceiverContext
     }
 
     /**
-     * Register a {@link EJBReceiver} for the <code>nodeName</code>, with this cluster context
+     * Register a {@link EJBReceiver} with this cluster context
      *
-     * @param nodeName The node name
      * @param receiver The EJB receiver for that node
      */
-    public void registerEJBReceiver(final String nodeName, final EJBReceiver receiver) {
+    public void registerEJBReceiver(final EJBReceiver receiver) {
         if (receiver == null) {
             throw new IllegalArgumentException("receiver is null");
         }
+        final String nodeName = receiver.getNodeName();
         if (this.connectedNodes.contains(nodeName)) {
             // nothing to do
             return;
@@ -285,34 +283,8 @@ public final class ClusterContext implements EJBClientContext.EJBReceiverContext
                 return;
             }
             // associate the receiver with the cluster context
-            this.clusterContext.registerEJBReceiver(this.nodeName, ejbReceiver);
+            this.clusterContext.registerEJBReceiver(ejbReceiver);
         }
     }
 
-    /**
-     * A thread factory which creates daemon threads which will be used for
-     * creating connections to cluster nodes
-     */
-    private static class DaemonThreadFactory implements ThreadFactory {
-
-        private static final AtomicInteger poolNumber = new AtomicInteger(1);
-        private final ThreadGroup group;
-        private final AtomicInteger threadNumber = new AtomicInteger(1);
-        private final String namePrefix;
-
-        DaemonThreadFactory() {
-            SecurityManager s = System.getSecurityManager();
-            group = (s != null) ? s.getThreadGroup() :
-                    Thread.currentThread().getThreadGroup();
-            namePrefix = "ejb-client-cluster-node-connection-creation-" +
-                    poolNumber.getAndIncrement() +
-                    "-thread-";
-        }
-
-        public Thread newThread(Runnable r) {
-            Thread t = new Thread(group, r, namePrefix + threadNumber.getAndIncrement(), 0);
-            t.setDaemon(true);
-            return t;
-        }
-    }
 }
