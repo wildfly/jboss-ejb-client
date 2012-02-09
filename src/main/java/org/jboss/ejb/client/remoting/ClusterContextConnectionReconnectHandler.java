@@ -48,8 +48,8 @@ class ClusterContextConnectionReconnectHandler extends MaxAttemptsReconnectHandl
 
     ClusterContextConnectionReconnectHandler(final ClusterContext clusterContext, final Endpoint endpoint, final URI uri,
                                              final OptionMap connectionCreationOptions, final CallbackHandler callbackHandler,
-                                             final int maxReconnectAttempts) {
-        super(endpoint, uri, connectionCreationOptions, callbackHandler, maxReconnectAttempts);
+                                             final OptionMap channelCreationOptions, final int maxReconnectAttempts) {
+        super(endpoint, uri, connectionCreationOptions, callbackHandler, channelCreationOptions, maxReconnectAttempts);
         this.clusterContext = clusterContext;
     }
 
@@ -61,7 +61,7 @@ class ClusterContextConnectionReconnectHandler extends MaxAttemptsReconnectHandl
             if (connection == null) {
                 return;
             }
-            final EJBReceiver ejbReceiver = new RemotingConnectionEJBReceiver(connection);
+            final EJBReceiver ejbReceiver = new RemotingConnectionEJBReceiver(connection, this, channelCreationOptions);
             this.clusterContext.registerEJBReceiver(ejbReceiver);
         } finally {
             // if we successfully re-connected or if no more attempts are allowed for re-connecting

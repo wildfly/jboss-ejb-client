@@ -22,14 +22,6 @@
 
 package org.jboss.ejb.client.remoting;
 
-import java.io.Closeable;
-import java.io.IOException;
-import java.net.URI;
-import java.util.ArrayList;
-import java.util.Iterator;
-import java.util.List;
-import java.util.concurrent.TimeUnit;
-
 import org.jboss.ejb.client.ContextSelector;
 import org.jboss.ejb.client.EJBClientConfiguration;
 import org.jboss.ejb.client.EJBClientContext;
@@ -43,9 +35,12 @@ import org.xnio.IoFuture;
 import org.xnio.OptionMap;
 
 import javax.security.auth.callback.CallbackHandler;
+import java.io.Closeable;
 import java.io.IOException;
 import java.net.URI;
+import java.util.ArrayList;
 import java.util.Iterator;
+import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -120,7 +115,7 @@ public class ConfigBasedEJBClientContextSelector implements ContextSelector<EJBC
                 connections.add(connection);
                 // create a re-connect handler (which will be used on connection breaking down)
                 final int MAX_RECONNECT_ATTEMPTS = 65535; // TODO: Let's keep this high for now and later allow configuration and a smaller default value
-                final ReconnectHandler reconnectHandler = new EJBClientContextConnectionReconnectHandler(ejbClientContext, endpoint, connectionURI, connectionCreationOptions, callbackHandler, MAX_RECONNECT_ATTEMPTS);
+                final ReconnectHandler reconnectHandler = new EJBClientContextConnectionReconnectHandler(ejbClientContext, endpoint, connectionURI, connectionCreationOptions, callbackHandler, connectionConfiguration.getChannelCreationOptions(), MAX_RECONNECT_ATTEMPTS);
                 // create a remoting EJB receiver for this connection
                 final EJBReceiver remotingEJBReceiver = new RemotingConnectionEJBReceiver(connection, reconnectHandler, connectionConfiguration.getChannelCreationOptions());
                 // associate it with the client context
@@ -136,7 +131,7 @@ public class ConfigBasedEJBClientContextSelector implements ContextSelector<EJBC
         Runtime.getRuntime().addShutdownHook(new Thread(new Runnable() {
             @Override
             public void run() {
-                for(final Connection connection : connections) {
+                for (final Connection connection : connections) {
                     safeClose(connection);
                 }
                 safeClose(endpoint);
