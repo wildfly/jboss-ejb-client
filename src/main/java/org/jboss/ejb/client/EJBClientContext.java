@@ -407,7 +407,9 @@ public final class EJBClientContext extends Attachable {
         if (reconnectHandler == null) {
             throw new IllegalArgumentException("Reconnect handler cannot be null");
         }
-        this.reconnectHandlers.add(reconnectHandler);
+        synchronized (this.reconnectHandlers) {
+            this.reconnectHandlers.add(reconnectHandler);
+        }
     }
 
     /**
@@ -416,7 +418,9 @@ public final class EJBClientContext extends Attachable {
      * @param reconnectHandler The reconnect handler to unregister
      */
     public void unregisterReconnectHandler(final ReconnectHandler reconnectHandler) {
-        this.reconnectHandlers.remove(reconnectHandler);
+        synchronized (this.reconnectHandlers) {
+            this.reconnectHandlers.remove(reconnectHandler);
+        }
     }
 
     void removeInterceptor(final EJBClientInterceptor.Registration registration) {

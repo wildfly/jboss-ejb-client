@@ -59,14 +59,18 @@ class AutoConnectionCloser implements Runnable {
         if (endpoint == null) {
             return;
         }
-        this.endpoints.add(endpoint);
+        synchronized (this.endpoints) {
+            this.endpoints.add(endpoint);
+        }
     }
 
     void addConnection(final Connection connection) {
         if (connection == null) {
             return;
         }
-        this.connections.add(connection);
+        synchronized (this.connections) {
+            this.connections.add(connection);
+        }
     }
 
     void closeAll() {
