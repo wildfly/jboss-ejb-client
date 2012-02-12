@@ -22,9 +22,10 @@
 
 package org.jboss.ejb.client;
 
+import org.jboss.marshalling.FieldSetter;
+
 import java.io.IOException;
 import java.io.ObjectInputStream;
-import org.jboss.marshalling.FieldSetter;
 
 /**
  * A locator for a stateful session EJB.
@@ -37,26 +38,55 @@ public final class StatefulEJBLocator<T> extends EJBLocator<T> {
 
     private final SessionID sessionId;
     private final transient int hashCode;
-
+    private final String sessionOwnerNode;
     private static final FieldSetter hashCodeSetter = FieldSetter.get(StatefulEJBLocator.class, "hashCode");
 
     /**
      * Construct a new instance.
      *
-     * @param viewType the view type
-     * @param appName the application name
-     * @param moduleName the module name
-     * @param beanName the bean name
+     * @param viewType     the view type
+     * @param appName      the application name
+     * @param moduleName   the module name
+     * @param beanName     the bean name
      * @param distinctName the distinct name
-     * @param sessionId the stateful session ID
-     * @param affinity The {@link Affinity} for this stateful bean locator
+     * @param sessionId    the stateful session ID
+     * @param affinity     The {@link Affinity} for this stateful bean locator
+     * @deprecated Since 1.0.2. Use {@link #StatefulEJBLocator(Class, String, String, String, String, SessionID, Affinity, String)} instead
      */
+    @Deprecated
     public StatefulEJBLocator(final Class<T> viewType, final String appName, final String moduleName, final String beanName, final String distinctName, final SessionID sessionId, final Affinity affinity) {
         super(viewType, appName, moduleName, beanName, distinctName, affinity);
         if (sessionId == null) {
             throw new IllegalArgumentException("sessionId is null");
         }
         this.sessionId = sessionId;
+        this.sessionOwnerNode = null;
+        hashCode = sessionId.hashCode() * 13 + super.hashCode();
+    }
+
+    /**
+     * Constructs a {@link StatefulEJBLocator}
+     *
+     * @param viewType         the view type
+     * @param appName          the application name
+     * @param moduleName       the module name
+     * @param beanName         the bean name
+     * @param distinctName     the distinct name
+     * @param sessionId        the stateful session ID
+     * @param affinity         The {@link Affinity} for this stateful bean locator
+     * @param sessionOwnerNode The name of the node on which the sessionId was generated
+     */
+    public StatefulEJBLocator(final Class<T> viewType, final String appName, final String moduleName, final String beanName, final String distinctName, final SessionID sessionId, final Affinity affinity,
+                              final String sessionOwnerNode) {
+        super(viewType, appName, moduleName, beanName, distinctName, affinity);
+        if (sessionId == null) {
+            throw new IllegalArgumentException("sessionId is null");
+        }
+        if (sessionOwnerNode == null || sessionOwnerNode.trim().isEmpty()) {
+            throw new IllegalArgumentException("Session owner node cannot be null or empty");
+        }
+        this.sessionId = sessionId;
+        this.sessionOwnerNode = sessionOwnerNode;
         hashCode = sessionId.hashCode() * 13 + super.hashCode();
     }
 
@@ -85,7 +115,7 @@ public final class StatefulEJBLocator<T> extends EJBLocator<T> {
      * @return {@code true} if they are equal, {@code false} otherwise
      */
     public boolean equals(final Object other) {
-        return other instanceof StatefulEJBLocator && equals((StatefulEJBLocator<?>)other);
+        return other instanceof StatefulEJBLocator && equals((StatefulEJBLocator<?>) other);
     }
 
     /**
@@ -95,7 +125,7 @@ public final class StatefulEJBLocator<T> extends EJBLocator<T> {
      * @return {@code true} if they are equal, {@code false} otherwise
      */
     public boolean equals(final EJBLocator<?> other) {
-        return other instanceof StatefulEJBLocator && equals((StatefulEJBLocator<?>)other);
+        return other instanceof StatefulEJBLocator && equals((StatefulEJBLocator<?>) other);
     }
 
     /**
@@ -108,20 +138,31 @@ public final class StatefulEJBLocator<T> extends EJBLocator<T> {
         return super.equals(other) && sessionId.equals(other.sessionId);
     }
 
+    /**
+     * Returns the name of the node on which the session was created for the stateful EJB represented by this
+     * {@link StatefulEJBLocator}
+     *
+     * @return
+     */
+    String getSessionOwnerNode() {
+        return this.sessionOwnerNode;
+    }
+
     private void readObject(ObjectInputStream ois) throws ClassNotFoundException, IOException {
         ois.defaultReadObject();
         hashCodeSetter.setInt(this, sessionId.hashCode() * 13 + super.hashCode());
     }
 
-        @Override
+
+    @Override
     public String toString() {
         return "StatefulEJBLocator{" +
                 "appName='" + getAppName() + '\'' +
                 ", moduleName='" + getModuleName() + '\'' +
                 ", distinctName='" + getDistinctName() + '\'' +
                 ", beanName='" + getBeanName() + '\'' +
-                ", view='" + getViewType() +'\'' +
-                ", sessionId='" + getSessionId() +'\'' +
+                ", view='" + getViewType() + '\'' +
+                ", sessionId='" + getSessionId() + '\'' +
                 '}';
     }
 }
