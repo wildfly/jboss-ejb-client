@@ -78,12 +78,26 @@ final class EJBInvocationHandler<T> extends Attachable implements InvocationHand
         }
         this.locator = locator;
         async = false;
+        if (locator instanceof StatefulEJBLocator) {
+            // set the weak affinity to the node on which the session was created
+            final String sessionOwnerNode = ((StatefulEJBLocator) locator).getSessionOwnerNode();
+            if (sessionOwnerNode != null) {
+                this.setWeakAffinity(new NodeAffinity(sessionOwnerNode));
+            }
+        }
     }
 
     EJBInvocationHandler(final EJBInvocationHandler<T> other) {
         super(other);
         locator = other.locator;
         async = true;
+        if (locator instanceof StatefulEJBLocator) {
+            // set the weak affinity to the node on which the session was created
+            final String sessionOwnerNode = ((StatefulEJBLocator) locator).getSessionOwnerNode();
+            if (sessionOwnerNode != null) {
+                this.setWeakAffinity(new NodeAffinity(sessionOwnerNode));
+            }
+        }
     }
 
     public Object invoke(final Object proxy, final Method method, final Object[] args) throws Throwable {

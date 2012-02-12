@@ -240,7 +240,7 @@ public final class RemotingConnectionEJBReceiver extends EJBReceiver {
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
-        return new StatefulEJBLocator<T>(viewType, appName, moduleName, beanName, distinctName, sessionOpenResponse.getSessionID(), sessionOpenResponse.getAffinity());
+        return new StatefulEJBLocator<T>(viewType, appName, moduleName, beanName, distinctName, sessionOpenResponse.getSessionID(), sessionOpenResponse.getAffinity(), this.getNodeName());
     }
 
     @Override
