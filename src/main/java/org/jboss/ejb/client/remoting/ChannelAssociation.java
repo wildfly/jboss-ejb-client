@@ -30,6 +30,8 @@ import org.jboss.marshalling.MarshallerFactory;
 import org.jboss.remoting3.Channel;
 import org.jboss.remoting3.CloseHandler;
 import org.jboss.remoting3.MessageInputStream;
+import org.jboss.remoting3.MessageOutputStream;
+import org.jboss.remoting3.RemotingOptions;
 import org.xnio.FutureResult;
 
 import java.io.IOException;
@@ -38,6 +40,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.Future;
+import java.util.concurrent.Semaphore;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
@@ -72,6 +75,10 @@ class ChannelAssociation {
 
     private final ReconnectHandler reconnectHandler;
 
+    // A semaphore which will be used to acquire a lock while writing out to a channel
+    // to make sure that only a limited number of simultaneous writes are allowed
+    private final Semaphore channelWriteSemaphore;
+
     /**
      * Creates a channel association for the passed {@link EJBReceiverContext} and the {@link Channel}
      *
@@ -103,6 +110,13 @@ class ChannelAssociation {
         });
         // register a receiver for receiving messages on the channel
         this.channel.receiveMessage(new ResponseReceiver());
+
+        // write semaphore
+        Integer maxOutboundWrites = this.channel.getOption(RemotingOptions.MAX_OUTBOUND_MESSAGES);
+        if (maxOutboundWrites == null) {
+            maxOutboundWrites = 80;
+        }
+        this.channelWriteSemaphore = new Semaphore(maxOutboundWrites, true);
     }
 
     /**
@@ -204,6 +218,41 @@ class ChannelAssociation {
 
     EJBReceiverInvocationContext getEJBReceiverInvocationContext(short invocationId) {
         return this.waitingMethodInvocations.get(invocationId);
+    }
+
+    /**
+     * Opens and returns a new {@link MessageOutputStream} for the {@link Channel} represented
+     * by this {@link ChannelAssociation}. Before opening the message outputstream, this method acquires a permit
+     * to make sure only a limited number of simultaneous writes are allowed on the channel. The permit acquistion
+     * is a blocking wait.
+     *
+     * @return
+     * @throws Exception
+     */
+    MessageOutputStream acquireChannelMessageOutputStream() throws Exception {
+        this.channelWriteSemaphore.acquire();
+        try {
+            return this.channel.writeMessage();
+        } catch (Exception e) {
+            // release
+            this.channelWriteSemaphore.release();
+            throw e;
+        }
+    }
+
+    /**
+     * Releases a previously held permit/lock on a message outputstream of a channel and also closes
+     * the <code>messageOutputStream</code>
+     *
+     * @param messageOutputStream The message outputstream
+     * @throws IOException
+     */
+    void releaseChannelMessageOutputStream(final MessageOutputStream messageOutputStream) throws IOException {
+        try {
+            messageOutputStream.close();
+        } finally {
+            this.channelWriteSemaphore.release();
+        }
     }
 
     /**

@@ -34,6 +34,7 @@ import org.jboss.marshalling.Marshalling;
 import org.jboss.remoting3.Channel;
 import org.jboss.remoting3.CloseHandler;
 import org.jboss.remoting3.Connection;
+import org.jboss.remoting3.MessageOutputStream;
 import org.xnio.IoFuture;
 import org.xnio.OptionMap;
 
@@ -188,15 +189,15 @@ public final class RemotingConnectionEJBReceiver extends EJBReceiver {
     @Override
     public void processInvocation(final EJBClientInvocationContext clientInvocationContext, final EJBReceiverInvocationContext ejbReceiverInvocationContext) throws Exception {
         final ChannelAssociation channelAssociation = this.requireChannelAssociation(ejbReceiverInvocationContext.getEjbReceiverContext());
-        final Channel channel = channelAssociation.getChannel();
         final MethodInvocationMessageWriter messageWriter = new MethodInvocationMessageWriter(this.clientProtocolVersion, this.marshallerFactory);
-        final DataOutputStream dataOutputStream = new DataOutputStream(channel.writeMessage());
+        final MessageOutputStream messageOutputStream = channelAssociation.acquireChannelMessageOutputStream();
+        final DataOutputStream dataOutputStream = new DataOutputStream(messageOutputStream);
         final short invocationId = channelAssociation.getNextInvocationId();
         channelAssociation.receiveResponse(invocationId, ejbReceiverInvocationContext);
-
         try {
             messageWriter.writeMessage(dataOutputStream, invocationId, clientInvocationContext);
         } finally {
+            channelAssociation.releaseChannelMessageOutputStream(messageOutputStream);
             dataOutputStream.close();
         }
     }
@@ -204,12 +205,13 @@ public final class RemotingConnectionEJBReceiver extends EJBReceiver {
     @Override
     protected <T> StatefulEJBLocator<T> openSession(final EJBReceiverContext receiverContext, final Class<T> viewType, final String appName, final String moduleName, final String distinctName, final String beanName) throws IllegalArgumentException {
         final ChannelAssociation channelAssociation = this.requireChannelAssociation(receiverContext);
-        final Channel channel = channelAssociation.getChannel();
         final SessionOpenRequestWriter sessionOpenRequestWriter = new SessionOpenRequestWriter(this.clientProtocolVersion);
         final DataOutputStream dataOutputStream;
+        final MessageOutputStream messageOutputStream;
         try {
-            dataOutputStream = new DataOutputStream(channel.writeMessage());
-        } catch (IOException ioe) {
+            messageOutputStream = channelAssociation.acquireChannelMessageOutputStream();
+            dataOutputStream = new DataOutputStream(messageOutputStream);
+        } catch (Exception ioe) {
             throw new RuntimeException(ioe);
         }
         final short invocationId = channelAssociation.getNextInvocationId();
@@ -220,6 +222,7 @@ public final class RemotingConnectionEJBReceiver extends EJBReceiver {
             throw new RuntimeException(ioe);
         } finally {
             try {
+                channelAssociation.releaseChannelMessageOutputStream(messageOutputStream);
                 dataOutputStream.close();
             } catch (IOException ioe) {
                 throw new RuntimeException(ioe);
@@ -254,19 +257,22 @@ public final class RemotingConnectionEJBReceiver extends EJBReceiver {
     protected void sendCommit(final EJBReceiverContext receiverContext, final TransactionID transactionID, final boolean onePhase) throws XAException {
         final ChannelAssociation channelAssociation = this.requireChannelAssociation(receiverContext);
         final short invocationId = channelAssociation.getNextInvocationId();
-        final Channel channel = channelAssociation.getChannel();
+        final MessageOutputStream messageOutputStream;
+
         final Future<EJBReceiverInvocationContext.ResultProducer> futureResultProducer = channelAssociation.enrollForResult(invocationId);
         try {
-            final DataOutputStream dataOutputStream = new DataOutputStream(channel.writeMessage());
+            messageOutputStream = channelAssociation.acquireChannelMessageOutputStream();
+            final DataOutputStream dataOutputStream = new DataOutputStream(messageOutputStream);
             final TransactionMessageWriter transactionMessageWriter = new TransactionMessageWriter();
             try {
                 // write the tx commit message
                 transactionMessageWriter.writeTxCommit(dataOutputStream, invocationId, transactionID, onePhase);
             } finally {
+                channelAssociation.releaseChannelMessageOutputStream(messageOutputStream);
                 dataOutputStream.close();
             }
-        } catch (IOException ioe) {
-            throw new RuntimeException("Error sending transaction commit message", ioe);
+        } catch (Exception e) {
+            throw new RuntimeException("Error sending transaction commit message", e);
         }
         try {
             // wait for the result
@@ -285,19 +291,21 @@ public final class RemotingConnectionEJBReceiver extends EJBReceiver {
     protected void sendRollback(EJBReceiverContext receiverContext, TransactionID transactionID) throws XAException {
         final ChannelAssociation channelAssociation = this.requireChannelAssociation(receiverContext);
         final short invocationId = channelAssociation.getNextInvocationId();
-        final Channel channel = channelAssociation.getChannel();
         final Future<EJBReceiverInvocationContext.ResultProducer> futureResultProducer = channelAssociation.enrollForResult(invocationId);
+        final MessageOutputStream messageOutputStream;
         try {
-            final DataOutputStream dataOutputStream = new DataOutputStream(channel.writeMessage());
+            messageOutputStream = channelAssociation.acquireChannelMessageOutputStream();
+            final DataOutputStream dataOutputStream = new DataOutputStream(messageOutputStream);
             final TransactionMessageWriter transactionMessageWriter = new TransactionMessageWriter();
             try {
                 // write the tx rollback message
                 transactionMessageWriter.writeTxRollback(dataOutputStream, invocationId, transactionID);
             } finally {
+                channelAssociation.releaseChannelMessageOutputStream(messageOutputStream);
                 dataOutputStream.close();
             }
-        } catch (IOException ioe) {
-            throw new RuntimeException("Error sending transaction rollback message", ioe);
+        } catch (Exception e) {
+            throw new RuntimeException("Error sending transaction rollback message", e);
         }
         try {
             // wait for the result
@@ -316,19 +324,21 @@ public final class RemotingConnectionEJBReceiver extends EJBReceiver {
     protected int sendPrepare(final EJBReceiverContext receiverContext, final TransactionID transactionID) throws XAException {
         final ChannelAssociation channelAssociation = this.requireChannelAssociation(receiverContext);
         final short invocationId = channelAssociation.getNextInvocationId();
-        final Channel channel = channelAssociation.getChannel();
         final Future<EJBReceiverInvocationContext.ResultProducer> futureResultProducer = channelAssociation.enrollForResult(invocationId);
+        final MessageOutputStream messageOutputStream;
         try {
-            final DataOutputStream dataOutputStream = new DataOutputStream(channel.writeMessage());
+            messageOutputStream = channelAssociation.acquireChannelMessageOutputStream();
+            final DataOutputStream dataOutputStream = new DataOutputStream(messageOutputStream);
             final TransactionMessageWriter transactionMessageWriter = new TransactionMessageWriter();
             try {
                 // write the tx prepare message
                 transactionMessageWriter.writeTxPrepare(dataOutputStream, invocationId, transactionID);
             } finally {
+                channelAssociation.releaseChannelMessageOutputStream(messageOutputStream);
                 dataOutputStream.close();
             }
-        } catch (IOException ioe) {
-            throw new RuntimeException("Error sending transaction prepare message", ioe);
+        } catch (Exception e) {
+            throw new RuntimeException("Error sending transaction prepare message", e);
         }
         try {
             // wait for result
@@ -351,19 +361,21 @@ public final class RemotingConnectionEJBReceiver extends EJBReceiver {
     protected void sendForget(final EJBReceiverContext receiverContext, final TransactionID transactionID) throws XAException {
         final ChannelAssociation channelAssociation = this.requireChannelAssociation(receiverContext);
         final short invocationId = channelAssociation.getNextInvocationId();
-        final Channel channel = channelAssociation.getChannel();
         final Future<EJBReceiverInvocationContext.ResultProducer> futureResultProducer = channelAssociation.enrollForResult(invocationId);
+        final MessageOutputStream messageOutputStream;
         try {
-            final DataOutputStream dataOutputStream = new DataOutputStream(channel.writeMessage());
+            messageOutputStream = channelAssociation.acquireChannelMessageOutputStream();
+            final DataOutputStream dataOutputStream = new DataOutputStream(messageOutputStream);
             final TransactionMessageWriter transactionMessageWriter = new TransactionMessageWriter();
             try {
                 // write the tx forget message
                 transactionMessageWriter.writeTxForget(dataOutputStream, invocationId, transactionID);
             } finally {
+                channelAssociation.releaseChannelMessageOutputStream(messageOutputStream);
                 dataOutputStream.close();
             }
-        } catch (IOException ioe) {
-            throw new RuntimeException("Error sending transaction forget message", ioe);
+        } catch (Exception e) {
+            throw new RuntimeException("Error sending transaction forget message", e);
         }
         try {
             // wait for result
@@ -382,19 +394,21 @@ public final class RemotingConnectionEJBReceiver extends EJBReceiver {
     protected void beforeCompletion(final EJBReceiverContext receiverContext, final TransactionID transactionID) {
         final ChannelAssociation channelAssociation = this.requireChannelAssociation(receiverContext);
         final short invocationId = channelAssociation.getNextInvocationId();
-        final Channel channel = channelAssociation.getChannel();
         final Future<EJBReceiverInvocationContext.ResultProducer> futureResultProducer = channelAssociation.enrollForResult(invocationId);
+        final MessageOutputStream messageOutputStream;
         try {
-            final DataOutputStream dataOutputStream = new DataOutputStream(channel.writeMessage());
+            messageOutputStream = channelAssociation.acquireChannelMessageOutputStream();
+            final DataOutputStream dataOutputStream = new DataOutputStream(messageOutputStream);
             final TransactionMessageWriter transactionMessageWriter = new TransactionMessageWriter();
             try {
                 // write the beforeCompletion message
                 transactionMessageWriter.writeTxBeforeCompletion(dataOutputStream, invocationId, transactionID);
             } finally {
+                channelAssociation.releaseChannelMessageOutputStream(messageOutputStream);
                 dataOutputStream.close();
             }
-        } catch (IOException ioe) {
-            throw new RuntimeException("Error sending transaction beforeCompletion message", ioe);
+        } catch (Exception e) {
+            throw new RuntimeException("Error sending transaction beforeCompletion message", e);
         }
         try {
             // wait for result
@@ -446,4 +460,5 @@ public final class RemotingConnectionEJBReceiver extends EJBReceiver {
     public String toString() {
         return this.cachedToString;
     }
+
 }
