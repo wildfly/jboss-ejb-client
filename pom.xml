@@ -45,7 +45,8 @@
         <version.org.jboss.marshalling>1.3.0.GA</version.org.jboss.marshalling>
         <version.org.jboss.remoting3>3.2.1.GA</version.org.jboss.remoting3>
         <version.org.jboss.sasl>1.0.0.Final</version.org.jboss.sasl>
-        <version.org.jboss.spec.javax.ejb>1.0.0.Final</version.org.jboss.spec.javax.ejb>
+        <version.org.jboss.spec.javax.ejb>1.0.1.Final</version.org.jboss.spec.javax.ejb>
+        <version.org.jboss.spec.javax.transaction>1.0.0.Final</version.org.jboss.spec.javax.transaction>
         <version.org.jboss.xnio>3.0.0.GA</version.org.jboss.xnio>
     </properties>
 
@@ -160,6 +161,13 @@
             <groupId>org.jboss.spec.javax.ejb</groupId>
             <artifactId>jboss-ejb-api_3.1_spec</artifactId>
             <version>${version.org.jboss.spec.javax.ejb}</version>
+            <scope>provided</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>org.jboss.spec.javax.transaction</groupId>
+            <artifactId>jboss-transaction-api_1.1_spec</artifactId>
+            <version>${version.org.jboss.spec.javax.transaction}</version>
             <scope>provided</scope>
         </dependency>
 
