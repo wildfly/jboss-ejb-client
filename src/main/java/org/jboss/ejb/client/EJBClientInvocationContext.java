@@ -350,7 +350,7 @@ public final class EJBClientInvocationContext extends Attachable {
         synchronized (lock) {
             if (asyncState != AsyncState.ONE_WAY) {
                 asyncState = AsyncState.ONE_WAY;
-                notifyAll();
+                lock.notifyAll();
             }
             if (state != State.DONE) {
                 return;
@@ -358,7 +358,7 @@ public final class EJBClientInvocationContext extends Attachable {
             // result is waiting, discard it
             state = State.DISCARDED;
             resultProducer = this.resultProducer;
-            notifyAll();
+            lock.notifyAll();
             // fall out of the lock to discard the result
         }
         resultProducer.discardResult();
@@ -371,7 +371,7 @@ public final class EJBClientInvocationContext extends Attachable {
                 case WAITING:
                 case CANCEL_REQ: {
                     state = State.CANCELLED;
-                    notifyAll();
+                    lock.notifyAll();
                     break;
                 }
             }
@@ -386,7 +386,7 @@ public final class EJBClientInvocationContext extends Attachable {
                 case CANCEL_REQ: {
                     state = State.FAILED;
                     cachedResult = exception;
-                    notifyAll();
+                    lock.notifyAll();
                     break;
                 }
             }
@@ -499,7 +499,7 @@ public final class EJBClientInvocationContext extends Attachable {
                         }
                         // wait at least 1ms
                         long millis = (remaining + 999999L) / 1000000L;
-                        wait(millis);
+                        lock.wait(millis);
                         now = System.nanoTime();
                     } while (state == State.WAITING || state == State.CANCEL_REQ || state == State.CONSUMING);
                 }
