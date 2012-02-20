@@ -104,8 +104,11 @@ class ChannelAssociation {
             public void handleClose(Channel closed, IOException exception) {
                 logger.debug("Closing channel " + closed, exception);
                 // notify about the broken channel and do the necessary cleanups
-                ChannelAssociation.this.notifyBrokenChannel(exception);
-
+                if (exception != null) {
+                    ChannelAssociation.this.notifyBrokenChannel(exception);
+                } else {
+                    ChannelAssociation.this.notifyBrokenChannel(new IOException("Channel " + closed + " has been closed"));
+                }
             }
         });
         // register a receiver for receiving messages on the channel
@@ -303,6 +306,9 @@ class ChannelAssociation {
     }
 
     private void notifyBrokenChannel(final IOException ioException) {
+        if (ioException == null) {
+            throw new IllegalArgumentException("Exception cannot be null");
+        }
         try {
             final EJBReceiverInvocationContext.ResultProducer unusableChannelResultProducer = new UnusableChannelResultProducer(ioException);
             // notify waiting method invocations
@@ -350,7 +356,11 @@ class ChannelAssociation {
                 // couldn't properly close, so let's do the cleanup that the CloseHandler was expected to do
 
                 // notify about the broken channel and do the necessary cleanups
-                ChannelAssociation.this.notifyBrokenChannel(error);
+                if (error != null) {
+                    ChannelAssociation.this.notifyBrokenChannel(error);
+                } else {
+                    ChannelAssociation.this.notifyBrokenChannel(new IOException("Channel " + channel + " received error notification"));
+                }
             }
 
         }

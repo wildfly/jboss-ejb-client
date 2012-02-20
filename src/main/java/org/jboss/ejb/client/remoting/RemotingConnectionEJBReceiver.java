@@ -192,9 +192,9 @@ public final class RemotingConnectionEJBReceiver extends EJBReceiver {
         final MethodInvocationMessageWriter messageWriter = new MethodInvocationMessageWriter(this.clientProtocolVersion, this.marshallerFactory);
         final MessageOutputStream messageOutputStream = channelAssociation.acquireChannelMessageOutputStream();
         final DataOutputStream dataOutputStream = new DataOutputStream(messageOutputStream);
-        final short invocationId = channelAssociation.getNextInvocationId();
-        channelAssociation.receiveResponse(invocationId, ejbReceiverInvocationContext);
         try {
+            final short invocationId = channelAssociation.getNextInvocationId();
+            channelAssociation.receiveResponse(invocationId, ejbReceiverInvocationContext);
             messageWriter.writeMessage(dataOutputStream, invocationId, clientInvocationContext);
         } finally {
             channelAssociation.releaseChannelMessageOutputStream(messageOutputStream);
@@ -214,9 +214,10 @@ public final class RemotingConnectionEJBReceiver extends EJBReceiver {
         } catch (Exception ioe) {
             throw new RuntimeException(ioe);
         }
-        final short invocationId = channelAssociation.getNextInvocationId();
-        final Future<EJBReceiverInvocationContext.ResultProducer> futureResultProducer = channelAssociation.enrollForResult(invocationId);
+        final Future<EJBReceiverInvocationContext.ResultProducer> futureResultProducer;
         try {
+            final short invocationId = channelAssociation.getNextInvocationId();
+            futureResultProducer = channelAssociation.enrollForResult(invocationId);
             sessionOpenRequestWriter.writeMessage(dataOutputStream, invocationId, appName, moduleName, distinctName, beanName);
         } catch (IOException ioe) {
             throw new RuntimeException(ioe);
