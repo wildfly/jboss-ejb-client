@@ -35,6 +35,7 @@ import java.io.EOFException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.ObjectInput;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -99,6 +100,23 @@ abstract class ProtocolMessageHandler {
 
         return unmarshaller;
     }
+
+    /**
+     * Glue two stack traces together.
+     *
+     * @param exception      the exception which occurred in another thread
+     * @param userStackTrace the stack trace of the current thread from {@link Thread#getStackTrace()}
+     * @param trimCount      the number of frames to trim
+     * @param msg            the message to use
+     */
+    protected void glueStackTraces(final Throwable exception, final StackTraceElement[] userStackTrace, final int trimCount, final String msg) {
+        final StackTraceElement[] est = exception.getStackTrace();
+        final StackTraceElement[] fst = Arrays.copyOf(est, est.length + userStackTrace.length - trimCount + 1);
+        fst[est.length] = new StackTraceElement("..." + msg + "..", "", null, -1);
+        System.arraycopy(userStackTrace, trimCount, fst, est.length + 1, userStackTrace.length - trimCount);
+        exception.setStackTrace(fst);
+    }
+
 
     /**
      * Creates and returns a {@link Unmarshaller}

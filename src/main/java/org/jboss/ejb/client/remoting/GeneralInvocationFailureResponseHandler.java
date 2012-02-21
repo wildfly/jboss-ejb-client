@@ -101,6 +101,8 @@ class GeneralInvocationFailureResponseHandler extends ProtocolMessageHandler {
 
         @Override
         public Object getResult() throws Exception {
+            // glue the client side exception with the server side
+            GeneralInvocationFailureResponseHandler.this.glueStackTraces(this.invocationFailure, Thread.currentThread().getStackTrace(), 1, "asynchronous invocation");
             throw this.invocationFailure;
         }
 

@@ -22,6 +22,16 @@
 
 package org.jboss.ejb.client.remoting;
 
+import org.jboss.ejb.client.EJBLocator;
+import org.jboss.marshalling.AbstractClassResolver;
+import org.jboss.marshalling.ByteInput;
+import org.jboss.marshalling.ByteOutput;
+import org.jboss.marshalling.Marshaller;
+import org.jboss.marshalling.MarshallerFactory;
+import org.jboss.marshalling.Marshalling;
+import org.jboss.marshalling.MarshallingConfiguration;
+import org.jboss.marshalling.Unmarshaller;
+
 import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.EOFException;
@@ -32,16 +42,6 @@ import java.io.ObjectOutput;
 import java.io.OutputStream;
 import java.util.HashMap;
 import java.util.Map;
-
-import org.jboss.ejb.client.EJBLocator;
-import org.jboss.marshalling.AbstractClassResolver;
-import org.jboss.marshalling.ByteInput;
-import org.jboss.marshalling.ByteOutput;
-import org.jboss.marshalling.Marshaller;
-import org.jboss.marshalling.MarshallerFactory;
-import org.jboss.marshalling.Marshalling;
-import org.jboss.marshalling.MarshallingConfiguration;
-import org.jboss.marshalling.Unmarshaller;
 
 /**
  * User: jpai
@@ -134,6 +134,24 @@ public class DummyProtocolHandler {
         marshaller.writeObject(result);
         // write the attachments
         this.writeAttachments(marshaller, attachments);
+        marshaller.finish();
+    }
+
+    public void writeMethodInvocationFailureResponse(final DataOutput output, final short invocationId,
+                                              final Throwable t, final Map<String, Object> attachments) throws IOException {
+        if (output == null) {
+            throw new IllegalArgumentException("Cannot write to null output");
+        }
+        // write the header
+        output.write(HEADER_INVOCATION_FAILURE);
+        // write the invocation id
+        output.writeShort(invocationId);
+        // write out the exception
+        final Marshaller marshaller = this.prepareForMarshalling(output);
+        marshaller.writeObject(t);
+        // write the attachments
+        this.writeAttachments(marshaller, attachments);
+        // finish marshalling
         marshaller.finish();
     }
 
