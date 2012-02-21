@@ -95,6 +95,8 @@ class InvocationExceptionResponseHandler extends ProtocolMessageHandler {
                 }
                 final Throwable t = (Throwable) result;
                 if (t instanceof Exception) {
+                    // glue the client side exception with the server side
+                    InvocationExceptionResponseHandler.this.glueStackTraces(t, Thread.currentThread().getStackTrace(), 1, "asynchronous invocation");
                     throw (Exception) t;
                 } else {
                     throw new RuntimeException(t);
