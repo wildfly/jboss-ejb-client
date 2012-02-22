@@ -103,6 +103,7 @@ public class ConfigBasedEJBClientContextSelector implements ContextSelector<EJBC
         final List<Connection> connections = new ArrayList<Connection>();
         int successfulEJBReceiverRegistrations = 0;
         while (connectionConfigurations.hasNext()) {
+            ReconnectHandler reconnectHandler = null;
             final EJBClientConfiguration.RemotingConnectionConfiguration connectionConfiguration = connectionConfigurations.next();
             final String host = connectionConfiguration.getHost();
             final int port = connectionConfiguration.getPort();
@@ -110,15 +111,16 @@ public class ConfigBasedEJBClientContextSelector implements ContextSelector<EJBC
                 final URI connectionURI = new URI("remote://" + host + ":" + port);
                 final OptionMap connectionCreationOptions = connectionConfiguration.getConnectionCreationOptions();
                 final CallbackHandler callbackHandler = connectionConfiguration.getCallbackHandler();
+                // create a re-connect handler (which will be used on connection breaking down)
+                final int MAX_RECONNECT_ATTEMPTS = 65535; // TODO: Let's keep this high for now and later allow configuration and a smaller default value
+                reconnectHandler = new EJBClientContextConnectionReconnectHandler(ejbClientContext, endpoint, connectionURI, connectionCreationOptions, callbackHandler, connectionConfiguration.getChannelCreationOptions(), MAX_RECONNECT_ATTEMPTS);
+
                 final IoFuture<Connection> futureConnection = endpoint.connect(connectionURI, connectionCreationOptions, callbackHandler);
                 // wait for the connection to be established
                 final Connection connection = IoFutureHelper.get(futureConnection, connectionConfiguration.getConnectionTimeout(), TimeUnit.MILLISECONDS);
                 // keep track of the created connection for auto-close on shutdown
                 AutoConnectionCloser.INSTANCE.addConnection(connection);
 
-                // create a re-connect handler (which will be used on connection breaking down)
-                final int MAX_RECONNECT_ATTEMPTS = 65535; // TODO: Let's keep this high for now and later allow configuration and a smaller default value
-                final ReconnectHandler reconnectHandler = new EJBClientContextConnectionReconnectHandler(ejbClientContext, endpoint, connectionURI, connectionCreationOptions, callbackHandler, connectionConfiguration.getChannelCreationOptions(), MAX_RECONNECT_ATTEMPTS);
                 // create a remoting EJB receiver for this connection
                 final EJBReceiver remotingEJBReceiver = new RemotingConnectionEJBReceiver(connection, reconnectHandler, connectionConfiguration.getChannelCreationOptions());
                 // associate it with the client context
@@ -128,6 +130,12 @@ public class ConfigBasedEJBClientContextSelector implements ContextSelector<EJBC
             } catch (Exception e) {
                 // just log the warn but don't throw an exception. Move onto the next connection configuration (if any)
                 logger.warn("Could not register a EJB receiver for connection to remote://" + host + ":" + port, e);
+                // add a reconnect handler for this connection
+                if (reconnectHandler != null) {
+                    this.ejbClientContext.registerReconnectHandler(reconnectHandler);
+                    logger.debug("Registered a reconnect handler in EJB client context " + this.ejbClientContext + " for remote://" + host + ":" + port);
+                }
+                
             }
         }
         logger.debug("Registered " + successfulEJBReceiverRegistrations + " remoting EJB receivers for EJB client context " + this.ejbClientContext);
