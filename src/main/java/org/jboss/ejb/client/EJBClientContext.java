@@ -510,22 +510,8 @@ public final class EJBClientContext extends Attachable {
     EJBReceiver requireEJBReceiver(final String appName, final String moduleName, final String distinctName)
             throws IllegalStateException {
 
-        EJBReceiver ejbReceiver = null;
-        // This is an "optimization"
-        // if there's just one EJBReceiver, then we don't check whether it can handle the module. We just
-        // assume that it will be able to handle this module (if not, it will throw a NoSuchEJBException anyway)
-        // This comes handy in cases where the EJBReceiver might not yet have received a module inventory message
-        // from the server and hence wouldn't know whether it can handle a particular app, module, distinct name combination.
-        synchronized (this.ejbReceiverAssociations) {
-            if (this.ejbReceiverAssociations.size() == 1) {
-                ejbReceiver = this.ejbReceiverAssociations.keySet().iterator().next();
-            }
-        }
-        if (ejbReceiver != null) {
-            return ejbReceiver;
-        }
         // try and find a receiver which can handle this combination
-        ejbReceiver = this.getEJBReceiver(appName, moduleName, distinctName);
+        final EJBReceiver ejbReceiver = this.getEJBReceiver(appName, moduleName, distinctName);
         if (ejbReceiver == null) {
             throw new IllegalStateException("No EJB receiver available for handling [appName:" + appName + ",modulename:"
                     + moduleName + ",distinctname:" + distinctName + "] combination");
