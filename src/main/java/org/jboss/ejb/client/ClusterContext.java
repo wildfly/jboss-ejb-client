@@ -102,9 +102,13 @@ public final class ClusterContext implements EJBClientContext.EJBReceiverContext
     }
 
     /**
-     * Returns a {@link EJBReceiverContext} from among the receiver contexts that are available in this cluster.
+     * Returns a {@link EJBReceiverContext} from among the receiver contexts that are available in this cluster. The
+     * node names in <code>excludedNodes</code> will <b>not</b> be considered while selecting a receiver from this
+     * cluster context.
+     * <p/>
      * Returns null if there is no such receiver context available.
      *
+     * @param excludedNodes The node names that should be excluded while choosing a receiver from the cluster context
      * @return
      */
     private EJBReceiverContext getEJBReceiverContext(final Set<String> excludedNodes) {
