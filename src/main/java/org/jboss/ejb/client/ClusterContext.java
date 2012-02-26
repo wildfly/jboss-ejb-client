@@ -98,44 +98,73 @@ public final class ClusterContext implements EJBClientContext.EJBReceiverContext
      * @return
      */
     EJBReceiverContext getEJBReceiverContext() {
+        return this.getEJBReceiverContext(new HashSet<String>());
+    }
+
+    /**
+     * Returns a {@link EJBReceiverContext} from among the receiver contexts that are available in this cluster.
+     * Returns null if there is no such receiver context available.
+     *
+     * @return
+     */
+    private EJBReceiverContext getEJBReceiverContext(final Set<String> excludedNodes) {
         if (nodeManagers.isEmpty()) {
             return null;
         }
         final Set<String> availableNodes = this.nodeManagers.keySet();
+        // remove the excluded nodes
+        availableNodes.removeAll(excludedNodes);
+
+        final Set<String> alreadyConnectedNodes = this.connectedNodes;
+        // remove the excluded nodes
+        alreadyConnectedNodes.removeAll(excludedNodes);
+
         // Let the cluster node selector decide which node to use from among the available nodes
-        final String selectedNodeName = this.clusterNodeSelector.selectNode(this.clusterName, this.connectedNodes.toArray(new String[connectedNodes.size()]), availableNodes.toArray(new String[availableNodes.size()]));
+        final String selectedNodeName = this.clusterNodeSelector.selectNode(this.clusterName, alreadyConnectedNodes.toArray(new String[alreadyConnectedNodes.size()]), availableNodes.toArray(new String[availableNodes.size()]));
         // only use the selected node name, if it's valid
-        if (selectedNodeName == null || !this.nodeManagers.containsKey(selectedNodeName)) {
+        if (selectedNodeName == null || selectedNodeName.trim().isEmpty()) {
             logger.warn(clusterNodeSelector + " selected an invalid node name: " + selectedNodeName + " for cluster: "
                     + clusterName + ". No EJB receiver context can be selected");
             return null;
         }
         logger.debug(this.clusterNodeSelector + " has selected node " + selectedNodeName + ", in cluster " + this.clusterName);
+        // add this selected node name to excluded set, so that we don't try fetching a receiver for it
+        // again
+        excludedNodes.add(selectedNodeName);
+
+        final ClusterNodeManager clusterNodeManager = this.nodeManagers.get(selectedNodeName);
+        if (clusterNodeManager == null) {
+            logger.debug("No node manager available for node: " + selectedNodeName + " in cluster: " + clusterName);
+            return null;
+        }
         final EJBReceiverContext selectedNodeReceiverContext = this.clientContext.getNodeEJBReceiverContext(selectedNodeName);
         // the node is already connected, so return it
         if (selectedNodeReceiverContext != null) {
             return selectedNodeReceiverContext;
         }
-        // A receiver hasn't been associated for the given node name, so let's do it now
-        final ClusterNodeManager clusterNodeManager = this.nodeManagers.get(selectedNodeName);
-        if (clusterNodeManager == null) {
-            // we don't have a cluster node manager which could create the EJB receiver, for this
-            // node name
-            logger.error("Cannot create EJBReceiver since no cluster node manager found for node "
-                    + selectedNodeName + " in cluster context for cluster " + clusterName);
-            return null;
-        }
         // get the receiver from the node manager
         final EJBReceiver ejbReceiver = clusterNodeManager.getEJBReceiver();
-        if (ejbReceiver == null) {
-            return null;
+        if (ejbReceiver != null) {
+            // register the receiver and let it create the receiver context
+            this.registerEJBReceiver(ejbReceiver);
+            // let the client context return the newly associated receiver context for the node name.
+            // if it wasn't successfully associated (for example version handshake not completing)
+            // then this will return null.
+            final EJBReceiverContext ejbReceiverContext = this.clientContext.getNodeEJBReceiverContext(selectedNodeName);
+            if (ejbReceiverContext != null) {
+                return ejbReceiverContext;
+            }
         }
-        // register the receiver and let it create the receiver context
-        this.registerEJBReceiver(ejbReceiver);
-        // let the client context return the newly associated receiver context for the node name.
-        // if it wasn't successfully associated (for example version handshake not completing)
-        // then this will return null.
-        return this.clientContext.getNodeEJBReceiverContext(selectedNodeName);
+        // try some other node (if any) in this cluster. The currently selected node is
+        // excluded from this next attempt
+        final Set<String> nodesInThisCluster = this.nodeManagers.keySet();
+        // if all nodes have been excluded/tried, just return null indicating no receiver is available
+        if (excludedNodes.containsAll(nodesInThisCluster)) {
+            return null;
+        } else {
+            // try a different node
+            return this.getEJBReceiverContext(excludedNodes);
+        }
     }
 
     /**
