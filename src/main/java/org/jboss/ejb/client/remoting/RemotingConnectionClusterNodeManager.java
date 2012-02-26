@@ -80,7 +80,7 @@ class RemotingConnectionClusterNodeManager implements ClusterNodeManager {
         try {
             // if the client configuration is available create the connection using those configs
             if (this.ejbClientConfiguration != null) {
-                final URI connectionURI = new URI("remote://" + formatPossibleIpv6Address(this.clusterNode.getDestinationAddress()) + ":" + this.clusterNode.getDestinationPort());
+                final URI connectionURI = new URI("remote://" + this.clusterNode.getDestinationAddress() + ":" + this.clusterNode.getDestinationPort());
                 final EJBClientConfiguration.ClusterConfiguration clusterConfiguration = this.ejbClientConfiguration.getClusterConfiguration(clusterContext.getClusterName());
                 if (clusterConfiguration == null) {
                     // use default configurations
@@ -108,7 +108,7 @@ class RemotingConnectionClusterNodeManager implements ClusterNodeManager {
 
             } else {
                 // create the connection using defaults
-                final URI connectionURI = new URI("remote://" + formatPossibleIpv6Address(this.clusterNode.getDestinationAddress()) + ":" + this.clusterNode.getDestinationPort());
+                final URI connectionURI = new URI("remote://" + this.clusterNode.getDestinationAddress() + ":" + this.clusterNode.getDestinationPort());
                 // use default configurations
                 final OptionMap connectionCreationOptions = OptionMap.EMPTY;
                 final CallbackHandler callbackHandler = new AnonymousCallbackHandler();
@@ -149,17 +149,4 @@ class RemotingConnectionClusterNodeManager implements ClusterNodeManager {
         }
     }
 
-
-    private static String formatPossibleIpv6Address(String address) {
-        if (address == null) {
-            return address;
-        }
-        if (!address.contains(":")) {
-            return address;
-        }
-        if (address.startsWith("[") && address.endsWith("]")) {
-            return address;
-        }
-        return "[" + address + "]";
-    }
 }

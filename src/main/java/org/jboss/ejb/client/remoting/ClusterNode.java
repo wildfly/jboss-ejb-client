@@ -152,12 +152,12 @@ final class ClusterNode {
         }
     }
 
-    private final class ResolvedDestination {
+    private static final class ResolvedDestination {
         private final String destinationAddress;
         private final int destinationPort;
 
         ResolvedDestination(final String destinationAddress, final int destinationPort) {
-            this.destinationAddress = destinationAddress;
+            this.destinationAddress = formatPossibleIpv6Address(destinationAddress);
             this.destinationPort = destinationPort;
         }
 
@@ -166,6 +166,20 @@ final class ClusterNode {
             return "[Destination address=" + this.destinationAddress + ", destination port="
                     + this.destinationPort + "]";
         }
+
+        private static String formatPossibleIpv6Address(String address) {
+            if (address == null) {
+                return address;
+            }
+            if (!address.contains(":")) {
+                return address;
+            }
+            if (address.startsWith("[") && address.endsWith("]")) {
+                return address;
+            }
+            return "[" + address + "]";
+        }
+
     }
 
     /**
