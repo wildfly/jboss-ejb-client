@@ -92,10 +92,11 @@ public final class RemotingConnectionEJBReceiver extends EJBReceiver {
     /**
      * Construct a new instance.
      *
-     * @param connection       the connection to associate with
-     * @param reconnectHandler The {@link ReconnectHandler} to use when the connection breaks
+     * @param connection             the connection to associate with
+     * @param reconnectHandler       The {@link ReconnectHandler} to use when the connection breaks
+     * @param channelCreationOptions The {@link OptionMap options} to be used during channel creation
      */
-    RemotingConnectionEJBReceiver(final Connection connection, final ReconnectHandler reconnectHandler, final OptionMap channelCreationOptions) {
+    public RemotingConnectionEJBReceiver(final Connection connection, final ReconnectHandler reconnectHandler, final OptionMap channelCreationOptions) {
         super(connection.getRemoteEndpointName());
         this.connection = connection;
         this.reconnectHandler = reconnectHandler;
