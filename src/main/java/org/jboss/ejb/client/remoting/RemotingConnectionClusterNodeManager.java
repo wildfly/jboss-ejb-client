@@ -22,6 +22,15 @@
 
 package org.jboss.ejb.client.remoting;
 
+import java.io.IOException;
+import java.net.URI;
+import java.util.concurrent.TimeUnit;
+
+import javax.security.auth.callback.Callback;
+import javax.security.auth.callback.CallbackHandler;
+import javax.security.auth.callback.NameCallback;
+import javax.security.auth.callback.UnsupportedCallbackException;
+
 import org.jboss.ejb.client.ClusterContext;
 import org.jboss.ejb.client.ClusterNodeManager;
 import org.jboss.ejb.client.EJBClientConfiguration;
@@ -31,14 +40,6 @@ import org.jboss.remoting3.Connection;
 import org.jboss.remoting3.Endpoint;
 import org.xnio.IoFuture;
 import org.xnio.OptionMap;
-
-import javax.security.auth.callback.Callback;
-import javax.security.auth.callback.CallbackHandler;
-import javax.security.auth.callback.NameCallback;
-import javax.security.auth.callback.UnsupportedCallbackException;
-import java.io.IOException;
-import java.net.URI;
-import java.util.concurrent.TimeUnit;
 
 /**
  * A {@link RemotingConnectionClusterNodeManager} uses JBoss Remoting to create a {@link EJBReceiver}
@@ -80,7 +81,7 @@ class RemotingConnectionClusterNodeManager implements ClusterNodeManager {
         try {
             // if the client configuration is available create the connection using those configs
             if (this.ejbClientConfiguration != null) {
-                final URI connectionURI = new URI("remote://" + this.clusterNode.getDestinationAddress() + ":" + this.clusterNode.getDestinationPort());
+                final URI connectionURI = new URI("remote://" + formatPossibleIpv6Address(this.clusterNode.getDestinationAddress()) + ":" + this.clusterNode.getDestinationPort());
                 final EJBClientConfiguration.ClusterConfiguration clusterConfiguration = this.ejbClientConfiguration.getClusterConfiguration(clusterContext.getClusterName());
                 if (clusterConfiguration == null) {
                     // use default configurations
@@ -108,7 +109,7 @@ class RemotingConnectionClusterNodeManager implements ClusterNodeManager {
 
             } else {
                 // create the connection using defaults
-                final URI connectionURI = new URI("remote://" + this.clusterNode.getDestinationAddress() + ":" + this.clusterNode.getDestinationPort());
+                final URI connectionURI = new URI("remote://" + formatPossibleIpv6Address(this.clusterNode.getDestinationAddress()) + ":" + this.clusterNode.getDestinationPort());
                 // use default configurations
                 final OptionMap connectionCreationOptions = OptionMap.EMPTY;
                 final CallbackHandler callbackHandler = new AnonymousCallbackHandler();
@@ -120,7 +121,7 @@ class RemotingConnectionClusterNodeManager implements ClusterNodeManager {
 
             }
         } catch (Exception e) {
-            throw new RuntimeException("Could not create a connection for cluster node " + this.clusterNode + " in cluster " + clusterContext.getClusterName());
+            throw new RuntimeException("Could not create a connection for cluster node " + this.clusterNode + " in cluster " + clusterContext.getClusterName(), e);
         } finally {
             if (connection != null) {
                 // keep track of the created connection to auto close on JVM shutdown
@@ -146,5 +147,19 @@ class RemotingConnectionClusterNodeManager implements ClusterNodeManager {
                 }
             }
         }
+    }
+
+
+    private static String formatPossibleIpv6Address(String address) {
+        if (address == null) {
+            return address;
+        }
+        if (!address.contains(":")) {
+            return address;
+        }
+        if (address.startsWith("[") && address.endsWith("]")) {
+            return address;
+        }
+        return "[" + address + "]";
     }
 }
