@@ -22,15 +22,6 @@
 
 package org.jboss.ejb.client.remoting;
 
-import java.io.IOException;
-import java.net.URI;
-import java.util.concurrent.TimeUnit;
-
-import javax.security.auth.callback.Callback;
-import javax.security.auth.callback.CallbackHandler;
-import javax.security.auth.callback.NameCallback;
-import javax.security.auth.callback.UnsupportedCallbackException;
-
 import org.jboss.ejb.client.ClusterContext;
 import org.jboss.ejb.client.ClusterNodeManager;
 import org.jboss.ejb.client.EJBClientConfiguration;
@@ -40,6 +31,14 @@ import org.jboss.remoting3.Connection;
 import org.jboss.remoting3.Endpoint;
 import org.xnio.IoFuture;
 import org.xnio.OptionMap;
+
+import javax.security.auth.callback.Callback;
+import javax.security.auth.callback.CallbackHandler;
+import javax.security.auth.callback.NameCallback;
+import javax.security.auth.callback.UnsupportedCallbackException;
+import java.io.IOException;
+import java.net.URI;
+import java.util.concurrent.TimeUnit;
 
 /**
  * A {@link RemotingConnectionClusterNodeManager} uses JBoss Remoting to create a {@link EJBReceiver}
@@ -71,7 +70,7 @@ class RemotingConnectionClusterNodeManager implements ClusterNodeManager {
     @Override
     public EJBReceiver getEJBReceiver() {
         if (!this.clusterNode.isDestinationResolved()) {
-            logger.error("Cannot create a EJB receiver for " + this.clusterNode + " since there was no match for a target destination");
+            logger.info("Cannot create a EJB receiver for " + this.clusterNode + " since there was no match for a target destination");
             return null;
         }
         Connection connection = null;
@@ -121,7 +120,8 @@ class RemotingConnectionClusterNodeManager implements ClusterNodeManager {
 
             }
         } catch (Exception e) {
-            throw new RuntimeException("Could not create a connection for cluster node " + this.clusterNode + " in cluster " + clusterContext.getClusterName(), e);
+            logger.info("Could not create a connection for cluster node " + this.clusterNode + " in cluster " + clusterContext.getClusterName(), e);
+            return null;
         } finally {
             if (connection != null) {
                 // keep track of the created connection to auto close on JVM shutdown
