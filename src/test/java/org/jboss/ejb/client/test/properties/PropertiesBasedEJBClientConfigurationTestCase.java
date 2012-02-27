@@ -22,6 +22,10 @@
 
 package org.jboss.ejb.client.test.properties;
 
+import java.io.InputStream;
+import java.util.Iterator;
+import java.util.Properties;
+
 import org.jboss.ejb.client.ClusterNodeSelector;
 import org.jboss.ejb.client.EJBClientConfiguration;
 import org.jboss.ejb.client.PropertiesBasedEJBClientConfiguration;
@@ -30,10 +34,6 @@ import org.junit.Assert;
 import org.junit.Test;
 import org.xnio.OptionMap;
 import org.xnio.Options;
-
-import java.io.InputStream;
-import java.util.Iterator;
-import java.util.Properties;
 
 /**
  * Tests creation of {@link EJBClientConfiguration} from {@link Properties}
@@ -50,6 +50,7 @@ public class PropertiesBasedEJBClientConfigurationTestCase {
      */
     @Test
     public void testPropertiesParsing() throws Exception {
+        System.setProperty("system.prop.foo", "foo");
         final Properties clientProperties = new Properties();
         final InputStream inputStream = this.getClass().getClassLoader().getResourceAsStream("ejb-client-configuration.properties");
         clientProperties.load(inputStream);
