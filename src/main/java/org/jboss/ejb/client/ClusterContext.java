@@ -24,6 +24,7 @@ package org.jboss.ejb.client;
 
 import org.jboss.logging.Logger;
 
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -139,6 +140,28 @@ public final class ClusterContext implements EJBClientContext.EJBReceiverContext
         final ClusterNodeManager clusterNodeManager = this.nodeManagers.get(selectedNodeName);
         if (clusterNodeManager == null) {
             logger.debug("No node manager available for node: " + selectedNodeName + " in cluster: " + clusterName);
+            // See if the selector selected a node which got removed while the selection was happening.
+            // If so, then try some other node (if any) in the cluster
+            if (availableNodes.contains(selectedNodeName) || alreadyConnectedNodes.contains(selectedNodeName)) {
+                // this means that the node was valid when the selection was happening, but was probably
+                // removed from the cluster before we could fetch a node manager for it
+                // let's try a different node, this current one will be excluded
+                final Set<String> nodesInThisCluster = this.nodeManagers.keySet();
+                // if all nodes have been excluded/tried, just return null indicating no receiver is available
+                if (excludedNodes.containsAll(nodesInThisCluster)) {
+                    logger.debug("All nodes have been tried for a receiver, in cluster " + clusterName + ". No suitable receiver found");
+                    return null;
+                } else {
+                    // explicit isDebugEnabled() check to prevent the Arrays conversion in the log message, when
+                    // debug isn't enabled
+                    if (logger.isDebugEnabled()) {
+                        logger.debug("Retrying receiver selection in cluster " + clusterName + " with excluded nodes " + Arrays.toString(excludedNodes.toArray()));
+                    }
+                    // try a different node
+                    return this.getEJBReceiverContext(excludedNodes);
+                }
+            }
+            logger.debug("Node selector returned a non-existent " + selectedNodeName + " for cluster: " + clusterName + ". No EJB receiver context can be selected");
             return null;
         }
         final EJBReceiverContext selectedNodeReceiverContext = this.clientContext.getNodeEJBReceiverContext(selectedNodeName);
@@ -164,8 +187,14 @@ public final class ClusterContext implements EJBClientContext.EJBReceiverContext
         final Set<String> nodesInThisCluster = this.nodeManagers.keySet();
         // if all nodes have been excluded/tried, just return null indicating no receiver is available
         if (excludedNodes.containsAll(nodesInThisCluster)) {
+            logger.debug("All nodes have been tried for a receiver, in cluster " + clusterName + ". No suitable receiver found");
             return null;
         } else {
+            // explicit isDebugEnabled() check to prevent the Arrays conversion in the log message, when
+            // debug isn't enabled
+            if (logger.isDebugEnabled()) {
+                logger.debug("Retrying receiver selection in cluster " + clusterName + " with excluded nodes " + Arrays.toString(excludedNodes.toArray()));
+            }
             // try a different node
             return this.getEJBReceiverContext(excludedNodes);
         }
