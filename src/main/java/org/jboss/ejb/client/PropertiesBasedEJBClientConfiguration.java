@@ -95,7 +95,17 @@ public class PropertiesBasedEJBClientConfiguration implements EJBClientConfigura
     private Map<String, ClusterConfiguration> clusterConfigurations = new HashMap<String, ClusterConfiguration>();
 
     public PropertiesBasedEJBClientConfiguration(final Properties properties) {
-        this.ejbReceiversConfigurationProperties = properties == null ? new Properties() : properties;
+        final Properties resolvedProperties = new Properties();
+        if(properties != null) {
+            for(Map.Entry<Object, Object> entry : properties.entrySet()) {
+                resolvedProperties.put(entry.getKey(), PropertiesValueResolver.replaceProperties((String)entry.getValue()));
+            }
+        }
+
+        this.ejbReceiversConfigurationProperties = resolvedProperties;
+        //handle property replacement in one place
+
+
         // parse the properties and setup this configuration
         this.parseProperties();
     }
