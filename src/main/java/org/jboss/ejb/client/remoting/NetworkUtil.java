@@ -83,6 +83,19 @@ class NetworkUtil {
         return true;
     }
 
+    static String formatPossibleIpv6Address(String address) {
+        if (address == null) {
+            return address;
+        }
+        if (!address.contains(":")) {
+            return address;
+        }
+        if (address.startsWith("[") && address.endsWith("]")) {
+            return address;
+        }
+        return "[" + address + "]";
+    }
+
 //    public static void main(String[] args) throws UnknownHostException {
 //        final InetAddress ipAddress = InetAddress.getByName("10.10.10.15");
 //        final InetAddress networkAddress = InetAddress.getByName("10.10.22.0");

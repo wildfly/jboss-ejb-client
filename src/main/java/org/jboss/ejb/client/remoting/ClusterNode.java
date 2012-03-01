@@ -22,8 +22,6 @@
 
 package org.jboss.ejb.client.remoting;
 
-import org.jboss.logging.Logger;
-
 import java.net.InetAddress;
 import java.net.NetworkInterface;
 import java.net.SocketException;
@@ -32,6 +30,8 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.Enumeration;
 import java.util.HashSet;
+
+import org.jboss.logging.Logger;
 
 /**
  * A {@link ClusterNode} holds the information of a server side cluster server instance
@@ -157,7 +157,7 @@ final class ClusterNode {
         private final int destinationPort;
 
         ResolvedDestination(final String destinationAddress, final int destinationPort) {
-            this.destinationAddress = formatPossibleIpv6Address(destinationAddress);
+            this.destinationAddress = NetworkUtil.formatPossibleIpv6Address(destinationAddress);
             this.destinationPort = destinationPort;
         }
 
@@ -166,20 +166,6 @@ final class ClusterNode {
             return "[Destination address=" + this.destinationAddress + ", destination port="
                     + this.destinationPort + "]";
         }
-
-        private static String formatPossibleIpv6Address(String address) {
-            if (address == null) {
-                return address;
-            }
-            if (!address.contains(":")) {
-                return address;
-            }
-            if (address.startsWith("[") && address.endsWith("]")) {
-                return address;
-            }
-            return "[" + address + "]";
-        }
-
     }
 
     /**
