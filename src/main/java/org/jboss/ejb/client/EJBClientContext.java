@@ -91,6 +91,7 @@ public final class EJBClientContext extends Attachable {
     private final EJBClientConfiguration ejbClientConfiguration;
 
     private final ClusterFormationNotifier clusterFormationNotifier = new ClusterFormationNotifier();
+    private final DeploymentNodeSelector deploymentNodeSelector = new RandomDeploymentNodeSelector();
 
     private final ExecutorService reconnectionExecutorService = Executors.newCachedThreadPool(new DaemonThreadFactory("ejb-client-remote-connection-reconnect"));
     private final List<ReconnectHandler> reconnectHandlers = new ArrayList<ReconnectHandler>();
@@ -493,7 +494,24 @@ public final class EJBClientContext extends Attachable {
      */
     EJBReceiver getEJBReceiver(final String appName, final String moduleName, final String distinctName) {
         final Iterator<EJBReceiver> iterator = getEJBReceivers(appName, moduleName, distinctName).iterator();
-        return iterator.hasNext() ? iterator.next() : null;
+        if (!iterator.hasNext()) {
+            return null;
+        }
+        final Map<String, EJBReceiver> eligibleReceivers = new HashMap<String, EJBReceiver>();
+        while (iterator.hasNext()) {
+            final EJBReceiver receiver = iterator.next();
+            eligibleReceivers.put(receiver.getNodeName(), receiver);
+        }
+        // let the deployment node selector, select a node
+        final String selectedNode = this.deploymentNodeSelector.selectNode(eligibleReceivers.keySet().toArray(new String[eligibleReceivers.size()]), appName, moduleName, distinctName);
+        logger.debug(this.deploymentNodeSelector + " deployment node selector selected " + selectedNode + " node for appname=" + appName + ",modulename=" + moduleName + ",distinctname=" + distinctName);
+        // if the deployment node selector picked a node which didn't belong to the eligible receivers
+        // then let's just return (a random) eligible node from the iterator
+        if (selectedNode == null || selectedNode.trim().isEmpty() || !eligibleReceivers.containsKey(selectedNode)) {
+            logger.debug("Selected node " + selectedNode + " doesn't belong to eligible receivers. Continuing with a random eligible receiver");
+            return iterator.next();
+        }
+        return eligibleReceivers.get(selectedNode);
     }
 
     /**
