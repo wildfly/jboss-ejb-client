@@ -25,6 +25,9 @@ package org.jboss.ejb.client;
 import java.util.Random;
 
 /**
+ * A {@link ClusterNodeSelector} which {@link Random randomly} selects one of the nodes from either the
+ * connected nodes or available non-connected nodes
+ *
  * @author Jaikiran Pai
  */
 class RandomClusterNodeSelector implements ClusterNodeSelector {
