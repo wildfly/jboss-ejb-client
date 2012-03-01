@@ -22,6 +22,15 @@
 
 package org.jboss.ejb.client.remoting;
 
+import java.io.IOException;
+import java.net.URI;
+import java.util.ArrayList;
+import java.util.Iterator;
+import java.util.List;
+import java.util.concurrent.TimeUnit;
+
+import javax.security.auth.callback.CallbackHandler;
+
 import org.jboss.ejb.client.ContextSelector;
 import org.jboss.ejb.client.EJBClientConfiguration;
 import org.jboss.ejb.client.EJBClientContext;
@@ -33,14 +42,6 @@ import org.jboss.remoting3.Remoting;
 import org.jboss.remoting3.remote.RemoteConnectionProviderFactory;
 import org.xnio.IoFuture;
 import org.xnio.OptionMap;
-
-import javax.security.auth.callback.CallbackHandler;
-import java.io.IOException;
-import java.net.URI;
-import java.util.ArrayList;
-import java.util.Iterator;
-import java.util.List;
-import java.util.concurrent.TimeUnit;
 
 /**
  * An EJB client context selector which uses {@link EJBClientConfiguration} to create {@link org.jboss.ejb.client.remoting.RemotingConnectionEJBReceiver}s.
@@ -108,7 +109,7 @@ public class ConfigBasedEJBClientContextSelector implements ContextSelector<EJBC
             final String host = connectionConfiguration.getHost();
             final int port = connectionConfiguration.getPort();
             try {
-                final URI connectionURI = new URI("remote://" + host + ":" + port);
+                final URI connectionURI = new URI("remote://" + NetworkUtil.formatPossibleIpv6Address(host) + ":" + port);
                 final OptionMap connectionCreationOptions = connectionConfiguration.getConnectionCreationOptions();
                 final CallbackHandler callbackHandler = connectionConfiguration.getCallbackHandler();
                 // create a re-connect handler (which will be used on connection breaking down)
@@ -135,7 +136,7 @@ public class ConfigBasedEJBClientContextSelector implements ContextSelector<EJBC
                     this.ejbClientContext.registerReconnectHandler(reconnectHandler);
                     logger.debug("Registered a reconnect handler in EJB client context " + this.ejbClientContext + " for remote://" + host + ":" + port);
                 }
-                
+
             }
         }
         logger.debug("Registered " + successfulEJBReceiverRegistrations + " remoting EJB receivers for EJB client context " + this.ejbClientContext);
