@@ -22,13 +22,13 @@
 
 package org.jboss.ejb.client;
 
-import org.jboss.logging.Logger;
-
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.Properties;
+
+import org.jboss.logging.Logger;
 
 /**
  * A {@link EJBClientPropertiesLoader} loads a EJB client properties file based on the following algorithm:
@@ -68,19 +68,26 @@ class EJBClientPropertiesLoader {
         final String ejbClientPropsFilePath = SecurityActions.getSystemProperty(EJB_CLIENT_PROPS_FILE_SYS_PROPERTY);
         if (ejbClientPropsFilePath != null) {
             //
-            final InputStream fileStream;
+            InputStream fileStream = null;
             try {
                 fileStream = new FileInputStream(ejbClientPropsFilePath);
-            } catch (FileNotFoundException e) {
-                throw new RuntimeException("Failed to find EJB client configuration file specified in " + EJB_CLIENT_PROPS_FILE_SYS_PROPERTY + " system property", e);
-            }
-            final Properties ejbClientProps = new Properties();
-            try {
+
+                final Properties ejbClientProps = new Properties();
                 ejbClientProps.load(fileStream);
                 return ejbClientProps;
 
+            } catch (FileNotFoundException e) {
+                throw new RuntimeException("Failed to find EJB client configuration file specified in " + EJB_CLIENT_PROPS_FILE_SYS_PROPERTY + " system property", e);
             } catch (IOException e) {
                 throw new RuntimeException("Error reading EJB client properties file " + ejbClientPropsFilePath, e);
+            } finally {
+                if (fileStream != null) {
+                    try {
+                        fileStream.close();
+                    } catch (IOException e) {
+                        logger.error("Failed to close file " + ejbClientPropsFilePath, e);
+                    }
+                }
             }
         }
         // if classpath scan is disabled then skip looking for jboss-ejb-client.properties file in the classpath
@@ -103,6 +110,12 @@ class EJBClientPropertiesLoader {
 
             } catch (IOException e) {
                 throw new RuntimeException("Could not load " + EJB_CLIENT_PROPS_FILE_NAME, e);
+            } finally {
+                try {
+                    clientPropsInputStream.close();
+                } catch (IOException e) {
+                    logger.error("Failed to close stream", e);
+                }
             }
         }
         return null;
