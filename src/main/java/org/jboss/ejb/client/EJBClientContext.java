@@ -39,6 +39,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
+import java.util.Set;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -493,13 +494,59 @@ public final class EJBClientContext extends Attachable {
      * @return the first EJB receiver to match, or {@code null} if none match
      */
     EJBReceiver getEJBReceiver(final String appName, final String moduleName, final String distinctName) {
+        return this.getEJBReceiver(null, appName, moduleName, distinctName);
+    }
+
+    /**
+     * Get the first EJB receiver which matches the given combination of app, module and distinct name. If there's
+     * no such EJB receiver, then this method throws a {@link IllegalStateException}
+     *
+     * @param appName      the application name, or {@code null} for a top-level module
+     * @param moduleName   the module name
+     * @param distinctName the distinct name, or {@code null} for none
+     * @return the first EJB receiver to match
+     * @throws IllegalStateException If there's no {@link EJBReceiver} which can handle a EJB for the passed combination
+     *                               of app, module and distinct name.
+     */
+    EJBReceiver requireEJBReceiver(final String appName, final String moduleName, final String distinctName)
+            throws IllegalStateException {
+
+        // try and find a receiver which can handle this combination
+        final EJBReceiver ejbReceiver = this.getEJBReceiver(appName, moduleName, distinctName);
+        if (ejbReceiver == null) {
+            throw new IllegalStateException("No EJB receiver available for handling [appName:" + appName + ",modulename:"
+                    + moduleName + ",distinctname:" + distinctName + "] combination");
+        }
+        return ejbReceiver;
+    }
+
+    /**
+     * Get the first EJB receiver which matches the given combination of app, module and distinct name.
+     *
+     * @param invocationContext
+     * @param appName           the application name, or {@code null} for a top-level module
+     * @param moduleName        the module name
+     * @param distinctName      the distinct name, or {@code null} for none
+     * @return the first EJB receiver to match, or {@code null} if none match
+     */
+    EJBReceiver getEJBReceiver(final EJBClientInvocationContext invocationContext, final String appName, final String moduleName, final String distinctName) {
         final Iterator<EJBReceiver> iterator = getEJBReceivers(appName, moduleName, distinctName).iterator();
         if (!iterator.hasNext()) {
             return null;
         }
+        final Set<String> excludedNodes = invocationContext == null ? Collections.EMPTY_SET : invocationContext.getExcludedNodes();
         final Map<String, EJBReceiver> eligibleReceivers = new HashMap<String, EJBReceiver>();
         while (iterator.hasNext()) {
             final EJBReceiver receiver = iterator.next();
+            final String nodeName = receiver.getNodeName();
+            // The receiver is not eligible if the invocation context has marked that
+            // node as excluded
+            if (excludedNodes.contains(nodeName)) {
+                logger.debug(nodeName + " is excluded from handling appname=" + appName + ",modulename=" + moduleName +
+                        ",distinctname=" + distinctName + " in invocation context " + invocationContext);
+                continue;
+            }
+            // make a note that the receiver is eligible
             eligibleReceivers.put(receiver.getNodeName(), receiver);
         }
         // let the deployment node selector, select a node
@@ -525,14 +572,14 @@ public final class EJBClientContext extends Attachable {
      * @throws IllegalStateException If there's no {@link EJBReceiver} which can handle a EJB for the passed combination
      *                               of app, module and distinct name.
      */
-    EJBReceiver requireEJBReceiver(final String appName, final String moduleName, final String distinctName)
+    EJBReceiver requireEJBReceiver(final EJBClientInvocationContext clientInvocationContext, final String appName, final String moduleName, final String distinctName)
             throws IllegalStateException {
 
         // try and find a receiver which can handle this combination
-        final EJBReceiver ejbReceiver = this.getEJBReceiver(appName, moduleName, distinctName);
+        final EJBReceiver ejbReceiver = this.getEJBReceiver(clientInvocationContext, appName, moduleName, distinctName);
         if (ejbReceiver == null) {
             throw new IllegalStateException("No EJB receiver available for handling [appName:" + appName + ",modulename:"
-                    + moduleName + ",distinctname:" + distinctName + "] combination");
+                    + moduleName + ",distinctname:" + distinctName + "] combination for invocation context " + clientInvocationContext);
         }
         return ejbReceiver;
     }
@@ -628,22 +675,34 @@ public final class EJBClientContext extends Attachable {
      * @return
      */
     EJBReceiverContext getClusterEJBReceiverContext(final String clusterName) throws IllegalArgumentException {
-        return this.getClusterEJBReceiverContext(clusterName, true);
+        return this.getClusterEJBReceiverContext(null, clusterName);
     }
 
-    private EJBReceiverContext getClusterEJBReceiverContext(final String clusterName, final boolean attemptReconnect) throws IllegalArgumentException {
+    /**
+     * Returns a {@link EJBReceiverContext} for the <code>clusterName</code>. If there's no such receiver context
+     * for the cluster, then this method returns null
+     *
+     * @param invocationContext
+     * @param clusterName       The name of the cluster
+     * @return
+     */
+    EJBReceiverContext getClusterEJBReceiverContext(final EJBClientInvocationContext invocationContext, final String clusterName) throws IllegalArgumentException {
+        return this.getClusterEJBReceiverContext(invocationContext, clusterName, true);
+    }
+
+    private EJBReceiverContext getClusterEJBReceiverContext(final EJBClientInvocationContext invocationContext, final String clusterName, final boolean attemptReconnect) throws IllegalArgumentException {
         final ClusterContext clusterContext = this.clusterContexts.get(clusterName);
         if (clusterContext == null) {
             return null;
         }
-        final EJBReceiverContext ejbReceiverContext = clusterContext.getEJBReceiverContext();
+        final EJBReceiverContext ejbReceiverContext = clusterContext.getEJBReceiverContext(invocationContext);
         if (ejbReceiverContext == null && attemptReconnect) {
             // no receiver context was found for the cluster. So let's see if there are any re-connect handlers
             // which can generate the EJB receivers
             this.attemptReconnections();
             // now that we have attempted the re-connections, let's fetch any EJB receiver context for the cluster.
             // we won't try re-connecting again now
-            return this.getClusterEJBReceiverContext(clusterName, false);
+            return this.getClusterEJBReceiverContext(invocationContext, clusterName, false);
         }
         return ejbReceiverContext;
     }
@@ -657,6 +716,19 @@ public final class EJBClientContext extends Attachable {
      * @throws IllegalArgumentException If there's no EJB receiver context available for the cluster
      */
     EJBReceiverContext requireClusterEJBReceiverContext(final String clusterName) throws IllegalArgumentException {
+        return this.requireClusterEJBReceiverContext(null, clusterName);
+    }
+
+    /**
+     * Returns a {@link EJBReceiverContext} for the <code>clusterName</code>. If there's no such receiver context
+     * for the cluster, then this method throws an {@link IllegalArgumentException}
+     *
+     * @param invocationContext
+     * @param clusterName       The name of the cluster
+     * @return
+     * @throws IllegalArgumentException If there's no EJB receiver context available for the cluster
+     */
+    EJBReceiverContext requireClusterEJBReceiverContext(final EJBClientInvocationContext invocationContext, final String clusterName) throws IllegalArgumentException {
         ClusterContext clusterContext = this.clusterContexts.get(clusterName);
         if (clusterContext == null) {
             // let's wait for some time to see if the asynchronous cluster topology becomes available.
@@ -671,7 +743,7 @@ public final class EJBClientContext extends Attachable {
                 throw new IllegalArgumentException("No cluster context (and as a result EJB receiver context) available for cluster named " + clusterName);
             }
         }
-        final EJBReceiverContext ejbReceiverContext = this.getClusterEJBReceiverContext(clusterName);
+        final EJBReceiverContext ejbReceiverContext = this.getClusterEJBReceiverContext(invocationContext, clusterName);
         if (ejbReceiverContext == null) {
             throw new IllegalStateException("No EJB receiver contexts available in cluster " + clusterName);
         }

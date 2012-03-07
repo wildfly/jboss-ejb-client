@@ -22,18 +22,29 @@
 
 package org.jboss.ejb.client;
 
+import org.jboss.logging.Logger;
+
+import java.util.Set;
+
 /**
  * @author <a href="mailto:david.lloyd@redhat.com">David M. Lloyd</a>
  */
 public final class ReceiverInterceptor implements EJBClientInterceptor {
 
-    public void handleInvocation(final EJBClientInvocationContext context) throws Exception {
-        final EJBClientContext clientContext = context.getClientContext();
-        final EJBLocator<?> locator = context.getLocator();
+    private static final Logger logger = Logger.getLogger(ReceiverInterceptor.class);
+
+    public void handleInvocation(final EJBClientInvocationContext invocationContext) throws Exception {
+        final EJBClientContext clientContext = invocationContext.getClientContext();
+        final EJBLocator<?> locator = invocationContext.getLocator();
+        final Set<String> excludedNodes = invocationContext.getExcludedNodes();
         final EJBClientTransactionContext transactionContext = EJBClientTransactionContext.getCurrent();
         final String transactionNode = transactionContext == null ? null : transactionContext.getTransactionNode();
         final EJBReceiverContext receiverContext;
         if (transactionNode != null) {
+            if (excludedNodes.contains(transactionNode)) {
+                throw new IllegalStateException("Cannot proceed with invocation since transaction is pinned to node "
+                        + transactionNode + " which has been excluded from handling invocation for the current invocation context " + invocationContext);
+            }
             receiverContext = clientContext.requireNodeEJBReceiverContext(transactionNode);
             if (!receiverContext.getReceiver().acceptsModule(locator.getAppName(), locator.getModuleName(), locator.getDistinctName())) {
                 throw new IllegalStateException(String.format("Node of the current transaction (%s) does not accept (%s)", transactionNode, locator));
@@ -51,45 +62,70 @@ public final class ReceiverInterceptor implements EJBClientInterceptor {
         } else {
             final Affinity affinity = locator.getAffinity();
             if (affinity instanceof NodeAffinity) {
-                receiverContext = clientContext.requireNodeEJBReceiverContext(((NodeAffinity) affinity).getNodeName());
+                final String nodeName = ((NodeAffinity) affinity).getNodeName();
+                if (excludedNodes.contains(nodeName)) {
+                    throw new IllegalStateException("Cannot proceed with invocation since the locator " + locator
+                            + " has a affinity on node " + nodeName + " which has been excluded from current invocation context "
+                            + invocationContext);
+                }
+                receiverContext = clientContext.requireNodeEJBReceiverContext(nodeName);
             } else if (affinity instanceof ClusterAffinity) {
-                final Affinity weakAffinity = context.getInvocationHandler().getWeakAffinity();
+                final Affinity weakAffinity = invocationContext.getInvocationHandler().getWeakAffinity();
                 if (weakAffinity instanceof NodeAffinity) {
-                    final EJBReceiver nodeReceiver = clientContext.getNodeEJBReceiver(((NodeAffinity) weakAffinity).getNodeName());
+                    final String nodeName = ((NodeAffinity) weakAffinity).getNodeName();
+                    final EJBReceiver nodeReceiver;
+                    // ignore the weak affinity if the node has been marked as excluded for this invocation context
+                    if (excludedNodes.contains(nodeName)) {
+                        logger.debug("Ignoring weak affinity on node " + nodeName + " since that node has been marked as excluded for invocation context " + invocationContext);
+                        nodeReceiver = null;
+                    } else {
+                        nodeReceiver = clientContext.getNodeEJBReceiver(nodeName);
+                    }
                     if (nodeReceiver != null && clientContext.clusterContains(((ClusterAffinity) affinity).getClusterName(), nodeReceiver.getNodeName())) {
                         receiverContext = clientContext.requireEJBReceiverContext(nodeReceiver);
                     } else {
-                        receiverContext = clientContext.requireClusterEJBReceiverContext(((ClusterAffinity) affinity).getClusterName());
+                        receiverContext = clientContext.requireClusterEJBReceiverContext(invocationContext, ((ClusterAffinity) affinity).getClusterName());
                     }
                 } else {
-                    receiverContext = clientContext.requireClusterEJBReceiverContext(((ClusterAffinity) affinity).getClusterName());
+                    receiverContext = clientContext.requireClusterEJBReceiverContext(invocationContext, ((ClusterAffinity) affinity).getClusterName());
                 }
             } else if (affinity == Affinity.NONE) {
-                final Affinity weakAffinity = context.getInvocationHandler().getWeakAffinity();
+                final Affinity weakAffinity = invocationContext.getInvocationHandler().getWeakAffinity();
                 if (weakAffinity instanceof NodeAffinity) {
-                    final EJBReceiver receiver = clientContext.getNodeEJBReceiver(((NodeAffinity) weakAffinity).getNodeName());
-                    if (receiver != null) {
-                        receiverContext = clientContext.requireEJBReceiverContext(receiver);
+                    final String nodeName = ((NodeAffinity) weakAffinity).getNodeName();
+                    final EJBReceiver nodeReceiver;
+                    // ignore the weak affinity if the node has been marked as excluded for this invocation context
+                    if (excludedNodes.contains(nodeName)) {
+                        logger.debug("Ignoring weak affinity on node " + nodeName + " since that node has been marked as excluded for invocation context " + invocationContext);
+                        nodeReceiver = null;
                     } else {
-                        receiverContext = clientContext.requireEJBReceiverContext(clientContext.requireEJBReceiver(locator.getAppName(), locator.getModuleName(), locator.getDistinctName()));
+                        nodeReceiver = clientContext.getNodeEJBReceiver(nodeName);
+                    }
+                    if (nodeReceiver != null) {
+                        receiverContext = clientContext.requireEJBReceiverContext(nodeReceiver);
+                    } else {
+                        final EJBReceiver receiver = clientContext.requireEJBReceiver(invocationContext, locator.getAppName(), locator.getModuleName(), locator.getDistinctName());
+                        receiverContext = clientContext.requireEJBReceiverContext(receiver);
                     }
                 } else if (weakAffinity instanceof ClusterAffinity) {
-                    final EJBReceiverContext clusterReceiverContext = clientContext.getClusterEJBReceiverContext(((ClusterAffinity) weakAffinity).getClusterName());
+                    final EJBReceiverContext clusterReceiverContext = clientContext.getClusterEJBReceiverContext(invocationContext, ((ClusterAffinity) weakAffinity).getClusterName());
                     if (clusterReceiverContext != null) {
                         receiverContext = clusterReceiverContext;
                     } else {
-                        receiverContext = clientContext.requireEJBReceiverContext(clientContext.requireEJBReceiver(locator.getAppName(), locator.getModuleName(), locator.getDistinctName()));
+                        final EJBReceiver receiver = clientContext.requireEJBReceiver(invocationContext, locator.getAppName(), locator.getModuleName(), locator.getDistinctName());
+                        receiverContext = clientContext.requireEJBReceiverContext(receiver);
                     }
                 } else {
-                    receiverContext = clientContext.requireEJBReceiverContext(clientContext.requireEJBReceiver(locator.getAppName(), locator.getModuleName(), locator.getDistinctName()));
+                    final EJBReceiver receiver = clientContext.requireEJBReceiver(invocationContext, locator.getAppName(), locator.getModuleName(), locator.getDistinctName());
+                    receiverContext = clientContext.requireEJBReceiverContext(receiver);
                 }
             } else {
                 // should never happen
                 throw new IllegalStateException("Unknown affinity type");
             }
         }
-        context.setReceiverInvocationContext(new EJBReceiverInvocationContext(context, receiverContext));
-        context.sendRequest();
+        invocationContext.setReceiverInvocationContext(new EJBReceiverInvocationContext(invocationContext, receiverContext));
+        invocationContext.sendRequest();
     }
 
     public Object handleInvocationResult(final EJBClientInvocationContext context) throws Exception {

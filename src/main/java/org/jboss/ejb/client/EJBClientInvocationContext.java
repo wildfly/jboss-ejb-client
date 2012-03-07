@@ -24,20 +24,23 @@ package org.jboss.ejb.client;
 
 import java.io.Serializable;
 import java.lang.reflect.Method;
+import java.util.Collections;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
-import static java.lang.Thread.holdsLock;
+import static java.lang.Thread.*;
 
 /**
- * An interceptor context for EJB client interceptors.
+ * An invocation context for EJB invocations from an EJB client
  *
- * @param <A> the receiver attachment type
  * @author <a href="mailto:david.lloyd@redhat.com">David M. Lloyd</a>
+ * @author Jaikiran Pai
  */
 public final class EJBClientInvocationContext extends Attachable {
 
@@ -60,11 +63,15 @@ public final class EJBClientInvocationContext extends Attachable {
     private Object cachedResult;
     private Map<String, Object> contextData;
     private EJBReceiverInvocationContext receiverInvocationContext;
+    // nodes to which invocation shouldn't be forwarded to. This is typically for cases
+    // where a invocation failed on a specific node, for this invocation context, due to the deployment
+    // being undeployed after the node was selected for handling this invocation but before the client
+    // could get a undeploy notification for it
+    private Set<String> excludedNodes = new HashSet<String>();
 
     // Interceptor state
     private final EJBClientInterceptor[] interceptorChain;
-    private int idx;
-    private boolean requestDone;
+    private int interceptorChainIndex;
     private boolean resultDone;
 
     EJBClientInvocationContext(final EJBInvocationHandler<?> invocationHandler, final EJBClientContext ejbClientContext, final Object invokedProxy, final Method invokedMethod, final Object[] parameters) {
@@ -159,24 +166,74 @@ public final class EJBClientInvocationContext extends Attachable {
      * @throws Exception if the request was not successfully sent
      */
     public void sendRequest() throws Exception {
-        if (requestDone) {
+        final int idx = this.interceptorChainIndex++;
+        final EJBClientInterceptor[] chain = interceptorChain;
+        if (idx > chain.length) {
             throw new IllegalStateException("sendRequest() called during wrong phase");
         }
-        final int idx = this.idx++;
-        final EJBClientInterceptor[] chain = interceptorChain;
-        try {
-            if (chain.length == idx) {
-                final EJBReceiverInvocationContext context = receiverInvocationContext;
-                if (context == null) {
-                    throw new IllegalStateException("No valid receiver associated with invocation");
-                }
-                context.getEjbReceiverContext().getReceiver().processInvocation(this, context);
-            } else {
-                chain[idx].handleInvocation(this);
+        if (chain.length == idx) {
+            final EJBReceiverInvocationContext context = receiverInvocationContext;
+            if (context == null) {
+                throw new IllegalStateException("No valid receiver associated with invocation");
             }
-        } finally {
-            requestDone = true;
+            context.getEjbReceiverContext().getReceiver().processInvocation(this, context);
+        } else {
+            chain[idx].handleInvocation(this);
         }
+    }
+
+    /**
+     * Retry a request which was previously sent but probably failed with a error response.
+     * Note that this method will throw an {@link IllegalStateException} if a previous request wasn't completed
+     * for this invocation context
+     *
+     * @throws Exception if the retry request was not successfully sent
+     */
+    void retryRequest() throws Exception {
+        // if a previous request wasn't yet done, then this isn't really a "retry",
+        // so we error out
+        final int idx = this.interceptorChainIndex;
+        final EJBClientInterceptor[] chain = interceptorChain;
+        if (idx <= chain.length) {
+            throw new IllegalStateException("Cannot retry a request which hasn't previously been completed");
+        }
+        // reset the interceptor index to the beginning of the chain
+        this.interceptorChainIndex = 0;
+        // reset the previously set receiver invocation context, since a possibly new receiver
+        // will be selected during this retry
+        this.receiverInvocationContext = null;
+        // send request
+        this.sendRequest();
+    }
+
+    /**
+     * Returns a set of nodes which shouldn't be used for handling the invocation represented by this
+     * invocation context. If there are no such nodes, then this method returns an empty set.
+     * <p/>
+     * Typically a node is marked as excluded for a {@link EJBClientInvocationContext invocation context}
+     * if it failed to handle that specific {@link EJBClientInvocationContext invocation}. This can happen,
+     * for example, if a node was selected for invocation handling and was later incapable of handling it
+     * due to the deployment being un-deployed. The invocation in such cases will typically be retried by
+     * marking that node as excluded and selecting a different node (if any) for the retried invocation.
+     *
+     * @return
+     */
+    Set<String> getExcludedNodes() {
+        return Collections.unmodifiableSet(this.excludedNodes);
+    }
+
+    /**
+     * Marks the passed <code>nodeName</code> as excluded so that the invocation represented by
+     * this {@link EJBClientInvocationContext invocation context} will leave it out while selecting a suitable node for
+     * handling the invocation
+     *
+     * @param nodeName The name of the node to be excluded
+     */
+    void markNodeAsExcluded(final String nodeName) {
+        if (nodeName == null || nodeName.trim().isEmpty()) {
+            return;
+        }
+        this.excludedNodes.add(nodeName);
     }
 
     void setReceiverInvocationContext(EJBReceiverInvocationContext context) {
@@ -197,7 +254,7 @@ public final class EJBClientInvocationContext extends Attachable {
             throw new IllegalStateException("getResult() called during wrong phase");
         }
 
-        final int idx = this.idx++;
+        final int idx = this.interceptorChainIndex++;
         final EJBClientInterceptor[] chain = interceptorChain;
         if (idx == 0) try {
             return chain[idx].handleInvocationResult(this);
@@ -207,7 +264,8 @@ public final class EJBClientInvocationContext extends Attachable {
             if (weakAffinity != null) {
                 invocationHandler.setWeakAffinity(weakAffinity);
             }
-        } else try {
+        }
+        else try {
             if (chain.length == idx) {
                 return resultProducer.getResult();
             } else {
@@ -239,7 +297,7 @@ public final class EJBClientInvocationContext extends Attachable {
                 case WAITING:
                 case CANCEL_REQ: {
                     this.resultProducer = resultProducer;
-                    idx = 0;
+                    interceptorChainIndex = 0;
                     state = State.READY;
                     lock.notifyAll();
                     return;
@@ -307,7 +365,7 @@ public final class EJBClientInvocationContext extends Attachable {
     static final Object PROCEED_ASYNC = new Object();
 
     void proceedAsynchronously() {
-        assert ! holdsLock(lock);
+        assert !holdsLock(lock);
         synchronized (lock) {
             if (asyncState == AsyncState.SYNCHRONOUS) {
                 asyncState = AsyncState.ASYNCHRONOUS;
@@ -317,7 +375,7 @@ public final class EJBClientInvocationContext extends Attachable {
     }
 
     Object awaitResponse() throws Exception {
-        assert ! holdsLock(lock);
+        assert !holdsLock(lock);
         boolean intr = false;
         try {
             synchronized (lock) {
@@ -345,7 +403,7 @@ public final class EJBClientInvocationContext extends Attachable {
     }
 
     void setDiscardResult() {
-        assert ! holdsLock(lock);
+        assert !holdsLock(lock);
         final EJBReceiverInvocationContext.ResultProducer resultProducer;
         synchronized (lock) {
             if (asyncState != AsyncState.ONE_WAY) {
@@ -365,7 +423,7 @@ public final class EJBClientInvocationContext extends Attachable {
     }
 
     void cancelled() {
-        assert ! holdsLock(lock);
+        assert !holdsLock(lock);
         synchronized (lock) {
             switch (state) {
                 case WAITING:
@@ -379,7 +437,7 @@ public final class EJBClientInvocationContext extends Attachable {
     }
 
     void failed(Throwable exception) {
-        assert ! holdsLock(lock);
+        assert !holdsLock(lock);
         synchronized (lock) {
             switch (state) {
                 case WAITING:
@@ -396,7 +454,7 @@ public final class EJBClientInvocationContext extends Attachable {
     final class FutureResponse implements Future<Object> {
 
         public boolean cancel(final boolean mayInterruptIfRunning) {
-            assert ! holdsLock(lock);
+            assert !holdsLock(lock);
             synchronized (lock) {
                 if (state != State.WAITING) {
                     return false;
@@ -407,14 +465,14 @@ public final class EJBClientInvocationContext extends Attachable {
         }
 
         public boolean isCancelled() {
-            assert ! holdsLock(lock);
+            assert !holdsLock(lock);
             synchronized (lock) {
                 return state == State.CANCELLED;
             }
         }
 
         public boolean isDone() {
-            assert ! holdsLock(lock);
+            assert !holdsLock(lock);
             synchronized (lock) {
                 switch (state) {
                     case WAITING:
@@ -429,13 +487,14 @@ public final class EJBClientInvocationContext extends Attachable {
                     case DISCARDED: {
                         return true;
                     }
-                    default: throw new IllegalStateException();
+                    default:
+                        throw new IllegalStateException();
                 }
             }
         }
 
         public Object get() throws InterruptedException, ExecutionException {
-            assert ! holdsLock(lock);
+            assert !holdsLock(lock);
             final EJBReceiverInvocationContext.ResultProducer resultProducer;
             synchronized (lock) {
                 while (state == State.WAITING || state == State.CANCEL_REQ || state == State.CONSUMING) lock.wait();
@@ -460,7 +519,8 @@ public final class EJBClientInvocationContext extends Attachable {
                     case DISCARDED: {
                         throw log.oneWayInvocation();
                     }
-                    default: throw new IllegalStateException();
+                    default:
+                        throw new IllegalStateException();
                 }
             }
             // extract the result from the producer.
@@ -486,7 +546,7 @@ public final class EJBClientInvocationContext extends Attachable {
         }
 
         public Object get(final long timeout, final TimeUnit unit) throws InterruptedException, ExecutionException, TimeoutException {
-            assert ! holdsLock(lock);
+            assert !holdsLock(lock);
             final EJBReceiverInvocationContext.ResultProducer resultProducer;
             synchronized (lock) {
                 if (state == State.WAITING || state == State.CANCEL_REQ || state == State.CONSUMING) {
@@ -524,7 +584,8 @@ public final class EJBClientInvocationContext extends Attachable {
                     case DISCARDED: {
                         throw log.oneWayInvocation();
                     }
-                    default: throw new IllegalStateException();
+                    default:
+                        throw new IllegalStateException();
                 }
             }
             // extract the result from the producer.
@@ -551,7 +612,7 @@ public final class EJBClientInvocationContext extends Attachable {
     }
 
     protected void finalize() throws Throwable {
-        assert ! holdsLock(lock);
+        assert !holdsLock(lock);
         final EJBReceiverInvocationContext.ResultProducer resultProducer;
         synchronized (lock) {
             switch (state) {

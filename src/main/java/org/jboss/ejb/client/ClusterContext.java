@@ -80,26 +80,13 @@ public final class ClusterContext implements EJBClientContext.EJBReceiverContext
 
     /**
      * Returns a {@link EJBReceiverContext} from among the receiver contexts that are available in this cluster.
-     *
-     * @return
-     * @throws IllegalArgumentException If there's no {@link EJBReceiverContext} available in this cluster
-     */
-    EJBReceiverContext requireEJBReceiverContext() throws IllegalArgumentException {
-        final EJBReceiverContext ejbReceiverContext = this.getEJBReceiverContext();
-        if (ejbReceiverContext == null) {
-            throw new IllegalStateException("No EJB receiver contexts available in cluster " + clusterName);
-        }
-        return ejbReceiverContext;
-    }
-
-    /**
-     * Returns a {@link EJBReceiverContext} from among the receiver contexts that are available in this cluster.
      * Returns null if there is no such receiver context available.
      *
      * @return
      */
-    EJBReceiverContext getEJBReceiverContext() {
-        return this.getEJBReceiverContext(new HashSet<String>());
+    EJBReceiverContext getEJBReceiverContext(final EJBClientInvocationContext invocationContext) {
+        final Set<String> excludedNodes = invocationContext == null ? new HashSet<String>() : new HashSet<String>(invocationContext.getExcludedNodes());
+        return this.getEJBReceiverContext(excludedNodes);
     }
 
     /**
@@ -119,7 +106,10 @@ public final class ClusterContext implements EJBClientContext.EJBReceiverContext
         final Set<String> availableNodes = this.nodeManagers.keySet();
         // remove the excluded nodes
         availableNodes.removeAll(excludedNodes);
-
+        if (availableNodes.isEmpty()) {
+            logger.debug("No nodes available in cluster " + this.clusterName + " for selecting a receiver context");
+            return null;
+        }
         final Set<String> alreadyConnectedNodes = this.connectedNodes;
         // remove the excluded nodes
         alreadyConnectedNodes.removeAll(excludedNodes);

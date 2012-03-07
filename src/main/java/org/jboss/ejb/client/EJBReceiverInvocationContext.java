@@ -47,6 +47,7 @@ public final class EJBReceiverInvocationContext {
 
     /**
      * Returns the {@link EJBClientInvocationContext} associated with this EJB receiver invocation context
+     *
      * @return
      */
     public EJBClientInvocationContext getClientInvocationContext() {
@@ -79,6 +80,29 @@ public final class EJBReceiverInvocationContext {
         clientInvocationContext.cancelled();
     }
 
+    /**
+     * Retry the current invocation
+     *
+     * @param excludeCurrentReceiver True if the {@link EJBReceiver} represented by this {@link EJBReceiverInvocationContext}
+     *                               has to be excluded from being chosen for handling the retried invocation. False otherwise.
+     * @throws Exception If the retried invocation runs into any exception
+     */
+    public void retryInvocation(final boolean excludeCurrentReceiver) throws Exception {
+        if (excludeCurrentReceiver) {
+            final EJBReceiver currentReceiver = this.ejbReceiverContext.getReceiver();
+            this.clientInvocationContext.markNodeAsExcluded(currentReceiver.getNodeName());
+        }
+        this.clientInvocationContext.retryRequest();
+    }
+
+    /**
+     * Returns the node name of the receiver represented by this {@link EJBReceiverInvocationContext}
+     * @return
+     */
+    public String getNodeName() {
+        return this.ejbReceiverContext.getReceiver().getNodeName();
+    }
+    
     /**
      * A result producer for invocation.
      */
