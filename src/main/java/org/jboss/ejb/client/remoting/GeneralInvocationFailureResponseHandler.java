@@ -22,13 +22,12 @@
 
 package org.jboss.ejb.client.remoting;
 
-import javax.ejb.EJBException;
-import javax.ejb.NoSuchEJBException;
-import java.io.DataInputStream;
-import java.io.IOException;
-
 import org.jboss.ejb.client.EJBReceiverInvocationContext;
 import org.jboss.remoting3.MessageInputStream;
+
+import javax.ejb.EJBException;
+import java.io.DataInputStream;
+import java.io.IOException;
 
 /**
  * Responsible for parsing an invocation failure message from the stream and throwing back the exception as
@@ -42,7 +41,6 @@ class GeneralInvocationFailureResponseHandler extends ProtocolMessageHandler {
      * Failure types
      */
     enum FailureType {
-        NO_SUCH_EJB,
         NO_SUCH_METHOD,
         SESSION_NOT_ACTIVE,
         EJB_NOT_STATEFUL
@@ -69,15 +67,7 @@ class GeneralInvocationFailureResponseHandler extends ProtocolMessageHandler {
             // read invocation id
             final short invocationId = dataInputStream.readShort();
             final String failureMessage = dataInputStream.readUTF();
-            Exception exception = null;
-            switch (this.failureType) {
-                case NO_SUCH_EJB:
-                    exception = new NoSuchEJBException(failureMessage);
-                    break;
-                default:
-                    exception = new EJBException(failureMessage);
-                    break;
-            }
+            final Exception exception = new EJBException(failureMessage);
             // let the result availability be known
             this.channelAssociation.resultReady(invocationId, new InvocationFailureResultProducer(exception));
 
