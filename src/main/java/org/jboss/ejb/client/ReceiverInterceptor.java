@@ -36,7 +36,7 @@ public final class ReceiverInterceptor implements EJBClientInterceptor {
         if (transactionNode != null) {
             receiverContext = clientContext.requireNodeEJBReceiverContext(transactionNode);
             if (!receiverContext.getReceiver().acceptsModule(locator.getAppName(), locator.getModuleName(), locator.getDistinctName())) {
-                throw new IllegalStateException(String.format("Node of the current transaction (%s) does not accept (%s)", locator));
+                throw new IllegalStateException(String.format("Node of the current transaction (%s) does not accept (%s)", transactionNode, locator));
             }
             final Affinity affinity = locator.getAffinity();
             if (affinity instanceof NodeAffinity) {
