@@ -21,6 +21,8 @@
  */
 package org.jboss.ejb.client.test.common;
 
+import org.jboss.ejb.client.ClusterAffinity;
+import org.jboss.ejb.client.SessionID;
 import org.jboss.ejb.client.remoting.DummyProtocolHandler;
 import org.jboss.ejb.client.remoting.MethodInvocationRequest;
 import org.jboss.ejb.client.remoting.PackedInteger;
@@ -36,7 +38,6 @@ import org.jboss.remoting3.Remoting;
 import org.jboss.remoting3.remote.RemoteConnectionProviderFactory;
 import org.jboss.remoting3.security.SimpleServerAuthenticationProvider;
 import org.jboss.remoting3.spi.NetworkServerProvider;
-import org.jboss.sasl.JBossSaslProvider;
 import org.xnio.IoUtils;
 import org.xnio.OptionMap;
 import org.xnio.Options;
@@ -49,16 +50,16 @@ import java.io.DataInputStream;
 import java.io.DataOutput;
 import java.io.DataOutputStream;
 import java.io.IOException;
-import java.io.ObjectOutputStream;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
-import java.security.Security;
+import java.nio.ByteBuffer;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArraySet;
 
@@ -70,6 +71,7 @@ public class DummyServer {
     private static final Logger logger = Logger.getLogger(DummyServer.class);
 
     private static final String[] supportedMarshallerTypes = new String[]{"river", "java-serial"};
+    private static final String CLUSTER_NAME = "dummy-cluster";
 
     private Endpoint endpoint;
 
@@ -152,6 +154,10 @@ public class DummyServer {
         IoUtils.safeClose(this.endpoint);
     }
 
+    public String getClusterName() {
+        return this.CLUSTER_NAME;
+    }
+
 
     class Version1Receiver implements Channel.Receiver {
 
@@ -183,10 +189,24 @@ public class DummyServer {
                         Object methodInvocationResult = null;
                         try {
                             methodInvocationResult = DummyServer.this.handleMethodInvocationRequest(methodInvocationRequest);
+                        } catch (NoSuchEJBException nsee) {
+                            final DataOutputStream outputStream = new DataOutputStream(channel.writeMessage());
+                            try {
+                                this.dummyProtocolHandler.writeNoSuchEJBFailureMessage(outputStream, methodInvocationRequest.getInvocationId(), methodInvocationRequest.getAppName(),
+                                        methodInvocationRequest.getModuleName(), methodInvocationRequest.getDistinctName(), methodInvocationRequest.getBeanName(),
+                                        methodInvocationRequest.getViewClassName());
+                            } finally {
+                                outputStream.close();
+                            }
+                            return;
                         } catch (Exception e) {
-                            logger.error("Error while invoking method", e);
-                            // TODO: Convey this error back to client
-                            throw new RuntimeException(e);
+                            final DataOutputStream outputStream = new DataOutputStream(channel.writeMessage());
+                            try {
+                                this.dummyProtocolHandler.writeException(outputStream, methodInvocationRequest.getInvocationId(), e, methodInvocationRequest.getAttachments());
+                            } finally {
+                                outputStream.close();
+                            }
+                            return;
                         }
                         logger.info("Method invocation result on server " + methodInvocationResult);
                         // write the method invocation result
@@ -195,6 +215,16 @@ public class DummyServer {
                             this.dummyProtocolHandler.writeMethodInvocationResponse(outputStream, methodInvocationRequest.getInvocationId(), methodInvocationResult, methodInvocationRequest.getAttachments());
                         } finally {
                             outputStream.close();
+                        }
+
+                        break;
+                    case 0x01:
+                        // session open request
+                        try {
+                            this.handleSessionOpenRequest(channel, messageInputStream);
+                        } catch (Exception e) {
+                            // TODO: Let the client know of this exception
+                            throw new RuntimeException(e);
                         }
 
                         break;
@@ -213,6 +243,45 @@ public class DummyServer {
 
         }
 
+        private void handleSessionOpenRequest(Channel channel, MessageInputStream messageInputStream) throws IOException {
+            if (messageInputStream == null) {
+                throw new IllegalArgumentException("Cannot read from null message inputstream");
+            }
+            final DataInputStream dataInputStream = new DataInputStream(messageInputStream);
+
+            // read invocation id
+            final short invocationId = dataInputStream.readShort();
+            final String appName = dataInputStream.readUTF();
+            final String moduleName = dataInputStream.readUTF();
+            final String distinctName = dataInputStream.readUTF();
+            final String beanName = dataInputStream.readUTF();
+
+            final EJBModuleIdentifier ejbModuleIdentifier = new EJBModuleIdentifier(appName, moduleName, distinctName);
+            final Map<String, Object> ejbs = DummyServer.this.registeredEJBs.get(ejbModuleIdentifier);
+            if (ejbs == null || ejbs.get(beanName) == null) {
+                final DataOutputStream outputStream = new DataOutputStream(channel.writeMessage());
+                try {
+                    this.dummyProtocolHandler.writeNoSuchEJBFailureMessage(outputStream, invocationId, appName, moduleName, distinctName, beanName, null);
+                } finally {
+                    outputStream.close();
+                }
+                return;
+            }
+            final UUID uuid = UUID.randomUUID();
+            ByteBuffer bb = ByteBuffer.wrap(new byte[16]);
+            bb.putLong(uuid.getMostSignificantBits());
+            bb.putLong(uuid.getLeastSignificantBits());
+            final SessionID sessionID = SessionID.createSessionID(bb.array());
+            final DataOutputStream outputStream = new DataOutputStream(channel.writeMessage());
+            try {
+                final ClusterAffinity hardAffinity = new ClusterAffinity(DummyServer.this.CLUSTER_NAME);
+                this.dummyProtocolHandler.writeSessionId(outputStream, invocationId, sessionID, hardAffinity);
+            } finally {
+                outputStream.close();
+            }
+        }
+
+
     }
 
     public void register(final String appName, final String moduleName, final String distinctName, final String beanName, final Object instance) {
@@ -225,14 +294,35 @@ public class DummyServer {
         }
         ejbs.put(beanName, instance);
         try {
-            this.sendNewModuleAvailabilityToClients(new EJBModuleIdentifier[]{moduleID});
+            this.sendNewModuleReportToClients(new EJBModuleIdentifier[]{moduleID}, true);
         } catch (IOException e) {
             logger.warn("Could not send EJB module availability message to clients, for module " + moduleID, e);
         }
     }
 
-    private void sendNewModuleAvailabilityToClients(final EJBModuleIdentifier[] newModules) throws IOException {
-        if (newModules == null) {
+    public void unregister(final String appName, final String moduleName, final String distinctName, final String beanName) {
+        this.unregister(appName, moduleName, distinctName, beanName, true);
+    }
+
+    public void unregister(final String appName, final String moduleName, final String distinctName, final String beanName, final boolean notifyClients) {
+
+        final EJBModuleIdentifier moduleID = new EJBModuleIdentifier(appName, moduleName, distinctName);
+        Map<String, Object> ejbs = this.registeredEJBs.get(moduleID);
+        if (ejbs != null) {
+            ejbs.remove(beanName);
+        }
+        if (notifyClients) {
+            try {
+                this.sendNewModuleReportToClients(new EJBModuleIdentifier[]{moduleID}, false);
+            } catch (IOException e) {
+                logger.warn("Could not send EJB module un-availability message to clients, for module " + moduleID, e);
+            }
+        }
+    }
+
+
+    private void sendNewModuleReportToClients(final EJBModuleIdentifier[] modules, final boolean availabilityReport) throws IOException {
+        if (modules == null) {
             return;
         }
         if (this.openChannels.isEmpty()) {
@@ -241,7 +331,11 @@ public class DummyServer {
         for (final Channel channel : this.openChannels) {
             final DataOutputStream dataOutputStream = new DataOutputStream(channel.writeMessage());
             try {
-                this.writeModuleAvailability(dataOutputStream, newModules);
+                if (availabilityReport) {
+                    this.writeModuleAvailability(dataOutputStream, modules);
+                } else {
+                    this.writeModuleUnAvailability(dataOutputStream, modules);
+                }
             } catch (IOException e) {
                 logger.warn("Could not send module availability message to client", e);
             } finally {
@@ -260,12 +354,28 @@ public class DummyServer {
         }
         // write the header
         output.write(0x08);
+        this.writeModuleReport(output, ejbModuleIdentifiers);
+    }
+
+    private void writeModuleUnAvailability(final DataOutput output, final EJBModuleIdentifier[] ejbModuleIdentifiers) throws IOException {
+        if (output == null) {
+            throw new IllegalArgumentException("Cannot write to null output");
+        }
+        if (ejbModuleIdentifiers == null) {
+            throw new IllegalArgumentException("EJB module identifiers cannot be null");
+        }
+        // write the header
+        output.write(0x09);
+        this.writeModuleReport(output, ejbModuleIdentifiers);
+    }
+
+    private void writeModuleReport(final DataOutput output, final EJBModuleIdentifier[] modules) throws IOException {
         // write the count
-        PackedInteger.writePackedInteger(output, ejbModuleIdentifiers.length);
-        // write the app/module names
-        for (int i = 0; i < ejbModuleIdentifiers.length; i++) {
+        PackedInteger.writePackedInteger(output, modules.length);
+        // write the module identifiers
+        for (int i = 0; i < modules.length; i++) {
             // write the app name
-            final String appName = ejbModuleIdentifiers[i].getAppName();
+            final String appName = modules[i].getAppName();
             if (appName == null) {
                 // write out a empty string
                 output.writeUTF("");
@@ -273,9 +383,9 @@ public class DummyServer {
                 output.writeUTF(appName);
             }
             // write the module name
-            output.writeUTF(ejbModuleIdentifiers[i].getModuleName());
+            output.writeUTF(modules[i].getModuleName());
             // write the distinct name
-            final String distinctName = ejbModuleIdentifiers[i].getDistinctName();
+            final String distinctName = modules[i].getDistinctName();
             if (distinctName == null) {
                 // write out an empty string
                 output.writeUTF("");
@@ -348,7 +458,7 @@ public class DummyServer {
                         channel.receiveMessage(receiver);
                         // send module availability report to clients
                         final Collection<EJBModuleIdentifier> availableModules = DummyServer.this.registeredEJBs.keySet();
-                        DummyServer.this.sendNewModuleAvailabilityToClients(availableModules.toArray(new EJBModuleIdentifier[availableModules.size()]));
+                        DummyServer.this.sendNewModuleReportToClients(availableModules.toArray(new EJBModuleIdentifier[availableModules.size()]), true);
                         break;
                     default:
                         logger.info("Received unsupported version 0x" + Integer.toHexString(version) + " from client, on channel " + channel);
@@ -369,6 +479,7 @@ public class DummyServer {
             }
         }
     }
+
 
     private class EJBModuleIdentifier {
         private final String appName;

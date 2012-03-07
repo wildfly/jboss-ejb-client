@@ -22,7 +22,9 @@
 
 package org.jboss.ejb.client.remoting;
 
+import org.jboss.ejb.client.Affinity;
 import org.jboss.ejb.client.EJBLocator;
+import org.jboss.ejb.client.SessionID;
 import org.jboss.marshalling.AbstractClassResolver;
 import org.jboss.marshalling.ByteInput;
 import org.jboss.marshalling.ByteOutput;
@@ -31,9 +33,11 @@ import org.jboss.marshalling.MarshallerFactory;
 import org.jboss.marshalling.Marshalling;
 import org.jboss.marshalling.MarshallingConfiguration;
 import org.jboss.marshalling.Unmarshaller;
+import org.jboss.remoting3.Channel;
 
 import java.io.DataInput;
 import java.io.DataOutput;
+import java.io.DataOutputStream;
 import java.io.EOFException;
 import java.io.IOException;
 import java.io.InputStream;
@@ -57,9 +61,10 @@ public class DummyProtocolHandler {
     private static final byte HEADER_INVOCATION_REQUEST = 0x03;
     private static final byte HEADER_INVOCATION_CANCEL_REQUEST = 0x04;
     private static final byte HEADER_INVOCATION_RESPONSE = 0x05;
-    private static final byte HEADER_INVOCATION_FAILURE = 0x06;
     private static final byte HEADER_MODULE_AVAILABLE = 0x08;
     private static final byte HEADER_MODULE_UNAVAILABLE = 0x09;
+    private static final byte HEADER_NO_SUCH_EJB_FAILURE = 0x0A;
+    private static final byte HEADER_INVOCATION_EXCEPTION = 0x06;
 
     public DummyProtocolHandler(final String marshallerType) {
         this.marshallerFactory = Marshalling.getProvidedMarshallerFactory(marshallerType);
@@ -137,13 +142,10 @@ public class DummyProtocolHandler {
         marshaller.finish();
     }
 
-    public void writeMethodInvocationFailureResponse(final DataOutput output, final short invocationId,
-                                              final Throwable t, final Map<String, Object> attachments) throws IOException {
-        if (output == null) {
-            throw new IllegalArgumentException("Cannot write to null output");
-        }
+    public void writeException(final DataOutput output, final short invocationId, final Throwable t,
+                               final Map<String, Object> attachments) throws IOException {
         // write the header
-        output.write(HEADER_INVOCATION_FAILURE);
+        output.write(HEADER_INVOCATION_EXCEPTION);
         // write the invocation id
         output.writeShort(invocationId);
         // write out the exception
@@ -151,6 +153,48 @@ public class DummyProtocolHandler {
         marshaller.writeObject(t);
         // write the attachments
         this.writeAttachments(marshaller, attachments);
+        // finish marshalling
+        marshaller.finish();
+    }
+
+    private void writeInvocationFailure(final DataOutput output, final byte messageHeader, final short invocationId, final String failureMessage) throws IOException {
+        // write header
+        output.writeByte(messageHeader);
+        // write invocation id
+        output.writeShort(invocationId);
+        // write the failure message
+        output.writeUTF(failureMessage);
+    }
+
+    public void writeNoSuchEJBFailureMessage(final DataOutput output, final short invocationId, final String appName, final String moduleName,
+                                             final String distinctName, final String beanName, final String viewClassName) throws IOException {
+
+        final StringBuffer sb = new StringBuffer("No such EJB[");
+        sb.append("appname=").append(appName).append(",");
+        sb.append("modulename=").append(moduleName).append(",");
+        sb.append("distinctname=").append(distinctName).append(",");
+        sb.append("beanname=").append(beanName);
+        if (viewClassName != null) {
+            sb.append(",").append("viewclassname=").append(viewClassName);
+        }
+        sb.append("]");
+        this.writeInvocationFailure(output, HEADER_NO_SUCH_EJB_FAILURE, invocationId, sb.toString());
+    }
+
+    public void writeSessionId(final DataOutput output, final short invocationId, final SessionID sessionID, final Affinity hardAffinity) throws IOException {
+        final byte[] sessionIdBytes = sessionID.getEncodedForm();
+        // write out header
+        output.writeByte(HEADER_SESSION_OPEN_RESPONSE);
+        // write out invocation id
+        output.writeShort(invocationId);
+        // session id byte length
+        PackedInteger.writePackedInteger(output, sessionIdBytes.length);
+        // write out the session id bytes
+        output.write(sessionIdBytes);
+        // now marshal the hard affinity associated with this session
+        final Marshaller marshaller = this.prepareForMarshalling(output);
+        marshaller.writeObject(hardAffinity);
+
         // finish marshalling
         marshaller.finish();
     }
