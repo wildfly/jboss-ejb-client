@@ -549,6 +549,9 @@ public final class EJBClientContext extends Attachable {
             // make a note that the receiver is eligible
             eligibleReceivers.put(receiver.getNodeName(), receiver);
         }
+        if (eligibleReceivers.isEmpty()) {
+            return null;
+        }
         // let the deployment node selector, select a node
         final String selectedNode = this.deploymentNodeSelector.selectNode(eligibleReceivers.keySet().toArray(new String[eligibleReceivers.size()]), appName, moduleName, distinctName);
         logger.debug(this.deploymentNodeSelector + " deployment node selector selected " + selectedNode + " node for appname=" + appName + ",modulename=" + moduleName + ",distinctname=" + distinctName);
