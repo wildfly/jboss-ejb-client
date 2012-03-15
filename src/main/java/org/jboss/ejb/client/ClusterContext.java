@@ -30,8 +30,11 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 
 /**
  * A {@link ClusterContext} keeps track of a specific cluster and the {@link org.jboss.ejb.client.remoting.ClusterNode}s
@@ -52,6 +55,7 @@ public final class ClusterContext implements EJBClientContext.EJBReceiverContext
     private long maxClusterNodeOpenConnections = 10;
     // default to RandomClusterNodeSelector
     private ClusterNodeSelector clusterNodeSelector = new RandomClusterNodeSelector();
+    private final Set<ClusterContextListener> clusterContextListeners = new HashSet<ClusterContextListener>();
 
     /**
      * The nodes to which a connected has already been established in this cluster context
@@ -209,15 +213,60 @@ public final class ClusterContext implements EJBClientContext.EJBReceiverContext
      *
      * @param nodeName           The cluster node name
      * @param clusterNodeManager The cluster node manager for that node
+     * @deprecated Since 1.0.6.Final. Use {@link #addClusterNodes(ClusterNodeManager...)} instead
      */
     public void addClusterNode(final String nodeName, final ClusterNodeManager clusterNodeManager) {
-        this.nodeManagers.put(nodeName, clusterNodeManager);
-        // If the connected nodes in this cluster context hasn't yet reached the max allowed limit, then create a new
-        // receiver and associate it with a receiver context (if the node isn't already connected to)
-        if (!this.connectedNodes.contains(nodeName) && this.connectedNodes.size() < maxClusterNodeOpenConnections) {
-            // submit a task which will create and associate a EJB receiver with this cluster context
-            executorService.submit(new EJBReceiverAssociationTask(this, nodeName));
+        this.addClusterNodes(clusterNodeManager);
+    }
+
+    /**
+     * Adds the cluster nodes managed by the {@link ClusterNodeManager clusterNodeManagers}, to this cluster context
+     *
+     * @param clusterNodeManagers The cluster node managers
+     */
+    public void addClusterNodes(final ClusterNodeManager... clusterNodeManagers) {
+        if (clusterNodeManagers == null) {
+            return;
         }
+        try {
+            final Set<Future> futureAssociationResults = new HashSet<Future>();
+            for (int i = 0; i < clusterNodeManagers.length; i++) {
+                final ClusterNodeManager clusterNodeManager = clusterNodeManagers[i];
+                if (clusterNodeManager == null) {
+                    continue;
+                }
+                final String nodeName = clusterNodeManager.getNodeName();
+                if (nodeName == null || nodeName.trim().isEmpty()) {
+                    throw new IllegalArgumentException("Node name cannot be null while adding a node to cluster named " + this.clusterName);
+                }
+                this.nodeManagers.put(nodeName, clusterNodeManager);
+                // If the connected nodes in this cluster context hasn't yet reached the max allowed limit, then create a new
+                // receiver and associate it with a receiver context (if the node isn't already connected to)
+                if (!this.connectedNodes.contains(nodeName) && this.connectedNodes.size() < maxClusterNodeOpenConnections) {
+                    // submit a task which will create and associate a EJB receiver with this cluster context
+                    futureAssociationResults.add(executorService.submit(new EJBReceiverAssociationTask(this, nodeName)));
+                }
+            }
+            // wait for the associations to be completed so that the other threads which are expecting
+            // some associated nodes in this cluster context, don't run into a race condition
+            for (final Future futureAssociationResult : futureAssociationResults) {
+                try {
+                    futureAssociationResult.get(5, TimeUnit.SECONDS);
+                } catch (Exception e) {
+                    // ignore
+                }
+            }
+        } finally {
+            for (final ClusterContextListener listener : this.clusterContextListeners) {
+                try {
+                    listener.clusterNodesAdded(this.clusterName, clusterNodeManagers);
+                } catch (Throwable t) {
+                    // ignore any errors thrown by the listeners
+                    logger.debug("Ignoring the exception thrown by listener " + listener, t);
+                }
+            }
+        }
+
     }
 
     /**
@@ -277,7 +326,7 @@ public final class ClusterContext implements EJBClientContext.EJBReceiverContext
         if (ejbReceiverContext != null) {
             // add it to our connected nodes
             this.connectedNodes.add(nodeName);
-            logger.info("Added a new EJB receiver in cluster context " + clusterName + " for node " + nodeName + ". Total nodes in cluster context = " + this.connectedNodes.size());
+            logger.info(this + " Added a new EJB receiver in cluster context " + clusterName + " for node " + nodeName + ". Total nodes in cluster context = " + this.connectedNodes.size());
         }
     }
 
@@ -298,13 +347,37 @@ public final class ClusterContext implements EJBClientContext.EJBReceiverContext
     public void receiverContextClosed(EJBReceiverContext receiverContext) {
         final String nodeName = receiverContext.getReceiver().getNodeName();
         this.connectedNodes.remove(nodeName);
+        logger.debug("Node " + nodeName + " removed from cluster context " + this + " for cluster " + this.clusterName);
+    }
+
+    /**
+     * Registers a {@link ClusterContextListener} to this {@link ClusterContext}
+     *
+     * @param listener The cluster context listener
+     */
+    void registerListener(final ClusterContextListener listener) {
+        if (listener == null) {
+            return;
+        }
+        this.clusterContextListeners.add(listener);
+    }
+
+    /**
+     * Unregisters the passed {@link ClusterContextListener listener} from this cluster context
+     *
+     * @param listener The cluster context listener to unregister
+     * @return Returns true if the listener was previously registered and has been unregistered after the call to this method,
+     *         from the cluster context. Returns false otherwise
+     */
+    boolean unregisterListener(final ClusterContextListener listener) {
+        return this.clusterContextListeners.remove(listener);
     }
 
     /**
      * A {@link EJBReceiverAssociationTask} creates and associates a {@link EJBReceiver}
      * with a {@link ClusterContext}
      */
-    private class EJBReceiverAssociationTask implements Runnable {
+    private class EJBReceiverAssociationTask implements Callable<Void> {
 
         private final ClusterContext clusterContext;
         private final String nodeName;
@@ -320,23 +393,29 @@ public final class ClusterContext implements EJBClientContext.EJBReceiverContext
 
 
         @Override
-        public void run() {
+        public Void call() throws Exception {
             final ClusterNodeManager clusterNodeManager = this.clusterContext.nodeManagers.get(this.nodeName);
             if (clusterNodeManager == null) {
                 // we don't have a cluster node manager which could create the EJB receiver, for this
                 // node name
                 logger.error("Cannot create EJBReceiver since no cluster node manager found for node "
                         + nodeName + " in cluster context for cluster " + clusterName);
-                return;
+                return null;
             }
             // get the EJB receiver from the node manager
             final EJBReceiver ejbReceiver = clusterNodeManager.getEJBReceiver();
             if (ejbReceiver == null) {
-                return;
+                return null;
             }
             // associate the receiver with the cluster context
             this.clusterContext.registerEJBReceiver(ejbReceiver);
+            return null;
         }
+    }
+
+    interface ClusterContextListener {
+        void clusterNodesAdded(final String clusterName, final ClusterNodeManager... nodes);
+
     }
 
 }

@@ -23,6 +23,7 @@
 package org.jboss.ejb.client.remoting;
 
 import org.jboss.ejb.client.ClusterContext;
+import org.jboss.ejb.client.ClusterNodeManager;
 import org.jboss.ejb.client.EJBClientConfiguration;
 import org.jboss.ejb.client.EJBClientContext;
 import org.jboss.ejb.client.EJBReceiverContext;
@@ -140,9 +141,12 @@ class ClusterTopologyMessageHandler extends ProtocolMessageHandler {
     private void addNodesToClusterContext(final ClusterContext clusterContext, final Collection<ClusterNode> clusterNodes) {
         final Endpoint endpoint = this.channelAssociation.getChannel().getConnection().getEndpoint();
         final EJBClientConfiguration ejbClientConfiguration = clusterContext.getEJBClientContext().getEJBClientConfiguration();
+        final ClusterNodeManager[] clusterNodeManagers = new ClusterNodeManager[clusterNodes.size()];
+        int i = 0;
         for (final ClusterNode clusterNode : clusterNodes) {
-            final RemotingConnectionClusterNodeManager clusterNodeManager = new RemotingConnectionClusterNodeManager(clusterContext, clusterNode, endpoint, ejbClientConfiguration);
-            clusterContext.addClusterNode(clusterNode.getNodeName(), clusterNodeManager);
+            clusterNodeManagers[i++] = new RemotingConnectionClusterNodeManager(clusterContext, clusterNode, endpoint, ejbClientConfiguration);
         }
+        // add the cluster nodes to the cluster context
+        clusterContext.addClusterNodes(clusterNodeManagers);
     }
 }
