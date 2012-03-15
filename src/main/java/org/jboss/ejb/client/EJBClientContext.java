@@ -776,9 +776,9 @@ public final class EJBClientContext extends Attachable {
         ClusterContext clusterContext = this.clusterContexts.get(clusterName);
         if (clusterContext == null) {
             clusterContext = new ClusterContext(clusterName, this, this.ejbClientConfiguration);
+            // register a listener which will trigger a notification when nodes are added to the cluster
+            clusterContext.registerListener(this.clusterFormationNotifier);
             this.clusterContexts.put(clusterName, clusterContext);
-            // notify any waiting listeners about cluster formation
-            this.clusterFormationNotifier.notifyClusterFormation(clusterName);
         }
         return clusterContext;
     }
@@ -884,7 +884,7 @@ public final class EJBClientContext extends Attachable {
     /**
      * A notifier which can be used for waiting for cluster formation events
      */
-    private final class ClusterFormationNotifier {
+    private final class ClusterFormationNotifier implements ClusterContext.ClusterContextListener {
 
         private final Map<String, List<CountDownLatch>> clusterFormationListeners = new HashMap<String, List<CountDownLatch>>();
 
@@ -942,6 +942,11 @@ public final class EJBClientContext extends Attachable {
                 }
                 listeners.remove(latch);
             }
+        }
+
+        @Override
+        public void clusterNodesAdded(String clusterName, ClusterNodeManager... nodes) {
+            this.notifyClusterFormation(clusterName);
         }
     }
 
