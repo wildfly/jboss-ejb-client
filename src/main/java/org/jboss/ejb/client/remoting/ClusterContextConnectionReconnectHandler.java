@@ -57,7 +57,7 @@ class ClusterContextConnectionReconnectHandler extends MaxAttemptsReconnectHandl
     public void reconnect() throws IOException {
         Connection connection = null;
         try {
-            connection = this.tryConnect(5000, TimeUnit.SECONDS);
+            connection = this.tryConnect(5, TimeUnit.SECONDS);
             if (connection == null) {
                 return;
             }
