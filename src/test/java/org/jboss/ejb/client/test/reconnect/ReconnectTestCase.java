@@ -128,6 +128,10 @@ public class ReconnectTestCase {
         final InputStream propertiesStream = this.getClass().getClassLoader().getResourceAsStream(ejbClientConfigResource);
         try {
             Assert.assertNotNull("Could not find " + ejbClientConfigResource + " through classloader", propertiesStream);
+            // start the server and register the deployment
+            server = this.startServer();
+            server.register("my-app", "my-module", "", EchoBean.class.getSimpleName(), new EchoBean());
+
             // load the ejb client properties
             final Properties ejbClientProperties = new Properties();
             ejbClientProperties.load(propertiesStream);
@@ -141,10 +145,6 @@ public class ReconnectTestCase {
             final StatelessEJBLocator<Echo> statelessEJBLocator = new StatelessEJBLocator<Echo>(Echo.class, "my-app", "my-module", EchoBean.class.getSimpleName(), "");
             final Echo proxy = EJBClient.createProxy(statelessEJBLocator);
             Assert.assertNotNull("Received a null proxy", proxy);
-
-            // now start the server and register the deployment
-            server = this.startServer();
-            server.register("my-app", "my-module", "", EchoBean.class.getSimpleName(), new EchoBean());
 
             // try invoking
             final String message = "Yet another Hello World!!!";
