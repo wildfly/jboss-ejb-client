@@ -377,6 +377,8 @@ public final class EJBClientInvocationContext extends Attachable {
     Object awaitResponse() throws Exception {
         assert !holdsLock(lock);
         boolean intr = false;
+        final EJBClientConfiguration ejbClientConfiguration = this.ejbClientContext.getEJBClientConfiguration();
+        final long invocationTimeout = ejbClientConfiguration == null ? 0 : ejbClientConfiguration.getInvocationTimeout();
         try {
             synchronized (lock) {
                 if (asyncState == AsyncState.ASYNCHRONOUS) {
@@ -384,16 +386,43 @@ public final class EJBClientInvocationContext extends Attachable {
                 } else if (asyncState == AsyncState.ONE_WAY) {
                     throw log.oneWayInvocation();
                 }
-                while (state == State.WAITING) try {
-                    lock.wait();
+                long remainingWaitTimeout = invocationTimeout;
+                long waitStartTime = System.currentTimeMillis();
+                while (state == State.WAITING) {
+                    try {
+                        if (invocationTimeout <= 0) {
+                            lock.wait();
+                        } else {
+                            waitStartTime = System.currentTimeMillis();
+                            lock.wait(remainingWaitTimeout);
+                        }
+                    } catch (InterruptedException e) {
+                        intr = true;
+                        if (invocationTimeout > 0) {
+                            final long timeWaitedFor = System.currentTimeMillis() - waitStartTime;
+                            if (timeWaitedFor >= remainingWaitTimeout) {
+                                // setup a invocation timeout result producer
+                                this.resultReady(new InvocationTimeoutResultProducer(invocationTimeout));
+                                break;
+                            } else {
+                                remainingWaitTimeout = remainingWaitTimeout - timeWaitedFor;
+                            }
+                        }
+                        continue;
+                    }
                     if (asyncState == AsyncState.ASYNCHRONOUS) {
                         // It's an asynchronous invocation; proceed asynchronously.
                         return PROCEED_ASYNC;
                     } else if (asyncState == AsyncState.ONE_WAY) {
                         throw log.oneWayInvocation();
                     }
-                } catch (InterruptedException e) {
-                    intr = true;
+                    // If the state is still waiting and the invocation timeout was specified,
+                    // then it indicates that the Object.wait(timeout) returned due to a timeout.
+                    if (state == State.WAITING && invocationTimeout > 0) {
+                        // setup a invocation timeout result producer
+                        this.resultReady(new InvocationTimeoutResultProducer(invocationTimeout));
+                        break;
+                    }
                 }
             }
             return getResult();
@@ -635,5 +664,23 @@ public final class EJBClientInvocationContext extends Attachable {
             }
         }
         resultProducer.discardResult();
+    }
+
+    private class InvocationTimeoutResultProducer implements EJBReceiverInvocationContext.ResultProducer {
+
+        private final long timeout;
+
+        InvocationTimeoutResultProducer(final long timeout) {
+            this.timeout = timeout;
+        }
+
+        @Override
+        public Object getResult() throws Exception {
+            throw new TimeoutException("No invocation response received in " + this.timeout + " milli seconds");
+        }
+
+        @Override
+        public void discardResult() {
+        }
     }
 }

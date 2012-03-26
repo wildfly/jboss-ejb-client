@@ -98,6 +98,15 @@ public interface EJBClientConfiguration {
     ClusterConfiguration getClusterConfiguration(final String clusterName);
 
     /**
+     * Returns the timeout, in milli seconds, that will be used for EJB invocations. A value of zero
+     * or a negative value will imply a "wait forever" semantic where the invocation will never timeout
+     * and the client will wait for the invocation result indefinitely.
+     *
+     * @return
+     */
+    long getInvocationTimeout();
+
+    /**
      * Holds the common configurations that are required for connection creation
      */
     interface CommonConnectionCreationConfiguration {
@@ -176,6 +185,7 @@ public interface EJBClientConfiguration {
         /**
          * Returns the {@link ClusterNodeSelector} to be used for this cluster. This method <b>can</b> return
          * null, in which case the cluster will use some default {@link ClusterNodeSelector}
+         *
          * @return
          */
         ClusterNodeSelector getClusterNodeSelector();
