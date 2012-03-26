@@ -61,6 +61,8 @@ public class PropertiesBasedEJBClientConfiguration implements EJBClientConfigura
 
     private static final String PROPERTY_KEY_ENDPOINT_NAME = "endpoint.name";
     private static final String DEFAULT_ENDPOINT_NAME = "config-based-ejb-client-endpoint";
+    
+    private static final String PROPERTY_KEY_INVOCATION_TIMEOUT = "invocation.timeout";
 
     private static final String ENDPOINT_CREATION_OPTIONS_PREFIX = "endpoint.create.options.";
     // The default options that will be used (unless overridden by the config file) for endpoint creation
@@ -93,6 +95,7 @@ public class PropertiesBasedEJBClientConfiguration implements EJBClientConfigura
     private CallbackHandler callbackHandler;
     private Collection<RemotingConnectionConfiguration> remotingConnectionConfigurations = new ArrayList<RemotingConnectionConfiguration>();
     private Map<String, ClusterConfiguration> clusterConfigurations = new HashMap<String, ClusterConfiguration>();
+    private long invocationTimeout = 0;
 
     public PropertiesBasedEJBClientConfiguration(final Properties properties) {
         final Properties resolvedProperties = new Properties();
@@ -103,9 +106,6 @@ public class PropertiesBasedEJBClientConfiguration implements EJBClientConfigura
         }
 
         this.ejbReceiversConfigurationProperties = resolvedProperties;
-        //handle property replacement in one place
-
-
         // parse the properties and setup this configuration
         this.parseProperties();
     }
@@ -145,6 +145,11 @@ public class PropertiesBasedEJBClientConfiguration implements EJBClientConfigura
         return this.clusterConfigurations.get(clusterName);
     }
 
+    @Override
+    public long getInvocationTimeout() {
+        return this.invocationTimeout;
+    }
+
 
     private void parseProperties() {
         // endpoint name
@@ -157,6 +162,17 @@ public class PropertiesBasedEJBClientConfiguration implements EJBClientConfigura
         final OptionMap endPointCreationOptionsFromConfiguration = getOptionMapFromProperties(ejbReceiversConfigurationProperties, ENDPOINT_CREATION_OPTIONS_PREFIX, getClientClassLoader());
         // merge with defaults
         this.endPointCreationOptions = mergeWithDefaults(DEFAULT_ENDPOINT_CREATION_OPTIONS, endPointCreationOptionsFromConfiguration);
+
+        // invocation timeout
+        final String invocationTimeoutValue = this.ejbReceiversConfigurationProperties.getProperty(PROPERTY_KEY_INVOCATION_TIMEOUT);
+        // if a invocation timeout is specified, use it
+        if (invocationTimeoutValue != null && !invocationTimeoutValue.trim().isEmpty()) {
+            try {
+                invocationTimeout = Long.parseLong(invocationTimeoutValue.trim());
+            } catch (NumberFormatException nfe) {
+                logger.info("Incorrect invocation timeout value " + invocationTimeoutValue + " specified. Falling back to default invocation timeout value " + this.invocationTimeout + " milli seconds");
+            }
+        }
 
         // remote connection provider creation options
         final OptionMap remoteConnectionProviderOptionsFromConfiguration = getOptionMapFromProperties(ejbReceiversConfigurationProperties, REMOTE_CONNECTION_PROVIDER_CREATE_OPTIONS_PREFIX, getClientClassLoader());
@@ -284,7 +300,7 @@ public class PropertiesBasedEJBClientConfiguration implements EJBClientConfigura
                 connectionTimeout = Long.parseLong(connectionTimeoutValue.trim());
             } catch (NumberFormatException nfe) {
                 logger.info("Incorrect timeout value " + connectionTimeoutValue + " specified for cluster named "
-                        + clusterName + ". Falling back to default connection timeout value " + DEFAULT_CONNECTION_TIMEOUT_IN_MILLIS + " milli secondss");
+                        + clusterName + ". Falling back to default connection timeout value " + DEFAULT_CONNECTION_TIMEOUT_IN_MILLIS + " milli seconds");
             }
         }
         // cluster node selector for this cluster
