@@ -38,10 +38,16 @@ import org.junit.Test;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.lang.reflect.UndeclaredThrowableException;
 import java.util.Properties;
+import java.util.concurrent.TimeoutException;
 
 /**
+ * Tests that if a invocation takes longer than the configured invocation timeout, then the
+ * client receives a timeout exception
+ *
  * @author Jaikiran Pai
+ * @see https://issues.jboss.org/browse/EJBCLIENT-33
  */
 public class InvocationTimeoutTestCase {
 
@@ -91,16 +97,32 @@ public class InvocationTimeoutTestCase {
     }
 
 
+    /**
+     * Invokes a method which takes longer than the configured invocation timeout. The client is expected
+     * to a receive a timeout exception
+     *
+     * @throws Exception
+     */
     @Test
     public void testInvocationTimeout() throws Exception {
-        // first try some invocations which should succeed
         // create a proxy for invocation
         final StatelessEJBLocator<LazyMan> statelessEJBLocator = new StatelessEJBLocator<LazyMan>(LazyMan.class, APP_NAME, MODULE_NAME, SlowBean.class.getSimpleName(), "");
         final LazyMan slowBean = EJBClient.createProxy(statelessEJBLocator);
         Assert.assertNotNull("Received a null proxy", slowBean);
 
         // invoke
-        slowBean.doSixSecondWork();
+        try {
+            slowBean.doThreeSecondWork();
+            Assert.fail("Expected to receive a timeout for the invocation");
+        } catch (Exception e) {
+            // this will be thrown a UndeclaredThrowableException for reasons explained in the javadoc 
+            // of that exception http://docs.oracle.com/javase/6/docs/api/java/lang/reflect/UndeclaredThrowableException.html
+            if (e instanceof UndeclaredThrowableException && e.getCause() instanceof TimeoutException) {
+                logger.info("Got the expected timeout exception", e.getCause());
+                return;
+            }
+            throw e;
+        }
     }
 
 }

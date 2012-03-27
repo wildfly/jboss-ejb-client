@@ -29,9 +29,9 @@ public class SlowBean implements LazyMan {
 
 
     @Override
-    public void doSixSecondWork() {
+    public void doThreeSecondWork() {
         try {
-            Thread.sleep(6000);
+            Thread.sleep(3000);
         } catch (InterruptedException e) {
             throw new RuntimeException(e);
         }
