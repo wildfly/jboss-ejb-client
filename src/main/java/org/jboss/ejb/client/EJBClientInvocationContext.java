@@ -390,16 +390,23 @@ public final class EJBClientInvocationContext extends Attachable {
                 long waitStartTime = System.currentTimeMillis();
                 while (state == State.WAITING) {
                     try {
+                        // if no invocation timeout is configured, then we wait indefinitely
                         if (invocationTimeout <= 0) {
                             lock.wait();
                         } else {
                             waitStartTime = System.currentTimeMillis();
+                            // we wait for a specific amount of time
                             lock.wait(remainingWaitTimeout);
                         }
                     } catch (InterruptedException e) {
                         intr = true;
+                        // if there was a invocation timeout configured and the thread was interrupted
+                        // then figure out how long we waited and what remaining time we should wait for
+                        // if the result hasn't yet arrived
                         if (invocationTimeout > 0) {
                             final long timeWaitedFor = System.currentTimeMillis() - waitStartTime;
+                            // we already waited enough, so setup a result producer which will
+                            // let the client know that the invocation timed out
                             if (timeWaitedFor >= remainingWaitTimeout) {
                                 // setup a invocation timeout result producer
                                 this.resultReady(new InvocationTimeoutResultProducer(invocationTimeout));
@@ -666,6 +673,10 @@ public final class EJBClientInvocationContext extends Attachable {
         resultProducer.discardResult();
     }
 
+    /**
+     * A {@link org.jboss.ejb.client.EJBReceiverInvocationContext.ResultProducer} which throws a
+     * {@link TimeoutException} to indicate that the client invocation has timed out waiting for a response
+     */
     private class InvocationTimeoutResultProducer implements EJBReceiverInvocationContext.ResultProducer {
 
         private final long timeout;
