@@ -33,11 +33,9 @@ import org.jboss.marshalling.MarshallerFactory;
 import org.jboss.marshalling.Marshalling;
 import org.jboss.marshalling.MarshallingConfiguration;
 import org.jboss.marshalling.Unmarshaller;
-import org.jboss.remoting3.Channel;
 
 import java.io.DataInput;
 import java.io.DataOutput;
-import java.io.DataOutputStream;
 import java.io.EOFException;
 import java.io.IOException;
 import java.io.InputStream;
@@ -65,6 +63,7 @@ public class DummyProtocolHandler {
     private static final byte HEADER_MODULE_UNAVAILABLE = 0x09;
     private static final byte HEADER_NO_SUCH_EJB_FAILURE = 0x0A;
     private static final byte HEADER_INVOCATION_EXCEPTION = 0x06;
+    private static final byte HEADER_ASYNC_METHOD_NOTIFICATION = 0x0E;
 
     public DummyProtocolHandler(final String marshallerType) {
         this.marshallerFactory = Marshalling.getProvidedMarshallerFactory(marshallerType);
@@ -197,6 +196,13 @@ public class DummyProtocolHandler {
 
         // finish marshalling
         marshaller.finish();
+    }
+
+    public void writeAsyncMethodNotification(final DataOutput output, final short invocationId) throws IOException {
+        // write the header
+        output.write(HEADER_ASYNC_METHOD_NOTIFICATION);
+        // write the invocation id
+        output.writeShort(invocationId);
     }
 
     private Map<String, Object> readAttachments(final ObjectInput input) throws IOException, ClassNotFoundException {
