@@ -62,6 +62,7 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArraySet;
+import java.util.concurrent.Future;
 
 /**
  * @author <a href="mailto:cdewolf@redhat.com">Carlo de Wolf</a>
@@ -188,7 +189,7 @@ public class DummyServer {
                         final MethodInvocationRequest methodInvocationRequest = this.dummyProtocolHandler.readMethodInvocationRequest(inputStream, this.getClass().getClassLoader());
                         Object methodInvocationResult = null;
                         try {
-                            methodInvocationResult = DummyServer.this.handleMethodInvocationRequest(methodInvocationRequest);
+                            methodInvocationResult = DummyServer.this.handleMethodInvocationRequest(channel, methodInvocationRequest, dummyProtocolHandler);
                         } catch (NoSuchEJBException nsee) {
                             final DataOutputStream outputStream = new DataOutputStream(channel.writeMessage());
                             try {
@@ -395,7 +396,7 @@ public class DummyServer {
         }
     }
 
-    private Object handleMethodInvocationRequest(final MethodInvocationRequest methodInvocationRequest) throws InvocationTargetException, IllegalAccessException {
+    private Object handleMethodInvocationRequest(final Channel channel, final MethodInvocationRequest methodInvocationRequest, final DummyProtocolHandler dummyProtocolHandler) throws InvocationTargetException, IllegalAccessException, IOException {
         final EJBModuleIdentifier ejbModuleIdentifier = new EJBModuleIdentifier(methodInvocationRequest.getAppName(), methodInvocationRequest.getModuleName(), methodInvocationRequest.getDistinctName());
         final Map<String, Object> ejbs = this.registeredEJBs.get(ejbModuleIdentifier);
         final Object beanInstance = ejbs.get(methodInvocationRequest.getBeanName());
@@ -408,6 +409,17 @@ public class DummyServer {
         } catch (NoSuchMethodException e) {
             throw new RuntimeException(e);
         }
+        // check if this is an async method
+        if (this.isAsyncMethod(method)) {
+            final DataOutputStream output = new DataOutputStream(channel.writeMessage());
+            try {
+                // send a notification to the client that this is an async method
+                dummyProtocolHandler.writeAsyncMethodNotification(output, methodInvocationRequest.getInvocationId());
+            } finally {
+                output.close();
+            }
+        }
+        // invoke on the method
         return method.invoke(beanInstance, methodInvocationRequest.getParams());
     }
 
@@ -421,6 +433,11 @@ public class DummyServer {
             }
         }
         return klass.getMethod(methodName, types);
+    }
+
+    private boolean isAsyncMethod(final Method method) {
+        // just check for return type and assume it to be async if it returns Future
+        return method.getReturnType().equals(Future.class);
     }
 
     class VersionReceiver implements Channel.Receiver {
