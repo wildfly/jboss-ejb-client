@@ -511,10 +511,10 @@ public final class EJBClientInvocationContext extends Attachable {
             assert !holdsLock(lock);
             synchronized (lock) {
                 switch (state) {
-                    case WAITING:
-                    case CANCEL_REQ: {
+                    case WAITING: {
                         return false;
                     }
+                    case CANCEL_REQ:
                     case READY:
                     case FAILED:
                     case CANCELLED:
