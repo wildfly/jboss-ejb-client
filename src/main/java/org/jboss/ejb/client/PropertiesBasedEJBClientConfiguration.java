@@ -63,6 +63,7 @@ public class PropertiesBasedEJBClientConfiguration implements EJBClientConfigura
     private static final String DEFAULT_ENDPOINT_NAME = "config-based-ejb-client-endpoint";
     
     private static final String PROPERTY_KEY_INVOCATION_TIMEOUT = "invocation.timeout";
+    private static final String PROPERTY_KEY_RECONNECT_TASKS_TIMEOUT = "reconnect.tasks.timeout";
 
     private static final String ENDPOINT_CREATION_OPTIONS_PREFIX = "endpoint.create.options.";
     // The default options that will be used (unless overridden by the config file) for endpoint creation
@@ -96,6 +97,7 @@ public class PropertiesBasedEJBClientConfiguration implements EJBClientConfigura
     private Collection<RemotingConnectionConfiguration> remotingConnectionConfigurations = new ArrayList<RemotingConnectionConfiguration>();
     private Map<String, ClusterConfiguration> clusterConfigurations = new HashMap<String, ClusterConfiguration>();
     private long invocationTimeout = 0;
+    private long reconnectTasksTimeout = 0;
 
     public PropertiesBasedEJBClientConfiguration(final Properties properties) {
         final Properties resolvedProperties = new Properties();
@@ -150,6 +152,11 @@ public class PropertiesBasedEJBClientConfiguration implements EJBClientConfigura
         return this.invocationTimeout;
     }
 
+    @Override
+    public long getReconnectTasksTimeout() {
+        return this.reconnectTasksTimeout;
+    }
+
 
     private void parseProperties() {
         // endpoint name
@@ -171,6 +178,16 @@ public class PropertiesBasedEJBClientConfiguration implements EJBClientConfigura
                 invocationTimeout = Long.parseLong(invocationTimeoutValue.trim());
             } catch (NumberFormatException nfe) {
                 logger.info("Incorrect invocation timeout value " + invocationTimeoutValue + " specified. Falling back to default invocation timeout value " + this.invocationTimeout + " milli seconds");
+            }
+        }
+
+        // reconnect tasks timeout
+        final String reconnectTasksTimeoutValue = this.ejbReceiversConfigurationProperties.getProperty(PROPERTY_KEY_RECONNECT_TASKS_TIMEOUT);
+        if (reconnectTasksTimeoutValue != null && !reconnectTasksTimeoutValue.trim().isEmpty()) {
+            try{
+                this.reconnectTasksTimeout = Long.parseLong(reconnectTasksTimeoutValue.trim());
+            } catch (NumberFormatException nfe) {
+                logger.info("Incorrect reconnect tasks timeout value " + reconnectTasksTimeoutValue + " specified. Falling back to default reconnect tasks timeout value " + this.reconnectTasksTimeout + " milli seconds");
             }
         }
 

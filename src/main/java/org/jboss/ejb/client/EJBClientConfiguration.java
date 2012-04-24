@@ -107,6 +107,19 @@ public interface EJBClientConfiguration {
     long getInvocationTimeout();
 
     /**
+     * Returns the wait timeout, in milli seconds, that will be used when the reconnect tasks are submitted.
+     * The reconnect tasks are submitted in parallel and hence the value returned by this method <i>need not</i> be
+     * the sum of time each reconnect task takes. The EJB client context will wait for a maximum of this amount of time
+     * in milli seconds, before giving up on the reconnect attempt. If all reconnect tasks finish before this timeout,
+     * then the EJB client context doesn't wait for any longer.
+     * <p/>
+     * If this method returns zero or a negative value, then a default of 10 second timeout will be used.
+     *
+     * @return
+     */
+    long getReconnectTasksTimeout();
+
+    /**
      * Holds the common configurations that are required for connection creation
      */
     interface CommonConnectionCreationConfiguration {

@@ -849,7 +849,11 @@ public final class EJBClientContext extends Attachable {
         }
         // wait for all tasks to complete (with a upper bound on time limit)
         try {
-            reconnectTasksCompletionNotifierLatch.await(10, TimeUnit.SECONDS);
+            long reconnectWaitTimeout = 10000; // default 10 seconds
+            if (this.ejbClientConfiguration != null && this.ejbClientConfiguration.getReconnectTasksTimeout() > 0) {
+                reconnectWaitTimeout = this.ejbClientConfiguration.getReconnectTasksTimeout();
+            }
+            reconnectTasksCompletionNotifierLatch.await(reconnectWaitTimeout, TimeUnit.MILLISECONDS);
         } catch (InterruptedException e) {
             // ignore
         }
