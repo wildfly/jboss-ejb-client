@@ -45,19 +45,24 @@ class ClusterContextConnectionReconnectHandler extends MaxAttemptsReconnectHandl
     private static Logger logger = Logger.getLogger(ClusterContextConnectionReconnectHandler.class);
 
     private final ClusterContext clusterContext;
+    private final long reconnectTimeout;
+    private final TimeUnit reconnectTimeUnit;
 
     ClusterContextConnectionReconnectHandler(final ClusterContext clusterContext, final Endpoint endpoint, final URI uri,
                                              final OptionMap connectionCreationOptions, final CallbackHandler callbackHandler,
-                                             final OptionMap channelCreationOptions, final int maxReconnectAttempts) {
+                                             final OptionMap channelCreationOptions, final int maxReconnectAttempts,
+                                             final long reconnectTimeout, final TimeUnit timeoutTimeUnit) {
         super(endpoint, uri, connectionCreationOptions, callbackHandler, channelCreationOptions, maxReconnectAttempts);
         this.clusterContext = clusterContext;
+        this.reconnectTimeout = reconnectTimeout;
+        this.reconnectTimeUnit = timeoutTimeUnit;
     }
 
     @Override
     public void reconnect() throws IOException {
         Connection connection = null;
         try {
-            connection = this.tryConnect(5, TimeUnit.SECONDS);
+            connection = this.tryConnect(this.reconnectTimeout, this.reconnectTimeUnit);
             if (connection == null) {
                 return;
             }
