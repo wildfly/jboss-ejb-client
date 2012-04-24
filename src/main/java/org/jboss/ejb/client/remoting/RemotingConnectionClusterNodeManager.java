@@ -90,7 +90,7 @@ class RemotingConnectionClusterNodeManager implements ClusterNodeManager {
                     // wait for the connection to be established
                     connection = IoFutureHelper.get(futureConnection, 5000, TimeUnit.MILLISECONDS);
                     // create a re-connect handler (which will be used on connection breaking down)
-                    reconnectHandler = new ClusterContextConnectionReconnectHandler(clusterContext, endpoint, connectionURI, connectionCreationOptions, callbackHandler, channelCreationOptions, MAX_RECONNECT_ATTEMPTS);
+                    reconnectHandler = new ClusterContextConnectionReconnectHandler(clusterContext, endpoint, connectionURI, connectionCreationOptions, callbackHandler, channelCreationOptions, MAX_RECONNECT_ATTEMPTS, 5000, TimeUnit.MILLISECONDS);
 
                 } else {
                     final EJBClientConfiguration.ClusterNodeConfiguration clusterNodeConfiguration = clusterConfiguration.getNodeConfiguration(this.getNodeName());
@@ -103,7 +103,7 @@ class RemotingConnectionClusterNodeManager implements ClusterNodeManager {
                     // wait for the connection to be established
                     connection = IoFutureHelper.get(futureConnection, timeout, TimeUnit.MILLISECONDS);
                     // create a re-connect handler (which will be used on connection breaking down)
-                    reconnectHandler = new ClusterContextConnectionReconnectHandler(clusterContext, endpoint, connectionURI, connectionCreationOptions, callbackHandler, channelCreationOptions, MAX_RECONNECT_ATTEMPTS);
+                    reconnectHandler = new ClusterContextConnectionReconnectHandler(clusterContext, endpoint, connectionURI, connectionCreationOptions, callbackHandler, channelCreationOptions, MAX_RECONNECT_ATTEMPTS, timeout, TimeUnit.MILLISECONDS);
                 }
 
             } else {
@@ -116,7 +116,7 @@ class RemotingConnectionClusterNodeManager implements ClusterNodeManager {
                 // wait for the connection to be established
                 connection = IoFutureHelper.get(futureConnection, 5000, TimeUnit.MILLISECONDS);
                 // create a re-connect handler (which will be used on connection breaking down)
-                reconnectHandler = new ClusterContextConnectionReconnectHandler(clusterContext, endpoint, connectionURI, connectionCreationOptions, callbackHandler, channelCreationOptions, MAX_RECONNECT_ATTEMPTS);
+                reconnectHandler = new ClusterContextConnectionReconnectHandler(clusterContext, endpoint, connectionURI, connectionCreationOptions, callbackHandler, channelCreationOptions, MAX_RECONNECT_ATTEMPTS, 5000, TimeUnit.MILLISECONDS);
 
             }
         } catch (Exception e) {

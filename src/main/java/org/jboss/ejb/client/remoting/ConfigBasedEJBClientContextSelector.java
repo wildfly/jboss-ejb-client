@@ -114,7 +114,8 @@ public class ConfigBasedEJBClientContextSelector implements ContextSelector<EJBC
                 final CallbackHandler callbackHandler = connectionConfiguration.getCallbackHandler();
                 // create a re-connect handler (which will be used on connection breaking down)
                 final int MAX_RECONNECT_ATTEMPTS = 65535; // TODO: Let's keep this high for now and later allow configuration and a smaller default value
-                reconnectHandler = new EJBClientContextConnectionReconnectHandler(ejbClientContext, endpoint, connectionURI, connectionCreationOptions, callbackHandler, connectionConfiguration.getChannelCreationOptions(), MAX_RECONNECT_ATTEMPTS);
+                reconnectHandler = new EJBClientContextConnectionReconnectHandler(ejbClientContext, endpoint, connectionURI, connectionCreationOptions, callbackHandler, connectionConfiguration.getChannelCreationOptions(), MAX_RECONNECT_ATTEMPTS,
+                        connectionConfiguration.getConnectionTimeout(), TimeUnit.MILLISECONDS);
 
                 final IoFuture<Connection> futureConnection = endpoint.connect(connectionURI, connectionCreationOptions, callbackHandler);
                 // wait for the connection to be established
