@@ -49,7 +49,6 @@ public abstract class EJBLocator<T> implements Serializable {
     private final transient Class<? extends T> proxyClass;
     private final transient Constructor<? extends T> proxyConstructor;
     private final transient int hashCode;
-    private volatile String clientContextName;
 
     private static final FieldSetter hashCodeSetter = FieldSetter.get(EJBLocator.class, "hashCode");
     private static final FieldSetter proxyClassSetter = FieldSetter.get(EJBLocator.class, "proxyClass");
@@ -229,8 +228,5 @@ public abstract class EJBLocator<T> implements Serializable {
         proxyClassSetter.set(this, proxyType);
         proxyConstructorSetter.set(this, proxyConstructor);
         hashCodeSetter.setInt(this, calcHashCode(viewType, appName, moduleName, beanName, distinctName));
-        if(ClientContextSerialization.overrideActive()) {
-            clientContextName = ClientContextSerialization.currentContextName();
-        }
     }
 }
