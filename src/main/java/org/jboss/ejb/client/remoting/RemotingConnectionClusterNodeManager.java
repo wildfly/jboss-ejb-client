@@ -22,6 +22,7 @@
 
 package org.jboss.ejb.client.remoting;
 
+import org.jboss.ejb.client.AnonymousCallbackHandler;
 import org.jboss.ejb.client.ClusterContext;
 import org.jboss.ejb.client.ClusterNodeManager;
 import org.jboss.ejb.client.EJBClientConfiguration;
@@ -31,12 +32,11 @@ import org.jboss.remoting3.Connection;
 import org.jboss.remoting3.Endpoint;
 import org.xnio.IoFuture;
 import org.xnio.OptionMap;
+import org.xnio.Options;
+import org.xnio.Property;
+import org.xnio.Sequence;
 
-import javax.security.auth.callback.Callback;
 import javax.security.auth.callback.CallbackHandler;
-import javax.security.auth.callback.NameCallback;
-import javax.security.auth.callback.UnsupportedCallbackException;
-import java.io.IOException;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -48,6 +48,8 @@ import java.util.concurrent.TimeUnit;
 class RemotingConnectionClusterNodeManager implements ClusterNodeManager {
 
     private static final Logger logger = Logger.getLogger(RemotingConnectionClusterNodeManager.class);
+
+    private static final OptionMap DEFAULT_CONNECTION_CREATION_OPTIONS = OptionMap.create(Options.SASL_PROPERTIES, Sequence.of(Property.of("jboss.sasl.local-user.quiet-auth", "true")), Options.SASL_POLICY_NOPLAINTEXT, false);
 
     private final ClusterContext clusterContext;
     private final ClusterNode clusterNode;
@@ -82,13 +84,12 @@ class RemotingConnectionClusterNodeManager implements ClusterNodeManager {
                 final EJBClientConfiguration.ClusterConfiguration clusterConfiguration = this.ejbClientConfiguration.getClusterConfiguration(clusterContext.getClusterName());
                 if (clusterConfiguration == null) {
                     // use default configurations
-                    final OptionMap connectionCreationOptions = OptionMap.EMPTY;
                     final CallbackHandler callbackHandler = ejbClientConfiguration.getCallbackHandler();
-                    final IoFuture<Connection> futureConnection = NetworkUtil.connect(endpoint, clusterNode.getDestinationAddress(), clusterNode.getDestinationPort(), null, connectionCreationOptions, callbackHandler);
+                    final IoFuture<Connection> futureConnection = NetworkUtil.connect(endpoint, clusterNode.getDestinationAddress(), clusterNode.getDestinationPort(), null, DEFAULT_CONNECTION_CREATION_OPTIONS, callbackHandler);
                     // wait for the connection to be established
                     connection = IoFutureHelper.get(futureConnection, 5000, TimeUnit.MILLISECONDS);
                     // create a re-connect handler (which will be used on connection breaking down)
-                    reconnectHandler = new ClusterContextConnectionReconnectHandler(clusterContext, endpoint, clusterNode.getDestinationAddress(), clusterNode.getDestinationPort(), connectionCreationOptions, callbackHandler, channelCreationOptions, MAX_RECONNECT_ATTEMPTS, 5000, TimeUnit.MILLISECONDS);
+                    reconnectHandler = new ClusterContextConnectionReconnectHandler(clusterContext, endpoint, clusterNode.getDestinationAddress(), clusterNode.getDestinationPort(), DEFAULT_CONNECTION_CREATION_OPTIONS, callbackHandler, channelCreationOptions, MAX_RECONNECT_ATTEMPTS, 5000, TimeUnit.MILLISECONDS);
 
                 } else {
                     final EJBClientConfiguration.ClusterNodeConfiguration clusterNodeConfiguration = clusterConfiguration.getNodeConfiguration(this.getNodeName());
@@ -106,13 +107,12 @@ class RemotingConnectionClusterNodeManager implements ClusterNodeManager {
 
             } else {
                 // create the connection using defaults
-                final OptionMap connectionCreationOptions = OptionMap.EMPTY;
                 final CallbackHandler callbackHandler = new AnonymousCallbackHandler();
-                final IoFuture<Connection> futureConnection = NetworkUtil.connect(endpoint, clusterNode.getDestinationAddress(), clusterNode.getDestinationPort(), null, connectionCreationOptions, callbackHandler);
+                final IoFuture<Connection> futureConnection = NetworkUtil.connect(endpoint, clusterNode.getDestinationAddress(), clusterNode.getDestinationPort(), null, DEFAULT_CONNECTION_CREATION_OPTIONS, callbackHandler);
                 // wait for the connection to be established
                 connection = IoFutureHelper.get(futureConnection, 5000, TimeUnit.MILLISECONDS);
                 // create a re-connect handler (which will be used on connection breaking down)
-                reconnectHandler = new ClusterContextConnectionReconnectHandler(clusterContext, endpoint, clusterNode.getDestinationAddress(), clusterNode.getDestinationPort(), connectionCreationOptions, callbackHandler, channelCreationOptions, MAX_RECONNECT_ATTEMPTS, 5000, TimeUnit.MILLISECONDS);
+                reconnectHandler = new ClusterContextConnectionReconnectHandler(clusterContext, endpoint, clusterNode.getDestinationAddress(), clusterNode.getDestinationPort(), DEFAULT_CONNECTION_CREATION_OPTIONS, callbackHandler, channelCreationOptions, MAX_RECONNECT_ATTEMPTS, 5000, TimeUnit.MILLISECONDS);
 
             }
         } catch (Exception e) {
@@ -125,24 +125,6 @@ class RemotingConnectionClusterNodeManager implements ClusterNodeManager {
             }
         }
         return new RemotingConnectionEJBReceiver(connection, reconnectHandler, channelCreationOptions);
-    }
-
-    /**
-     * A {@link javax.security.auth.callback.CallbackHandler} which sets <code>anonymous</code> as the name during a {@link javax.security.auth.callback.NameCallback}
-     */
-    private class AnonymousCallbackHandler implements CallbackHandler {
-
-        @Override
-        public void handle(Callback[] callbacks) throws IOException, UnsupportedCallbackException {
-            for (Callback current : callbacks) {
-                if (current instanceof NameCallback) {
-                    NameCallback ncb = (NameCallback) current;
-                    ncb.setName("anonymous");
-                } else {
-                    throw new UnsupportedCallbackException(current);
-                }
-            }
-        }
     }
 
 }

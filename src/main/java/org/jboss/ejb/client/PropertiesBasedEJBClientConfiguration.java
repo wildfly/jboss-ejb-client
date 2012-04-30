@@ -621,24 +621,6 @@ public class PropertiesBasedEJBClientConfiguration implements EJBClientConfigura
         return new AnonymousCallbackHandler();
     }
 
-    /**
-     * A {@link CallbackHandler} which sets <code>anonymous</code> as the name during a {@link javax.security.auth.callback.NameCallback}
-     */
-    private class AnonymousCallbackHandler implements CallbackHandler {
-
-        @Override
-        public void handle(Callback[] callbacks) throws IOException, UnsupportedCallbackException {
-            for (Callback current : callbacks) {
-                if (current instanceof NameCallback) {
-                    NameCallback ncb = (NameCallback) current;
-                    ncb.setName("anonymous");
-                } else {
-                    throw new UnsupportedCallbackException(current);
-                }
-            }
-        }
-    }
-
     private class AuthenticationCallbackHandler implements CallbackHandler {
 
         private final String realm;
