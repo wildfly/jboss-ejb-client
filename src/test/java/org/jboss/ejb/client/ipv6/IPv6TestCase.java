@@ -87,6 +87,9 @@ public class IPv6TestCase {
         final List<String> ipv6Addresses = new ArrayList<String>();
         while (networkInterfaces.hasMoreElements()) {
             final NetworkInterface networkInterface = networkInterfaces.nextElement();
+            if (!networkInterface.isUp()) {
+                continue;
+            }
             final Enumeration<InetAddress> addresses = networkInterface.getInetAddresses();
             if (addresses == null) {
                 continue;
