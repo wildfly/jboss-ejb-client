@@ -69,7 +69,7 @@ abstract class MaxAttemptsReconnectHandler implements ReconnectHandler {
         }
         reconnectAttempts++;
         try {
-            final IoFuture<Connection> futureConnection = NetworkUtil.connect(endpoint, destinationHost, destinationPort, null, connectionCreationOptions, callbackHandler);
+            final IoFuture<Connection> futureConnection = NetworkUtil.connect(endpoint, destinationHost, destinationPort, null, connectionCreationOptions, callbackHandler, null);
             final Connection connection = IoFutureHelper.get(futureConnection, connectionTimeout, unit);
             // keep track of the created connection to auto-close on JVM shutdown
             AutoConnectionCloser.INSTANCE.addConnection(connection);

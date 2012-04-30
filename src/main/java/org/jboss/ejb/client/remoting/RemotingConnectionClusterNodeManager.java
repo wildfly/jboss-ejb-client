@@ -85,7 +85,7 @@ class RemotingConnectionClusterNodeManager implements ClusterNodeManager {
                 if (clusterConfiguration == null) {
                     // use default configurations
                     final CallbackHandler callbackHandler = ejbClientConfiguration.getCallbackHandler();
-                    final IoFuture<Connection> futureConnection = NetworkUtil.connect(endpoint, clusterNode.getDestinationAddress(), clusterNode.getDestinationPort(), null, DEFAULT_CONNECTION_CREATION_OPTIONS, callbackHandler);
+                    final IoFuture<Connection> futureConnection = NetworkUtil.connect(endpoint, clusterNode.getDestinationAddress(), clusterNode.getDestinationPort(), null, DEFAULT_CONNECTION_CREATION_OPTIONS, callbackHandler, null);
                     // wait for the connection to be established
                     connection = IoFutureHelper.get(futureConnection, 5000, TimeUnit.MILLISECONDS);
                     // create a re-connect handler (which will be used on connection breaking down)
@@ -97,7 +97,7 @@ class RemotingConnectionClusterNodeManager implements ClusterNodeManager {
                     channelCreationOptions = clusterNodeConfiguration == null ? clusterConfiguration.getChannelCreationOptions() : clusterNodeConfiguration.getChannelCreationOptions();
                     final OptionMap connectionCreationOptions = clusterNodeConfiguration == null ? clusterConfiguration.getConnectionCreationOptions() : clusterNodeConfiguration.getConnectionCreationOptions();
                     final CallbackHandler callbackHandler = clusterNodeConfiguration == null ? clusterConfiguration.getCallbackHandler() : clusterNodeConfiguration.getCallbackHandler();
-                    final IoFuture<Connection> futureConnection = NetworkUtil.connect(endpoint, clusterNode.getDestinationAddress(), clusterNode.getDestinationPort(), null, connectionCreationOptions, callbackHandler);
+                    final IoFuture<Connection> futureConnection = NetworkUtil.connect(endpoint, clusterNode.getDestinationAddress(), clusterNode.getDestinationPort(), null, connectionCreationOptions, callbackHandler, null);
                     final long timeout = clusterNodeConfiguration == null ? clusterConfiguration.getConnectionTimeout() : clusterNodeConfiguration.getConnectionTimeout();
                     // wait for the connection to be established
                     connection = IoFutureHelper.get(futureConnection, timeout, TimeUnit.MILLISECONDS);
@@ -108,7 +108,7 @@ class RemotingConnectionClusterNodeManager implements ClusterNodeManager {
             } else {
                 // create the connection using defaults
                 final CallbackHandler callbackHandler = new AnonymousCallbackHandler();
-                final IoFuture<Connection> futureConnection = NetworkUtil.connect(endpoint, clusterNode.getDestinationAddress(), clusterNode.getDestinationPort(), null, DEFAULT_CONNECTION_CREATION_OPTIONS, callbackHandler);
+                final IoFuture<Connection> futureConnection = NetworkUtil.connect(endpoint, clusterNode.getDestinationAddress(), clusterNode.getDestinationPort(), null, DEFAULT_CONNECTION_CREATION_OPTIONS, callbackHandler, null);
                 // wait for the connection to be established
                 connection = IoFutureHelper.get(futureConnection, 5000, TimeUnit.MILLISECONDS);
                 // create a re-connect handler (which will be used on connection breaking down)
