@@ -37,7 +37,6 @@ import javax.security.auth.callback.CallbackHandler;
 import javax.security.auth.callback.NameCallback;
 import javax.security.auth.callback.UnsupportedCallbackException;
 import java.io.IOException;
-import java.net.URI;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -80,17 +79,16 @@ class RemotingConnectionClusterNodeManager implements ClusterNodeManager {
         try {
             // if the client configuration is available create the connection using those configs
             if (this.ejbClientConfiguration != null) {
-                final URI connectionURI = new URI("remote://" + this.clusterNode.getDestinationAddress() + ":" + this.clusterNode.getDestinationPort());
                 final EJBClientConfiguration.ClusterConfiguration clusterConfiguration = this.ejbClientConfiguration.getClusterConfiguration(clusterContext.getClusterName());
                 if (clusterConfiguration == null) {
                     // use default configurations
                     final OptionMap connectionCreationOptions = OptionMap.EMPTY;
                     final CallbackHandler callbackHandler = ejbClientConfiguration.getCallbackHandler();
-                    final IoFuture<Connection> futureConnection = endpoint.connect(connectionURI, connectionCreationOptions, callbackHandler);
+                    final IoFuture<Connection> futureConnection = NetworkUtil.connect(endpoint, clusterNode.getDestinationAddress(), clusterNode.getDestinationPort(), null, connectionCreationOptions, callbackHandler);
                     // wait for the connection to be established
                     connection = IoFutureHelper.get(futureConnection, 5000, TimeUnit.MILLISECONDS);
                     // create a re-connect handler (which will be used on connection breaking down)
-                    reconnectHandler = new ClusterContextConnectionReconnectHandler(clusterContext, endpoint, connectionURI, connectionCreationOptions, callbackHandler, channelCreationOptions, MAX_RECONNECT_ATTEMPTS, 5000, TimeUnit.MILLISECONDS);
+                    reconnectHandler = new ClusterContextConnectionReconnectHandler(clusterContext, endpoint, clusterNode.getDestinationAddress(), clusterNode.getDestinationPort(), connectionCreationOptions, callbackHandler, channelCreationOptions, MAX_RECONNECT_ATTEMPTS, 5000, TimeUnit.MILLISECONDS);
 
                 } else {
                     final EJBClientConfiguration.ClusterNodeConfiguration clusterNodeConfiguration = clusterConfiguration.getNodeConfiguration(this.getNodeName());
@@ -98,25 +96,23 @@ class RemotingConnectionClusterNodeManager implements ClusterNodeManager {
                     channelCreationOptions = clusterNodeConfiguration == null ? clusterConfiguration.getChannelCreationOptions() : clusterNodeConfiguration.getChannelCreationOptions();
                     final OptionMap connectionCreationOptions = clusterNodeConfiguration == null ? clusterConfiguration.getConnectionCreationOptions() : clusterNodeConfiguration.getConnectionCreationOptions();
                     final CallbackHandler callbackHandler = clusterNodeConfiguration == null ? clusterConfiguration.getCallbackHandler() : clusterNodeConfiguration.getCallbackHandler();
-                    final IoFuture<Connection> futureConnection = endpoint.connect(connectionURI, connectionCreationOptions, callbackHandler);
+                    final IoFuture<Connection> futureConnection = NetworkUtil.connect(endpoint, clusterNode.getDestinationAddress(), clusterNode.getDestinationPort(), null, connectionCreationOptions, callbackHandler);
                     final long timeout = clusterNodeConfiguration == null ? clusterConfiguration.getConnectionTimeout() : clusterNodeConfiguration.getConnectionTimeout();
                     // wait for the connection to be established
                     connection = IoFutureHelper.get(futureConnection, timeout, TimeUnit.MILLISECONDS);
                     // create a re-connect handler (which will be used on connection breaking down)
-                    reconnectHandler = new ClusterContextConnectionReconnectHandler(clusterContext, endpoint, connectionURI, connectionCreationOptions, callbackHandler, channelCreationOptions, MAX_RECONNECT_ATTEMPTS, timeout, TimeUnit.MILLISECONDS);
+                    reconnectHandler = new ClusterContextConnectionReconnectHandler(clusterContext, endpoint, clusterNode.getDestinationAddress(), clusterNode.getDestinationPort(), connectionCreationOptions, callbackHandler, channelCreationOptions, MAX_RECONNECT_ATTEMPTS, timeout, TimeUnit.MILLISECONDS);
                 }
 
             } else {
                 // create the connection using defaults
-                final URI connectionURI = new URI("remote://" + this.clusterNode.getDestinationAddress() + ":" + this.clusterNode.getDestinationPort());
-                // use default configurations
                 final OptionMap connectionCreationOptions = OptionMap.EMPTY;
                 final CallbackHandler callbackHandler = new AnonymousCallbackHandler();
-                final IoFuture<Connection> futureConnection = endpoint.connect(connectionURI, connectionCreationOptions, callbackHandler);
+                final IoFuture<Connection> futureConnection = NetworkUtil.connect(endpoint, clusterNode.getDestinationAddress(), clusterNode.getDestinationPort(), null, connectionCreationOptions, callbackHandler);
                 // wait for the connection to be established
                 connection = IoFutureHelper.get(futureConnection, 5000, TimeUnit.MILLISECONDS);
                 // create a re-connect handler (which will be used on connection breaking down)
-                reconnectHandler = new ClusterContextConnectionReconnectHandler(clusterContext, endpoint, connectionURI, connectionCreationOptions, callbackHandler, channelCreationOptions, MAX_RECONNECT_ATTEMPTS, 5000, TimeUnit.MILLISECONDS);
+                reconnectHandler = new ClusterContextConnectionReconnectHandler(clusterContext, endpoint, clusterNode.getDestinationAddress(), clusterNode.getDestinationPort(), connectionCreationOptions, callbackHandler, channelCreationOptions, MAX_RECONNECT_ATTEMPTS, 5000, TimeUnit.MILLISECONDS);
 
             }
         } catch (Exception e) {
