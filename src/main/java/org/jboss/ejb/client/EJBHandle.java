@@ -46,7 +46,7 @@ public final class EJBHandle<T extends EJBObject> implements Handle {
      */
     public EJBHandle(final EJBLocator<T> locator) {
         if (locator == null) {
-            throw new IllegalArgumentException("locator is null");
+            throw Logs.MAIN.paramCannotBeNull("EJB locator");
         }
         this.locator = locator;
     }

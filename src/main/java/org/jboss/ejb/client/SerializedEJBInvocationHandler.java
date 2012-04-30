@@ -100,7 +100,7 @@ public final class SerializedEJBInvocationHandler implements Externalizable {
     protected Object readResolve() {
         final EJBLocator<?> locator = this.locator;
         if (locator == null) {
-            throw new IllegalStateException("locator is null");
+            throw Logs.MAIN.paramCannotBeNull("EJB locator");
         }
         return readResolve(locator);
     }

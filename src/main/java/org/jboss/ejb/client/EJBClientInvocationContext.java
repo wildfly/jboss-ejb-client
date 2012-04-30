@@ -169,12 +169,12 @@ public final class EJBClientInvocationContext extends Attachable {
         final int idx = this.interceptorChainIndex++;
         final EJBClientInterceptor[] chain = interceptorChain;
         if (idx > chain.length) {
-            throw new IllegalStateException("sendRequest() called during wrong phase");
+            throw Logs.MAIN.sendRequestCalledDuringWrongPhase();
         }
         if (chain.length == idx) {
             final EJBReceiverInvocationContext context = receiverInvocationContext;
             if (context == null) {
-                throw new IllegalStateException("No valid receiver associated with invocation");
+                throw Logs.MAIN.noReceiverAssociatedWithInvocation();
             }
             context.getEjbReceiverContext().getReceiver().processInvocation(this, context);
         } else {
@@ -195,7 +195,7 @@ public final class EJBClientInvocationContext extends Attachable {
         final int idx = this.interceptorChainIndex;
         final EJBClientInterceptor[] chain = interceptorChain;
         if (idx <= chain.length) {
-            throw new IllegalStateException("Cannot retry a request which hasn't previously been completed");
+            throw Logs.MAIN.cannotRetryRequest();
         }
         // reset the interceptor index to the beginning of the chain
         this.interceptorChainIndex = 0;
@@ -251,7 +251,7 @@ public final class EJBClientInvocationContext extends Attachable {
         final EJBReceiverInvocationContext.ResultProducer resultProducer = this.resultProducer;
 
         if (resultDone || resultProducer == null) {
-            throw new IllegalStateException("getResult() called during wrong phase");
+            throw Logs.MAIN.getResultCalledDuringWrongPhase();
         }
 
         final int idx = this.interceptorChainIndex++;
@@ -285,7 +285,7 @@ public final class EJBClientInvocationContext extends Attachable {
         final EJBReceiverInvocationContext.ResultProducer resultProducer = this.resultProducer;
 
         if (resultProducer == null) {
-            throw new IllegalStateException("discardResult() called during request phase");
+            throw Logs.MAIN.discardResultCalledDuringWrongPhase();
         }
 
         resultProducer.discardResult();
@@ -317,7 +317,7 @@ public final class EJBClientInvocationContext extends Attachable {
     protected EJBReceiver getReceiver() {
         final EJBReceiverInvocationContext context = receiverInvocationContext;
         if (context == null) {
-            throw new IllegalStateException("No receiver associated with request");
+            throw Logs.MAIN.noReceiverAssociatedWithInvocation();
         }
         return context.getEjbReceiverContext().getReceiver();
     }

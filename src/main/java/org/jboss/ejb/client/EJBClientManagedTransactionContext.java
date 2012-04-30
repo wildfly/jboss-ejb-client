@@ -96,12 +96,12 @@ public final class EJBClientManagedTransactionContext extends EJBClientTransacti
             if (transactionID != null) {
                 return transactionID;
             }
-            throw new IllegalStateException("Transaction enlistment did not yield a transaction ID");
+            throw Logs.MAIN.txEnlistmentDidNotYieldTxId();
         }
         // another resource exists for this transaction ID
         transactionID = (XidTransactionID) synchronizationRegistry.getResource(new NodeKey(nodeName));
         if (transactionID == null) {
-            throw new IllegalStateException("Cannot enlist transaction");
+            throw Logs.MAIN.cannotEnlistTx();
         }
         synchronizationRegistry.registerInterposedSynchronization(new SynchronizationImpl(nodeName, transactionID));
         return transactionID;

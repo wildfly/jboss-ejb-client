@@ -42,21 +42,20 @@ public final class ReceiverInterceptor implements EJBClientInterceptor {
         final EJBReceiverContext receiverContext;
         if (transactionNode != null) {
             if (excludedNodes.contains(transactionNode)) {
-                throw new IllegalStateException("Cannot proceed with invocation since transaction is pinned to node "
-                        + transactionNode + " which has been excluded from handling invocation for the current invocation context " + invocationContext);
+                throw Logs.MAIN.txNodeIsExcludedForInvocation(transactionNode, invocationContext);
             }
             receiverContext = clientContext.requireNodeEJBReceiverContext(transactionNode);
             if (!receiverContext.getReceiver().acceptsModule(locator.getAppName(), locator.getModuleName(), locator.getDistinctName())) {
-                throw new IllegalStateException(String.format("Node of the current transaction (%s) does not accept (%s)", transactionNode, locator));
+                throw Logs.MAIN.nodeDoesNotAcceptLocator(transactionNode, locator);
             }
             final Affinity affinity = locator.getAffinity();
             if (affinity instanceof NodeAffinity) {
                 if (!transactionNode.equals(((NodeAffinity) affinity).getNodeName())) {
-                    throw new IllegalStateException(String.format("Node of the current transaction (%s) does not accept (%s)", transactionNode, locator));
+                    throw Logs.MAIN.nodeDoesNotAcceptLocator(transactionNode, locator);
                 }
             } else if (affinity instanceof ClusterAffinity) {
                 if (!clientContext.clusterContains(((ClusterAffinity) affinity).getClusterName(), transactionNode)) {
-                    throw new IllegalStateException(String.format("Node of the current transaction (%s) does not accept (%s)", transactionNode, locator));
+                    throw Logs.MAIN.nodeDoesNotAcceptLocator(transactionNode, locator);
                 }
             }
         } else {
@@ -64,9 +63,7 @@ public final class ReceiverInterceptor implements EJBClientInterceptor {
             if (affinity instanceof NodeAffinity) {
                 final String nodeName = ((NodeAffinity) affinity).getNodeName();
                 if (excludedNodes.contains(nodeName)) {
-                    throw new IllegalStateException("Cannot proceed with invocation since the locator " + locator
-                            + " has a affinity on node " + nodeName + " which has been excluded from current invocation context "
-                            + invocationContext);
+                    throw Logs.MAIN.requiredNodeExcludedFromInvocation(locator, nodeName, invocationContext);
                 }
                 receiverContext = clientContext.requireNodeEJBReceiverContext(nodeName);
             } else if (affinity instanceof ClusterAffinity) {

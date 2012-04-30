@@ -74,7 +74,7 @@ final class EJBInvocationHandler<T> extends Attachable implements InvocationHand
 
     EJBInvocationHandler(final EJBLocator<T> locator) {
         if (locator == null) {
-            throw new NullPointerException("locator is null");
+            throw Logs.MAIN.paramCannotBeNull("EJB locator");
         }
         this.locator = locator;
         async = false;

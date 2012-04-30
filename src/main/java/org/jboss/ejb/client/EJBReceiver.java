@@ -41,7 +41,7 @@ public abstract class EJBReceiver extends Attachable {
 
     public EJBReceiver(final String nodeName) {
         if (nodeName == null) {
-            throw new IllegalArgumentException("Node name cannot be null for a EJB receiver");
+            throw Logs.MAIN.paramCannotBeNull("Node name");
         }
         this.nodeName = nodeName;
     }
@@ -215,7 +215,7 @@ public abstract class EJBReceiver extends Attachable {
 
         ModuleID(final String appName, final String moduleName, final String distinctName) {
             if (moduleName == null) {
-                throw new IllegalArgumentException("moduleName is null");
+                Logs.MAIN.paramCannotBeNull("Module name");
             }
             this.appName = appName == null ? moduleName : appName;
             this.moduleName = moduleName;

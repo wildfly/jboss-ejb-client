@@ -454,7 +454,7 @@ public final class RemotingConnectionEJBReceiver extends EJBReceiver {
             channelAssociation = this.channelAssociations.get(ejbReceiverContext);
         }
         if (channelAssociation == null) {
-            throw new IllegalStateException("EJB communication channel " + EJB_CHANNEL_NAME + " is not yet ready to receive invocations (perhaps version handshake hasn't been completed), for receiver context " + ejbReceiverContext);
+            throw Logs.MAIN.channelNotReadyForCommunication(EJB_CHANNEL_NAME, ejbReceiverContext);
         }
         return channelAssociation;
     }

@@ -90,7 +90,7 @@ public final class EJBClientUserTransactionContext extends EJBClientTransactionC
                 CURRENT_TRANSACTION_STATE.set(state = new State());
             }
             if (state.currentId != null) {
-                throw new NotSupportedException("A transaction is already associated with this thread");
+                throw Logs.MAIN.txAlreadyAssociatedWithThread();
             }
             final UserTransactionID transactionID = new UserTransactionID(nodeName, idCounter.getAndAdd(127));
             state.currentId = transactionID;
@@ -100,10 +100,10 @@ public final class EJBClientUserTransactionContext extends EJBClientTransactionC
         public void commit() throws RollbackException, HeuristicMixedException, HeuristicRollbackException, SecurityException, IllegalStateException, SystemException {
             final State state = CURRENT_TRANSACTION_STATE.get();
             if (state == null || state.currentId == null) {
-                throw new IllegalStateException("A transaction is not associated with this thread");
+                throw Logs.MAIN.noTxAssociatedWithThread();
             }
             if (state.status != Status.STATUS_ACTIVE && state.status != Status.STATUS_MARKED_ROLLBACK) {
-                throw new IllegalStateException("Transaction for this thread is not active");
+                throw Logs.MAIN.txNotActiveForThread();
             }
             final UserTransactionID transactionID = state.currentId;
             try {
@@ -144,10 +144,10 @@ public final class EJBClientUserTransactionContext extends EJBClientTransactionC
         public void rollback() throws IllegalStateException, SecurityException, SystemException {
             final State state = CURRENT_TRANSACTION_STATE.get();
             if (state == null || state.currentId == null) {
-                throw new IllegalStateException("A transaction is not associated with this thread");
+                throw Logs.MAIN.noTxAssociatedWithThread();
             }
             if (state.status != Status.STATUS_ACTIVE && state.status != Status.STATUS_MARKED_ROLLBACK) {
-                throw new IllegalStateException("Transaction for this thread is not active");
+                throw Logs.MAIN.txNotActiveForThread();
             }
             final UserTransactionID transactionID = state.currentId;
             try {

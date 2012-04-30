@@ -35,6 +35,9 @@ import org.jboss.logging.Message;
 import org.jboss.logging.MessageLogger;
 import org.jboss.remoting3.Channel;
 
+import javax.naming.NamingException;
+import javax.transaction.NotSupportedException;
+
 import static org.jboss.logging.Logger.Level.*;
 
 /**
@@ -124,6 +127,123 @@ public interface Logs extends BasicLogger {
     @LogMessage(level = INFO)
     @Message(id = 17, value = "Received server version %s and marshalling strategies %s")
     void receivedServerVersionAndMarshallingStrategies(final String version, final String marshallingStrategies);
+
+    @Message(id = 18, value = "%s cannot be null")
+    IllegalArgumentException paramCannotBeNull(final String paramName);
+
+    @Message(id = 19, value = "Node name cannot be null or empty string, while adding a node to cluster named %s")
+    IllegalArgumentException nodeNameCannotBeNullOrEmptyStringForCluster(final String clusterName);
+
+    @Message(id = 20, value = "%s cannot be null or empty string")
+    IllegalArgumentException paramCannotBeNullOrEmptyString(final String paramName);
+
+    @Message(id = 21, value = "EJB client context selector may not be changed")
+    SecurityException ejbClientContextSelectorMayNotBeChanged();
+
+    @Message(id = 22, value = "No EJB client context is available")
+    IllegalStateException noEJBClientContextAvailable();
+
+    @Message(id = 23, value = "EJB client interceptor %s is already registered")
+    IllegalArgumentException ejbClientInterceptorAlreadyRegistered(final EJBClientInterceptor interceptor);
+
+    @Message(id = 24, value = "No EJB receiver available for handling [appName:%s, moduleName:%s, distinctName:%s] combination")
+    IllegalStateException noEJBReceiverAvailableForDeployment(final String appName, final String moduleName, final String distinctName);
+
+    @Message(id = 25, value = "No EJB receiver available for handling [appName:%s, moduleName:%s, distinctName:%s] combination for invocation context %s")
+    IllegalStateException noEJBReceiverAvailableForDeploymentDuringInvocation(final String appName, final String moduleName, final String distinctName, final EJBClientInvocationContext invocationContext);
+
+    @Message(id = 26, value = "%s has not been associated with %s")
+    IllegalStateException receiverNotAssociatedWithClientContext(final EJBReceiver receiver, final EJBClientContext clientContext);
+
+    @Message(id = 27, value = "No EJBReceiver available for node name %s")
+    IllegalStateException noEJBReceiverForNode(final String nodeName);
+
+    @Message(id = 28, value = "No EJB receiver contexts available in cluster %s")
+    IllegalStateException noReceiverContextsInCluster(final String clusterName);
+
+    @Message(id = 29, value = "No cluster context available for cluster named %s")
+    IllegalStateException noClusterContextAvailable(final String clusterName);
+
+    @Message(id = 30, value = "sendRequest() called during wrong phase")
+    IllegalStateException sendRequestCalledDuringWrongPhase();
+
+    @Message(id = 31, value = "No receiver associated with invocation")
+    IllegalStateException noReceiverAssociatedWithInvocation();
+
+    @Message(id = 32, value = "Cannot retry a request which hasn't previously been completed")
+    IllegalStateException cannotRetryRequest();
+
+    @Message(id = 33, value = "getResult() called during wrong phase")
+    IllegalStateException getResultCalledDuringWrongPhase();
+
+    @Message(id = 34, value = "discardResult() called during wrong phase")
+    IllegalStateException discardResultCalledDuringWrongPhase();
+
+    @Message(id = 35, value = "Not supported")
+    NamingException unsupportedNamingOperation();
+
+    @Message(id = 36, value = "Read only naming context, operation not supported")
+    NamingException unsupportedNamingOperationForReadOnlyContext();
+
+    @Message(id = 37, value = "Could not load ejb proxy class %s")
+    NamingException couldNotLoadProxyClass(final String viewClassName);
+
+    @Message(id = 38, value = "Transaction enlistment did not yield a transaction ID")
+    IllegalStateException txEnlistmentDidNotYieldTxId();
+
+    @Message(id = 39, value = "Cannot enlist transaction")
+    IllegalStateException cannotEnlistTx();
+
+    @Message(id = 40, value = "EJB communication channel %s is not yet ready to receive invocations (perhaps version handshake hasn't been completed), for receiver context %s")
+    IllegalStateException channelNotReadyForCommunication(final String channelName, final EJBReceiverContext receiverContext);
+
+    @Message(id = 41, value = "A session bean does not have a primary key class")
+    RuntimeException primaryKeyNotRelevantForSessionBeans();
+
+    @Message(id = 42, value = "Failed to find EJB client configuration file specified in %s system property")
+    RuntimeException failedToFindEjbClientConfigFileSpecifiedBySysProp(@Cause Exception e, final String sysPropName);
+
+    @Message(id = 43, value = "Error reading EJB client properties file %s")
+    RuntimeException failedToReadEjbClientConfigFile(@Cause Exception e, String file);
+
+    @Message(id = 44, value = "No transaction context available")
+    IllegalStateException noTxContextAvailable();
+
+    @Message(id = 45, value = "User transactions not supported by this context")
+    IllegalStateException userTxNotSupportedByTxContext();
+
+    @Message(id = 46, value = "A transaction is already associated with this thread")
+    NotSupportedException txAlreadyAssociatedWithThread();
+
+    @Message(id = 47, value = "A transaction is not associated with this thread")
+    IllegalStateException noTxAssociatedWithThread();
+
+    @Message(id = 48, value = "Transaction for this thread is not active")
+    IllegalStateException txNotActiveForThread();
+
+    @Message(id = 49, value = "Cannot proceed with invocation since transaction is pinned to node %s which has been excluded from handling invocation for the current invocation context %s")
+    IllegalStateException txNodeIsExcludedForInvocation(String nodeName, EJBClientInvocationContext invocationContext);
+
+    @Message(id = 50, value = "Node of the current transaction %s does not accept %s")
+    IllegalStateException nodeDoesNotAcceptLocator(String nodeName, EJBLocator locator);
+
+    @Message(id = 51, value = "Cannot proceed with invocation since the locator %s has an affinity on node %s which has been excluded from current invocation context %s")
+    IllegalStateException requiredNodeExcludedFromInvocation(EJBLocator locator, String nodeName, EJBClientInvocationContext invocationContext);
+
+    @Message(id = 52, value = "%s for cluster %s is not of type org.jboss.ejb.client.ClusterNodeSelector")
+    RuntimeException unexpectedClusterNodeSelectorClassType(Class nodeSelectorClass, String clusterName);
+
+    @Message(id = 53, value = "Could not create the cluster node selector for cluster %s")
+    RuntimeException couldNotCreateClusterNodeSelector(@Cause Exception e, String clusterName);
+
+    @Message(id = 54, value = "Cannot specify both a callback handler and a username/password")
+    IllegalStateException cannotSpecifyBothCallbackHandlerAndUserPass();
+
+    @Message(id = 55, value = "Could not decode base64 encoded password")
+    RuntimeException couldNotDecodeBase64Password(@Cause Exception e);
+
+    @Message(id = 56, value = "Cannot specify both a plain text and base64 encoded password")
+    IllegalStateException cannotSpecifyBothPlainTextAndEncodedPassword();
 
     // Proxy API errors
 
