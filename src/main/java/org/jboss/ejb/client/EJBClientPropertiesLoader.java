@@ -22,13 +22,13 @@
 
 package org.jboss.ejb.client;
 
+import org.jboss.logging.Logger;
+
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.Properties;
-
-import org.jboss.logging.Logger;
 
 /**
  * A {@link EJBClientPropertiesLoader} loads a EJB client properties file based on the following algorithm:
@@ -77,9 +77,9 @@ class EJBClientPropertiesLoader {
                 return ejbClientProps;
 
             } catch (FileNotFoundException e) {
-                throw new RuntimeException("Failed to find EJB client configuration file specified in " + EJB_CLIENT_PROPS_FILE_SYS_PROPERTY + " system property", e);
+                throw Logs.MAIN.failedToFindEjbClientConfigFileSpecifiedBySysProp(e, EJB_CLIENT_PROPS_FILE_SYS_PROPERTY);
             } catch (IOException e) {
-                throw new RuntimeException("Error reading EJB client properties file " + ejbClientPropsFilePath, e);
+                throw Logs.MAIN.failedToReadEjbClientConfigFile(e, ejbClientPropsFilePath);
             } finally {
                 if (fileStream != null) {
                     try {
@@ -109,7 +109,7 @@ class EJBClientPropertiesLoader {
                 return clientProps;
 
             } catch (IOException e) {
-                throw new RuntimeException("Could not load " + EJB_CLIENT_PROPS_FILE_NAME, e);
+                throw Logs.MAIN.failedToReadEjbClientConfigFile(e, EJB_CLIENT_PROPS_FILE_NAME);
             } finally {
                 try {
                     clientPropsInputStream.close();

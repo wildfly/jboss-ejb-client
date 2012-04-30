@@ -85,7 +85,7 @@ public class EJBMetaDataImpl implements EJBMetaData, Serializable {
      */
     public Class getPrimaryKeyClass() {
         if (session)
-            throw new RuntimeException("A session bean does not have a primary key class");
+            throw Logs.MAIN.primaryKeyNotRelevantForSessionBeans();
         return pkClass;
     }
 

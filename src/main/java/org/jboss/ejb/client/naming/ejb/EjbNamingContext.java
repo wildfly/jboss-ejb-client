@@ -21,8 +21,12 @@
  */
 package org.jboss.ejb.client.naming.ejb;
 
-import java.util.Map;
 import org.jboss.ejb.client.EJBClient;
+import org.jboss.ejb.client.EJBHomeLocator;
+import org.jboss.ejb.client.EJBLocator;
+import org.jboss.ejb.client.Logs;
+import org.jboss.ejb.client.StatelessEJBLocator;
+import org.jboss.logging.Logger;
 
 import javax.ejb.EJBHome;
 import javax.naming.Binding;
@@ -34,11 +38,7 @@ import javax.naming.NameParser;
 import javax.naming.NamingEnumeration;
 import javax.naming.NamingException;
 import java.util.Hashtable;
-import org.jboss.ejb.client.EJBHomeLocator;
-import org.jboss.ejb.client.EJBLocator;
-import org.jboss.ejb.client.StatefulEJBLocator;
-import org.jboss.ejb.client.StatelessEJBLocator;
-import org.jboss.logging.Logger;
+import java.util.Map;
 
 /**
  * @author Stuart Douglas
@@ -105,7 +105,7 @@ class EjbNamingContext implements Context {
         try {
             viewClass = Class.forName(identifier.getViewName(), false, SecurityActions.getContextClassLoader());
         } catch (ClassNotFoundException e) {
-            NamingException naming = new NamingException("Could not load ejb proxy class " + identifier.getViewName());
+            NamingException naming = Logs.MAIN.couldNotLoadProxyClass(identifier.getViewName());
             naming.setRootCause(e);
             throw naming;
         }
@@ -120,8 +120,8 @@ class EjbNamingContext implements Context {
 
     private <T extends EJBHome> T doCreateHomeProxy(Class<T> viewClass, EjbJndiIdentifier identifier) throws Exception {
         final EJBLocator<T> locator;
-        final Map<String,String> options = identifier.getOptions();
-        final boolean stateful = options.containsKey("stateful") && ! "false".equalsIgnoreCase(options.get("stateful"));
+        final Map<String, String> options = identifier.getOptions();
+        final boolean stateful = options.containsKey("stateful") && !"false".equalsIgnoreCase(options.get("stateful"));
         if (stateful) log.warnf("Ignoring 'stateful' option on lookup of home %s", viewClass);
         locator = new EJBHomeLocator<T>(viewClass, identifier.getApplication(), identifier.getModule(), identifier.getEjbName(), identifier.getDistinctName());
         return EJBClient.createProxy(locator);
@@ -129,8 +129,8 @@ class EjbNamingContext implements Context {
 
     private <T> T doCreateProxy(Class<T> viewClass, EjbJndiIdentifier identifier) throws Exception {
         final EJBLocator<T> locator;
-        final Map<String,String> options = identifier.getOptions();
-        final boolean stateful = options.containsKey("stateful") && ! "false".equalsIgnoreCase(options.get("stateful"));
+        final Map<String, String> options = identifier.getOptions();
+        final boolean stateful = options.containsKey("stateful") && !"false".equalsIgnoreCase(options.get("stateful"));
         if (stateful) {
             locator = EJBClient.createSession(viewClass, identifier.getApplication(), identifier.getModule(), identifier.getEjbName(), identifier.getDistinctName());
         } else {
@@ -141,82 +141,82 @@ class EjbNamingContext implements Context {
 
     @Override
     public void bind(final Name name, final Object obj) throws NamingException {
-        throw new NamingException("Not supported, read only naming context");
+        throw Logs.MAIN.unsupportedNamingOperationForReadOnlyContext();
     }
 
     @Override
     public void bind(final String name, final Object obj) throws NamingException {
-        throw new NamingException("Not supported, read only naming context");
+        throw Logs.MAIN.unsupportedNamingOperationForReadOnlyContext();
     }
 
     @Override
     public void rebind(final Name name, final Object obj) throws NamingException {
-        throw new NamingException("Not supported, read only naming context");
+        throw Logs.MAIN.unsupportedNamingOperationForReadOnlyContext();
     }
 
     @Override
     public void rebind(final String name, final Object obj) throws NamingException {
-        throw new NamingException("Not supported, read only naming context");
+        throw Logs.MAIN.unsupportedNamingOperationForReadOnlyContext();
     }
 
     @Override
     public void unbind(final Name name) throws NamingException {
-        throw new NamingException("Not supported, read only naming context");
+        throw Logs.MAIN.unsupportedNamingOperationForReadOnlyContext();
     }
 
     @Override
     public void unbind(final String name) throws NamingException {
-        throw new NamingException("Not supported, read only naming context");
+        throw Logs.MAIN.unsupportedNamingOperationForReadOnlyContext();
     }
 
     @Override
     public void rename(final Name oldName, final Name newName) throws NamingException {
-        throw new NamingException("Not supported, read only naming context");
+        throw Logs.MAIN.unsupportedNamingOperationForReadOnlyContext();
     }
 
     @Override
     public void rename(final String oldName, final String newName) throws NamingException {
-        throw new NamingException("Not supported, read only naming context");
+        throw Logs.MAIN.unsupportedNamingOperationForReadOnlyContext();
     }
 
     @Override
     public NamingEnumeration<NameClassPair> list(final Name name) throws NamingException {
-        throw new NamingException("Not supported");
+        throw Logs.MAIN.unsupportedNamingOperation();
     }
 
     @Override
     public NamingEnumeration<NameClassPair> list(final String name) throws NamingException {
-        throw new NamingException("Not supported");
+        throw Logs.MAIN.unsupportedNamingOperation();
     }
 
     @Override
     public NamingEnumeration<Binding> listBindings(final Name name) throws NamingException {
-        throw new NamingException("Not supported");
+        throw Logs.MAIN.unsupportedNamingOperation();
     }
 
     @Override
     public NamingEnumeration<Binding> listBindings(final String name) throws NamingException {
-        throw new NamingException("Not supported");
+        throw Logs.MAIN.unsupportedNamingOperation();
     }
 
     @Override
     public void destroySubcontext(final Name name) throws NamingException {
-        throw new NamingException("Not supported, read only naming context");
+        throw Logs.MAIN.unsupportedNamingOperationForReadOnlyContext();
     }
 
     @Override
     public void destroySubcontext(final String name) throws NamingException {
-        throw new NamingException("Not supported, read only naming context");
+        throw Logs.MAIN.unsupportedNamingOperationForReadOnlyContext();
     }
 
     @Override
     public Context createSubcontext(final Name name) throws NamingException {
-        throw new NamingException("Not supported, read only naming context");
+        throw Logs.MAIN.unsupportedNamingOperationForReadOnlyContext();
     }
 
     @Override
     public Context createSubcontext(final String name) throws NamingException {
-        throw new NamingException("Not supported, read only naming context");
+        throw Logs.MAIN.unsupportedNamingOperationForReadOnlyContext();
     }
 
     @Override

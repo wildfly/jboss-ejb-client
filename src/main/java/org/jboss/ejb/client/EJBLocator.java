@@ -56,19 +56,19 @@ public abstract class EJBLocator<T> implements Serializable {
 
     EJBLocator(final Class<T> viewType, final String appName, final String moduleName, final String beanName, final String distinctName, final Affinity affinity) {
         if (viewType == null) {
-            throw new IllegalArgumentException("viewType is null");
+            throw Logs.MAIN.paramCannotBeNull("viewType");
         }
         if (appName == null) {
-            throw new IllegalArgumentException("appName is null");
+            throw Logs.MAIN.paramCannotBeNull("appName");
         }
         if (moduleName == null) {
-            throw new IllegalArgumentException("moduleName is null");
+            throw Logs.MAIN.paramCannotBeNull("moduleName");
         }
         if (beanName == null) {
-            throw new IllegalArgumentException("beanName is null");
+            throw Logs.MAIN.paramCannotBeNull("beanName");
         }
         if (distinctName == null) {
-            throw new IllegalArgumentException("distinctName is null");
+            throw Logs.MAIN.paramCannotBeNull("distinctName");
         }
         this.viewType = viewType;
         this.appName = appName;
@@ -189,7 +189,7 @@ public abstract class EJBLocator<T> implements Serializable {
      */
     public T createProxyInstance(InvocationHandler invocationHandler) {
         if (invocationHandler == null) {
-            throw new IllegalArgumentException("invocationHandler is null");
+            throw Logs.MAIN.paramCannotBeNull("Invocation handler");
         }
         try {
             return proxyConstructor.newInstance(invocationHandler);

@@ -46,7 +46,7 @@ public final class EJBHomeHandle<T extends EJBHome> implements HomeHandle {
      */
     public EJBHomeHandle(final EJBHomeLocator<T> locator) {
         if (locator == null) {
-            throw new IllegalArgumentException("locator is null");
+            throw Logs.MAIN.paramCannotBeNull("EJB locator");
         }
         this.locator = locator;
     }

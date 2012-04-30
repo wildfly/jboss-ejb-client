@@ -24,6 +24,7 @@ package org.jboss.ejb.client.remoting;
 
 import org.jboss.ejb.client.Affinity;
 import org.jboss.ejb.client.EJBReceiverInvocationContext;
+import org.jboss.ejb.client.Logs;
 import org.jboss.ejb.client.SessionID;
 import org.jboss.logging.Logger;
 import org.jboss.marshalling.MarshallerFactory;
@@ -61,7 +62,7 @@ class SessionOpenResponseHandler extends ProtocolMessageHandler {
     @Override
     protected void processMessage(final MessageInputStream messageInputStream) throws IOException {
         if (messageInputStream == null) {
-            throw new IllegalArgumentException("Cannot read from null stream");
+            throw Logs.MAIN.paramCannotBeNull("Message input stream");
         }
         final DataInputStream input = new DataInputStream(messageInputStream);
         // read the invocation id

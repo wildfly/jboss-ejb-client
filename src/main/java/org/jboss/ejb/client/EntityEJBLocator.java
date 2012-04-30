@@ -56,7 +56,7 @@ public final class EntityEJBLocator<T extends EJBObject> extends EJBLocator<T> {
     public EntityEJBLocator(final Class<T> viewType, final String appName, final String moduleName, final String beanName, final String distinctName, final Object primaryKey) {
         super(viewType, appName, moduleName, beanName, distinctName, Affinity.NONE);
         if (primaryKey == null) {
-            throw new IllegalArgumentException("primaryKey is null");
+            throw Logs.MAIN.paramCannotBeNull("primary key");
         }
         this.primaryKey = primaryKey;
         hashCode = primaryKey.hashCode() * 13 + super.hashCode();

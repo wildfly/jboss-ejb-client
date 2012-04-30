@@ -175,10 +175,10 @@ public final class EJBClientContext extends Attachable {
      */
     public static ContextSelector<EJBClientContext> setSelector(final ContextSelector<EJBClientContext> newSelector) {
         if (newSelector == null) {
-            throw new IllegalArgumentException("EJB client context selector cannot be set to null");
+            throw Logs.MAIN.paramCannotBeNull("EJB client context selector");
         }
         if (SELECTOR_LOCKED) {
-            throw new SecurityException("EJB client context selector may not be changed");
+            throw Logs.MAIN.ejbClientContextSelectorMayNotBeChanged();
         }
         final SecurityManager sm = System.getSecurityManager();
         if (sm != null) {
@@ -232,7 +232,7 @@ public final class EJBClientContext extends Attachable {
     public static EJBClientContext requireCurrent() throws IllegalStateException {
         final EJBClientContext clientContext = getCurrent();
         if (clientContext == null) {
-            throw new IllegalStateException("No EJB client context is available");
+            throw Logs.MAIN.noEJBClientContextAvailable();
         }
         return clientContext;
     }
@@ -266,7 +266,7 @@ public final class EJBClientContext extends Attachable {
      */
     boolean registerEJBReceiver(final EJBReceiver receiver, final EJBReceiverContextCloseHandler receiverContextCloseHandler) {
         if (receiver == null) {
-            throw new IllegalArgumentException("Cannot register a null receiver");
+            throw Logs.MAIN.paramCannotBeNull("EJB receiver");
         }
         final EJBReceiverContext ejbReceiverContext;
         final ReceiverAssociation association;
@@ -319,7 +319,7 @@ public final class EJBClientContext extends Attachable {
      */
     public void unregisterEJBReceiver(final EJBReceiver receiver) {
         if (receiver == null) {
-            throw new IllegalArgumentException("Receiver cannot be null");
+            throw Logs.MAIN.paramCannotBeNull("EJB receiver");
         }
         synchronized (this.ejbReceiverAssociations) {
             final ReceiverAssociation association = this.ejbReceiverAssociations.remove(receiver);
@@ -358,7 +358,7 @@ public final class EJBClientContext extends Attachable {
      */
     public EJBClientInterceptor.Registration registerInterceptor(final int priority, final EJBClientInterceptor clientInterceptor) throws IllegalArgumentException {
         if (clientInterceptor == null) {
-            throw new IllegalArgumentException("clientInterceptor is null");
+            throw Logs.MAIN.paramCannotBeNull("EJB client interceptor");
         }
         final SecurityManager sm = System.getSecurityManager();
         if (sm != null) {
@@ -378,7 +378,7 @@ public final class EJBClientContext extends Attachable {
                     } else {
                         // This means that a client interceptor which has been added to this context, is being added
                         // again with a different priority. We don't allow that to happen
-                        throw new IllegalArgumentException("Interceptor '" + clientInterceptor + "' is already registered");
+                        throw Logs.MAIN.ejbClientInterceptorAlreadyRegistered(clientInterceptor);
                     }
                 }
             }
@@ -407,7 +407,7 @@ public final class EJBClientContext extends Attachable {
      */
     public void registerReconnectHandler(final ReconnectHandler reconnectHandler) {
         if (reconnectHandler == null) {
-            throw new IllegalArgumentException("Reconnect handler cannot be null");
+            throw Logs.MAIN.paramCannotBeNull("Reconnect handler");
         }
         synchronized (this.reconnectHandlers) {
             this.reconnectHandlers.add(reconnectHandler);
@@ -514,8 +514,7 @@ public final class EJBClientContext extends Attachable {
         // try and find a receiver which can handle this combination
         final EJBReceiver ejbReceiver = this.getEJBReceiver(appName, moduleName, distinctName);
         if (ejbReceiver == null) {
-            throw new IllegalStateException("No EJB receiver available for handling [appName:" + appName + ",modulename:"
-                    + moduleName + ",distinctname:" + distinctName + "] combination");
+            throw Logs.MAIN.noEJBReceiverAvailableForDeployment(appName, moduleName, distinctName);
         }
         return ejbReceiver;
     }
@@ -581,8 +580,7 @@ public final class EJBClientContext extends Attachable {
         // try and find a receiver which can handle this combination
         final EJBReceiver ejbReceiver = this.getEJBReceiver(clientInvocationContext, appName, moduleName, distinctName);
         if (ejbReceiver == null) {
-            throw new IllegalStateException("No EJB receiver available for handling [appName:" + appName + ",modulename:"
-                    + moduleName + ",distinctname:" + distinctName + "] combination for invocation context " + clientInvocationContext);
+            throw Logs.MAIN.noEJBReceiverAvailableForDeploymentDuringInvocation(appName, moduleName, distinctName, clientInvocationContext);
         }
         return ejbReceiver;
     }
@@ -601,7 +599,7 @@ public final class EJBClientContext extends Attachable {
         synchronized (this.ejbReceiverAssociations) {
             final ReceiverAssociation association = this.ejbReceiverAssociations.get(receiver);
             if (association == null) {
-                throw new IllegalStateException(receiver + " has not been associated with " + this);
+                throw Logs.MAIN.receiverNotAssociatedWithClientContext(receiver, this);
             }
             return association.context;
         }
@@ -610,7 +608,7 @@ public final class EJBClientContext extends Attachable {
     EJBReceiver requireNodeEJBReceiver(final String nodeName) {
         final EJBReceiver receiver = getNodeEJBReceiver(nodeName);
         if (receiver != null) return receiver;
-        throw new IllegalStateException("No EJBReceiver available for node name " + nodeName);
+        throw Logs.MAIN.noEJBReceiverForNode(nodeName);
     }
 
     EJBReceiver getNodeEJBReceiver(final String nodeName) {
@@ -619,7 +617,7 @@ public final class EJBClientContext extends Attachable {
 
     private EJBReceiver getNodeEJBReceiver(final String nodeName, final boolean attemptReconnect) {
         if (nodeName == null) {
-            throw new IllegalArgumentException("Node name cannot be null");
+            throw Logs.MAIN.paramCannotBeNull("Node name");
         }
 
         synchronized (this.ejbReceiverAssociations) {
@@ -743,12 +741,12 @@ public final class EJBClientContext extends Attachable {
             // see if the cluster context was created during this wait time
             clusterContext = this.clusterContexts.get(clusterName);
             if (clusterContext == null) {
-                throw new IllegalArgumentException("No cluster context (and as a result EJB receiver context) available for cluster named " + clusterName);
+                throw Logs.MAIN.noClusterContextAvailable(clusterName);
             }
         }
         final EJBReceiverContext ejbReceiverContext = this.getClusterEJBReceiverContext(invocationContext, clusterName);
         if (ejbReceiverContext == null) {
-            throw new IllegalStateException("No EJB receiver contexts available in cluster " + clusterName);
+            throw Logs.MAIN.noReceiverContextsInCluster(clusterName);
         }
         return ejbReceiverContext;
     }

@@ -129,7 +129,7 @@ public final class EJBClient {
      */
     public static <T> T createProxy(final EJBLocator<T> locator) throws IllegalArgumentException {
         if (locator == null) {
-            throw new NullPointerException("locator is null");
+            throw Logs.MAIN.paramCannotBeNull("EJB locator");
         }
         return locator.createProxyInstance(new EJBInvocationHandler(locator));
     }

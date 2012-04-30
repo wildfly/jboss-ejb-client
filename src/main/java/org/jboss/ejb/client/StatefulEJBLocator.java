@@ -57,7 +57,7 @@ public final class StatefulEJBLocator<T> extends EJBLocator<T> {
     public StatefulEJBLocator(final Class<T> viewType, final String appName, final String moduleName, final String beanName, final String distinctName, final SessionID sessionId, final Affinity affinity) {
         super(viewType, appName, moduleName, beanName, distinctName, affinity);
         if (sessionId == null) {
-            throw new IllegalArgumentException("sessionId is null");
+            throw Logs.MAIN.paramCannotBeNull("Session id");
         }
         this.sessionId = sessionId;
         this.sessionOwnerNode = null;
@@ -80,10 +80,10 @@ public final class StatefulEJBLocator<T> extends EJBLocator<T> {
                               final String sessionOwnerNode) {
         super(viewType, appName, moduleName, beanName, distinctName, affinity);
         if (sessionId == null) {
-            throw new IllegalArgumentException("sessionId is null");
+            throw Logs.MAIN.paramCannotBeNull("Session id");
         }
         if (sessionOwnerNode == null || sessionOwnerNode.trim().isEmpty()) {
-            throw new IllegalArgumentException("Session owner node cannot be null or empty");
+            throw Logs.MAIN.paramCannotBeNullOrEmptyString("Session owning node");
         }
         this.sessionId = sessionId;
         this.sessionOwnerNode = sessionOwnerNode;

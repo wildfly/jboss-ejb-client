@@ -327,11 +327,11 @@ public class PropertiesBasedEJBClientConfiguration implements EJBClientConfigura
             try {
                 final Class clusterNodeSelectorClass = Class.forName(clusterNodeSelectorClassName.trim(), true, classLoader);
                 if (!ClusterNodeSelector.class.isAssignableFrom(clusterNodeSelectorClass)) {
-                    throw new RuntimeException(clusterNodeSelectorClass + " for cluster " + clusterName + " is not of type " + ClusterNodeSelector.class);
+                    throw Logs.MAIN.unexpectedClusterNodeSelectorClassType(clusterNodeSelectorClass, clusterName);
                 }
                 clusterNodeSelector = (ClusterNodeSelector) clusterNodeSelectorClass.newInstance();
             } catch (Exception e) {
-                throw new RuntimeException("Could not create the cluster node selector for cluster " + clusterName, e);
+                throw Logs.MAIN.couldNotCreateClusterNodeSelector(e, clusterName);
             }
         } else {
             clusterNodeSelector = null;
@@ -569,21 +569,19 @@ public class PropertiesBasedEJBClientConfiguration implements EJBClientConfigura
     private CallbackHandler resolveCallbackHandler(final String callbackClass, final String userName, final String password, final String passwordBase64, final String realm) {
 
         if (callbackClass != null && (userName != null || password != null)) {
-            throw new IllegalStateException("Cannot specify both a callback handler and a username/password");
+            throw Logs.MAIN.cannotSpecifyBothCallbackHandlerAndUserPass();
         }
         if (callbackClass != null) {
             final ClassLoader classLoader = getClientClassLoader();
             try {
                 final Class<?> clazz = Class.forName(callbackClass, true, classLoader);
                 return (CallbackHandler) clazz.newInstance();
-            } catch (ClassNotFoundException e) {
-                throw new RuntimeException("Could not load callback handler class " + callbackClass, e);
             } catch (Exception e) {
-                throw new RuntimeException("Could not instantiate handler instance of type " + callbackClass, e);
+                throw new RuntimeException(e);
             }
         } else if (userName != null) {
             if (password != null && passwordBase64 != null) {
-                throw new IllegalStateException("Cannot specify both a plain text and base64 encoded password");
+                throw Logs.MAIN.cannotSpecifyBothPlainTextAndEncodedPassword();
             }
 
             final String decodedPassword;
@@ -591,7 +589,7 @@ public class PropertiesBasedEJBClientConfiguration implements EJBClientConfigura
                 try {
                     decodedPassword = DatatypeConverter.printBase64Binary(passwordBase64.getBytes());
                 } catch (Exception e) {
-                    throw new RuntimeException("Could not decode base64 encoded password", e);
+                    throw Logs.MAIN.couldNotDecodeBase64Password(e);
                 }
             } else if (password != null) {
                 decodedPassword = password;

@@ -237,7 +237,7 @@ public final class ClusterContext implements EJBClientContext.EJBReceiverContext
                 }
                 final String nodeName = clusterNodeManager.getNodeName();
                 if (nodeName == null || nodeName.trim().isEmpty()) {
-                    throw new IllegalArgumentException("Node name cannot be null while adding a node to cluster named " + this.clusterName);
+                    throw Logs.MAIN.nodeNameCannotBeNullOrEmptyStringForCluster(this.clusterName);
                 }
                 this.nodeManagers.put(nodeName, clusterNodeManager);
                 // If the connected nodes in this cluster context hasn't yet reached the max allowed limit, then create a new
@@ -308,7 +308,7 @@ public final class ClusterContext implements EJBClientContext.EJBReceiverContext
      */
     public void registerEJBReceiver(final EJBReceiver receiver) {
         if (receiver == null) {
-            throw new IllegalArgumentException("receiver is null");
+            throw Logs.MAIN.paramCannotBeNull("EJB receiver");
         }
         final String nodeName = receiver.getNodeName();
         if (this.connectedNodes.contains(nodeName)) {

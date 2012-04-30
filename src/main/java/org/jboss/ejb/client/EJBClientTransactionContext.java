@@ -62,7 +62,7 @@ public abstract class EJBClientTransactionContext extends Attachable {
      */
     public static void setSelector(final ContextSelector<EJBClientTransactionContext> selector) throws SecurityException {
         if (selector == null) {
-            throw new IllegalArgumentException("selector is null");
+            throw Logs.MAIN.paramCannotBeNull("EJB client transaction context selector");
         }
         final SecurityManager sm = System.getSecurityManager();
         if (sm != null) {
@@ -79,7 +79,7 @@ public abstract class EJBClientTransactionContext extends Attachable {
      */
     public static void setGlobalContext(final EJBClientTransactionContext context) throws SecurityException {
         if (context == null) {
-            throw new IllegalArgumentException("context is null");
+            throw Logs.MAIN.paramCannotBeNull("EJB client transaction context");
         }
         setSelector(new ConstantContextSelector<EJBClientTransactionContext>(context));
     }
@@ -93,7 +93,7 @@ public abstract class EJBClientTransactionContext extends Attachable {
     public static EJBClientTransactionContext requireCurrent() throws IllegalStateException {
         final EJBClientTransactionContext current = getCurrent();
         if (current == null) {
-            throw new IllegalStateException("No transaction context available");
+            throw Logs.MAIN.noTxContextAvailable();
         }
         return current;
     }
@@ -119,7 +119,7 @@ public abstract class EJBClientTransactionContext extends Attachable {
     /**
      * Create a transaction context which is controlled by an actual transaction manager.
      *
-     * @param transactionManager the transaction manager
+     * @param transactionManager      the transaction manager
      * @param synchronizationRegistry the transaction synchronization registry
      * @return the transaction context
      */
@@ -135,6 +135,6 @@ public abstract class EJBClientTransactionContext extends Attachable {
      * @return the user transaction instance
      */
     protected UserTransaction getUserTransaction(String nodeName) {
-        throw new IllegalStateException("User transactions not supported by this context");
+        throw Logs.MAIN.userTxNotSupportedByTxContext();
     }
 }

@@ -78,10 +78,10 @@ public abstract class Attachable {
     @SuppressWarnings("unchecked")
     public <T> T putAttachment(AttachmentKey<T> key, T value) {
         if (key == null) {
-            throw new IllegalArgumentException("key is null");
+            throw Logs.MAIN.paramCannotBeNull("key");
         }
         if (value == null) {
-            throw new IllegalArgumentException("value is null");
+            throw Logs.MAIN.paramCannotBeNull("value");
         }
         final Map<Object, Object> attachments = this.attachments;
         synchronized (attachments) {
@@ -100,10 +100,10 @@ public abstract class Attachable {
     @SuppressWarnings("unchecked")
     public <T> T putAttachmentIfAbsent(AttachmentKey<T> key, T value) {
         if (key == null) {
-            throw new IllegalArgumentException("key is null");
+            throw Logs.MAIN.paramCannotBeNull("key");
         }
         if (value == null) {
-            throw new IllegalArgumentException("value is null");
+            throw Logs.MAIN.paramCannotBeNull("value");
         }
         final Map<Object, Object> attachments = this.attachments;
         synchronized (attachments) {
@@ -123,7 +123,7 @@ public abstract class Attachable {
     public <T> T replaceAttachment(AttachmentKey<T> key, T value) {
         if (key == null) return null;
         if (value == null) {
-            throw new IllegalArgumentException("value is null");
+            throw Logs.MAIN.paramCannotBeNull("value");
         }
         final Map<Object, Object> attachments = this.attachments;
         synchronized (attachments) {
@@ -145,7 +145,7 @@ public abstract class Attachable {
         if (key == null) return false;
         if (oldValue == null) return false;
         if (newValue == null) {
-            throw new IllegalArgumentException("newValue is null");
+            throw Logs.MAIN.paramCannotBeNull("newValue");
         }
         final Map<Object, Object> attachments = this.attachments;
         synchronized (attachments) {
