@@ -177,7 +177,7 @@ public class PropertiesBasedEJBClientConfiguration implements EJBClientConfigura
             try {
                 invocationTimeout = Long.parseLong(invocationTimeoutValue.trim());
             } catch (NumberFormatException nfe) {
-                logger.info("Incorrect invocation timeout value " + invocationTimeoutValue + " specified. Falling back to default invocation timeout value " + this.invocationTimeout + " milli seconds");
+                Logs.MAIN.incorrectInvocationTimeoutValue(invocationTimeoutValue, String.valueOf(this.invocationTimeout));
             }
         }
 
@@ -187,7 +187,7 @@ public class PropertiesBasedEJBClientConfiguration implements EJBClientConfigura
             try{
                 this.reconnectTasksTimeout = Long.parseLong(reconnectTasksTimeoutValue.trim());
             } catch (NumberFormatException nfe) {
-                logger.info("Incorrect reconnect tasks timeout value " + reconnectTasksTimeoutValue + " specified. Falling back to default reconnect tasks timeout value " + this.reconnectTasksTimeout + " milli seconds");
+                Logs.MAIN.incorrectReconnectTasksTimeoutValue(reconnectTasksTimeoutValue, String.valueOf(this.reconnectTasksTimeout));
             }
         }
 
@@ -298,7 +298,7 @@ public class PropertiesBasedEJBClientConfiguration implements EJBClientConfigura
             try {
                 maxAllowedConnectedNodes = Long.parseLong(maxConnectedNodesStringVal.trim());
             } catch (NumberFormatException nfe) {
-                logger.info("Incorrect max-allowed-connected-nodes value: " + maxConnectedNodesStringVal + " specified for cluster named " + clusterName + ". Defaulting to " + maxAllowedConnectedNodes);
+                Logs.MAIN.incorrectMaxAllowedConnectedNodesValueForCluster(maxConnectedNodesStringVal, clusterName, String.valueOf(maxAllowedConnectedNodes));
             }
         }
         // get the connection creation options applicable for all the nodes (unless explicitly overridden) in this
@@ -316,8 +316,7 @@ public class PropertiesBasedEJBClientConfiguration implements EJBClientConfigura
             try {
                 connectionTimeout = Long.parseLong(connectionTimeoutValue.trim());
             } catch (NumberFormatException nfe) {
-                logger.info("Incorrect timeout value " + connectionTimeoutValue + " specified for cluster named "
-                        + clusterName + ". Falling back to default connection timeout value " + DEFAULT_CONNECTION_TIMEOUT_IN_MILLIS + " milli seconds");
+                Logs.MAIN.incorrectConnectionTimeoutValueForCluster(connectionTimeoutValue, clusterName, String.valueOf(DEFAULT_CONNECTION_TIMEOUT_IN_MILLIS));
             }
         }
         // cluster node selector for this cluster
@@ -405,8 +404,7 @@ public class PropertiesBasedEJBClientConfiguration implements EJBClientConfigura
             try {
                 connectionTimeout = Long.parseLong(connectionTimeoutValue.trim());
             } catch (NumberFormatException nfe) {
-                logger.info("Incorrect timeout value " + connectionTimeoutValue + " specified for node named " + nodeName + " in cluster "
-                        + clusterName + ". Falling back to default connection timeout value " + connectionTimeout + " milli seconds");
+                Logs.MAIN.incorrectConnectionTimeoutValueForNodeInCluster(connectionTimeoutValue, nodeName, clusterName, String.valueOf(connectionTimeout));
             }
         }
 
@@ -457,20 +455,20 @@ public class PropertiesBasedEJBClientConfiguration implements EJBClientConfigura
         // get "host" for the connection
         final String host = connectionSpecificProps.get("host");
         if (host == null || host.trim().isEmpty()) {
-            logger.info("No host configured for connection named " + connectionName + ". Skipping connection creation");
+            Logs.MAIN.skippingConnectionCreationDueToMissingHostOrPort(connectionName);
             return null;
         }
         // get "port" for the connection
         final String portStringVal = connectionSpecificProps.get("port");
         if (portStringVal == null || portStringVal.trim().isEmpty()) {
-            logger.info("No port configured for connection named " + connectionName + ". Skipping connection creation");
+            Logs.MAIN.skippingConnectionCreationDueToMissingHostOrPort(connectionName);
             return null;
         }
         final Integer port;
         try {
             port = Integer.parseInt(portStringVal.trim());
         } catch (NumberFormatException nfe) {
-            logger.info("Incorrect port value: " + portStringVal + " specified for connection named " + connectionName + ". Skipping connection creation");
+            Logs.MAIN.skippingConnectionCreationDueToInvalidPortNumber(portStringVal, connectionName);
             return null;
         }
         // get connect options for the connection
@@ -485,8 +483,7 @@ public class PropertiesBasedEJBClientConfiguration implements EJBClientConfigura
             try {
                 connectionTimeout = Long.parseLong(connectionTimeoutValue.trim());
             } catch (NumberFormatException nfe) {
-                logger.info("Incorrect timeout value " + connectionTimeoutValue + " specified for connection named "
-                        + connectionName + ". Falling back to default connection timeout value " + DEFAULT_CONNECTION_TIMEOUT_IN_MILLIS + " milli secondss");
+                Logs.MAIN.incorrectConnectionTimeoutValueForConnection(connectionTimeoutValue, connectionName, String.valueOf(DEFAULT_CONNECTION_TIMEOUT_IN_MILLIS));
             }
         }
         // create the CallbackHandler for this connection configuration

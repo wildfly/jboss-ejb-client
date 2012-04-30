@@ -326,7 +326,7 @@ public final class ClusterContext implements EJBClientContext.EJBReceiverContext
         if (ejbReceiverContext != null) {
             // add it to our connected nodes
             this.connectedNodes.add(nodeName);
-            logger.info(this + " Added a new EJB receiver in cluster context " + clusterName + " for node " + nodeName + ". Total nodes in cluster context = " + this.connectedNodes.size());
+            logger.debug(this + " Added a new EJB receiver in cluster context " + clusterName + " for node " + nodeName + ". Total nodes in cluster context = " + this.connectedNodes.size());
         }
     }
 

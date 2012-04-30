@@ -27,6 +27,7 @@ import org.jboss.ejb.client.ClusterContext;
 import org.jboss.ejb.client.ClusterNodeManager;
 import org.jboss.ejb.client.EJBClientConfiguration;
 import org.jboss.ejb.client.EJBReceiver;
+import org.jboss.ejb.client.Logs;
 import org.jboss.logging.Logger;
 import org.jboss.remoting3.Connection;
 import org.jboss.remoting3.Endpoint;
@@ -71,7 +72,7 @@ class RemotingConnectionClusterNodeManager implements ClusterNodeManager {
     @Override
     public EJBReceiver getEJBReceiver() {
         if (!this.clusterNode.isDestinationResolved()) {
-            logger.info("Cannot create a EJB receiver for " + this.clusterNode + " since there was no match for a target destination");
+            Logs.REMOTING.cannotCreateEJBReceiverDueToUnknownTarget(this.clusterNode.toString());
             return null;
         }
         Connection connection = null;

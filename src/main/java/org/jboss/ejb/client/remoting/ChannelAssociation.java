@@ -25,6 +25,7 @@ package org.jboss.ejb.client.remoting;
 import org.jboss.ejb.client.EJBClientContext;
 import org.jboss.ejb.client.EJBReceiverContext;
 import org.jboss.ejb.client.EJBReceiverInvocationContext;
+import org.jboss.ejb.client.Logs;
 import org.jboss.logging.Logger;
 import org.jboss.marshalling.MarshallerFactory;
 import org.jboss.remoting3.Channel;
@@ -199,7 +200,7 @@ class ChannelAssociation {
                 future.setResult(resultProducer);
             }
         } else {
-            logger.info("Discarding result for invocation id " + invocationId + " since no waiting context found");
+            Logs.REMOTING.discardingInvocationResult(invocationId);
         }
     }
 
@@ -367,7 +368,7 @@ class ChannelAssociation {
 
         @Override
         public void handleEnd(Channel channel) {
-            logger.info("Channel " + channel + " can no longer process messages");
+            Logs.REMOTING.channelCanNoLongerProcessMessages(channel);
             // close the channel and let the CloseHandler handle the cleanup
             try {
                 channel.close();

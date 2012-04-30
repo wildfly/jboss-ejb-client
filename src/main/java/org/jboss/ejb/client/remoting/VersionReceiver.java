@@ -22,6 +22,7 @@
 
 package org.jboss.ejb.client.remoting;
 
+import org.jboss.ejb.client.Logs;
 import org.jboss.logging.Logger;
 import org.jboss.marshalling.Marshalling;
 import org.jboss.marshalling.SimpleDataInput;
@@ -74,7 +75,7 @@ class VersionReceiver implements Channel.Receiver {
 
     @Override
     public void handleEnd(final Channel channel) {
-        logger.info("Channel end notification received. No more communication will happen on channel " + channel);
+        Logs.REMOTING.channelCanNoLongerProcessMessages(channel);
         try {
             channel.close();
         } catch (IOException ioe) {
@@ -98,7 +99,7 @@ class VersionReceiver implements Channel.Receiver {
             for (int i = 0; i < serverMarshallerCount; i++) {
                 serverMarshallerStrategies[i] = simpleDataInput.readUTF();
             }
-            logger.info("Received server version " + serverVersion + " and marshalling strategies " + Arrays.toString(serverMarshallerStrategies));
+            Logs.REMOTING.receivedServerVersionAndMarshallingStrategies(String.valueOf(serverVersion), Arrays.toString(serverMarshallerStrategies));
 
         } catch (IOException e) {
             throw new RuntimeException(e);

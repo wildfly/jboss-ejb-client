@@ -26,6 +26,7 @@ import org.jboss.ejb.client.EJBClientInvocationContext;
 import org.jboss.ejb.client.EJBReceiver;
 import org.jboss.ejb.client.EJBReceiverContext;
 import org.jboss.ejb.client.EJBReceiverInvocationContext;
+import org.jboss.ejb.client.Logs;
 import org.jboss.ejb.client.StatefulEJBLocator;
 import org.jboss.ejb.client.TransactionID;
 import org.jboss.logging.Logger;
@@ -159,10 +160,10 @@ public final class RemotingConnectionEJBReceiver extends EJBReceiver {
                 synchronized (this.channelAssociations) {
                     this.channelAssociations.put(context, channelAssociation);
                 }
-                logger.info("Successful version handshake completed for receiver context " + context + " on channel " + compatibleChannel);
+                Logs.REMOTING.successfulVersionHandshake(context, compatibleChannel);
             } else {
                 // no version handshake done. close the context
-                logger.info("Version handshake not completed for receiver context " + context + " by receiver " + this + " . Closing the receiver context");
+                Logs.REMOTING.versionHandshakeNotCompleted(context);
                 context.close();
             }
         } catch (InterruptedException e) {
@@ -179,7 +180,7 @@ public final class RemotingConnectionEJBReceiver extends EJBReceiver {
                 if (!initialReportAvailable) {
                     // let's log a message and just return back. Don't close the context since it's *not* an error
                     // that the module report wasn't available in that amount of time.
-                    logger.info("Initial module availability report for " + this + " wasn't received during the receiver context association");
+                    Logs.REMOTING.initialModuleAvailabilityReportNotReceived(this);
                 }
             } catch (InterruptedException e) {
                 logger.debug("Caught InterruptedException while waiting for initial module availability report for " + this, e);
