@@ -30,7 +30,6 @@ import org.xnio.OptionMap;
 
 import javax.security.auth.callback.CallbackHandler;
 import java.io.IOException;
-import java.net.URI;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -45,9 +44,10 @@ class EJBClientContextConnectionReconnectHandler extends MaxAttemptsReconnectHan
     private final long reconnectTimeout;
     private final TimeUnit reconnectTimeUnit;
 
-    EJBClientContextConnectionReconnectHandler(final EJBClientContext clientContext, final Endpoint endpoint, final URI uri, final OptionMap connectionCreationOptions, final CallbackHandler callbackHandler, final OptionMap channelCreationOptions,
+    EJBClientContextConnectionReconnectHandler(final EJBClientContext clientContext, final Endpoint endpoint, final String destinationHost, final int destinationPort,
+                                               final OptionMap connectionCreationOptions, final CallbackHandler callbackHandler, final OptionMap channelCreationOptions,
                                                final int maxReconnectAttempts, final long reconnectTimeout, final TimeUnit timeoutTimeUnit) {
-        super(endpoint, uri, connectionCreationOptions, callbackHandler, channelCreationOptions, maxReconnectAttempts);
+        super(endpoint, destinationHost, destinationPort, connectionCreationOptions, callbackHandler, channelCreationOptions, maxReconnectAttempts);
         this.ejbClientContext = clientContext;
         this.reconnectTimeout = reconnectTimeout;
         this.reconnectTimeUnit = timeoutTimeUnit;

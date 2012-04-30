@@ -29,7 +29,6 @@ import org.xnio.IoFuture;
 import org.xnio.OptionMap;
 
 import javax.security.auth.callback.CallbackHandler;
-import java.net.URI;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -42,7 +41,8 @@ abstract class MaxAttemptsReconnectHandler implements ReconnectHandler {
     private static final Logger logger = Logger.getLogger(MaxAttemptsReconnectHandler.class);
 
     protected final Endpoint endpoint;
-    protected final URI connectionURI;
+    protected final String destinationHost;
+    protected final int destinationPort;
     protected final OptionMap connectionCreationOptions;
     protected final CallbackHandler callbackHandler;
     protected final OptionMap channelCreationOptions;
@@ -51,10 +51,12 @@ abstract class MaxAttemptsReconnectHandler implements ReconnectHandler {
     protected volatile int reconnectAttempts;
 
 
-    MaxAttemptsReconnectHandler(final Endpoint endpoint, final URI uri, final OptionMap connectionCreationOptions,
-                                final CallbackHandler callbackHandler, final OptionMap channelCreationOptions, final int maxReconnectAttempts) {
+    MaxAttemptsReconnectHandler(final Endpoint endpoint, final String destinationHost, final int destinationPort,
+                                final OptionMap connectionCreationOptions, final CallbackHandler callbackHandler,
+                                final OptionMap channelCreationOptions, final int maxReconnectAttempts) {
         this.endpoint = endpoint;
-        this.connectionURI = uri;
+        this.destinationHost = destinationHost;
+        this.destinationPort = destinationPort;
         this.connectionCreationOptions = connectionCreationOptions;
         this.callbackHandler = callbackHandler;
         this.channelCreationOptions = channelCreationOptions == null ? OptionMap.EMPTY : channelCreationOptions;
@@ -67,7 +69,7 @@ abstract class MaxAttemptsReconnectHandler implements ReconnectHandler {
         }
         reconnectAttempts++;
         try {
-            final IoFuture<Connection> futureConnection = endpoint.connect(connectionURI, connectionCreationOptions, callbackHandler);
+            final IoFuture<Connection> futureConnection = NetworkUtil.connect(endpoint, destinationHost, destinationPort, null, connectionCreationOptions, callbackHandler);
             final Connection connection = IoFutureHelper.get(futureConnection, connectionTimeout, unit);
             // keep track of the created connection to auto-close on JVM shutdown
             AutoConnectionCloser.INSTANCE.addConnection(connection);
@@ -75,7 +77,7 @@ abstract class MaxAttemptsReconnectHandler implements ReconnectHandler {
             return connection;
 
         } catch (Exception e) {
-            logger.debug("Re-connect attempt# " + reconnectAttempts + " failed for connection URI " + this.connectionURI, e);
+            logger.debug("Re-connect attempt# " + reconnectAttempts + " failed for " + destinationHost + ":" + destinationPort, e);
             return null;
         }
 
