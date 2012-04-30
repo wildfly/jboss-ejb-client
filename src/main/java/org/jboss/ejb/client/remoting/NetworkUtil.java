@@ -112,8 +112,7 @@ public class NetworkUtil {
      * Returns a {@link IoFuture} to a {@link Connection} which is established to the destination host.
      * <p/>
      * This method takes care of any necessary formatting of the passed <code>destinationHost</code> in case
-     * it's a IPv6 address. It also takes into account any IPv6 scope id associated with the <code>destinationHost</code>,
-     * by stripping of the scope id of the {@link Inet6Address}, before trying to establish the connection.
+     * it's a IPv6 address. 
      *
      * @param endpoint                  The {@link Endpoint} that will be used to establish the connection
      * @param destinationHost           The destination host to connect to. This can either be a host name or a IP address
@@ -136,8 +135,6 @@ public class NetworkUtil {
     /**
      * Returns a {@link IoFuture} to a {@link Connection} which is established to the destination host.
      * <p/>
-     * This method takes into account any IPv6 scope id associated with the <code>destination</code>,
-     * by stripping of the scope id of the {@link Inet6Address}, before trying to establish the connection.
      *
      * @param endpoint                  The {@link Endpoint} that will be used to establish the connection
      * @param destination               The {@link InetSocketAddress} destination to connect to
@@ -151,15 +148,6 @@ public class NetworkUtil {
     public static IoFuture<Connection> connect(final Endpoint endpoint, final InetSocketAddress destination,
                                                final InetSocketAddress sourceBindAddress, final OptionMap connectionCreationOptions,
                                                final CallbackHandler callbackHandler, final SSLContext sslContext) throws IOException {
-
-        // check if the destination address is a IPv6 address and consists of a scope id. If it does, then strip off
-        // the scope id during connection. @see https://issues.jboss.org/browse/EJBCLIENT-38
-        InetSocketAddress processedDestinationAddress = destination;
-        final InetAddress destinationAddress = destination.getAddress();
-        if (destinationAddress instanceof Inet6Address && ((Inet6Address) destinationAddress).getScopeId() != 0) {
-            final InetAddress unscopedDestinationAddress = InetAddress.getByAddress(destinationAddress.getAddress());
-            processedDestinationAddress = new InetSocketAddress(unscopedDestinationAddress, destination.getPort());
-        }
-        return endpoint.connect(REMOTE_PROTOCOL, sourceBindAddress, processedDestinationAddress, connectionCreationOptions, callbackHandler, sslContext);
+        return endpoint.connect(REMOTE_PROTOCOL, sourceBindAddress, destination, connectionCreationOptions, callbackHandler, sslContext);
     }
 }
