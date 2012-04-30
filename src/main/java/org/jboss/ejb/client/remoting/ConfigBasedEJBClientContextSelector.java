@@ -114,7 +114,7 @@ public class ConfigBasedEJBClientContextSelector implements ContextSelector<EJBC
                 reconnectHandler = new EJBClientContextConnectionReconnectHandler(ejbClientContext, endpoint, host, port, connectionCreationOptions, callbackHandler, connectionConfiguration.getChannelCreationOptions(), MAX_RECONNECT_ATTEMPTS,
                         connectionConfiguration.getConnectionTimeout(), TimeUnit.MILLISECONDS);
 
-                final IoFuture<Connection> futureConnection = NetworkUtil.connect(endpoint, host, port, null, connectionCreationOptions, callbackHandler);
+                final IoFuture<Connection> futureConnection = NetworkUtil.connect(endpoint, host, port, null, connectionCreationOptions, callbackHandler, null);
                 // wait for the connection to be established
                 final Connection connection = IoFutureHelper.get(futureConnection, connectionConfiguration.getConnectionTimeout(), TimeUnit.MILLISECONDS);
                 // keep track of the created connection for auto-close on shutdown

@@ -27,6 +27,7 @@ import org.jboss.remoting3.Endpoint;
 import org.xnio.IoFuture;
 import org.xnio.OptionMap;
 
+import javax.net.ssl.SSLContext;
 import javax.security.auth.callback.CallbackHandler;
 import java.io.IOException;
 import java.net.Inet6Address;
@@ -111,7 +112,7 @@ public class NetworkUtil {
      * Returns a {@link IoFuture} to a {@link Connection} which is established to the destination host.
      * <p/>
      * This method takes care of any necessary formatting of the passed <code>destinationHost</code> in case
-     * it's a IPv6 address. It also takes into account any IPv6 scope id associated with the <code></code>destinationHost</code>,
+     * it's a IPv6 address. It also takes into account any IPv6 scope id associated with the <code>destinationHost</code>,
      * by stripping of the scope id of the {@link Inet6Address}, before trying to establish the connection.
      *
      * @param endpoint                  The {@link Endpoint} that will be used to establish the connection
@@ -120,22 +121,45 @@ public class NetworkUtil {
      * @param sourceBindAddress         An optional source bind address to be used while connecting.
      * @param connectionCreationOptions The connection creations options to use while connecting
      * @param callbackHandler           The {@link CallbackHandler} to use for authenticating the connection creation
+     * @param sslContext                The SSL context to use for SSL connections. Can be null.
      * @return
      * @throws IOException
      */
     public static IoFuture<Connection> connect(final Endpoint endpoint, final String destinationHost, final int destinationPort,
                                                final InetSocketAddress sourceBindAddress, final OptionMap connectionCreationOptions,
-                                               final CallbackHandler callbackHandler) throws IOException {
+                                               final CallbackHandler callbackHandler, final SSLContext sslContext) throws IOException {
 
         InetSocketAddress destinationSocketAddress = new InetSocketAddress(formatPossibleIpv6Address(destinationHost), destinationPort);
-        // check if the destination address is a IPv6 address and consists of a scope id. If it does, then strip off
-        // the scope id during connection. @see https://issues.jboss.org/browse/EJBCLIENT-38
-        final InetAddress destinationAddress = destinationSocketAddress.getAddress();
-        if (destinationAddress instanceof Inet6Address && ((Inet6Address) destinationAddress).getScopeId() != 0) {
-            final InetAddress unscopedDestinationAddress = InetAddress.getByAddress(destinationAddress.getAddress());
-            destinationSocketAddress = new InetSocketAddress(unscopedDestinationAddress, destinationPort);
-        }
-        return endpoint.connect(REMOTE_PROTOCOL, sourceBindAddress, destinationSocketAddress, connectionCreationOptions, callbackHandler);
+        return connect(endpoint, destinationSocketAddress, sourceBindAddress, connectionCreationOptions, callbackHandler, sslContext);
     }
 
+    /**
+     * Returns a {@link IoFuture} to a {@link Connection} which is established to the destination host.
+     * <p/>
+     * This method takes into account any IPv6 scope id associated with the <code>destination</code>,
+     * by stripping of the scope id of the {@link Inet6Address}, before trying to establish the connection.
+     *
+     * @param endpoint                  The {@link Endpoint} that will be used to establish the connection
+     * @param destination               The {@link InetSocketAddress} destination to connect to
+     * @param sourceBindAddress         An optional source bind address to be used while connecting.
+     * @param connectionCreationOptions The connection creations options to use while connecting
+     * @param callbackHandler           The {@link CallbackHandler} to use for authenticating the connection creation
+     * @param sslContext                The SSL context to use for SSL connections. Can be null.
+     * @return
+     * @throws IOException
+     */
+    public static IoFuture<Connection> connect(final Endpoint endpoint, final InetSocketAddress destination,
+                                               final InetSocketAddress sourceBindAddress, final OptionMap connectionCreationOptions,
+                                               final CallbackHandler callbackHandler, final SSLContext sslContext) throws IOException {
+
+        // check if the destination address is a IPv6 address and consists of a scope id. If it does, then strip off
+        // the scope id during connection. @see https://issues.jboss.org/browse/EJBCLIENT-38
+        InetSocketAddress processedDestinationAddress = destination;
+        final InetAddress destinationAddress = destination.getAddress();
+        if (destinationAddress instanceof Inet6Address && ((Inet6Address) destinationAddress).getScopeId() != 0) {
+            final InetAddress unscopedDestinationAddress = InetAddress.getByAddress(destinationAddress.getAddress());
+            processedDestinationAddress = new InetSocketAddress(unscopedDestinationAddress, destination.getPort());
+        }
+        return endpoint.connect(REMOTE_PROTOCOL, sourceBindAddress, processedDestinationAddress, connectionCreationOptions, callbackHandler, sslContext);
+    }
 }
