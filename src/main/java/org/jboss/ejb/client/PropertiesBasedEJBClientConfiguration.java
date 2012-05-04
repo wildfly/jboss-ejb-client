@@ -22,6 +22,19 @@
 
 package org.jboss.ejb.client;
 
+import org.jboss.ejb.client.remoting.RemotingConnectionUtil;
+import org.jboss.logging.Logger;
+import org.xnio.Option;
+import org.xnio.OptionMap;
+import org.xnio.Options;
+
+import javax.security.auth.callback.Callback;
+import javax.security.auth.callback.CallbackHandler;
+import javax.security.auth.callback.NameCallback;
+import javax.security.auth.callback.PasswordCallback;
+import javax.security.auth.callback.UnsupportedCallbackException;
+import javax.security.sasl.RealmCallback;
+import javax.xml.bind.DatatypeConverter;
 import java.io.IOException;
 import java.net.URISyntaxException;
 import java.util.ArrayList;
@@ -32,21 +45,6 @@ import java.util.Iterator;
 import java.util.Map;
 import java.util.Properties;
 import java.util.StringTokenizer;
-
-import javax.security.auth.callback.Callback;
-import javax.security.auth.callback.CallbackHandler;
-import javax.security.auth.callback.NameCallback;
-import javax.security.auth.callback.PasswordCallback;
-import javax.security.auth.callback.UnsupportedCallbackException;
-import javax.security.sasl.RealmCallback;
-import javax.xml.bind.DatatypeConverter;
-
-import org.jboss.logging.Logger;
-import org.xnio.Option;
-import org.xnio.OptionMap;
-import org.xnio.Options;
-import org.xnio.Property;
-import org.xnio.Sequence;
 
 /**
  * A {@link EJBClientConfiguration} which is configured through {@link Properties}. Some well known
@@ -61,7 +59,7 @@ public class PropertiesBasedEJBClientConfiguration implements EJBClientConfigura
 
     private static final String PROPERTY_KEY_ENDPOINT_NAME = "endpoint.name";
     private static final String DEFAULT_ENDPOINT_NAME = "config-based-ejb-client-endpoint";
-    
+
     private static final String PROPERTY_KEY_INVOCATION_TIMEOUT = "invocation.timeout";
     private static final String PROPERTY_KEY_RECONNECT_TASKS_TIMEOUT = "reconnect.tasks.timeout";
 
@@ -76,7 +74,7 @@ public class PropertiesBasedEJBClientConfiguration implements EJBClientConfigura
 
     private static final String PROPERTY_KEY_REMOTE_CONNECTIONS = "remote.connections";
     // The default options that will be used (unless overridden by the config file) while creating a connection
-    private static final OptionMap DEFAULT_CONNECTION_CREATION_OPTIONS = OptionMap.create(Options.SASL_PROPERTIES, Sequence.of(Property.of("jboss.sasl.local-user.quiet-auth", "true")), Options.SASL_POLICY_NOPLAINTEXT, false);
+    private static final OptionMap DEFAULT_CONNECTION_CREATION_OPTIONS = OptionMap.EMPTY;
     private static final long DEFAULT_CONNECTION_TIMEOUT_IN_MILLIS = 5000;
 
     private static final String PROPERTY_KEY_USERNAME = "username";
@@ -101,9 +99,9 @@ public class PropertiesBasedEJBClientConfiguration implements EJBClientConfigura
 
     public PropertiesBasedEJBClientConfiguration(final Properties properties) {
         final Properties resolvedProperties = new Properties();
-        if(properties != null) {
-            for(Map.Entry<Object, Object> entry : properties.entrySet()) {
-                resolvedProperties.put(entry.getKey(), PropertiesValueResolver.replaceProperties((String)entry.getValue()));
+        if (properties != null) {
+            for (Map.Entry<Object, Object> entry : properties.entrySet()) {
+                resolvedProperties.put(entry.getKey(), PropertiesValueResolver.replaceProperties((String) entry.getValue()));
             }
         }
 
@@ -184,7 +182,7 @@ public class PropertiesBasedEJBClientConfiguration implements EJBClientConfigura
         // reconnect tasks timeout
         final String reconnectTasksTimeoutValue = this.ejbReceiversConfigurationProperties.getProperty(PROPERTY_KEY_RECONNECT_TASKS_TIMEOUT);
         if (reconnectTasksTimeoutValue != null && !reconnectTasksTimeoutValue.trim().isEmpty()) {
-            try{
+            try {
                 this.reconnectTasksTimeout = Long.parseLong(reconnectTasksTimeoutValue.trim());
             } catch (NumberFormatException nfe) {
                 Logs.MAIN.incorrectReconnectTasksTimeoutValue(reconnectTasksTimeoutValue, String.valueOf(this.reconnectTasksTimeout));
@@ -306,7 +304,7 @@ public class PropertiesBasedEJBClientConfiguration implements EJBClientConfigura
         final String connectOptionsPrefix = this.getClusterSpecificConnectOptionsPrefix(clusterName);
         final OptionMap connectOptionsFromConfiguration = getOptionMapFromProperties(ejbReceiversConfigurationProperties, connectOptionsPrefix, getClientClassLoader());
         // merge with defaults
-        final OptionMap connectOptions = mergeWithDefaults(DEFAULT_CONNECTION_CREATION_OPTIONS, connectOptionsFromConfiguration);
+        OptionMap connectOptions = mergeWithDefaults(DEFAULT_CONNECTION_CREATION_OPTIONS, connectOptionsFromConfiguration);
 
         // get the connection timeout applicable for all nodes (unless explicitly overridden) in this cluster
         long connectionTimeout = DEFAULT_CONNECTION_TIMEOUT_IN_MILLIS;
@@ -338,6 +336,7 @@ public class PropertiesBasedEJBClientConfiguration implements EJBClientConfigura
         }
         // create the CallbackHandler applicable for all nodes (unless explicitly overridden) in this cluster
         final CallbackHandler callbackHandler = createCallbackHandler(clusterSpecificProperties, this.getDefaultCallbackHandler());
+        connectOptions = RemotingConnectionUtil.addSilentLocalAuthOptionsIfApplicable(callbackHandler, connectOptions);
 
         // Channel creation options for this cluster
         final String channelOptionsPrefix = this.getClusterSpecificChannelOptionsPrefix(clusterName);
@@ -475,7 +474,7 @@ public class PropertiesBasedEJBClientConfiguration implements EJBClientConfigura
         final String connectOptionsPrefix = this.getConnectionSpecificConnectOptionsPrefix(connectionName);
         final OptionMap connectOptionsFromConfiguration = getOptionMapFromProperties(ejbReceiversConfigurationProperties, connectOptionsPrefix, getClientClassLoader());
         // merge with defaults
-        final OptionMap connectOptions = mergeWithDefaults(DEFAULT_CONNECTION_CREATION_OPTIONS, connectOptionsFromConfiguration);
+        OptionMap connectOptions = mergeWithDefaults(DEFAULT_CONNECTION_CREATION_OPTIONS, connectOptionsFromConfiguration);
         long connectionTimeout = DEFAULT_CONNECTION_TIMEOUT_IN_MILLIS;
         final String connectionTimeoutValue = connectionSpecificProps.get("connect.timeout");
         // if a connection timeout is specified, use it
@@ -488,6 +487,7 @@ public class PropertiesBasedEJBClientConfiguration implements EJBClientConfigura
         }
         // create the CallbackHandler for this connection configuration
         final CallbackHandler callbackHandler = createCallbackHandler(connectionSpecificProps, this.getDefaultCallbackHandler());
+        connectOptions = RemotingConnectionUtil.addSilentLocalAuthOptionsIfApplicable(callbackHandler, connectOptions);
 
         // Channel creation options for this connection
         final String channelOptionsPrefix = this.getConnectionSpecificChannelOptionsPrefix(connectionName);
@@ -613,7 +613,7 @@ public class PropertiesBasedEJBClientConfiguration implements EJBClientConfigura
             return handler;
         }
         // no auth specified, just use the default
-        return new AnonymousCallbackHandler();
+        return new DefaultCallbackHandler();
     }
 
     private class AuthenticationCallbackHandler implements CallbackHandler {
