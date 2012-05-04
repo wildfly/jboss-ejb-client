@@ -32,7 +32,7 @@ import java.io.IOException;
 /**
  * A {@link javax.security.auth.callback.CallbackHandler} which sets <code>anonymous</code> as the name during a {@link javax.security.auth.callback.NameCallback}
  */
-public class AnonymousCallbackHandler implements CallbackHandler {
+public class DefaultCallbackHandler implements CallbackHandler {
 
     @Override
     public void handle(Callback[] callbacks) throws IOException, UnsupportedCallbackException {
