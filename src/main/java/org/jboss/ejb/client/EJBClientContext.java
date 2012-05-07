@@ -92,13 +92,18 @@ public final class EJBClientContext extends Attachable {
     private final EJBClientConfiguration ejbClientConfiguration;
 
     private final ClusterFormationNotifier clusterFormationNotifier = new ClusterFormationNotifier();
-    private final DeploymentNodeSelector deploymentNodeSelector = new RandomDeploymentNodeSelector();
+    private final DeploymentNodeSelector deploymentNodeSelector;
 
     private final ExecutorService reconnectionExecutorService = Executors.newCachedThreadPool(new DaemonThreadFactory("ejb-client-remote-connection-reconnect"));
     private final List<ReconnectHandler> reconnectHandlers = new ArrayList<ReconnectHandler>();
 
     private EJBClientContext(final EJBClientConfiguration ejbClientConfiguration) {
         this.ejbClientConfiguration = ejbClientConfiguration;
+        if (ejbClientConfiguration != null && ejbClientConfiguration.getDeploymentNodeSelector() != null) {
+            this.deploymentNodeSelector = ejbClientConfiguration.getDeploymentNodeSelector();
+        } else {
+            this.deploymentNodeSelector = new RandomDeploymentNodeSelector();
+        }
     }
 
     private void init(ClassLoader classLoader) {

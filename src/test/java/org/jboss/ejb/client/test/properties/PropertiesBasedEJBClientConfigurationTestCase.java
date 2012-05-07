@@ -84,7 +84,8 @@ public class PropertiesBasedEJBClientConfigurationTestCase {
         
         // test invocation timeout
         Assert.assertEquals("Unexpected invocation timeout value", 30000, ejbClientConfiguration.getInvocationTimeout());
-
+        // test deployment node selector
+        Assert.assertTrue("Unexpected deployment node selector type", ejbClientConfiguration.getDeploymentNodeSelector() instanceof DummyDeploymentNodeSelector);
 
     }
 

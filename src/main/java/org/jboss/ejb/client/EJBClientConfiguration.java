@@ -120,6 +120,15 @@ public interface EJBClientConfiguration {
     long getReconnectTasksTimeout();
 
     /**
+     * Returns the {@link DeploymentNodeSelector} to be used for the {@link EJBClientContext} created
+     * out of this {@link EJBClientConfiguration}. If this method returns null, then it's upto the implementation
+     * to use some default {@link DeploymentNodeSelector}
+     *
+     * @return
+     */
+    DeploymentNodeSelector getDeploymentNodeSelector();
+
+    /**
      * Holds the common configurations that are required for connection creation
      */
     interface CommonConnectionCreationConfiguration {
