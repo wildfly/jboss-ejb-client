@@ -245,6 +245,13 @@ public interface Logs extends BasicLogger {
     @Message(id = 56, value = "Cannot specify both a plain text and base64 encoded password")
     IllegalStateException cannotSpecifyBothPlainTextAndEncodedPassword();
 
+    @Message(id = 57, value = "%s not of type org.jboss.ejb.client.DeploymentNodeSelector")
+    RuntimeException unexpectedDeploymentNodeSelectorClassType(Class deploymentNodeSelector);
+
+    @Message(id = 58, value = "Could not create the deployment node selector")
+    RuntimeException couldNotCreateDeploymentNodeSelector(@Cause Exception e);
+
+
     // Proxy API errors
 
     @Message(id = 100, value = "Object '%s' is not a valid proxy object")

@@ -62,6 +62,7 @@ public class PropertiesBasedEJBClientConfiguration implements EJBClientConfigura
 
     private static final String PROPERTY_KEY_INVOCATION_TIMEOUT = "invocation.timeout";
     private static final String PROPERTY_KEY_RECONNECT_TASKS_TIMEOUT = "reconnect.tasks.timeout";
+    private static final String PROPERTY_KEY_DEPLOYMENT_NODE_SELECTOR = "deployment.node.selector";
 
     private static final String ENDPOINT_CREATION_OPTIONS_PREFIX = "endpoint.create.options.";
     // The default options that will be used (unless overridden by the config file) for endpoint creation
@@ -96,6 +97,7 @@ public class PropertiesBasedEJBClientConfiguration implements EJBClientConfigura
     private Map<String, ClusterConfiguration> clusterConfigurations = new HashMap<String, ClusterConfiguration>();
     private long invocationTimeout = 0;
     private long reconnectTasksTimeout = 0;
+    private DeploymentNodeSelector deploymentNodeSelector = new RandomDeploymentNodeSelector();
 
     public PropertiesBasedEJBClientConfiguration(final Properties properties) {
         final Properties resolvedProperties = new Properties();
@@ -155,6 +157,11 @@ public class PropertiesBasedEJBClientConfiguration implements EJBClientConfigura
         return this.reconnectTasksTimeout;
     }
 
+    @Override
+    public DeploymentNodeSelector getDeploymentNodeSelector() {
+        return this.deploymentNodeSelector;
+    }
+
 
     private void parseProperties() {
         // endpoint name
@@ -186,6 +193,21 @@ public class PropertiesBasedEJBClientConfiguration implements EJBClientConfigura
                 this.reconnectTasksTimeout = Long.parseLong(reconnectTasksTimeoutValue.trim());
             } catch (NumberFormatException nfe) {
                 Logs.MAIN.incorrectReconnectTasksTimeoutValue(reconnectTasksTimeoutValue, String.valueOf(this.reconnectTasksTimeout));
+            }
+        }
+
+        // deployment node selector
+        final String deploymentNodeSelectorClassName = this.ejbReceiversConfigurationProperties.getProperty(PROPERTY_KEY_DEPLOYMENT_NODE_SELECTOR);
+        if (deploymentNodeSelectorClassName != null) {
+            final ClassLoader classLoader = this.getClientClassLoader();
+            try {
+                final Class deploymentNodeSelectorClass = Class.forName(deploymentNodeSelectorClassName.trim(), true, classLoader);
+                if (!DeploymentNodeSelector.class.isAssignableFrom(deploymentNodeSelectorClass)) {
+                    throw Logs.MAIN.unexpectedDeploymentNodeSelectorClassType(deploymentNodeSelectorClass);
+                }
+                this.deploymentNodeSelector = (DeploymentNodeSelector) deploymentNodeSelectorClass.newInstance();
+            } catch (Exception e) {
+                throw Logs.MAIN.couldNotCreateDeploymentNodeSelector(e);
             }
         }
 
