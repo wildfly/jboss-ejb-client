@@ -78,11 +78,11 @@ public abstract class SessionID implements Serializable {
      * @return {@code true} if they are equal, {@code false} otherwise
      */
     public final boolean equals(Object other) {
-        return other.getClass() == getClass() && equals((SessionID) other);
+        return this == other || other != null && other.getClass() == getClass() && equals((SessionID) other);
     }
 
     private boolean equals(SessionID other) {
-        return this == other || other != null && Arrays.equals(encodedForm, other.encodedForm);
+        return Arrays.equals(encodedForm, other.encodedForm);
     }
 
     public final int hashCode() {
