@@ -687,7 +687,7 @@ public final class EJBClientInvocationContext extends Attachable {
 
         @Override
         public Object getResult() throws Exception {
-            throw new TimeoutException("No invocation response received in " + this.timeout + " milli seconds");
+            throw new TimeoutException("No invocation response received in " + this.timeout + " milliseconds");
         }
 
         @Override
