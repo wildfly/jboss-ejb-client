@@ -22,6 +22,7 @@
 
 package org.jboss.ejb.client.remoting;
 
+import org.jboss.ejb.client.EJBClientConfiguration;
 import org.jboss.ejb.client.EJBClientInvocationContext;
 import org.jboss.ejb.client.EJBReceiver;
 import org.jboss.ejb.client.EJBReceiverContext;
@@ -232,8 +233,14 @@ public final class RemotingConnectionEJBReceiver extends EJBReceiver {
             }
         }
         final EJBReceiverInvocationContext.ResultProducer resultProducer;
+        final EJBClientConfiguration ejbClientConfiguration = receiverContext.getClientContext().getEJBClientConfiguration();
+        final long invocationTimeout = ejbClientConfiguration == null ? 0 : ejbClientConfiguration.getInvocationTimeout();
         try {
-            resultProducer = futureResultProducer.get();
+            if (invocationTimeout <= 0 ) {
+                resultProducer = futureResultProducer.get();
+            } else {
+                resultProducer = futureResultProducer.get(invocationTimeout, TimeUnit.MILLISECONDS);
+            }
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
