@@ -251,6 +251,9 @@ public interface Logs extends BasicLogger {
     @Message(id = 58, value = "Could not create the deployment node selector")
     RuntimeException couldNotCreateDeploymentNodeSelector(@Cause Exception e);
 
+    @LogMessage(level = WARN)
+    @Message(id = 59, value = "Could not send a message over remoting channel, to cancel invocation for invocation id %s")
+    void failedToSendInvocationCancellationMessage(short invocationId, @Cause Exception e);
 
     // Proxy API errors
 
