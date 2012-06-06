@@ -431,6 +431,46 @@ public final class RemotingConnectionEJBReceiver extends EJBReceiver {
         }
     }
 
+    /**
+     * Send an invocation cancellation message over the remoting channel, for the invocation corresponding to the
+     * passed {@link EJBReceiverInvocationContext EJB receiver invocation context}. This method does <i>not</i>
+     * wait or expect an "result" back from the server. Instead this method just returns back <code>false</code>
+     * after sending the cancellation request.
+     *
+     * @param clientInvocationContext the client invocation context for which the invocation is being cancelled
+     * @param receiverInvocationContext the receiver invocation context for which the invocation is being cancelled
+     * @return
+     * @see {@link EJBReceiver#cancelInvocation(org.jboss.ejb.client.EJBClientInvocationContext, org.jboss.ejb.client.EJBReceiverInvocationContext)}
+     */
+    @Override
+    protected boolean cancelInvocation(EJBClientInvocationContext clientInvocationContext, EJBReceiverInvocationContext receiverInvocationContext) {
+        final ChannelAssociation channelAssociation = this.requireChannelAssociation(receiverInvocationContext.getEjbReceiverContext());
+        final Short priorInvocationId = channelAssociation.getInvocationId(receiverInvocationContext);
+        // nothing to do
+        if (priorInvocationId == null) {
+            return false;
+        }
+        // send a cancel message
+        final MessageOutputStream messageOutputStream;
+        try {
+            messageOutputStream = channelAssociation.acquireChannelMessageOutputStream();
+            final DataOutputStream dataOutputStream = new DataOutputStream(messageOutputStream);
+            final InvocationCancellationMessageWriter invocationCancellationMessageWriter = new InvocationCancellationMessageWriter();
+            try {
+                // write the cancel message for a previous invocation
+                invocationCancellationMessageWriter.writeMessage(dataOutputStream, priorInvocationId);
+                // we *don't* wait for a "result" of the cancel.
+            } finally {
+                channelAssociation.releaseChannelMessageOutputStream(messageOutputStream);
+                dataOutputStream.close();
+            }
+        } catch (Exception e) {
+            // just log a WARN
+            Logs.REMOTING.failedToSendInvocationCancellationMessage(priorInvocationId, e);
+        }
+        return false;
+    }
+
     void modulesAvailable(final EJBReceiverContext receiverContext, final ModuleAvailabilityMessageHandler.EJBModuleIdentifier[] ejbModules) {
         logger.debug("Received module availability report for " + ejbModules.length + " modules");
         for (final ModuleAvailabilityMessageHandler.EJBModuleIdentifier moduleIdentifier : ejbModules) {

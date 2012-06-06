@@ -39,6 +39,7 @@ import java.io.IOException;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.IdentityHashMap;
 import java.util.Map;
 import java.util.concurrent.Future;
 import java.util.concurrent.Semaphore;
@@ -79,6 +80,9 @@ class ChannelAssociation {
     // A semaphore which will be used to acquire a lock while writing out to a channel
     // to make sure that only a limited number of simultaneous writes are allowed
     private final Semaphore channelWriteSemaphore;
+
+    // Keeps track of the invocation ids for each of the EJB receiver invocation contexts
+    private final Map<EJBReceiverInvocationContext, Short> invocationIdsPerReceiverInvocationCtx = Collections.synchronizedMap(new IdentityHashMap<EJBReceiverInvocationContext, Short>());
 
     /**
      * Creates a channel association for the passed {@link EJBReceiverContext} and the {@link Channel}
@@ -163,6 +167,8 @@ class ChannelAssociation {
      */
     void receiveResponse(final short invocationId, final EJBReceiverInvocationContext ejbReceiverInvocationContext) {
         this.waitingMethodInvocations.put(invocationId, ejbReceiverInvocationContext);
+        // keep track of the invocation id for the EJB receiver invocation context
+        this.invocationIdsPerReceiverInvocationCtx.put(ejbReceiverInvocationContext, invocationId);
 
     }
 
@@ -192,6 +198,10 @@ class ChannelAssociation {
         if (this.waitingMethodInvocations.containsKey(invocationId)) {
             final EJBReceiverInvocationContext ejbReceiverInvocationContext = this.waitingMethodInvocations.remove(invocationId);
             if (ejbReceiverInvocationContext != null) {
+                // we no longer need to keep track of the invocation id that was used for
+                // this EJB receiver invocation context, so remove it
+                this.invocationIdsPerReceiverInvocationCtx.remove(ejbReceiverInvocationContext);
+                // let the receiver invocation context know that the result is ready
                 ejbReceiverInvocationContext.resultReady(resultProducer);
             }
         } else if (this.waitingFutureResults.containsKey(invocationId)) {
@@ -257,6 +267,19 @@ class ChannelAssociation {
         } finally {
             this.channelWriteSemaphore.release();
         }
+    }
+
+    /**
+     * Returns the invocation id that was used for a prior invocation on this channel, for the
+     * passed {@link EJBReceiverInvocationContext ejbReceiverInvocationContext}. This method returns
+     * null if there was no prior invocation on this channel for the passed {@link EJBReceiverInvocationContext}
+     * or if the prior invocation has already completed
+     *
+     * @param ejbReceiverInvocationContext The EJB receiver invocation context
+     * @return
+     */
+    Short getInvocationId(final EJBReceiverInvocationContext ejbReceiverInvocationContext) {
+        return this.invocationIdsPerReceiverInvocationCtx.get(ejbReceiverInvocationContext);
     }
 
     /**

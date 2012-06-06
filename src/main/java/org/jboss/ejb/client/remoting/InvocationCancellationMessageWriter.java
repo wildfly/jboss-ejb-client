@@ -26,7 +26,9 @@ import java.io.DataOutput;
 import java.io.IOException;
 
 /**
- * User: jpai
+ * Writes out a message to indicate that a prior invocation has to be cancelled
+ *
+ * @author Jaikiran Pai
  */
 class InvocationCancellationMessageWriter extends AbstractMessageWriter {
 
@@ -36,7 +38,7 @@ class InvocationCancellationMessageWriter extends AbstractMessageWriter {
      * Writes out a invocation cancel request message to the passed <code>output</code>
      *
      * @param output       The {@link java.io.DataOutput} to which the message will be written
-     * @param invocationId The invocation id
+     * @param invocationId The id corresponding to the invocation which is being cancelled
      * @throws java.io.IOException If there's a problem writing out to the {@link java.io.DataOutput}
      */
     void writeMessage(final DataOutput output, final short invocationId) throws IOException {
