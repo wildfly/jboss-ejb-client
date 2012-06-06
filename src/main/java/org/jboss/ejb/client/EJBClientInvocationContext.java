@@ -495,6 +495,12 @@ public final class EJBClientInvocationContext extends Attachable {
                 if (state != State.WAITING) {
                     return false;
                 }
+                // if we aren't allowed to interrupt a running task, then skip the cancellation
+                if (!mayInterruptIfRunning) {
+                    return false;
+                }
+                // at this point the task is running and we are allowed to interrupt it. So issue
+                // a cancel request and change the current state
                 state = State.CANCEL_REQ;
             }
             return getReceiver().cancelInvocation(EJBClientInvocationContext.this, receiverInvocationContext);
