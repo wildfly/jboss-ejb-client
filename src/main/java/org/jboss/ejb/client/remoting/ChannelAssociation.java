@@ -413,7 +413,7 @@ class ChannelAssociation {
                 }
                 final ProtocolMessageHandler messageHandler = ChannelAssociation.this.getProtocolMessageHandler((byte) header);
                 if (messageHandler == null) {
-                    logger.warn("Unsupported message received with header 0x" + Integer.toHexString(header));
+                    logger.debug("Unsupported message received with header 0x" + Integer.toHexString(header));
                     return;
                 }
                 messageHandler.processMessage(messageInputStream);
