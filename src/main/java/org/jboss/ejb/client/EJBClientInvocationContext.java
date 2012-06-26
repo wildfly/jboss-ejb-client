@@ -46,6 +46,8 @@ public final class EJBClientInvocationContext extends Attachable {
 
     private static final Logs log = Logs.MAIN;
 
+    public static final String PRIVATE_ATTACHMENTS_KEY = "org.jboss.ejb.client.invocation.attachments";
+
     // Contextual stuff
     private final EJBInvocationHandler<?> invocationHandler;
     private final EJBClientContext ejbClientContext;
