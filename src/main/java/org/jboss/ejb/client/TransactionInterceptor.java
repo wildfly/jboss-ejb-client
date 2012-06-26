@@ -36,7 +36,6 @@ public final class TransactionInterceptor implements EJBClientInterceptor {
         if (current != null) {
             final TransactionID transactionID = current.getAssociatedTransactionID(context);
             if (transactionID != null) {
-                context.getContextData().put(TransactionID.PRIVATE_DATA_KEY, transactionID);
                 context.putAttachment(AttachmentKeys.TRANSACTION_ID_KEY, transactionID);
             }
         }

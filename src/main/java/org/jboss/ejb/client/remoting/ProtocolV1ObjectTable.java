@@ -28,6 +28,8 @@ import java.util.IdentityHashMap;
 import java.util.Map;
 
 import org.jboss.ejb.client.Affinity;
+import org.jboss.ejb.client.AttachmentKeys;
+import org.jboss.ejb.client.EJBClientInvocationContext;
 import org.jboss.ejb.client.TransactionID;
 import org.jboss.marshalling.Marshaller;
 import org.jboss.marshalling.ObjectTable;
@@ -46,7 +48,10 @@ public final class ProtocolV1ObjectTable implements ObjectTable {
     private static final Object[] objects = {
         TransactionID.PRIVATE_DATA_KEY,
         Affinity.NONE,
-        Affinity.WEAK_AFFINITY_CONTEXT_KEY
+        Affinity.WEAK_AFFINITY_CONTEXT_KEY,
+        EJBClientInvocationContext.PRIVATE_ATTACHMENTS_KEY,
+        AttachmentKeys.TRANSACTION_ID_KEY,
+        AttachmentKeys.WEAK_AFFINITY
     };
 
     static {

@@ -22,6 +22,8 @@
 
 package org.jboss.ejb.client;
 
+import java.util.Collection;
+import java.util.Collections;
 import java.util.IdentityHashMap;
 import java.util.Map;
 
@@ -65,6 +67,19 @@ public abstract class Attachable {
         synchronized (attachments) {
             return (T) attachments.get(key);
         }
+    }
+
+    /**
+     * Returns the attachments applicable for this {@link Attachable}. The returned {@link Map}
+     * is an unmodifiable {@link Map}. If there are no attachments for this {@link Attachable}
+     * then this method returns an empty {@link Map}
+     * @return
+     */
+    public Map getAttachments() {
+        if (this.attachments == null) {
+            return Collections.emptyMap();
+        }
+        return Collections.unmodifiableMap(this.attachments);
     }
 
     /**
