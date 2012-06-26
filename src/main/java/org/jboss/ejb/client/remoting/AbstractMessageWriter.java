@@ -22,7 +22,9 @@
 
 package org.jboss.ejb.client.remoting;
 
+import org.jboss.ejb.client.AttachmentKeys;
 import org.jboss.ejb.client.EJBClientInvocationContext;
+import org.jboss.ejb.client.TransactionID;
 import org.jboss.marshalling.ByteOutput;
 import org.jboss.marshalling.Marshaller;
 import org.jboss.marshalling.MarshallerFactory;
@@ -57,6 +59,16 @@ class AbstractMessageWriter {
         if (!privateAttachments.isEmpty()) {
             totalAttachments++;
         }
+        // Note: The code here is just for backward compatibility of 1.0.x version of EJB client project
+        // against AS7 7.1.x releases. Discussion here https://github.com/jbossas/jboss-ejb-client/pull/11#issuecomment-6573863
+        final boolean txIdAttachmentPresent = privateAttachments.containsKey(AttachmentKeys.TRANSACTION_ID_KEY);
+        if (txIdAttachmentPresent) {
+            // we additionally add/duplicate the transaction id under a different attachment key
+            // to preserve backward compatibility. This is here just for 1.0.x backward compatibility
+            totalAttachments++;
+        }
+        // backward compatibility code block for transaction id ends here.
+
         PackedInteger.writePackedInteger(output, totalAttachments);
         // write out public (application specific) context data
         for (Map.Entry<String, Object> invocationContextData : contextData.entrySet()) {
@@ -69,6 +81,20 @@ class AbstractMessageWriter {
             output.writeObject(EJBClientInvocationContext.PRIVATE_ATTACHMENTS_KEY);
             output.writeObject(privateAttachments);
         }
+
+        // Note: The code here is just for backward compatibility of 1.0.x version of EJB client project
+        // against AS7 7.1.x releases. Discussion here https://github.com/jbossas/jboss-ejb-client/pull/11#issuecomment-6573863
+        if (txIdAttachmentPresent) {
+            // we additionally add/duplicate the transaction id under a different attachment key
+            // to preserve backward compatibility. This is here just for 1.0.x backward compatibility
+            output.writeObject(TransactionID.PRIVATE_DATA_KEY);
+            // This transaction id attachment duplication *won't* cause increase in EJB protocol message payload
+            // since we rely on JBoss Marshalling to use back references for the same transaction id object being
+            // written out
+            output.writeObject(privateAttachments.get(AttachmentKeys.TRANSACTION_ID_KEY));
+        }
+        // backward compatibility code block for transaction id ends here.
+
     }
 
     /**
