@@ -103,7 +103,11 @@ public class PropertiesBasedEJBClientConfiguration implements EJBClientConfigura
         final Properties resolvedProperties = new Properties();
         if (properties != null) {
             for (Map.Entry<Object, Object> entry : properties.entrySet()) {
-                resolvedProperties.put(entry.getKey(), PropertiesValueResolver.replaceProperties((String) entry.getValue()));
+                Object value = entry.getValue();
+                if (value instanceof String) {
+                    value = PropertiesValueResolver.replaceProperties((String) value);
+                }
+                resolvedProperties.put(entry.getKey(), value);
             }
         }
 
