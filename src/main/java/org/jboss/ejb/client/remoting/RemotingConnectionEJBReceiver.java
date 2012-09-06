@@ -153,8 +153,18 @@ public final class RemotingConnectionEJBReceiver extends EJBReceiver {
         boolean successfulHandshake = false;
         try {
             // wait for the handshake to complete
-            // TODO: Think about externalizing this timeout
-            successfulHandshake = versionHandshakeLatch.await(5, TimeUnit.SECONDS);
+            // The time to "wait" for the handshake to complete is the same as the invocation timeout
+            // set in this EJB client context's configuration, since a handshake is essentially a request
+            // followed for a wait for the response
+            final EJBClientConfiguration ejbClientConfiguration = context.getClientContext().getEJBClientConfiguration();
+            final long versionHandshakeTimeoutInMillis;
+            if (ejbClientConfiguration == null || ejbClientConfiguration.getInvocationTimeout() <= 0) {
+                // default to 5000 milli sec
+                versionHandshakeTimeoutInMillis = 5000;
+            } else {
+                versionHandshakeTimeoutInMillis = ejbClientConfiguration.getInvocationTimeout();
+            }
+            successfulHandshake = versionHandshakeLatch.await(versionHandshakeTimeoutInMillis, TimeUnit.MILLISECONDS);
             if (successfulHandshake) {
                 final Channel compatibleChannel = versionReceiver.getCompatibleChannel();
                 final ChannelAssociation channelAssociation = new ChannelAssociation(this, context, compatibleChannel, this.clientProtocolVersion, this.marshallerFactory, this.reconnectHandler);
