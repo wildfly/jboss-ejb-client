@@ -220,6 +220,15 @@ public final class EJBClientContext extends Attachable {
     }
 
     /**
+     * Returns true if the EJB client context cannot be changed because it has been {@link #lockSelector()}.
+     * Returns false otherwise.
+     * @return
+     */
+    public static boolean isSelectorLocked() {
+        return SELECTOR_LOCKED;
+    }
+
+    /**
      * Get the current client context for this thread.
      *
      * @return the current client context
