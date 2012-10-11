@@ -50,6 +50,7 @@ class VersionReceiver implements Channel.Receiver {
     private final String clientMarshallingStrategy;
     private final CountDownLatch latch;
     private Channel compatibleChannel;
+    private boolean compatibilityFailed;
 
     /**
      * @param latch               The countdown latch which will be used to notify about a successful version handshake between
@@ -61,6 +62,7 @@ class VersionReceiver implements Channel.Receiver {
         this.clientVersion = clientVersion;
         this.clientMarshallingStrategy = marshallingStrategy;
         this.latch = latch;
+        this.compatibilityFailed = false;
     }
 
     @Override
@@ -108,6 +110,7 @@ class VersionReceiver implements Channel.Receiver {
         if (!this.checkCompatibility(serverVersion, serverMarshallerStrategies)) {
             // Probably not a good idea to log the exact version of the server, so just print out a generic error message
             logger.error("EJB receiver cannot communicate with server, due to version incompatibility");
+            this.compatibilityFailed = true;
             return;
         }
 
@@ -153,6 +156,14 @@ class VersionReceiver implements Channel.Receiver {
             dataOutputStream.close();
             channelOutputStream.close();
         }
+    }
+
+    /**
+     * Returns true if the version handshake between the server and client failed due to server and client
+     * incompatibility. Else returns false
+     */
+    boolean failedCompatibility() {
+             return compatibilityFailed;
     }
 
 }
