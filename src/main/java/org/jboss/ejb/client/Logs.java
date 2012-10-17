@@ -279,4 +279,7 @@ public interface Logs extends BasicLogger {
 
     @Message(id = 403, value = "Timed out")
     TimeoutException timedOut();
+
+    @Message(id = 404, value = "Operation not allowed since this EJB client context %s has been closed")
+    IllegalStateException ejbClientContextIsClosed(EJBClientContext ejbClientContext);
 }

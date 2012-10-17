@@ -22,28 +22,27 @@
 
 package org.jboss.ejb.client.remoting;
 
-import org.jboss.logging.Logger;
 import org.jboss.remoting3.Connection;
 import org.jboss.remoting3.Endpoint;
 
-import java.io.Closeable;
-import java.util.ArrayList;
-import java.util.List;
-
 /**
- * Responsible for closing down all that auto created remoting connections and endpoints that this {@link AutoConnectionCloser}
- * keeps tracks of
+ * The {@link AutoConnectionCloser} creates a {@link Runtime#addShutdownHook(Thread) JVM shutdown hook}
+ * to close the remoting endpoints and connections that have been registered with it. The EJB client API uses
+ * this {@link AutoConnectionCloser} to keep track of remoting endpoints and connections which it has "auto"
+ * created based on either the properties configured by the user or some other means. Keeping track of such resources
+ * here, allows for closing them down when the JVM shuts down.
+ * <p/>
+ * Note that the close performed here, is an last ditch attempt to cleanup the resource usage. Ideally, these resources
+ * are expected to be closed whenever they are no longer needed. {@link AutoConnectionCloser} is *not* a substitute
+ * for proper resource management.
  *
  * @author Jaikiran Pai
  */
 class AutoConnectionCloser implements Runnable {
 
-    private static Logger logger = Logger.getLogger(AutoConnectionCloser.class);
-
     static final AutoConnectionCloser INSTANCE = new AutoConnectionCloser();
 
-    private final List<Connection> connections = new ArrayList<Connection>();
-    private final List<Endpoint> endpoints = new ArrayList<Endpoint>();
+    private final RemotingCleanupHandler remotingCleanupHandler = new RemotingCleanupHandler();
 
     private AutoConnectionCloser() {
         // add a shutdown hook
@@ -52,46 +51,14 @@ class AutoConnectionCloser implements Runnable {
 
     @Override
     public void run() {
-        this.closeAll();
+        this.remotingCleanupHandler.closeAll();
     }
 
     void addEndpoint(final Endpoint endpoint) {
-        if (endpoint == null) {
-            return;
-        }
-        synchronized (this.endpoints) {
-            this.endpoints.add(endpoint);
-        }
+        this.remotingCleanupHandler.addEndpoint(endpoint);
     }
 
     void addConnection(final Connection connection) {
-        if (connection == null) {
-            return;
-        }
-        synchronized (this.connections) {
-            this.connections.add(connection);
-        }
-    }
-
-    void closeAll() {
-        synchronized (this.connections) {
-            for (final Connection connection : connections) {
-                safeClose(connection);
-            }
-        }
-        synchronized (this.endpoints) {
-            for (final Endpoint endpoint : endpoints) {
-                safeClose(endpoint);
-            }
-        }
-    }
-
-    private void safeClose(Closeable closable) {
-        try {
-            logger.debug("Closing " + closable);
-            closable.close();
-        } catch (Throwable e) {
-            logger.debug("Exception closing " + closable, e);
-        }
+        this.remotingCleanupHandler.addConnection(connection);
     }
 }
