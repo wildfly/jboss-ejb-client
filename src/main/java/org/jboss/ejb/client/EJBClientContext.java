@@ -981,6 +981,14 @@ public final class EJBClientContext extends Attachable implements Closeable {
 
     }
 
+    @Override
+    protected void finalize() throws Throwable {
+        if (!closed) {
+            this.close();
+        }
+        super.finalize();
+    }
+
     /**
      * Throws a {@link IllegalStateException} if this EJB client context is closed. Else just returns.
      */
