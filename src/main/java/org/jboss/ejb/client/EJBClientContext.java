@@ -983,10 +983,13 @@ public final class EJBClientContext extends Attachable implements Closeable {
 
     @Override
     protected void finalize() throws Throwable {
-        if (!closed) {
-            this.close();
+        try {
+            if (!closed) {
+                this.close();
+            }
+        } finally {
+            super.finalize();
         }
-        super.finalize();
     }
 
     /**
