@@ -33,7 +33,7 @@
 
     <groupId>org.jboss</groupId>
     <artifactId>jboss-ejb-client</artifactId>
-    <version>1.0.12.Final</version>
+    <version>1.0.13.Final-SNAPSHOT</version>
 
     <name>JBoss EJB client</name>
     <description>Client library for EJB applications working against JBoss AS</description>
