@@ -135,6 +135,25 @@ public final class EJBClient {
     }
 
     /**
+     * Creates a new proxy for the remote object identified by the given <code>locator</code> and
+     * associates that proxy with the passed {@link EJBClientContextIdentifier identifier}
+     *
+     * @param locator The locator
+     * @param identifier The EJB client context identifier to associate this proxy with. Cannot be null.
+     * @param <T> The proxy type
+     * @return IllegalArgumentException if either of the locator or identifier parameters is {@code null}
+     */
+    public static <T> T createProxy(final EJBLocator<T> locator, final EJBClientContextIdentifier identifier) {
+        if (locator == null) {
+            throw Logs.MAIN.paramCannotBeNull("EJB locator");
+        }
+        if (identifier == null) {
+            throw Logs.MAIN.paramCannotBeNull("EJB client context identifier cannot be null");
+        }
+        return locator.createProxyInstance(new EJBInvocationHandler(identifier, locator));
+    }
+
+    /**
      * Determine whether an object is indeed a valid EJB proxy object created by this API.
      *
      * @param object the object to test

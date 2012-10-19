@@ -175,6 +175,7 @@ public final class EJBClientContext extends Attachable implements Closeable {
         return context;
     }
 
+
     /**
      * Sets the EJB client context selector. Replaces the existing selector, which is then returned by this method
      *
@@ -208,6 +209,14 @@ public final class EJBClientContext extends Attachable implements Closeable {
      */
     public static ContextSelector<EJBClientContext> setConstantContext(final EJBClientContext context) {
         return setSelector(new ConstantContextSelector<EJBClientContext>(context));
+    }
+
+    /**
+     * Returns the current EJB client context selector
+     * @return
+     */
+    public static ContextSelector<EJBClientContext> getSelector() {
+        return SELECTOR;
     }
 
     /**
@@ -255,6 +264,33 @@ public final class EJBClientContext extends Attachable implements Closeable {
             throw Logs.MAIN.noEJBClientContextAvailable();
         }
         return clientContext;
+    }
+
+    /**
+     * Returns a {@link EJBClientContext} which is identified by the passed {@link EJBClientContextIdentifier ejbClientContextIdentifier}.
+     * The {@link EJBClientContext} is identified with the help of the {@link #getSelector() current selector}. If the
+     * {@link #getSelector() current selector} is not of type {@link IdentityEJBClientContextSelector} or if that selector
+     * can't {@link IdentityEJBClientContextSelector#getContext(EJBClientContextIdentifier) return} a {@link EJBClientContext}
+     * for the passed {@link EJBClientContextIdentifier ejbClientContextIdentifier} then this method throws an {@link IllegalStateException}
+     *
+     * @param ejbClientContextIdentifier The EJB client context identifier
+     * @return
+     * @throws IllegalStateException If this method couldn't find a {@link EJBClientContext} for the passed <code>ejbClientContextIdentifier</code>
+     */
+    public static EJBClientContext require(final EJBClientContextIdentifier ejbClientContextIdentifier) throws IllegalStateException {
+        final ContextSelector<EJBClientContext> currentSelector = SELECTOR;
+        // see if the selector is capable of handling requests for identity based client contexts
+        if (!(currentSelector instanceof IdentityEJBClientContextSelector)) {
+            // the current selector can't handle identity based contexts.
+            throw new IllegalStateException("No EJB client context available for context identifier: " + ejbClientContextIdentifier + ",since the " +
+                    " current EJB client context selector " + currentSelector + " is not capable of returning identity based EJB client contexts");
+        }
+        // the selector is capable of handling scoped contexts, so use it to fetch the right one
+        final EJBClientContext identityEjbClientContext = ((IdentityEJBClientContextSelector) currentSelector).getContext(ejbClientContextIdentifier);
+        if (identityEjbClientContext == null) {
+            throw new IllegalStateException("No EJB client context available for context identifier: " + ejbClientContextIdentifier);
+        }
+        return identityEjbClientContext;
     }
 
     /**
