@@ -129,12 +129,17 @@ public class JNDIContextInvocationTestCase {
         final Properties jndiProps = this.getEJBClientConfigurationProperties();
         // create the JNDI context using those properties
         final Context context = new InitialContext(jndiProps);
-        // lookup the EJB proxy
-        final EchoRemote echoBean = (EchoRemote) context.lookup("ejb:" + APP_NAME + "/" + MODULE_NAME + "/" + DISTINCT_NAME + "/" + EchoBean.class.getSimpleName() + "!" + EchoRemote.class.getName());
-        final String message = "EJBCLIENT-34!!!";
-        // invoke on that proxy and expect it to use the EJB client context (and the receiver within it) for the invocation
-        final String echo = echoBean.echo(message);
-        Assert.assertEquals("Unexpected echo message received from bean", message, echo);
+        try {
+            // lookup the EJB proxy
+            final EchoRemote echoBean = (EchoRemote) context.lookup("ejb:" + APP_NAME + "/" + MODULE_NAME + "/" + DISTINCT_NAME + "/" + EchoBean.class.getSimpleName() + "!" + EchoRemote.class.getName());
+            final String message = "EJBCLIENT-34!!!";
+            // invoke on that proxy and expect it to use the EJB client context (and the receiver within it) for the invocation
+            final String echo = echoBean.echo(message);
+            Assert.assertEquals("Unexpected echo message received from bean", message, echo);
+        } finally {
+            // close the context after we are done
+            context.close();
+        }
     }
 
     /**
@@ -148,9 +153,13 @@ public class JNDIContextInvocationTestCase {
         final Properties jndiProps = this.getEJBClientConfigurationProperties();
         // create the JNDI context using those properties
         final Context context = new InitialContext(jndiProps);
-
-        final EJBClientContext ejbClientContext = (EJBClientContext) context.lookup("ejb:/EJBClientContext");
-        Assert.assertNotNull("Lookup of ejb:/EJBClientContext returned null", ejbClientContext);
+        try {
+            final EJBClientContext ejbClientContext = (EJBClientContext) context.lookup("ejb:/EJBClientContext");
+            Assert.assertNotNull("Lookup of ejb:/EJBClientContext returned null", ejbClientContext);
+        } finally {
+            // close the context after we are done
+            context.close();
+        }
     }
 
     /**
@@ -166,37 +175,42 @@ public class JNDIContextInvocationTestCase {
         final Properties jndiProps = this.getEJBClientConfigurationProperties();
         // create the JNDI context using those properties
         final Context context = new InitialContext(jndiProps);
-        // lookup the EJB proxy
-        final EchoRemote echoBean = (EchoRemote) context.lookup("ejb:" + APP_NAME + "/" + MODULE_NAME + "/" + DISTINCT_NAME + "/" + EchoBean.class.getSimpleName() + "!" + EchoRemote.class.getName());
-        final String message = "EJBCLIENT-34!!!";
-        // invoke on that proxy and expect it to use the EJB client context (and the receiver within it) for the invocation
-        final String echo = echoBean.echo(message);
-        Assert.assertEquals("Unexpected echo message received from bean", message, echo);
+        try {
+            // lookup the EJB proxy
+            final EchoRemote echoBean = (EchoRemote) context.lookup("ejb:" + APP_NAME + "/" + MODULE_NAME + "/" + DISTINCT_NAME + "/" + EchoBean.class.getSimpleName() + "!" + EchoRemote.class.getName());
+            final String message = "EJBCLIENT-34!!!";
+            // invoke on that proxy and expect it to use the EJB client context (and the receiver within it) for the invocation
+            final String echo = echoBean.echo(message);
+            Assert.assertEquals("Unexpected echo message received from bean", message, echo);
 
-        // Now serialize/deserialize the proxy
-        final EchoRemote serializedProxy = this.serializeDeserialize(echoBean);
-        final String messageForSerializedProxy = "Proxy serialized";
-        try {
-            // invoke on the serialized proxy - it's expected that this will fail since the serialized
-            // version of the proxy no longer is scoped to the EJB client context which has the appropriate receiver
-            // that can handle this invocation
-            final String echoAfterSerialization = serializedProxy.echo(messageForSerializedProxy);
-            Assert.fail("Invocation on serialized proxy was expected to fail since there was supposed to be no receivers in the \"current\" EJB client context");
-        } catch (IllegalStateException ise) {
-            // expected since we don't have any receivers registered in the "current" EJB client context
-            logger.info("Got the expected exception on invocation of a serialized proxy: " + ise.getMessage());
-        }
-        // now create a receiver which can handle the EJB request
-        final EJBReceiver receiver = this.createReceiver();
-        try {
-            EJBClientContext.requireCurrent().registerEJBReceiver(receiver);
-            // now invoke on the serialized proxy. It's expected that the invocation will now use the
-            // receiver that we added to the "current" EJB client context
-            final String echoAfterSerialization = serializedProxy.echo(messageForSerializedProxy);
-            Assert.assertEquals("Unexpected echo message received from serialized proxy of a bean", messageForSerializedProxy, echoAfterSerialization);
+            // Now serialize/deserialize the proxy
+            final EchoRemote serializedProxy = this.serializeDeserialize(echoBean);
+            final String messageForSerializedProxy = "Proxy serialized";
+            try {
+                // invoke on the serialized proxy - it's expected that this will fail since the serialized
+                // version of the proxy no longer is scoped to the EJB client context which has the appropriate receiver
+                // that can handle this invocation
+                final String echoAfterSerialization = serializedProxy.echo(messageForSerializedProxy);
+                Assert.fail("Invocation on serialized proxy was expected to fail since there was supposed to be no receivers in the \"current\" EJB client context");
+            } catch (IllegalStateException ise) {
+                // expected since we don't have any receivers registered in the "current" EJB client context
+                logger.info("Got the expected exception on invocation of a serialized proxy: " + ise.getMessage());
+            }
+            // now create a receiver which can handle the EJB request
+            final EJBReceiver receiver = this.createReceiver();
+            try {
+                EJBClientContext.requireCurrent().registerEJBReceiver(receiver);
+                // now invoke on the serialized proxy. It's expected that the invocation will now use the
+                // receiver that we added to the "current" EJB client context
+                final String echoAfterSerialization = serializedProxy.echo(messageForSerializedProxy);
+                Assert.assertEquals("Unexpected echo message received from serialized proxy of a bean", messageForSerializedProxy, echoAfterSerialization);
+            } finally {
+                // unregister the receiver
+                EJBClientContext.requireCurrent().unregisterEJBReceiver(receiver);
+            }
         } finally {
-            // unregister the receiver
-            EJBClientContext.requireCurrent().unregisterEJBReceiver(receiver);
+            // close the context after we are done
+            context.close();
         }
     }
 
