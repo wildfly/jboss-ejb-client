@@ -24,7 +24,7 @@ package org.jboss.ejb.client;
 
 import org.jboss.ejb.client.remoting.ConfigBasedEJBClientContextSelector;
 import org.jboss.ejb.client.remoting.RemotingConnectionEJBReceiver;
-import org.jboss.ejb.client.test.client.EchoBean;
+import org.jboss.ejb.client.test.common.EchoBean;
 import org.jboss.ejb.client.test.common.DummyServer;
 import org.jboss.logging.Logger;
 import org.junit.AfterClass;

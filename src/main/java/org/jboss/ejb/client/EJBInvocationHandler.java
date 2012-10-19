@@ -22,6 +22,8 @@
 
 package org.jboss.ejb.client;
 
+import javax.ejb.EJBHome;
+import javax.ejb.EJBObject;
 import java.io.Serializable;
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
@@ -32,9 +34,6 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.Future;
-
-import javax.ejb.EJBHome;
-import javax.ejb.EJBObject;
 
 /**
  * @param <T> the proxy view type
@@ -56,6 +55,12 @@ final class EJBInvocationHandler<T> extends Attachable implements InvocationHand
     private volatile Affinity weakAffinity = Affinity.NONE;
 
     /**
+     * An optional association to a EJB client context
+     */
+    // right now, we have this as transient till we decide/discuss more about the requirements around serialization
+    private final transient EJBClientContextIdentifier ejbClientContextIdentifier;
+
+    /**
      * map of methods that can be handled on the client side
      */
     private static final Map<MethodKey, MethodHandler> clientSideMethods;
@@ -73,9 +78,21 @@ final class EJBInvocationHandler<T> extends Attachable implements InvocationHand
     }
 
     EJBInvocationHandler(final EJBLocator<T> locator) {
+        this(null, locator);
+    }
+
+    /**
+     * Creates an {@link EJBInvocationHandler} for the passed <code>locator</code> and associates this
+     * invocation handler with the passed <code>ejbClientContextIdentifier</code>
+     *
+     * @param ejbClientContextIdentifier (Optional) EJB client context identifier. Can be null.
+     * @param locator The {@link EJBLocator} cannot be null.
+     */
+    EJBInvocationHandler(final EJBClientContextIdentifier ejbClientContextIdentifier, final EJBLocator<T> locator) {
         if (locator == null) {
             throw Logs.MAIN.paramCannotBeNull("EJB locator");
         }
+        this.ejbClientContextIdentifier = ejbClientContextIdentifier;
         this.locator = locator;
         async = false;
         if (locator instanceof StatefulEJBLocator) {
@@ -91,6 +108,7 @@ final class EJBInvocationHandler<T> extends Attachable implements InvocationHand
         super(other);
         locator = other.locator;
         async = true;
+        ejbClientContextIdentifier = other.ejbClientContextIdentifier;
         if (locator instanceof StatefulEJBLocator) {
             // set the weak affinity to the node on which the session was created
             final String sessionOwnerNode = ((StatefulEJBLocator) locator).getSessionOwnerNode();
@@ -112,12 +130,32 @@ final class EJBInvocationHandler<T> extends Attachable implements InvocationHand
         return weakAffinity;
     }
 
+    /**
+     * Returns the {@link EJBClientContextIdentifier} associated with this invocation handler. If this
+     * invocation handler isn't associated with any {@link EJBClientContextIdentifier} then this method
+     * returns null
+     *
+     * @return
+     */
+    EJBClientContextIdentifier getEjbClientContextIdentifier() {
+        return this.ejbClientContextIdentifier;
+    }
+
     Object doInvoke(final T proxy, final Method method, final Object[] args) throws Throwable {
         final MethodHandler handler = clientSideMethods.get(new MethodKey(method));
         if (handler != null && handler.canHandleInvocation(this, proxy, method, args)) {
             return handler.invoke(this, proxy, method, args);
         }
-        final EJBClientContext context = EJBClientContext.requireCurrent();
+        final EJBClientContext context;
+        // check if we are associated with a EJB client context identifier
+        if (ejbClientContextIdentifier == null) {
+            // we aren't associated with a EJB client context identifier, so select the "current"
+            // EJB client context
+            context = EJBClientContext.requireCurrent();
+        } else {
+            // we are associated with a specific EJB client context, so fetch it
+            context = EJBClientContext.require(this.ejbClientContextIdentifier);
+        }
         return doInvoke(this, async, proxy, method, args, context);
     }
 
