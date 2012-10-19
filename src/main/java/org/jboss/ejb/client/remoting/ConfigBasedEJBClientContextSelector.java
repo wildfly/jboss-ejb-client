@@ -25,6 +25,7 @@ package org.jboss.ejb.client.remoting;
 import org.jboss.ejb.client.ContextSelector;
 import org.jboss.ejb.client.EJBClientConfiguration;
 import org.jboss.ejb.client.EJBClientContext;
+import org.jboss.ejb.client.EJBClientContextListener;
 import org.jboss.ejb.client.EJBReceiver;
 import org.jboss.logging.Logger;
 import org.jboss.remoting3.Connection;
@@ -35,6 +36,7 @@ import org.xnio.IoFuture;
 import org.xnio.OptionMap;
 
 import javax.security.auth.callback.CallbackHandler;
+import java.io.Closeable;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Iterator;
@@ -52,6 +54,7 @@ public class ConfigBasedEJBClientContextSelector implements ContextSelector<EJBC
 
     private final EJBClientConfiguration ejbClientConfiguration;
     private final EJBClientContext ejbClientContext;
+    private final RemotingCleanupHandler remotingCleanupHandler = new RemotingCleanupHandler();
 
     /**
      * Creates a {@link ConfigBasedEJBClientContextSelector} using the passed <code>ejbClientConfiguration</code>.
@@ -66,6 +69,10 @@ public class ConfigBasedEJBClientContextSelector implements ContextSelector<EJBC
         this.ejbClientConfiguration = ejbClientConfiguration;
         // create a empty context
         this.ejbClientContext = EJBClientContext.create(this.ejbClientConfiguration);
+        // register a EJB client context listener which we will use to close endpoints/connections that we created,
+        // when the EJB client context closes
+        this.ejbClientContext.registerEJBClientContextListener(this.remotingCleanupHandler);
+
         // now setup the receivers (if any) for the context
         if (this.ejbClientConfiguration == null) {
             logger.debug("EJB client context " + this.ejbClientContext + " will have no EJB receivers associated with it since there was no " +
@@ -91,8 +98,8 @@ public class ConfigBasedEJBClientContextSelector implements ContextSelector<EJBC
         }
         // create the endpoint
         final Endpoint endpoint = Remoting.createEndpoint(this.ejbClientConfiguration.getEndpointName(), this.ejbClientConfiguration.getEndpointCreationOptions());
-        // Keep track of this endpoint for closing on shutdown
-        AutoConnectionCloser.INSTANCE.addEndpoint(endpoint);
+        // Keep track of this endpoint for closing on shutdown/client context close
+        this.trackEndpoint(endpoint);
 
         // register the remote connection provider
         final OptionMap remoteConnectionProviderOptions = this.ejbClientConfiguration.getRemoteConnectionProviderCreationOptions();
@@ -117,8 +124,8 @@ public class ConfigBasedEJBClientContextSelector implements ContextSelector<EJBC
                 final IoFuture<Connection> futureConnection = NetworkUtil.connect(endpoint, host, port, null, connectionCreationOptions, callbackHandler, null);
                 // wait for the connection to be established
                 final Connection connection = IoFutureHelper.get(futureConnection, connectionConfiguration.getConnectionTimeout(), TimeUnit.MILLISECONDS);
-                // keep track of the created connection for auto-close on shutdown
-                AutoConnectionCloser.INSTANCE.addConnection(connection);
+                // keep track of the created connection for auto-close on shutdown/client context close
+                this.trackConnection(connection);
 
                 // create a remoting EJB receiver for this connection
                 final EJBReceiver remotingEJBReceiver = new RemotingConnectionEJBReceiver(connection, reconnectHandler, connectionConfiguration.getChannelCreationOptions());
@@ -140,4 +147,27 @@ public class ConfigBasedEJBClientContextSelector implements ContextSelector<EJBC
         logger.debug("Registered " + successfulEJBReceiverRegistrations + " remoting EJB receivers for EJB client context " + this.ejbClientContext);
     }
 
+    private void trackEndpoint(final Endpoint endpoint) {
+        if (endpoint == null) {
+            return;
+        }
+        // Let the RemotingCleanupHandler which is a EJB client context listener be made
+        // aware of the endpoint, so that it can be closed when the EJB client context is closed
+        this.remotingCleanupHandler.addEndpoint(endpoint);
+        // also let the AutoConnectionCloser to track this endpoint, in case no one calls EJBClientContext.close()
+        // so that AutoConnectionCloser can then close the endpoint on JVM runtime shutdown
+        AutoConnectionCloser.INSTANCE.addEndpoint(endpoint);
+    }
+
+    private void trackConnection(final Connection connection) {
+        if (connection == null) {
+            return;
+        }
+        // Let the RemotingCleanupHandler which is a EJB client context listener be made
+        // aware of the connection, so that it can be closed when the EJB client context is closed
+        this.remotingCleanupHandler.addConnection(connection);
+        // also let the AutoConnectionCloser to track this connection, in case no one calls EJBClientContext.close()
+        // so that AutoConnectionCloser can then close the connection on JVM runtime shutdown
+        AutoConnectionCloser.INSTANCE.addConnection(connection);
+    }
 }
