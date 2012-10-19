@@ -962,7 +962,10 @@ public final class EJBClientContext extends Attachable implements Closeable {
      * @throws IOException
      */
     @Override
-    public void close() throws IOException {
+    public synchronized void close() throws IOException {
+        if (closed) {
+            return;
+        }
         // mark this context as closed. The real cleanup like closing of EJB receivers
         // *isn't* the responsibility of the EJB client context. We'll just let our EJBClientContextListeners
         // (if any) know about the context being closed and let them handle closing the receivers if they want to
