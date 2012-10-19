@@ -34,7 +34,7 @@ import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
-import static java.lang.Thread.*;
+import static java.lang.Thread.holdsLock;
 
 /**
  * An invocation context for EJB invocations from an EJB client

@@ -29,6 +29,8 @@ import org.jboss.ejb.client.StatelessEJBLocator;
 import org.jboss.ejb.client.test.common.AnonymousCallbackHandler;
 import org.jboss.ejb.client.test.common.DummyServer;
 import org.jboss.logging.Logger;
+import org.jboss.ejb.client.test.common.EchoBean;
+import org.jboss.ejb.client.test.common.EchoRemote;
 import org.jboss.remoting3.Connection;
 import org.jboss.remoting3.Endpoint;
 import org.jboss.remoting3.Remoting;

@@ -35,6 +35,6 @@ import java.util.Hashtable;
 public class ejbURLContextFactory implements ObjectFactory {
 
     public Object getObjectInstance(final Object obj, final Name name, final Context nameCtx, final Hashtable<?, ?> environment) throws Exception {
-        return EjbNamingContext.ROOT;
+        return new EjbNamingContext(environment);
     }
 }
