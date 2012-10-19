@@ -22,12 +22,8 @@
 
 package org.jboss.ejb.client.remoting;
 
-import java.io.IOException;
-import java.rmi.RemoteException;
-import java.util.IdentityHashMap;
-import java.util.Map;
-import java.util.concurrent.Future;
 import org.jboss.ejb.client.Affinity;
+import org.jboss.ejb.client.BasicSessionID;
 import org.jboss.ejb.client.ClusterAffinity;
 import org.jboss.ejb.client.EJBHandle;
 import org.jboss.ejb.client.EJBHomeHandle;
@@ -35,7 +31,6 @@ import org.jboss.ejb.client.EJBHomeLocator;
 import org.jboss.ejb.client.EJBLocator;
 import org.jboss.ejb.client.EntityEJBLocator;
 import org.jboss.ejb.client.NodeAffinity;
-import org.jboss.ejb.client.BasicSessionID;
 import org.jboss.ejb.client.SerializedEJBInvocationHandler;
 import org.jboss.ejb.client.SessionID;
 import org.jboss.ejb.client.StatefulEJBLocator;
@@ -69,9 +64,18 @@ import javax.transaction.RollbackException;
 import javax.transaction.SystemException;
 import javax.transaction.TransactionRequiredException;
 import javax.transaction.TransactionRolledbackException;
+import java.io.IOException;
+import java.rmi.RemoteException;
+import java.util.Collections;
+import java.util.HashSet;
+import java.util.IdentityHashMap;
+import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.Future;
 
 /**
  * @author <a href="mailto:david.lloyd@redhat.com">David M. Lloyd</a>
+ * @author Jaikiran Pai
  */
 public final class ProtocolV1ClassTable implements ClassTable {
     public static final ProtocolV1ClassTable INSTANCE = new ProtocolV1ClassTable();
@@ -79,6 +83,9 @@ public final class ProtocolV1ClassTable implements ClassTable {
     private static final Map<Class<?>, ByteWriter> writers;
     /**
      * Do NOT change the order of this list.
+     * Do NOT even remove entries from this list. If at all you no longer want a certain
+     * class to be made available by this ClassTable, then add that class to the {@link #deprecatedClassTableClasses}
+     * set below.
      */
     private static final Class<?>[] classes = {
         EJBLocator.class,
@@ -131,18 +138,42 @@ public final class ProtocolV1ClassTable implements ClassTable {
         ClusterAffinity.class,
     };
 
+    /**
+     * These classes will no longer use the ClassTable to write out the class descriptor. These are essentially
+     * a subset of the {@link #classes} and were at one point being written out by the ClassTable. However, they
+     * no longer use the ClassTable to write out the descriptor and in order to preserve backward compatibility of
+     * ClassTable, we use this separate set to maintain such classes and *not* change/re-order the {@link #classes}
+     */
+    private static final Set<Class<?>> deprecatedClassTableClasses;
+
+    static {
+        final Set<Class<?>> klasses = new HashSet<Class<?>>();
+        klasses.add(Throwable.class);
+        klasses.add(Exception.class);
+        klasses.add(RuntimeException.class);
+
+        deprecatedClassTableClasses = Collections.unmodifiableSet(klasses);
+    }
+
     static {
         final Map<Class<?>, ByteWriter> map = new IdentityHashMap<Class<?>, ByteWriter>();
         for (int i = 0, length = classes.length; i < length; i++) {
+            // Certain classes should no longer use the ClassTable to write out the class descriptor.
+            // So we skip such classes and instead let them use the normal mechanism while marshaling
+            if (deprecatedClassTableClasses.contains(classes[i])) {
+                continue;
+            }
             map.put(classes[i], new ByteWriter((byte) i));
         }
         writers = map;
     }
 
+    @Override
     public Writer getClassWriter(final Class<?> clazz) throws IOException {
         return writers.get(clazz);
     }
 
+    @Override
     public Class<?> readClass(final Unmarshaller unmarshaller) throws IOException, ClassNotFoundException {
         int idx = unmarshaller.readUnsignedByte();
         if (idx >= classes.length) {
