@@ -43,12 +43,16 @@ class EJBClientContextConnectionReconnectHandler extends MaxAttemptsReconnectHan
     private final EJBClientContext ejbClientContext;
     private final long reconnectTimeout;
     private final TimeUnit reconnectTimeUnit;
+    private final RemotingCleanupHandler remotingCleanupHandler = new RemotingCleanupHandler();
 
     EJBClientContextConnectionReconnectHandler(final EJBClientContext clientContext, final Endpoint endpoint, final String destinationHost, final int destinationPort,
                                                final OptionMap connectionCreationOptions, final CallbackHandler callbackHandler, final OptionMap channelCreationOptions,
                                                final int maxReconnectAttempts, final long reconnectTimeout, final TimeUnit timeoutTimeUnit) {
         super(endpoint, destinationHost, destinationPort, connectionCreationOptions, callbackHandler, channelCreationOptions, maxReconnectAttempts);
         this.ejbClientContext = clientContext;
+        // register a EJB client context listener so that we can close the connections we create, when the
+        // EJB client context is closed
+        this.ejbClientContext.registerEJBClientContextListener(this.remotingCleanupHandler);
         this.reconnectTimeout = reconnectTimeout;
         this.reconnectTimeUnit = timeoutTimeUnit;
     }
@@ -61,6 +65,8 @@ class EJBClientContextConnectionReconnectHandler extends MaxAttemptsReconnectHan
             if (connection == null) {
                 return;
             }
+            // keep track of this connection so that we can close it when the EJB client context is closed
+            this.remotingCleanupHandler.addConnection(connection);
             final EJBReceiver ejbReceiver = new RemotingConnectionEJBReceiver(connection, this, channelCreationOptions);
             this.ejbClientContext.registerEJBReceiver(ejbReceiver);
         } finally {

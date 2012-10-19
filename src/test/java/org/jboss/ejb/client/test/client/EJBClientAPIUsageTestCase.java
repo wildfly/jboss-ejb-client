@@ -28,6 +28,7 @@ import org.jboss.ejb.client.EJBClientContext;
 import org.jboss.ejb.client.StatelessEJBLocator;
 import org.jboss.ejb.client.test.common.AnonymousCallbackHandler;
 import org.jboss.ejb.client.test.common.DummyServer;
+import org.jboss.logging.Logger;
 import org.jboss.remoting3.Connection;
 import org.jboss.remoting3.Endpoint;
 import org.jboss.remoting3.Remoting;
@@ -46,14 +47,18 @@ import java.util.concurrent.TimeUnit;
 import static org.jboss.ejb.client.remoting.IoFutureHelper.get;
 
 /**
- * User: jpai
+ * Tests basic EJB client API usages
+ *
+ * @author Jaikiran Pai
  */
 public class EJBClientAPIUsageTestCase {
+
+    private static final Logger logger = Logger.getLogger(EJBClientAPIUsageTestCase.class);
 
     private static DummyServer server;
 
     private static Connection connection;
-    
+
     @AfterClass
     public static void afterClass() throws Exception {
         if (server != null) {
@@ -95,6 +100,39 @@ public class EJBClientAPIUsageTestCase {
             ejbClientContext.registerConnection(connection);
             final String echo = proxy.echo(message);
             Assert.assertEquals("Unexpected echo message", message, echo);
+        } finally {
+            EJBClientContext.setSelector(oldClientContextSelector);
+        }
+    }
+
+    /**
+     * Tests that when a EJB client context is {@link org.jboss.ejb.client.EJBClientContext#close() closed}
+     * any EJB invocations involving that context will fail
+     *
+     * @throws Exception
+     */
+    @Test
+    public void testContextClose() throws Exception {
+        final StatelessEJBLocator<EchoRemote> statelessEJBLocator = new StatelessEJBLocator<EchoRemote>(EchoRemote.class, "my-app", "my-module", EchoBean.class.getSimpleName(), "");
+        final EchoRemote proxy = EJBClient.createProxy(statelessEJBLocator);
+        Assert.assertNotNull("Received a null proxy", proxy);
+        final String message = "Testing EJB client context close";
+        final EJBClientContext ejbClientContext = EJBClientContext.create();
+        final ContextSelector<EJBClientContext> oldClientContextSelector = EJBClientContext.setConstantContext(ejbClientContext);
+        try {
+            ejbClientContext.registerConnection(connection);
+            final String echo = proxy.echo(message);
+            Assert.assertEquals("Unexpected echo message", message, echo);
+            // now close the context
+            ejbClientContext.close();
+            // now try invoking again - should fail
+            try {
+                final String echoAfterClose = proxy.echo(message);
+                Assert.fail("Invocation on a EJB was expected to fail after the EJB client context was closed, but it didn't");
+            } catch (IllegalStateException ise) {
+                // expected
+                logger.debug("Received the expected exception on invoking an EJB after the EJB client context was closed", ise);
+            }
         } finally {
             EJBClientContext.setSelector(oldClientContextSelector);
         }

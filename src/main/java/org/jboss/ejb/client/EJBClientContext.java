@@ -28,6 +28,8 @@ import org.jboss.ejb.client.remoting.RemotingConnectionEJBReceiver;
 import org.jboss.logging.Logger;
 import org.jboss.remoting3.Connection;
 
+import java.io.Closeable;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -52,7 +54,7 @@ import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
  * @author <a href="mailto:david.lloyd@redhat.com">David M. Lloyd</a>
  */
 @SuppressWarnings({"UnnecessaryThis"})
-public final class EJBClientContext extends Attachable {
+public final class EJBClientContext extends Attachable implements Closeable {
 
     private static final Logger logger = Logger.getLogger(EJBClientContext.class);
 
@@ -96,6 +98,9 @@ public final class EJBClientContext extends Attachable {
 
     private final ExecutorService reconnectionExecutorService = Executors.newCachedThreadPool(new DaemonThreadFactory("ejb-client-remote-connection-reconnect"));
     private final List<ReconnectHandler> reconnectHandlers = new ArrayList<ReconnectHandler>();
+
+    private final Collection<EJBClientContextListener> ejbClientContextListeners = Collections.synchronizedSet(new HashSet<EJBClientContextListener>());
+    private volatile boolean closed;
 
     private EJBClientContext(final EJBClientConfiguration ejbClientConfiguration) {
         this.ejbClientConfiguration = ejbClientConfiguration;
@@ -222,6 +227,7 @@ public final class EJBClientContext extends Attachable {
     /**
      * Returns true if the EJB client context cannot be changed because it has been {@link #lockSelector()}.
      * Returns false otherwise.
+     *
      * @return
      */
     public static boolean isSelectorLocked() {
@@ -279,6 +285,9 @@ public final class EJBClientContext extends Attachable {
      * @return Returns true if the receiver was registered in this client context. Else returns false.
      */
     boolean registerEJBReceiver(final EJBReceiver receiver, final EJBReceiverContextCloseHandler receiverContextCloseHandler) {
+        // make sure the EJB client context has not been closed
+        this.assertNotClosed();
+
         if (receiver == null) {
             throw Logs.MAIN.paramCannotBeNull("EJB receiver");
         }
@@ -371,6 +380,9 @@ public final class EJBClientContext extends Attachable {
      *                                  given interceptor is already registered with a different priority
      */
     public EJBClientInterceptor.Registration registerInterceptor(final int priority, final EJBClientInterceptor clientInterceptor) throws IllegalArgumentException {
+        // make sure the EJB client context has not been closed
+        this.assertNotClosed();
+
         if (clientInterceptor == null) {
             throw Logs.MAIN.paramCannotBeNull("EJB client interceptor");
         }
@@ -420,6 +432,13 @@ public final class EJBClientContext extends Attachable {
      * @param reconnectHandler The reconnect handler. Cannot be null
      */
     public void registerReconnectHandler(final ReconnectHandler reconnectHandler) {
+        if (this.closed) {
+            if (logger.isTraceEnabled()) {
+                logger.trace("EJB client context " + this + " has been closed, reconnect handler " + reconnectHandler + " will not be added to the context");
+            }
+            return;
+        }
+
         if (reconnectHandler == null) {
             throw Logs.MAIN.paramCannotBeNull("Reconnect handler");
         }
@@ -437,6 +456,20 @@ public final class EJBClientContext extends Attachable {
         synchronized (this.reconnectHandlers) {
             this.reconnectHandlers.remove(reconnectHandler);
         }
+    }
+
+    /**
+     * Registers a {@link EJBClientContextListener} for this {@link EJBClientContext}. The {@link EJBClientContextListener}
+     * will be notified of lifecycle events related to the {@link EJBClientContext}
+     *
+     * @param listener The EJB client context listener. Cannot be null.
+     * @return Returns true if the passed <code>listener</code> was registered with this EJB client context. False otherwise.
+     */
+    public boolean registerEJBClientContextListener(final EJBClientContextListener listener) {
+        if (listener == null) {
+            throw Logs.MAIN.paramCannotBeNull("EJB client context listener");
+        }
+        return this.ejbClientContextListeners.add(listener);
     }
 
     void removeInterceptor(final EJBClientInterceptor.Registration registration) {
@@ -477,6 +510,14 @@ public final class EJBClientContext extends Attachable {
 
     private Collection<EJBReceiver> getEJBReceivers(final String appName, final String moduleName, final String distinctName,
                                                     final boolean attemptReconnect) {
+
+        if (this.closed) {
+            if (logger.isTraceEnabled()) {
+                logger.trace("EJB client context " + this + " has been closed, returning an empty collection of EJB receivers");
+            }
+            return Collections.emptySet();
+        }
+
         final Collection<EJBReceiver> eligibleEJBReceivers = new HashSet<EJBReceiver>();
         synchronized (this.ejbReceiverAssociations) {
             for (final Map.Entry<EJBReceiver, ReceiverAssociation> entry : this.ejbReceiverAssociations.entrySet()) {
@@ -610,6 +651,9 @@ public final class EJBClientContext extends Attachable {
      * @throws IllegalStateException If the passed <code>receiver</code> hasn't been registered with this {@link EJBClientContext}
      */
     EJBReceiverContext requireEJBReceiverContext(final EJBReceiver receiver) throws IllegalStateException {
+        // make sure the EJB client context has not been closed
+        this.assertNotClosed();
+
         synchronized (this.ejbReceiverAssociations) {
             final ReceiverAssociation association = this.ejbReceiverAssociations.get(receiver);
             if (association == null) {
@@ -630,6 +674,12 @@ public final class EJBClientContext extends Attachable {
     }
 
     private EJBReceiver getNodeEJBReceiver(final String nodeName, final boolean attemptReconnect) {
+        if (this.closed) {
+            if (logger.isTraceEnabled()) {
+                logger.trace("EJB client context " + this + " has been closed, no EJB receiver will be returned for node name " + nodeName);
+            }
+            return null;
+        }
         if (nodeName == null) {
             throw Logs.MAIN.paramCannotBeNull("Node name");
         }
@@ -675,6 +725,13 @@ public final class EJBClientContext extends Attachable {
      * @return
      */
     boolean clusterContains(final String clusterName, final String nodeName) {
+        if (this.closed) {
+            if (logger.isTraceEnabled()) {
+                logger.trace("EJB client context " + this + " has been closed, node named " + nodeName + " is not considered part of cluster named " + clusterName);
+            }
+            return false;
+        }
+
         final ClusterContext clusterContext = this.clusterContexts.get(clusterName);
         if (clusterContext == null) {
             return false;
@@ -706,6 +763,13 @@ public final class EJBClientContext extends Attachable {
     }
 
     private EJBReceiverContext getClusterEJBReceiverContext(final EJBClientInvocationContext invocationContext, final String clusterName, final boolean attemptReconnect) throws IllegalArgumentException {
+        if (this.closed) {
+            if (logger.isTraceEnabled()) {
+                logger.trace("EJB client context " + this + " has been closed, returning no EJB receiver for cluster named " + clusterName);
+            }
+            return null;
+        }
+
         final ClusterContext clusterContext = this.clusterContexts.get(clusterName);
         if (clusterContext == null) {
             return null;
@@ -744,6 +808,9 @@ public final class EJBClientContext extends Attachable {
      * @throws IllegalArgumentException If there's no EJB receiver context available for the cluster
      */
     EJBReceiverContext requireClusterEJBReceiverContext(final EJBClientInvocationContext invocationContext, final String clusterName) throws IllegalArgumentException {
+        // make sure the EJB client context has not been closed
+        this.assertNotClosed();
+
         ClusterContext clusterContext = this.clusterContexts.get(clusterName);
         if (clusterContext == null) {
             // let's wait for some time to see if the asynchronous cluster topology becomes available.
@@ -785,6 +852,9 @@ public final class EJBClientContext extends Attachable {
      * @return
      */
     public synchronized ClusterContext getOrCreateClusterContext(final String clusterName) {
+        // make sure the EJB client context has not been closed
+        this.assertNotClosed();
+
         ClusterContext clusterContext = this.clusterContexts.get(clusterName);
         if (clusterContext == null) {
             clusterContext = new ClusterContext(clusterName, this, this.ejbClientConfiguration);
@@ -803,6 +873,13 @@ public final class EJBClientContext extends Attachable {
      * @return
      */
     public synchronized ClusterContext getClusterContext(final String clusterName) {
+        if (this.closed) {
+            if (logger.isTraceEnabled()) {
+                logger.trace("EJB client context " + this + " has been closed, returning no cluster context for cluster named " + clusterName);
+            }
+            return null;
+        }
+
         return this.clusterContexts.get(clusterName);
     }
 
@@ -849,6 +926,13 @@ public final class EJBClientContext extends Attachable {
     }
 
     private synchronized void attemptReconnections() {
+        if (this.closed) {
+            if (logger.isTraceEnabled()) {
+                logger.trace("EJB client context " + this + " has been closed, no reconnections, to register EJB receivers, will be attempted");
+            }
+            return;
+        }
+
         final CountDownLatch reconnectTasksCompletionNotifierLatch;
         if (this.reconnectHandlers.isEmpty()) {
             // no reconnections to attempt just return
@@ -868,6 +952,55 @@ public final class EJBClientContext extends Attachable {
             reconnectTasksCompletionNotifierLatch.await(reconnectWaitTimeout, TimeUnit.MILLISECONDS);
         } catch (InterruptedException e) {
             // ignore
+        }
+    }
+
+    /**
+     * Closes the EJB client context and notifies any registered {@link EJBClientContextListener}s about
+     * the context being closed.
+     *
+     * @throws IOException
+     */
+    @Override
+    public synchronized void close() throws IOException {
+        if (closed) {
+            return;
+        }
+        // mark this context as closed. The real cleanup like closing of EJB receivers
+        // *isn't* the responsibility of the EJB client context. We'll just let our EJBClientContextListeners
+        // (if any) know about the context being closed and let them handle closing the receivers if they want to
+        this.closed = true;
+
+        for (final EJBClientContextListener listener : this.ejbClientContextListeners) {
+            try {
+                listener.contextClosed(this);
+            } catch (Throwable t) {
+                logger.debug("Ignoring the exception thrown by an EJB client context listener while closing the context " + this, t);
+            }
+        }
+
+        // close the executor we use for reconnect handlers
+        this.reconnectionExecutorService.shutdownNow();
+
+    }
+
+    @Override
+    protected void finalize() throws Throwable {
+        try {
+            if (!closed) {
+                this.close();
+            }
+        } finally {
+            super.finalize();
+        }
+    }
+
+    /**
+     * Throws a {@link IllegalStateException} if this EJB client context is closed. Else just returns.
+     */
+    private void assertNotClosed() {
+        if (this.closed) {
+            throw Logs.MAIN.ejbClientContextIsClosed(this);
         }
     }
 
