@@ -128,10 +128,7 @@ public final class EJBClient {
      * @throws IllegalArgumentException if the locator parameter is {@code null} or is invalid
      */
     public static <T> T createProxy(final EJBLocator<T> locator) throws IllegalArgumentException {
-        if (locator == null) {
-            throw Logs.MAIN.paramCannotBeNull("EJB locator");
-        }
-        return locator.createProxyInstance(new EJBInvocationHandler(locator));
+        return createProxy(locator, null);
     }
 
     /**
@@ -139,16 +136,13 @@ public final class EJBClient {
      * associates that proxy with the passed {@link EJBClientContextIdentifier identifier}
      *
      * @param locator The locator
-     * @param identifier The EJB client context identifier to associate this proxy with. Cannot be null.
+     * @param identifier The EJB client context identifier to associate this proxy with. Can be null.
      * @param <T> The proxy type
-     * @return IllegalArgumentException if either of the locator or identifier parameters is {@code null}
+     * @return IllegalArgumentException if the locator {@code null}
      */
     public static <T> T createProxy(final EJBLocator<T> locator, final EJBClientContextIdentifier identifier) {
         if (locator == null) {
             throw Logs.MAIN.paramCannotBeNull("EJB locator");
-        }
-        if (identifier == null) {
-            throw Logs.MAIN.paramCannotBeNull("EJB client context identifier cannot be null");
         }
         return locator.createProxyInstance(new EJBInvocationHandler(identifier, locator));
     }
@@ -176,9 +170,34 @@ public final class EJBClient {
      */
     // TODO: narrow exception type(s)
     public static <T> StatefulEJBLocator<T> createSession(final Class<T> viewType, final String appName, final String moduleName, final String beanName, final String distinctName) throws Exception {
-        EJBClientContext clientContext = EJBClientContext.requireCurrent();
-        EJBReceiver ejbReceiver = clientContext.requireEJBReceiver(appName, moduleName, distinctName);
-        EJBReceiverContext receiverContext = clientContext.requireEJBReceiverContext(ejbReceiver);
+        return createSession(null, viewType, appName, moduleName, beanName, distinctName);
+    }
+
+    /**
+     * Create a new EJB session.
+     *
+     * @param ejbClientContextIdentifier The EJB client context identifier. Can be null in which case the session will
+     *                                   be created using the {@link org.jboss.ejb.client.EJBClientContext#requireCurrent() current active EJB client context}
+     * @param viewType     the view type
+     * @param appName      the application name
+     * @param moduleName   the module name
+     * @param beanName     the EJB name
+     * @param distinctName the module distinct name
+     * @return the new session ID
+     * @throws Exception if an error occurs
+     */
+    // TODO: narrow exception type(s)
+    public static <T> StatefulEJBLocator<T> createSession(final EJBClientContextIdentifier ejbClientContextIdentifier, final Class<T> viewType, final String appName, final String moduleName, final String beanName, final String distinctName) throws Exception {
+        final EJBClientContext clientContext;
+        if (ejbClientContextIdentifier != null) {
+            // find the appropriate EJB client context
+            clientContext = EJBClientContext.require(ejbClientContextIdentifier);
+        } else {
+            // use the "current" EJB client context
+            clientContext = EJBClientContext.requireCurrent();
+        }
+        final EJBReceiver ejbReceiver = clientContext.requireEJBReceiver(appName, moduleName, distinctName);
+        final EJBReceiverContext receiverContext = clientContext.requireEJBReceiverContext(ejbReceiver);
         return ejbReceiver.openSession(receiverContext, viewType, appName, moduleName, distinctName, beanName);
     }
 
@@ -191,6 +210,18 @@ public final class EJBClient {
      */
     public static <T> EJBLocator<? extends T> getLocatorFor(T proxy) throws IllegalArgumentException {
         return EJBInvocationHandler.forProxy(proxy).getLocator();
+    }
+
+    /**
+     * Get the {@link EJBClientContextIdentifier} associated with the passed EJB proxy. If no {@link EJBClientContextIdentifier}
+     * is associated with the proxy then this method returns null.
+     *
+     * @param proxy The EJB proxy
+     * @return
+     * @throws IllegalArgumentException If the passed proxy is not a valid EJB proxy
+     */
+    public static EJBClientContextIdentifier getEJBClientContextIdentifierFor(Object proxy) throws IllegalArgumentException {
+        return EJBInvocationHandler.forProxy(proxy).getEjbClientContextIdentifier();
     }
 
     /**

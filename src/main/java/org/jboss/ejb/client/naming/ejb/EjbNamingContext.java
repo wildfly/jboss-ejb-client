@@ -175,12 +175,8 @@ class EjbNamingContext implements Context {
         final boolean stateful = options.containsKey("stateful") && !"false".equalsIgnoreCase(options.get("stateful"));
         if (stateful) log.warnf("Ignoring 'stateful' option on lookup of home %s", viewClass);
         locator = new EJBHomeLocator<T>(viewClass, identifier.getApplication(), identifier.getModule(), identifier.getEjbName(), identifier.getDistinctName());
-        // create a proxy appropriately based on whether it needs to be associated with a EJB client context identifier
-        if (this.ejbClientContextIdentifier != null) {
-            return EJBClient.createProxy(locator, this.ejbClientContextIdentifier);
-        } else {
-            return EJBClient.createProxy(locator);
-        }
+        // create a proxy appropriately with an optinal EJB client context identifier
+        return EJBClient.createProxy(locator, this.ejbClientContextIdentifier);
     }
 
     private <T> T doCreateProxy(Class<T> viewClass, EjbJndiIdentifier identifier) throws Exception {
@@ -188,16 +184,12 @@ class EjbNamingContext implements Context {
         final Map<String, String> options = identifier.getOptions();
         final boolean stateful = options.containsKey("stateful") && !"false".equalsIgnoreCase(options.get("stateful"));
         if (stateful) {
-            locator = EJBClient.createSession(viewClass, identifier.getApplication(), identifier.getModule(), identifier.getEjbName(), identifier.getDistinctName());
+            locator = EJBClient.createSession(this.ejbClientContextIdentifier, viewClass, identifier.getApplication(), identifier.getModule(), identifier.getEjbName(), identifier.getDistinctName());
         } else {
             locator = new StatelessEJBLocator<T>(viewClass, identifier.getApplication(), identifier.getModule(), identifier.getEjbName(), identifier.getDistinctName());
         }
-        // create a proxy appropriately based on whether it needs to be associated with a EJB client context identifier
-        if (this.ejbClientContextIdentifier != null) {
-            return EJBClient.createProxy(locator, this.ejbClientContextIdentifier);
-        } else {
-            return EJBClient.createProxy(locator);
-        }
+        // create a proxy appropriately with an optinal EJB client context identifier
+        return EJBClient.createProxy(locator, this.ejbClientContextIdentifier);
     }
 
     /**
