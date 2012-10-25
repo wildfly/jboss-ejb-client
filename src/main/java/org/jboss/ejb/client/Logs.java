@@ -22,11 +22,6 @@
 
 package org.jboss.ejb.client;
 
-import java.util.concurrent.CancellationException;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.TimeoutException;
-
-import org.jboss.ejb.client.remoting.RemotingConnectionEJBReceiver;
 import org.jboss.logging.BasicLogger;
 import org.jboss.logging.Cause;
 import org.jboss.logging.LogMessage;
@@ -37,8 +32,12 @@ import org.jboss.remoting3.Channel;
 
 import javax.naming.NamingException;
 import javax.transaction.NotSupportedException;
+import java.util.concurrent.CancellationException;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeoutException;
 
-import static org.jboss.logging.Logger.Level.*;
+import static org.jboss.logging.Logger.Level.INFO;
+import static org.jboss.logging.Logger.Level.WARN;
 
 /**
  * Primary logging for the main EJB client API.
@@ -282,4 +281,7 @@ public interface Logs extends BasicLogger {
 
     @Message(id = 404, value = "Operation not allowed since this EJB client context %s has been closed")
     IllegalStateException ejbClientContextIsClosed(EJBClientContext ejbClientContext);
+
+    @Message(id = 405, value = "An EJB client context is already registered for EJB client context identifier %s")
+    IllegalStateException ejbClientContextAlreadyRegisteredForIdentifier(EJBClientContextIdentifier identifier);
 }
