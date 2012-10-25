@@ -27,6 +27,7 @@ import org.jboss.ejb.client.EJBClientContext;
 import org.jboss.ejb.client.EJBClientContextIdentifier;
 import org.jboss.ejb.client.EJBReceiver;
 import org.jboss.ejb.client.IdentityEJBClientContextSelector;
+import org.jboss.ejb.client.Logs;
 import org.jboss.logging.Logger;
 import org.jboss.remoting3.Connection;
 import org.jboss.remoting3.Endpoint;
@@ -38,10 +39,10 @@ import org.xnio.OptionMap;
 import javax.security.auth.callback.CallbackHandler;
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
-import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -57,7 +58,7 @@ public class ConfigBasedEJBClientContextSelector implements IdentityEJBClientCon
     private final EJBClientContext ejbClientContext;
     private final RemotingCleanupHandler remotingCleanupHandler = new RemotingCleanupHandler();
 
-    private final Map<EJBClientContextIdentifier, EJBClientContext> identifiableContexts = new HashMap<EJBClientContextIdentifier, EJBClientContext>();
+    private final ConcurrentMap<EJBClientContextIdentifier, EJBClientContext> identifiableContexts = new ConcurrentHashMap<EJBClientContextIdentifier, EJBClientContext>();
 
     /**
      * Creates a {@link ConfigBasedEJBClientContextSelector} using the passed <code>ejbClientConfiguration</code>.
@@ -176,26 +177,19 @@ public class ConfigBasedEJBClientContextSelector implements IdentityEJBClientCon
 
     @Override
     public void registerContext(final EJBClientContextIdentifier identifier, final EJBClientContext context) {
-        synchronized (this.identifiableContexts) {
-            if (this.getContext(identifier) != null) {
-                throw new IllegalStateException("An EJB client context is already registered for identifier " + identifier);
-            }
-            // register it
-            this.identifiableContexts.put(identifier, context);
+        final EJBClientContext previousRegisteredContext = this.identifiableContexts.putIfAbsent(identifier, context);
+        if (previousRegisteredContext != null) {
+            throw Logs.MAIN.ejbClientContextAlreadyRegisteredForIdentifier(identifier);
         }
     }
 
     @Override
     public EJBClientContext unRegisterContext(final EJBClientContextIdentifier identifier) {
-        synchronized (this.identifiableContexts) {
-            return (EJBClientContext) this.identifiableContexts.remove(identifier);
-        }
+        return this.identifiableContexts.remove(identifier);
     }
 
     @Override
     public EJBClientContext getContext(final EJBClientContextIdentifier identifier) {
-        synchronized (this.identifiableContexts) {
-            return (EJBClientContext) this.identifiableContexts.get(identifier);
-        }
+        return this.identifiableContexts.get(identifier);
     }
 }
