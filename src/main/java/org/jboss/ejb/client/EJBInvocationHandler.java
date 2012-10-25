@@ -57,7 +57,7 @@ final class EJBInvocationHandler<T> extends Attachable implements InvocationHand
     /**
      * An optional association to a EJB client context
      */
-    // right now, we have this as transient till we decide/discuss more about the requirements around serialization
+    // we don't serialize EJB client context identifier
     private final transient EJBClientContextIdentifier ejbClientContextIdentifier;
 
     /**
