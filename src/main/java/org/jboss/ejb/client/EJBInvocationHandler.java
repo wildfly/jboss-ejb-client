@@ -22,8 +22,6 @@
 
 package org.jboss.ejb.client;
 
-import javax.ejb.EJBHome;
-import javax.ejb.EJBObject;
 import java.io.Serializable;
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
@@ -34,6 +32,10 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.Future;
+
+import javax.ejb.EJBException;
+import javax.ejb.EJBHome;
+import javax.ejb.EJBObject;
 
 /**
  * @param <T> the proxy view type
@@ -86,7 +88,7 @@ final class EJBInvocationHandler<T> extends Attachable implements InvocationHand
      * invocation handler with the passed <code>ejbClientContextIdentifier</code>
      *
      * @param ejbClientContextIdentifier (Optional) EJB client context identifier. Can be null.
-     * @param locator The {@link EJBLocator} cannot be null.
+     * @param locator                    The {@link EJBLocator} cannot be null.
      */
     EJBInvocationHandler(final EJBClientContextIdentifier ejbClientContextIdentifier, final EJBLocator<T> locator) {
         if (locator == null) {
@@ -171,27 +173,47 @@ final class EJBInvocationHandler<T> extends Attachable implements InvocationHand
     private static <T> Object doInvoke(final EJBInvocationHandler<T> ejbInvocationHandler, final boolean async, final T proxy, final Method method, final Object[] args, EJBClientContext clientContext) throws Throwable {
         final EJBClientInvocationContext invocationContext = new EJBClientInvocationContext(ejbInvocationHandler, clientContext, proxy, method, args);
 
-        invocationContext.sendRequest();
+        try {
+            invocationContext.sendRequest();
 
-        if (!async) {
-            // wait for invocation to complete
-            final Object value = invocationContext.awaitResponse();
-            if (value != EJBClientInvocationContext.PROCEED_ASYNC) {
-                return value;
+
+            if (!async) {
+                // wait for invocation to complete
+                final Object value = invocationContext.awaitResponse();
+                if (value != EJBClientInvocationContext.PROCEED_ASYNC) {
+                    return value;
+                }
+                // proceed asynchronously
             }
-            // proceed asynchronously
-        }
-        // force async...
-        if (method.getReturnType() == Future.class) {
-            return invocationContext.getFutureResponse();
-        } else if (method.getReturnType() == void.class) {
-            invocationContext.setDiscardResult();
-            // Void return
-            return null;
-        } else {
-            // wrap return always
-            EJBClient.setFutureResult(invocationContext.getFutureResponse());
-            return null;
+            // force async...
+            if (method.getReturnType() == Future.class) {
+                return invocationContext.getFutureResponse();
+            } else if (method.getReturnType() == void.class) {
+                invocationContext.setDiscardResult();
+                // Void return
+                return null;
+            } else {
+                // wrap return always
+                EJBClient.setFutureResult(invocationContext.getFutureResponse());
+                return null;
+            }
+        } catch (Exception e) {
+            //AS7-5937 prevent UndeclaredThrowableException
+            if (e instanceof RuntimeException) {
+                throw e;
+            }
+            boolean remoteException = false;
+            for (Class<?> exception : method.getExceptionTypes()) {
+                if (exception.isAssignableFrom(e.getClass())) {
+                    throw e;
+                } else if (RemoteException.class.equals(exception)) {
+                    remoteException = true;
+                }
+            }
+            if(remoteException) {
+                throw new RemoteException("Error", e);
+            }
+            throw new EJBException(e);
         }
     }
 
