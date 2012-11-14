@@ -202,10 +202,16 @@ final class EJBInvocationHandler<T> extends Attachable implements InvocationHand
             if (e instanceof RuntimeException) {
                 throw e;
             }
+            boolean remoteException = false;
             for (Class<?> exception : method.getExceptionTypes()) {
                 if (exception.isAssignableFrom(e.getClass())) {
                     throw e;
+                } else if (RemoteException.class.equals(exception)) {
+                    remoteException = true;
                 }
+            }
+            if(remoteException) {
+                throw new RemoteException("Error", e);
             }
             throw new EJBException(e);
         }
