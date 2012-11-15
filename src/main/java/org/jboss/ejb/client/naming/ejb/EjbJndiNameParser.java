@@ -62,8 +62,9 @@ class EjbJndiNameParser {
 
     /**
      * Parse the remaining JNDI name for the given application name
+     *
      * @param applicationName The application name
-     * @param remaining The remaining name
+     * @param remaining       The remaining name
      * @return The EjbIdentifier
      */
     public static final EjbJndiIdentifier parse(final String applicationName, final String remaining) {
@@ -80,9 +81,10 @@ class EjbJndiNameParser {
 
     /**
      * Parse the remaining JNDI name, given the app and module name
+     *
      * @param applicationName The application name
-     * @param moduleName The module name
-     * @param remaining The remaining name
+     * @param moduleName      The module name
+     * @param remaining       The remaining name
      * @return The identifier
      */
     public static final EjbJndiIdentifier parse(final String applicationName, final String moduleName, final String remaining) {
@@ -104,9 +106,9 @@ class EjbJndiNameParser {
      * Parse the remaining JNDI name, given the app, module and distinct name
      *
      * @param applicationName The application name
-     * @param moduleName The module name
-     * @param distinctName The distinct name
-     * @param remaining The remaining name
+     * @param moduleName      The module name
+     * @param distinctName    The distinct name
+     * @param remaining       The remaining name
      * @return The identifier
      */
     public static final EjbJndiIdentifier parse(final String applicationName, final String moduleName, final String distinctName, final String remaining) {
@@ -125,10 +127,10 @@ class EjbJndiNameParser {
      * Parse the remaining JNDI name, given the app, module, distinct and ejb name
      *
      * @param applicationName The application name
-     * @param moduleName The module name
-     * @param distinctName The distinct name
-     * @param ejbName The ejb name
-     * @param remaining The remaining name
+     * @param moduleName      The module name
+     * @param distinctName    The distinct name
+     * @param ejbName         The ejb name
+     * @param remaining       The remaining name
      * @return The identifier
      */
     public static final EjbJndiIdentifier parse(final String applicationName, final String moduleName, final String distinctName, final String ejbName, final String remaining) {
@@ -145,11 +147,11 @@ class EjbJndiNameParser {
             //we don't handle escaping at all here, so you can't have special characters
             //in the view options. This should not be a problem in practice
             final String[] options = remaining.substring(pos + 1).split("&");
-            for(final String option : options) {
+            for (final String option : options) {
                 final String[] parts = option.split("=");
-                if(parts.length == 1) {
+                if (parts.length == 1) {
                     viewOptions.put(parts[0], null);
-                } else if(parts.length == 2) {
+                } else if (parts.length == 2) {
                     viewOptions.put(parts[0], parts[1]);
                 } else {
                     throw new IllegalArgumentException("Invalid option " + option);
@@ -162,6 +164,7 @@ class EjbJndiNameParser {
     /**
      * Returns true if the passed <code>name</code> represents the JNDI name for EJBClientContext. Else
      * returns false.
+     *
      * @param name The name being checked
      * @return
      */

@@ -26,6 +26,12 @@
     "http://www.puppycrawl.com/dtds/configuration_1_2.dtd">
 
 <module name="Checker">
+
+    <!-- Suppress certain checkstyle rules for certain files -->
+    <module name="SuppressionFilter">
+        <property name="file" value="src/config/checkstyle-suppressions.xml"/>
+    </module>
+
     <module name="FileTabCharacter">
         <property name="eachLine" value="true"/>
     </module>

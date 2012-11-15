@@ -26,10 +26,9 @@ package org.jboss.ejb.client;
  * An attachment key.
  *
  * @param <T> the attachment value type
- *
  * @author <a href="mailto:david.lloyd@redhat.com">David M. Lloyd</a>
  */
-@SuppressWarnings({ "unused", "UtilityClassWithoutPrivateConstructor", "UtilityClassWithPublicConstructor" })
+@SuppressWarnings({"unused", "UtilityClassWithoutPrivateConstructor", "UtilityClassWithPublicConstructor"})
 public final class AttachmentKey<T> {
 
     /**

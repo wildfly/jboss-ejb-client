@@ -27,8 +27,7 @@ package org.jboss.ejb.client;
  * they are shared between all threads.
  *
  * @param <A> the receiver attachment type to which this interceptor applies; use {@link Object} for protocol-independent
- * interceptors
- *
+ *            interceptors
  * @author <a href="mailto:david.lloyd@redhat.com">David M. Lloyd</a>
  */
 public interface EJBClientInterceptor {

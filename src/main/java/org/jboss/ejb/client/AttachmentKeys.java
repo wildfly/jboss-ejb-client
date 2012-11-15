@@ -28,7 +28,8 @@ package org.jboss.ejb.client;
  * @author <a href="mailto:david.lloyd@redhat.com">David M. Lloyd</a>
  */
 public final class AttachmentKeys {
-    private AttachmentKeys() {}
+    private AttachmentKeys() {
+    }
 
     /**
      * The attachment key for transaction IDs.  This key is normally associated with an invocation.

@@ -73,6 +73,7 @@ public abstract class Attachable {
      * Returns the attachments applicable for this {@link Attachable}. The returned {@link Map}
      * is an unmodifiable {@link Map}. If there are no attachments for this {@link Attachable}
      * then this method returns an empty {@link Map}
+     *
      * @return
      */
     public Map getAttachments() {
@@ -85,9 +86,9 @@ public abstract class Attachable {
     /**
      * Set an attachment on this object.
      *
-     * @param key the attachment key
+     * @param key   the attachment key
      * @param value the attachment's new value (may not be {@code null})
-     * @param <T> the attachment type
+     * @param <T>   the attachment type
      * @return the previous attachment value, or {@code null} if there was none
      */
     @SuppressWarnings("unchecked")
@@ -107,9 +108,9 @@ public abstract class Attachable {
     /**
      * Set an attachment on this object if an existing attachment does not already exist.
      *
-     * @param key the attachment key
+     * @param key   the attachment key
      * @param value the attachment's new value (may not be {@code null})
-     * @param <T> the attachment type
+     * @param <T>   the attachment type
      * @return the previous attachment value, or {@code null} if there was none
      */
     @SuppressWarnings("unchecked")
@@ -129,9 +130,9 @@ public abstract class Attachable {
     /**
      * Replace an attachment on this object if an existing attachment exists.
      *
-     * @param key the attachment key
+     * @param key   the attachment key
      * @param value the attachment's new value (may not be {@code null})
-     * @param <T> the attachment type
+     * @param <T>   the attachment type
      * @return the previous attachment value, or {@code null} if there was none
      */
     @SuppressWarnings("unchecked")
@@ -149,10 +150,10 @@ public abstract class Attachable {
     /**
      * Replace an attachment on this object if an existing attachment exists with a certain value.
      *
-     * @param key the attachment key
+     * @param key      the attachment key
      * @param oldValue the attachment's expected value (may not be {@code null})
      * @param newValue the attachment's new value (may not be {@code null})
-     * @param <T> the attachment type
+     * @param <T>      the attachment type
      * @return {@code true} if the old value matched and the value was replaced; {@code false} otherwise
      */
     @SuppressWarnings("unchecked")
@@ -188,9 +189,9 @@ public abstract class Attachable {
     /**
      * Remove an attachment if it has a certain value.
      *
-     * @param key the attachment key
+     * @param key   the attachment key
      * @param value the attachment's expected value (may not be {@code null})
-     * @param <T> the attachment type
+     * @param <T>   the attachment type
      * @return {@code true} if the value was removed, {@code false} if there was no attachment
      */
     @SuppressWarnings("unchecked")

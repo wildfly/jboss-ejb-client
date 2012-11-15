@@ -81,7 +81,7 @@ public abstract class TransactionID implements Serializable {
      */
     @Override
     public final boolean equals(Object other) {
-        return other.getClass() == getClass() && equals((TransactionID)other);
+        return other.getClass() == getClass() && equals((TransactionID) other);
     }
 
     private boolean equals(TransactionID other) {

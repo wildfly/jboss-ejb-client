@@ -46,12 +46,12 @@ public final class EntityEJBLocator<T extends EJBObject> extends EJBLocator<T> {
     /**
      * Construct a new instance.
      *
-     * @param viewType the view type
-     * @param appName the application name
-     * @param moduleName the module name
-     * @param beanName the bean name
+     * @param viewType     the view type
+     * @param appName      the application name
+     * @param moduleName   the module name
+     * @param beanName     the bean name
      * @param distinctName the distinct name
-     * @param primaryKey the entity primary key
+     * @param primaryKey   the entity primary key
      */
     public EntityEJBLocator(final Class<T> viewType, final String appName, final String moduleName, final String beanName, final String distinctName, final Object primaryKey) {
         super(viewType, appName, moduleName, beanName, distinctName, Affinity.NONE);
@@ -122,8 +122,8 @@ public final class EntityEJBLocator<T extends EJBObject> extends EJBLocator<T> {
                 ", moduleName='" + getModuleName() + '\'' +
                 ", distinctName='" + getDistinctName() + '\'' +
                 ", beanName='" + getBeanName() + '\'' +
-                ", view='" + getViewType() +'\'' +
-                ", primaryKey='" + getPrimaryKey() +'\'' +
+                ", view='" + getViewType() + '\'' +
+                ", primaryKey='" + getPrimaryKey() + '\'' +
                 '}';
     }
 

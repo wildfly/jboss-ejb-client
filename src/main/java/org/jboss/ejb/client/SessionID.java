@@ -121,6 +121,7 @@ public abstract class SessionID implements Serializable {
 
         /**
          * The bytes of the session ID.
+         *
          * @serial
          */
         private final byte[] id;
