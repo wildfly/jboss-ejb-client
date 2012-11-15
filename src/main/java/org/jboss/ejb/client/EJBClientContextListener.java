@@ -36,5 +36,5 @@ public interface EJBClientContextListener {
      *
      * @param ejbClientContext The EJB client context which was closed
      */
-    public void contextClosed(EJBClientContext ejbClientContext);
+    void contextClosed(EJBClientContext ejbClientContext);
 }

@@ -26,7 +26,6 @@ package org.jboss.ejb.client;
  * A context selector which uses thread-local storage.
  *
  * @param <T> the context type
- *
  * @author <a href="mailto:david.lloyd@redhat.com">David M. Lloyd</a>
  */
 public final class ThreadLocalContextSelector<T> implements ContextSelector<T> {

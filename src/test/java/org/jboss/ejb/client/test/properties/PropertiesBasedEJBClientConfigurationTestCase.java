@@ -81,7 +81,7 @@ public class PropertiesBasedEJBClientConfigurationTestCase {
         final EJBClientConfiguration.ClusterConfiguration clusterConfiguration = ejbClientConfiguration.getClusterConfiguration("foo-cluster");
         Assert.assertNotNull("Cluster configuration for foo-cluster not found", clusterConfiguration);
         this.testClusterConfigurationOne(clusterConfiguration);
-        
+
         // test invocation timeout
         Assert.assertEquals("Unexpected invocation timeout value", 30000, ejbClientConfiguration.getInvocationTimeout());
         // test deployment node selector

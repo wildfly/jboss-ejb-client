@@ -163,7 +163,7 @@ class VersionReceiver implements Channel.Receiver {
      * incompatibility. Else returns false
      */
     boolean failedCompatibility() {
-             return compatibilityFailed;
+        return compatibilityFailed;
     }
 
 }

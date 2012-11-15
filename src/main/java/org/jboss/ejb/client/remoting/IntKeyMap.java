@@ -137,7 +137,7 @@ final class IntKeyMap<V> implements Cloneable, Serializable, Iterable<IntKeyMap.
     public V get(int key) {
         int length = table.length;
         int index = index(key, length);
-        for (int start = index; ;) {
+        for (int start = index; ; ) {
             Entry<V> e = table[index];
             if (e == null)
                 return null;
@@ -152,7 +152,7 @@ final class IntKeyMap<V> implements Cloneable, Serializable, Iterable<IntKeyMap.
     public boolean containsKey(int key) {
         int length = table.length;
         int index = index(key, length);
-        for (int start = index; ;) {
+        for (int start = index; ; ) {
             Entry<V> e = table[index];
             if (e == null)
                 return false;
@@ -176,7 +176,7 @@ final class IntKeyMap<V> implements Cloneable, Serializable, Iterable<IntKeyMap.
         int hash = key;
         int length = table.length;
         int index = index(hash, length);
-        for (int start = index; ;) {
+        for (int start = index; ; ) {
             Entry<V> e = table[index];
             if (e == null)
                 break;
@@ -218,7 +218,7 @@ final class IntKeyMap<V> implements Cloneable, Serializable, Iterable<IntKeyMap.
         Entry<V>[] table = this.table;
         int length = table.length;
         int start = index(key, length);
-        for (int index = start; ;) {
+        for (int index = start; ; ) {
             Entry<V> e = table[index];
             if (e == null)
                 return null;
@@ -238,7 +238,7 @@ final class IntKeyMap<V> implements Cloneable, Serializable, Iterable<IntKeyMap.
         Entry<V>[] table = this.table;
         int length = table.length;
         int current = nextIndex(start, length);
-        for (; ;) {
+        for (; ; ) {
             Entry<V> e = table[current];
             if (e == null)
                 return;
@@ -269,8 +269,7 @@ final class IntKeyMap<V> implements Cloneable, Serializable, Iterable<IntKeyMap.
             IntKeyMap<V> clone = (IntKeyMap<V>) super.clone();
             clone.table = table.clone();
             return clone;
-        }
-        catch (CloneNotSupportedException e) {
+        } catch (CloneNotSupportedException e) {
             // should never happen
             throw new IllegalStateException(e);
         }
@@ -363,7 +362,7 @@ final class IntKeyMap<V> implements Cloneable, Serializable, Iterable<IntKeyMap.
             }
 
             public Entry<V> next() {
-                if (! hasNext()) {
+                if (!hasNext()) {
                     throw new NoSuchElementException();
                 }
                 return table[i++];

@@ -135,9 +135,9 @@ public final class EJBClient {
      * Creates a new proxy for the remote object identified by the given <code>locator</code> and
      * associates that proxy with the passed {@link EJBClientContextIdentifier identifier}
      *
-     * @param locator The locator
+     * @param locator    The locator
      * @param identifier The EJB client context identifier to associate this proxy with. Can be null.
-     * @param <T> The proxy type
+     * @param <T>        The proxy type
      * @return IllegalArgumentException if the locator {@code null}
      */
     public static <T> T createProxy(final EJBLocator<T> locator, final EJBClientContextIdentifier identifier) {
@@ -178,11 +178,11 @@ public final class EJBClient {
      *
      * @param ejbClientContextIdentifier The EJB client context identifier. Can be null in which case the session will
      *                                   be created using the {@link org.jboss.ejb.client.EJBClientContext#requireCurrent() current active EJB client context}
-     * @param viewType     the view type
-     * @param appName      the application name
-     * @param moduleName   the module name
-     * @param beanName     the EJB name
-     * @param distinctName the module distinct name
+     * @param viewType                   the view type
+     * @param appName                    the application name
+     * @param moduleName                 the module name
+     * @param beanName                   the EJB name
+     * @param distinctName               the module distinct name
      * @return the new session ID
      * @throws Exception if an error occurs
      */

@@ -51,7 +51,9 @@ public final class EJBHomeHandle<T extends EJBHome> implements HomeHandle {
         this.locator = locator;
     }
 
-    /** {@inheritDoc} */
+    /**
+     * {@inheritDoc}
+     */
     public T getEJBHome() throws RemoteException {
         return EJBClient.createProxy(locator);
     }
@@ -63,7 +65,7 @@ public final class EJBHomeHandle<T extends EJBHome> implements HomeHandle {
      * @return {@code true} if they are equal, {@code false} otherwise
      */
     public boolean equals(Object other) {
-        return other instanceof EJBHomeHandle && equals((EJBHomeHandle<?>)other);
+        return other instanceof EJBHomeHandle && equals((EJBHomeHandle<?>) other);
     }
 
     /**
@@ -86,7 +88,6 @@ public final class EJBHomeHandle<T extends EJBHome> implements HomeHandle {
     }
 
     /**
-     *
      * @return The EJB locator for this home handle
      */
     public EJBHomeLocator<T> getLocator() {

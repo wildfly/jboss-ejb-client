@@ -43,6 +43,7 @@ public class PackedIntegerTestCase {
         final byte array[] = new byte[bufsize];
         final DataOutput out = new DataOutputStream(new OutputStream() {
             private int count = 0;
+
             @Override
             public void write(int b) throws IOException {
                 if (count >= array.length)

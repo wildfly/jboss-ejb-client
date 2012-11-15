@@ -38,7 +38,7 @@ import java.io.IOException;
  */
 class NoSuchEJBExceptionResponseHandler extends ProtocolMessageHandler {
 
-    private final static Logger logger = Logger.getLogger(NoSuchEJBExceptionResponseHandler.class);
+    private static final Logger logger = Logger.getLogger(NoSuchEJBExceptionResponseHandler.class);
 
     private final ChannelAssociation channelAssociation;
 

@@ -49,7 +49,9 @@ public final class EJBClientUserTransactionContext extends EJBClientTransactionC
      */
     private static final ThreadLocal<State> CURRENT_TRANSACTION_STATE = new ThreadLocal<State>();
 
-    /** {@inheritDoc} */
+    /**
+     * {@inheritDoc}
+     */
     protected UserTransactionID getAssociatedTransactionID(final EJBClientInvocationContext invocationContext) {
         final State state = CURRENT_TRANSACTION_STATE.get();
         return state == null ? null : state.currentId;
@@ -61,7 +63,9 @@ public final class EJBClientUserTransactionContext extends EJBClientTransactionC
         return id == null ? null : id.getNodeName();
     }
 
-    /** {@inheritDoc} */
+    /**
+     * {@inheritDoc}
+     */
     protected UserTransaction getUserTransaction(String nodeName) {
         return new UserTransactionImpl(nodeName);
     }

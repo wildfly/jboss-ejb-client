@@ -177,10 +177,10 @@ public final class RemotingConnectionEJBReceiver extends EJBReceiver {
                 Logs.REMOTING.versionHandshakeNotCompleted(context);
                 context.close();
                 // register reconnect handler for retries due to e.g. timeouts
-                if( this.reconnectHandler != null ){
+                if (this.reconnectHandler != null) {
                     //only add the reconnect handler if the version handshake did not fail due to an incompatibility
                     // (latch is not being counted down on failure)
-                    if( ! versionReceiver.failedCompatibility() ){
+                    if (!versionReceiver.failedCompatibility()) {
                         logger.debug("Adding reconnect handler to client context " + context.getClientContext());
                         context.getClientContext().registerReconnectHandler(this.reconnectHandler);
                     }
@@ -255,7 +255,7 @@ public final class RemotingConnectionEJBReceiver extends EJBReceiver {
         final EJBClientConfiguration ejbClientConfiguration = receiverContext.getClientContext().getEJBClientConfiguration();
         final long invocationTimeout = ejbClientConfiguration == null ? 0 : ejbClientConfiguration.getInvocationTimeout();
         try {
-            if (invocationTimeout <= 0 ) {
+            if (invocationTimeout <= 0) {
                 resultProducer = futureResultProducer.get();
             } else {
                 resultProducer = futureResultProducer.get(invocationTimeout, TimeUnit.MILLISECONDS);
@@ -456,7 +456,7 @@ public final class RemotingConnectionEJBReceiver extends EJBReceiver {
      * wait or expect an "result" back from the server. Instead this method just returns back <code>false</code>
      * after sending the cancellation request.
      *
-     * @param clientInvocationContext the client invocation context for which the invocation is being cancelled
+     * @param clientInvocationContext   the client invocation context for which the invocation is being cancelled
      * @param receiverInvocationContext the receiver invocation context for which the invocation is being cancelled
      * @return
      * @see {@link EJBReceiver#cancelInvocation(org.jboss.ejb.client.EJBClientInvocationContext, org.jboss.ejb.client.EJBReceiverInvocationContext)}
