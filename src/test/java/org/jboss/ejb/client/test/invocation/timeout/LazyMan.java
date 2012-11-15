@@ -26,6 +26,6 @@ package org.jboss.ejb.client.test.invocation.timeout;
  * @author Jaikiran Pai
  */
 public interface LazyMan {
-    
+
     void doThreeSecondWork();
 }

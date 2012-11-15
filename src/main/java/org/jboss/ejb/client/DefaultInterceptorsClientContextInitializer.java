@@ -24,14 +24,14 @@ package org.jboss.ejb.client;
 
 /**
  * A {@link EJBClientContextInitializer} which sets up the default interceptors for the {@link EJBClientContext client context}
- * 
+ *
  * @author Jaikiran Pai
  */
 public class DefaultInterceptorsClientContextInitializer implements EJBClientContextInitializer {
 
-    private static final int RECEIVER_INTERCEPTOR                                   = 0x10000;
-    private static final int TRANSACTION_INTERCEPTOR                                = 0x20000;
-    private static final int EJB_HOME_CREATE_METHOD_INVOCATION_INTERCEPTOR          = 0x30000;
+    private static final int RECEIVER_INTERCEPTOR = 0x10000;
+    private static final int TRANSACTION_INTERCEPTOR = 0x20000;
+    private static final int EJB_HOME_CREATE_METHOD_INVOCATION_INTERCEPTOR = 0x30000;
 
     @Override
     public void initialize(EJBClientContext context) {

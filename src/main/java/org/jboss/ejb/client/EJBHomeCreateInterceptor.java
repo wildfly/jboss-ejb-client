@@ -28,46 +28,47 @@ import java.lang.reflect.Method;
  * A {@link EJBClientInterceptor} which is responsible for intercepting the returning value of "create" methods
  * on a {@link javax.ejb.EJBHome} proxy. This interceptor just lets the invocation proceed in its {@link #handleInvocation(EJBClientInvocationContext)}
  * method. However, in its {@link #handleInvocationResult(EJBClientInvocationContext)} method it does the following:
- *  <ol>
- *      <li>Check to see if the invocation is happening on a EJBHome proxy. It does this by checking the {@link EJBLocator}
- *      type of the {@link EJBClientInvocationContext invocation context}. If it finds that the invocation is not
- *      on a EJBHome proxy, then the {@link #handleInvocationResult(EJBClientInvocationContext)} just returns back the
- *      original result.
- *      </li>
- *      <li>
- *          Check to see if the invoked method is a "create" method. The EJB spec states that each EJBHome interface
- *          can have any number of "create" methods, but the method name should begin with "create". This is what the
- *          interceptor checks for. If the invocation is not for a "create" method, then the {@link #handleInvocationResult(EJBClientInvocationContext)}
- *          just returns back the original result.
- *      </li>
- *      <li>
- *          Check to see if the original returned instance is a {@link EJBClient#isEJBProxy(Object) EJB proxy}. If it isn't
- *          a EJB proxy then the {@link #handleInvocationResult(EJBClientInvocationContext)} method just returns back the
- *          original result. If it finds that it's an EJB proxy, then the {@link #handleInvocationResult(EJBClientInvocationContext)}
- *          recreates the proxy by using the {@link org.jboss.ejb.client.EJBInvocationHandler#getEjbClientContextIdentifier() EJB client context identifier}
- *          that's applicable to the EJBHome proxy on which this invocation was done. This way, the EJB proxies returned
- *          by calls to "create" methods on the EJBHome proxy will always be associated with the EJB client context identifier
- *          that's applicable to the EJBHome proxy
- *      </li>
- *  </ol>
- *  An example of where this interceptor plays a role is as follows:
- *  <code>
- *      final Properties jndiProps = new Properties();
- *      // create a scoped EJB client context
- *      jndiProps.put("org.jboss.ejb.client.scoped.context",true);
- *      // other jndi props
- *      ...
- *      final Context ctx = new InitialContext(jndiProps);
- *      final SomeEJBRemoteHome remoteHome = (SomeEJBRemoteHome) ctx.lookup("ejb:/foo/bar/dist/bean!remotehomeinterface");
- *      // now create the EJB remote object.
- *      // this returned "SomeEJBRemote" proxy MUST have the same EJB client context identifier that was
- *      // applicable for the "remoteHome" proxy that we created a few lines above. That way any subsequent
- *      // invocation on this "remoteBean" will always use the correct EJB client context
- *      final SomeEJBRemote remoteBean = remoteHome.create();
- *      // now invoke on the bean
- *      remoteBean.doSomething();
+ * <ol>
+ * <li>Check to see if the invocation is happening on a EJBHome proxy. It does this by checking the {@link EJBLocator}
+ * type of the {@link EJBClientInvocationContext invocation context}. If it finds that the invocation is not
+ * on a EJBHome proxy, then the {@link #handleInvocationResult(EJBClientInvocationContext)} just returns back the
+ * original result.
+ * </li>
+ * <li>
+ * Check to see if the invoked method is a "create" method. The EJB spec states that each EJBHome interface
+ * can have any number of "create" methods, but the method name should begin with "create". This is what the
+ * interceptor checks for. If the invocation is not for a "create" method, then the {@link #handleInvocationResult(EJBClientInvocationContext)}
+ * just returns back the original result.
+ * </li>
+ * <li>
+ * Check to see if the original returned instance is a {@link EJBClient#isEJBProxy(Object) EJB proxy}. If it isn't
+ * a EJB proxy then the {@link #handleInvocationResult(EJBClientInvocationContext)} method just returns back the
+ * original result. If it finds that it's an EJB proxy, then the {@link #handleInvocationResult(EJBClientInvocationContext)}
+ * recreates the proxy by using the {@link org.jboss.ejb.client.EJBInvocationHandler#getEjbClientContextIdentifier() EJB client context identifier}
+ * that's applicable to the EJBHome proxy on which this invocation was done. This way, the EJB proxies returned
+ * by calls to "create" methods on the EJBHome proxy will always be associated with the EJB client context identifier
+ * that's applicable to the EJBHome proxy
+ * </li>
+ * </ol>
+ * An example of where this interceptor plays a role is as follows:
+ * <code>
+ * final Properties jndiProps = new Properties();
+ * // create a scoped EJB client context
+ * jndiProps.put("org.jboss.ejb.client.scoped.context",true);
+ * // other jndi props
+ * ...
+ * final Context ctx = new InitialContext(jndiProps);
+ * final SomeEJBRemoteHome remoteHome = (SomeEJBRemoteHome) ctx.lookup("ejb:/foo/bar/dist/bean!remotehomeinterface");
+ * // now create the EJB remote object.
+ * // this returned "SomeEJBRemote" proxy MUST have the same EJB client context identifier that was
+ * // applicable for the "remoteHome" proxy that we created a few lines above. That way any subsequent
+ * // invocation on this "remoteBean" will always use the correct EJB client context
+ * final SomeEJBRemote remoteBean = remoteHome.create();
+ * // now invoke on the bean
+ * remoteBean.doSomething();
+ * <p/>
+ * </code>
  *
- *  </code>
  * @author Jaikiran Pai
  */
 final class EJBHomeCreateInterceptor implements EJBClientInterceptor {
@@ -111,6 +112,7 @@ final class EJBHomeCreateInterceptor implements EJBClientInterceptor {
 
     /**
      * Returns true if the invocation happened on a EJB home view. Else returns false.
+     *
      * @param invocationContext
      * @return
      */
@@ -121,6 +123,7 @@ final class EJBHomeCreateInterceptor implements EJBClientInterceptor {
 
     /**
      * Returns true if the invocation is for a "create<...>" method. Else returns false.
+     *
      * @param invocationContext
      * @return
      */

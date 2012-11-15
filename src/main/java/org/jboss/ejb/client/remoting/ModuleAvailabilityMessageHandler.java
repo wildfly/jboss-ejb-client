@@ -67,7 +67,7 @@ class ModuleAvailabilityMessageHandler extends ProtocolMessageHandler {
         if (messageInputStream == null) {
             throw new IllegalArgumentException("Cannot read from null stream");
         }
-        EJBModuleIdentifier ejbModules[] = null;
+        EJBModuleIdentifier[] ejbModules = null;
         try {
             final DataInput input = new DataInputStream(messageInputStream);
             // read the count

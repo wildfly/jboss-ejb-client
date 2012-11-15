@@ -213,6 +213,7 @@ public final class EJBClientContext extends Attachable implements Closeable {
 
     /**
      * Returns the current EJB client context selector
+     *
      * @return
      */
     public static ContextSelector<EJBClientContext> getSelector() {

@@ -35,8 +35,8 @@ public interface IdentityEJBClientContextSelector extends ContextSelector<EJBCli
      * It's up to the individual implementations to decide whether to throw an exception
      * if there's already an {@link EJBClientContext} registered for the passed <code>identifier</code>
      *
-     * @param identifier   The EJB client context identifier
-     * @param context The EJB client context
+     * @param identifier The EJB client context identifier
+     * @param context    The EJB client context
      */
     void registerContext(EJBClientContextIdentifier identifier, EJBClientContext context);
 

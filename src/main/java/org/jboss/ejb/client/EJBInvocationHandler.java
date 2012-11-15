@@ -210,7 +210,7 @@ final class EJBInvocationHandler<T> extends Attachable implements InvocationHand
                     remoteException = true;
                 }
             }
-            if(remoteException) {
+            if (remoteException) {
                 throw new RemoteException("Error", e);
             }
             throw new EJBException(e);
@@ -269,7 +269,7 @@ final class EJBInvocationHandler<T> extends Attachable implements InvocationHand
         }
     }
 
-    private static interface MethodHandler {
+    private interface MethodHandler {
 
         boolean canHandleInvocation(final EJBInvocationHandler thisHandler, final Object proxy, final Method method, final Object[] args) throws Exception;
 

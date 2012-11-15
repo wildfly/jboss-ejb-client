@@ -45,8 +45,8 @@ import java.util.Properties;
  * when the deployment on one of the servers, within the EJB client context, is undeployed but the undeployment
  * notifications hasn't yet reached the client
  *
- * @see https://issues.jboss.org/browse/EJBCLIENT-32
  * @author Jaikiran Pai
+ * @see https://issues.jboss.org/browse/EJBCLIENT-32
  */
 public class StatelessApplicationUndeploymentFailoverTestCase {
 

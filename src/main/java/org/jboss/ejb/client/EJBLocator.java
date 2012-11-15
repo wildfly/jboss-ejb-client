@@ -30,6 +30,7 @@ import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Proxy;
 import java.lang.reflect.UndeclaredThrowableException;
+
 import org.jboss.marshalling.FieldSetter;
 
 /**
@@ -159,7 +160,7 @@ public abstract class EJBLocator<T> implements Serializable {
      * @return {@code true} if they are equal, {@code false} otherwise
      */
     public boolean equals(Object other) {
-        return other instanceof EJBLocator && equals((EJBLocator<?>)other);
+        return other instanceof EJBLocator && equals((EJBLocator<?>) other);
     }
 
     /**

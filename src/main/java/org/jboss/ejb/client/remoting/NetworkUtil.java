@@ -112,7 +112,7 @@ public class NetworkUtil {
      * Returns a {@link IoFuture} to a {@link Connection} which is established to the destination host.
      * <p/>
      * This method takes care of any necessary formatting of the passed <code>destinationHost</code> in case
-     * it's a IPv6 address. 
+     * it's a IPv6 address.
      *
      * @param endpoint                  The {@link Endpoint} that will be used to establish the connection
      * @param destinationHost           The destination host to connect to. This can either be a host name or a IP address

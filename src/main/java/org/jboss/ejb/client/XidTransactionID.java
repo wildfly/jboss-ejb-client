@@ -113,7 +113,7 @@ public final class XidTransactionID extends TransactionID {
         }
 
         public boolean equals(Object other) {
-            return other instanceof XidImpl && equals((XidImpl)other) || other instanceof Xid && equals((Xid)other);
+            return other instanceof XidImpl && equals((XidImpl) other) || other instanceof Xid && equals((Xid) other);
         }
 
         private boolean equals(XidImpl other) {

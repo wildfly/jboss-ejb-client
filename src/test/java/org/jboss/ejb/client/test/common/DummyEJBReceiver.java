@@ -32,8 +32,8 @@ import org.jboss.ejb.client.TransactionID;
 import javax.transaction.xa.XAException;
 
 /**
-* @author Jaikiran Pai
-*/
+ * @author Jaikiran Pai
+ */
 public class DummyEJBReceiver extends EJBReceiver {
 
     public DummyEJBReceiver(String nodeName) {

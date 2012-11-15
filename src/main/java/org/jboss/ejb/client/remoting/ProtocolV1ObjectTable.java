@@ -46,12 +46,12 @@ public final class ProtocolV1ObjectTable implements ObjectTable {
      * Do NOT change the order of this list.
      */
     private static final Object[] objects = {
-        TransactionID.PRIVATE_DATA_KEY,
-        Affinity.NONE,
-        Affinity.WEAK_AFFINITY_CONTEXT_KEY,
-        EJBClientInvocationContext.PRIVATE_ATTACHMENTS_KEY,
-        AttachmentKeys.TRANSACTION_ID_KEY,
-        AttachmentKeys.WEAK_AFFINITY
+            TransactionID.PRIVATE_DATA_KEY,
+            Affinity.NONE,
+            Affinity.WEAK_AFFINITY_CONTEXT_KEY,
+            EJBClientInvocationContext.PRIVATE_ATTACHMENTS_KEY,
+            AttachmentKeys.TRANSACTION_ID_KEY,
+            AttachmentKeys.WEAK_AFFINITY
     };
 
     static {
