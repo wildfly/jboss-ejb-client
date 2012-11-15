@@ -36,9 +36,9 @@ import java.util.List;
  * A {@link EJBClientContextListener} which closes all remoting endpoints and connections registered with it,
  * in its {@link #contextClosed(org.jboss.ejb.client.EJBClientContext)} method, which is invoked when the
  * {@link EJBClientContext} to which it is registered, closes
- * 
-* @author Jaikiran Pai
-*/
+ *
+ * @author Jaikiran Pai
+ */
 class RemotingCleanupHandler implements EJBClientContextListener {
 
     private static final Logger logger = Logger.getLogger(RemotingCleanupHandler.class);

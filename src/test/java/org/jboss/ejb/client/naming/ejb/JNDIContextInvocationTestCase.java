@@ -145,6 +145,7 @@ public class JNDIContextInvocationTestCase {
     /**
      * Tests that EJB client context scoped and created via a JNDI context is available at <code>ejb:/EJBClientContext</code>
      * jndi name within that same JNDI context
+     *
      * @throws Exception
      */
     @Test

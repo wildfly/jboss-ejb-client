@@ -97,12 +97,13 @@ public final class EJBReceiverInvocationContext {
 
     /**
      * Returns the node name of the receiver represented by this {@link EJBReceiverInvocationContext}
+     *
      * @return
      */
     public String getNodeName() {
         return this.ejbReceiverContext.getReceiver().getNodeName();
     }
-    
+
     /**
      * A result producer for invocation.
      */

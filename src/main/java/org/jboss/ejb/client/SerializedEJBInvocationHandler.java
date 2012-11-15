@@ -52,6 +52,7 @@ public final class SerializedEJBInvocationHandler implements Externalizable {
     public SerializedEJBInvocationHandler(final EJBLocator<?> locator) {
         this.locator = locator;
     }
+
     /**
      * Get the invocation locator.
      *
@@ -84,7 +85,7 @@ public final class SerializedEJBInvocationHandler implements Externalizable {
      * Read this object from the input stream.
      *
      * @param in the input stream
-     * @throws IOException if a read error occurs
+     * @throws IOException            if a read error occurs
      * @throws ClassNotFoundException if a class cannot be resolved
      */
     public void readExternal(final ObjectInput in) throws IOException, ClassNotFoundException {

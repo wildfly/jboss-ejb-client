@@ -26,6 +26,6 @@ package org.jboss.ejb.client.test.reconnect;
  * @author Jaikiran Pai
  */
 public interface Echo {
-    
+
     String echo(String msg);
 }

@@ -34,10 +34,10 @@ public final class StatelessEJBLocator<T> extends EJBLocator<T> {
     /**
      * Construct a new instance.
      *
-     * @param viewType the view type
-     * @param appName the application name
-     * @param moduleName the module name
-     * @param beanName the bean name
+     * @param viewType     the view type
+     * @param appName      the application name
+     * @param moduleName   the module name
+     * @param beanName     the bean name
      * @param distinctName the distinct name
      */
     public StatelessEJBLocator(final Class<T> viewType, final String appName, final String moduleName, final String beanName, final String distinctName) {
@@ -91,7 +91,7 @@ public final class StatelessEJBLocator<T> extends EJBLocator<T> {
                 ", moduleName='" + getModuleName() + '\'' +
                 ", distinctName='" + getDistinctName() + '\'' +
                 ", beanName='" + getBeanName() + '\'' +
-                ", view='" + getViewType() +'\'' +
+                ", view='" + getViewType() + '\'' +
                 '}';
     }
 

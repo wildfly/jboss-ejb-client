@@ -26,7 +26,8 @@ package org.jboss.ejb.client;
  * @author <a href="mailto:david.lloyd@redhat.com">David M. Lloyd</a>
  */
 public final class Version {
-    private Version() {}
+    private Version() {
+    }
 
     /**
      * The current version.
