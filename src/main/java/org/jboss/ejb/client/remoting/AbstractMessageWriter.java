@@ -114,6 +114,16 @@ class AbstractMessageWriter {
                 final int byteToWrite = b & 0xff;
                 dataOutput.write(byteToWrite);
             }
+
+            @Override
+            public void write(final byte[] b, final int off, final int len) throws IOException {
+                dataOutput.write(b, off, len);
+            }
+
+            @Override
+            public void write(final byte[] b) throws IOException {
+                dataOutput.write(b);
+            }
         };
         final ByteOutput byteOutput = Marshalling.createByteOutput(outputStream);
         // start the marshaller

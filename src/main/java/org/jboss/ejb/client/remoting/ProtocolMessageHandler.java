@@ -32,6 +32,7 @@ import org.jboss.marshalling.reflect.SunReflectiveCreator;
 import org.jboss.remoting3.MessageInputStream;
 
 import java.io.DataInput;
+import java.io.DataInputStream;
 import java.io.EOFException;
 import java.io.IOException;
 import java.io.InputStream;
@@ -81,7 +82,7 @@ abstract class ProtocolMessageHandler {
      * @return
      * @throws IOException
      */
-    protected Unmarshaller prepareForUnMarshalling(final MarshallerFactory marshallerFactory, final DataInput dataInput) throws IOException {
+    protected Unmarshaller prepareForUnMarshalling(final MarshallerFactory marshallerFactory, final DataInputStream dataInput) throws IOException {
         final Unmarshaller unmarshaller = this.getUnMarshaller(marshallerFactory);
         final InputStream is = new InputStream() {
             @Override
@@ -93,6 +94,16 @@ abstract class ProtocolMessageHandler {
                 } catch (EOFException eof) {
                     return -1;
                 }
+            }
+
+            @Override
+            public int read(final byte[] b) throws IOException {
+                return dataInput.read(b);
+            }
+
+            @Override
+            public int read(final byte[] b, final int off, final int len) throws IOException {
+                return dataInput.read(b, off, len);
             }
         };
         final ByteInput byteInput = Marshalling.createByteInput(is);
