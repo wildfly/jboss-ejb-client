@@ -230,6 +230,8 @@ public final class ClusterContext implements EJBClientContext.EJBReceiverContext
         }
         try {
             final Set<Future> futureAssociationResults = new HashSet<Future>();
+            /// stop adding if the maximum number of nodes is reached
+            long addMax = maxClusterNodeOpenConnections - this.connectedNodes.size();
             for (int i = 0; i < clusterNodeManagers.length; i++) {
                 final ClusterNodeManager clusterNodeManager = clusterNodeManagers[i];
                 if (clusterNodeManager == null) {
@@ -242,9 +244,10 @@ public final class ClusterContext implements EJBClientContext.EJBReceiverContext
                 this.nodeManagers.put(nodeName, clusterNodeManager);
                 // If the connected nodes in this cluster context hasn't yet reached the max allowed limit, then create a new
                 // receiver and associate it with a receiver context (if the node isn't already connected to)
-                if (!this.connectedNodes.contains(nodeName) && this.connectedNodes.size() < maxClusterNodeOpenConnections) {
+                if (!this.connectedNodes.contains(nodeName) && addMax > 0 && this.connectedNodes.size() < maxClusterNodeOpenConnections) {
                     // submit a task which will create and associate a EJB receiver with this cluster context
                     futureAssociationResults.add(executorService.submit(new EJBReceiverAssociationTask(this, nodeName)));
+                    addMax--;
                 }
             }
             // wait for the associations to be completed so that the other threads which are expecting
