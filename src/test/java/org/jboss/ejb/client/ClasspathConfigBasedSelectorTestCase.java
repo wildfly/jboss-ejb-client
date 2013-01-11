@@ -26,6 +26,7 @@ import org.jboss.ejb.client.remoting.ConfigBasedEJBClientContextSelector;
 import org.jboss.ejb.client.remoting.RemotingConnectionEJBReceiver;
 import org.jboss.ejb.client.test.common.EchoBean;
 import org.jboss.ejb.client.test.common.DummyServer;
+import org.jboss.ejb.client.test.common.ResourceSwitchingClassLoader;
 import org.jboss.logging.Logger;
 import org.junit.AfterClass;
 import org.junit.Assert;
@@ -94,7 +95,7 @@ public class ClasspathConfigBasedSelectorTestCase {
 
         final EJBClientContext ejbClientContext = configBasedEJBClientContextSelector.getCurrent();
         logger.info("Found EJB client context " + ejbClientContext);
-        Assert.assertNotNull("No client context found " + ejbClientContext);
+        Assert.assertNotNull("No client context found", ejbClientContext);
         final Collection<EJBReceiver> ejbReceivers = ejbClientContext.getEJBReceivers("dummy-app", "dummy-module", "");
         Assert.assertNotNull("No EJB receivers found ", ejbReceivers);
         Assert.assertEquals("Unexpected number of EJB receivers", 1, ejbReceivers.size());

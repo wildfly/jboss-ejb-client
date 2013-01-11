@@ -20,24 +20,26 @@
  * 02110-1301 USA, or see the FSF site: http://www.fsf.org.
  */
 
-package org.jboss.ejb.client;
+package org.jboss.ejb.client.test.common;
 
+import java.io.IOException;
 import java.io.InputStream;
 import java.net.URL;
+import java.util.Enumeration;
 
 import org.jboss.logging.Logger;
 
 /**
  * @author Jaikiran Pai
  */
-class ResourceSwitchingClassLoader extends ClassLoader {
+public class ResourceSwitchingClassLoader extends ClassLoader {
 
     private static final Logger logger = Logger.getLogger(ResourceSwitchingClassLoader.class);
 
     private final String resourceName;
     private final String altResourceName;
 
-    ResourceSwitchingClassLoader(final String resourceName, final String altResourceName) {
+    public ResourceSwitchingClassLoader(final String resourceName, final String altResourceName) {
         if (resourceName == null || resourceName.trim().isEmpty()) {
             throw new IllegalArgumentException("Resource name cannot be null or empty");
         }
@@ -66,5 +68,15 @@ class ResourceSwitchingClassLoader extends ClassLoader {
             return is;
         }
         return super.getResourceAsStream(name);
+    }
+
+    @Override
+    public Enumeration<URL> getResources(String name) throws IOException {
+        if (this.resourceName.equals(name)) {
+            final Enumeration<URL> resources = super.getResources(this.altResourceName);
+            logger.info("getResources was called for " + name + " ,returning " + resources + " for " + this.altResourceName + " resource instead");
+            return resources;
+        }
+        return super.getResources(name);
     }
 }
