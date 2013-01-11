@@ -38,9 +38,11 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.IdentityHashMap;
 import java.util.Iterator;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
+import java.util.ServiceLoader;
 import java.util.Set;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
@@ -85,6 +87,7 @@ public final class EJBClientContext extends Attachable implements Closeable {
     private final Map<EJBReceiver, ReceiverAssociation> ejbReceiverAssociations = new IdentityHashMap<EJBReceiver, ReceiverAssociation>();
     private final Map<EJBReceiverContext, EJBReceiverContextCloseHandler> receiverContextCloseHandlers = Collections.synchronizedMap(new IdentityHashMap<EJBReceiverContext, EJBReceiverContextCloseHandler>());
     private volatile EJBClientInterceptor.Registration[] registrations = NO_INTERCEPTORS;
+    private Set<EJBClientInterceptor> clientInterceptorsInClasspath;
 
     /**
      * Cluster contexts mapped against their cluster name
@@ -122,6 +125,21 @@ public final class EJBClientContext extends Attachable implements Closeable {
                 logger.debug("EJB client context initializer " + contextInitializer + " failed to initialize context " + this, ignored);
             }
         }
+        // TODO: Perhaps have system property which disables scanning the classpath for client interceptors?
+        // load any EJBClientInterceptor(s) from classpath using the ServiceLoader. These interceptors will be added to the end of the chain
+        try {
+            for (final EJBClientInterceptor interceptor : SecurityActions.loadService(EJBClientInterceptor.class, classLoader)) {
+                if (this.clientInterceptorsInClasspath == null) {
+                    // we need to maintain order, so the LinkedHashSet
+                    this.clientInterceptorsInClasspath = new LinkedHashSet<EJBClientInterceptor>();
+                }
+                this.clientInterceptorsInClasspath.add(interceptor);
+            }
+        } catch (Throwable t) {
+            // just log a message and don't cause the application to fail, perhaps due to a rogue library in the classpath
+            logger.debug("Failed to load EJB client interceptor(s) from the classpath via classloader " + classLoader + " for EJB client context " + this, t);
+        }
+
     }
 
     /**
@@ -869,12 +887,28 @@ public final class EJBClientContext extends Attachable implements Closeable {
         return ejbReceiverContext;
     }
 
+    /**
+     * Returns the interceptor chain consisting of {@link EJBClientInterceptor}s which have been either explicitly {@link #registerInterceptor(int, EJBClientInterceptor) registered}
+     * or have been found in the classpath of the application via the {@link ServiceLoader} for {@link EJBClientInterceptor}s. The {@ink EJBClientInterceptor}s
+     * found in the classpath will be added to the end of the chain, in the order they were retrieved by the {@link ServiceLoader}
+     *
+     * @return
+     */
     EJBClientInterceptor[] getInterceptorChain() {
         // todo optimize to eliminate copy
-        final EJBClientInterceptor.Registration[] registrations = this.registrations;
-        final EJBClientInterceptor[] interceptors = new EJBClientInterceptor[registrations.length];
-        for (int i = 0; i < registrations.length; i++) {
-            interceptors[i] = registrations[i].getInterceptor();
+        final EJBClientInterceptor.Registration[] registeredInterceptors = this.registrations;
+        final int totalInterceptorLength = this.clientInterceptorsInClasspath != null ? registeredInterceptors.length + this.clientInterceptorsInClasspath.size() : registeredInterceptors.length;
+        final EJBClientInterceptor[] interceptors = new EJBClientInterceptor[totalInterceptorLength];
+        // The interceptors which have been added in a specific priority/order go first.
+        for (int i = 0; i < registeredInterceptors.length; i++) {
+            interceptors[i] = registeredInterceptors[i].getInterceptor();
+        }
+        // lastly all the interceptors (if any) which were on the classpath and loaded via the ServiceLoader are added to the end of the chain.
+        if (this.clientInterceptorsInClasspath != null && !this.clientInterceptorsInClasspath.isEmpty()) {
+            int i = registeredInterceptors.length;
+            for (final EJBClientInterceptor interceptor : this.clientInterceptorsInClasspath) {
+                interceptors[i++] = interceptor;
+            }
         }
         return interceptors;
     }

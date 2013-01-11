@@ -70,9 +70,27 @@ public class ConfigBasedEJBClientContextSelector implements IdentityEJBClientCon
      * @param ejbClientConfiguration The EJB client configuration to use
      */
     public ConfigBasedEJBClientContextSelector(final EJBClientConfiguration ejbClientConfiguration) {
+        this(ejbClientConfiguration, null);
+    }
+
+    /**
+     * Creates a {@link ConfigBasedEJBClientContextSelector} using the passed <code>ejbClientConfiguration</code>.
+     * <p/>
+     * This constructor creates a {@link EJBClientContext} and uses the passed <code>ejbClientConfiguration</code> to create and
+     * associated EJB receivers to that context. If the passed <code>ejbClientConfiguration</code> is null, then this selector will create a {@link EJBClientContext}
+     * without any associated EJB receivers.
+     *
+     * @param ejbClientConfiguration The EJB client configuration to use
+     * @param classLoader The classloader that will be used to {@link EJBClientContext#create(org.jboss.ejb.client.EJBClientConfiguration, ClassLoader) create the EJBClientContext}
+     */
+    public ConfigBasedEJBClientContextSelector(final EJBClientConfiguration ejbClientConfiguration, final ClassLoader classLoader) {
         this.ejbClientConfiguration = ejbClientConfiguration;
         // create a empty context
-        this.ejbClientContext = EJBClientContext.create(this.ejbClientConfiguration);
+        if (classLoader == null) {
+            this.ejbClientContext = EJBClientContext.create(this.ejbClientConfiguration);
+        } else {
+            this.ejbClientContext = EJBClientContext.create(this.ejbClientConfiguration, classLoader);
+        }
         // register a EJB client context listener which we will use to close endpoints/connections that we created,
         // when the EJB client context closes
         this.ejbClientContext.registerEJBClientContextListener(this.remotingCleanupHandler);
