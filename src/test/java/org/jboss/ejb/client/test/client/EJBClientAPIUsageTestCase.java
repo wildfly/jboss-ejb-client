@@ -25,6 +25,8 @@ package org.jboss.ejb.client.test.client;
 import org.jboss.ejb.client.ContextSelector;
 import org.jboss.ejb.client.EJBClient;
 import org.jboss.ejb.client.EJBClientContext;
+import org.jboss.ejb.client.EJBClientInterceptor;
+import org.jboss.ejb.client.EJBClientInvocationContext;
 import org.jboss.ejb.client.StatelessEJBLocator;
 import org.jboss.ejb.client.test.common.AnonymousCallbackHandler;
 import org.jboss.ejb.client.test.common.DummyServer;
@@ -137,6 +139,55 @@ public class EJBClientAPIUsageTestCase {
             }
         } finally {
             EJBClientContext.setSelector(oldClientContextSelector);
+        }
+    }
+
+    /**
+     * Test that registering and removing the EJB client interceptor(s) to a EJB client context works as expected
+     *
+     * @throws Exception
+     */
+    @Test
+    public void testClientInterceptor() throws Exception {
+        final StatelessEJBLocator<EchoRemote> statelessEJBLocator = new StatelessEJBLocator<EchoRemote>(EchoRemote.class, "my-app", "my-module", EchoBean.class.getSimpleName(), "");
+        final EchoRemote proxy = EJBClient.createProxy(statelessEJBLocator);
+        Assert.assertNotNull("Received a null proxy", proxy);
+        final String message = "foo-bar";
+        final EJBClientContext ejbClientContext = EJBClientContext.create();
+        final EJBClientInterceptor.Registration interceptorRegistration = ejbClientContext.registerInterceptor(99999, new SimpleInterceptor());
+        final ContextSelector<EJBClientContext> oldClientContextSelector = EJBClientContext.setConstantContext(ejbClientContext);
+        try {
+            ejbClientContext.registerConnection(connection);
+            // we expect the interceptor to be invoked
+            final String expectedEcho = SimpleInterceptor.class.getName() + " " + message;
+            final String echo = proxy.echo(message);
+            Assert.assertEquals("Unexpected echo message", expectedEcho, echo);
+
+            // now unregister the interceptor and invoke again
+            interceptorRegistration.remove();
+            final String echoAfterRemovingInterceptor = proxy.echo(message);
+            // this time the interceptor shouldn't have been invoked
+            Assert.assertEquals("Unexpected echo message after removing EJB client intercpetor", message, echoAfterRemovingInterceptor);
+        } finally {
+            EJBClientContext.setSelector(oldClientContextSelector);
+        }
+
+    }
+
+    private static final class SimpleInterceptor implements EJBClientInterceptor {
+
+        @Override
+        public void handleInvocation(EJBClientInvocationContext context) throws Exception {
+            context.sendRequest();
+        }
+
+        @Override
+        public Object handleInvocationResult(EJBClientInvocationContext context) throws Exception {
+            final Object originalResult = context.getResult();
+            if (originalResult instanceof String) {
+                return this.getClass().getName() + " " + originalResult;
+            }
+            return originalResult;
         }
     }
 }

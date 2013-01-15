@@ -535,12 +535,12 @@ public final class EJBClientContext extends Attachable implements Closeable {
             final int length = oldRegistrations.length;
             final int newLength = length - 1;
             if (length == 1) {
-                if (oldRegistrations[0].getInterceptor() == registration) {
+                if (oldRegistrations[0] == registration) {
                     newRegistrations = NO_INTERCEPTORS;
                 }
             } else {
                 for (int i = 0; i < length; i++) {
-                    if (oldRegistrations[i].getInterceptor() == registration) {
+                    if (oldRegistrations[i] == registration) {
                         if (i == newLength) {
                             newRegistrations = Arrays.copyOf(oldRegistrations, newLength);
                             break;
