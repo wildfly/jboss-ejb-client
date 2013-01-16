@@ -26,8 +26,6 @@ package org.jboss.ejb.client;
  * An EJB client interceptor, possibly protocol-specific.  Client interceptors should not store any state locally since
  * they are shared between all threads.
  *
- * @param <A> the receiver attachment type to which this interceptor applies; use {@link Object} for protocol-independent
- *            interceptors
  * @author <a href="mailto:david.lloyd@redhat.com">David M. Lloyd</a>
  */
 public interface EJBClientInterceptor {
