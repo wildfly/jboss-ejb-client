@@ -32,6 +32,10 @@ import java.util.Collections;
 import java.util.List;
 
 /**
+ * A {@link RemotingEndpointManager} can be used to obtain remoting {@link Endpoint} by passing it the endpoint creation configurations.
+ * A {@link RemotingConnectionManager} will act as a central entity for creating the endpoints and internally will interact with pooled
+ * endpoints.
+ *
  * @author Jaikiran Pai
  */
 public class RemotingEndpointManager {
@@ -48,6 +52,10 @@ public class RemotingEndpointManager {
         return endpoint;
     }
 
+    /**
+     * Closes all the "managed" endpoints that were handed out by this {@link RemotingEndpointManager}. A "close"
+     * doesn't necessarily translate to a real close of the {@link Endpoint} since these "managed" endpoints are pooled endpoints.
+     */
     public void safeClose() {
         synchronized (managedEndpoints) {
             for (final Endpoint endpoint : this.managedEndpoints) {
@@ -60,6 +68,10 @@ public class RemotingEndpointManager {
         }
     }
 
+    /**
+     * Closes all the "managed" endpoints that were handed out by this {@link RemotingEndpointManager}. A "close"
+     * doesn't necessarily translate to a real close of the {@link Endpoint} since these "managed" endpoints are pooled endpoints.
+     */
     public void closeAsync() {
         synchronized (managedEndpoints) {
             for (final Endpoint endpoint : this.managedEndpoints) {
@@ -68,6 +80,10 @@ public class RemotingEndpointManager {
         }
     }
 
+    /**
+     * Closes all the "managed" endpoints that were handed out by this {@link RemotingEndpointManager}. A "close"
+     * doesn't necessarily translate to a real close of the {@link Endpoint} since these "managed" endpoints are pooled endpoints.
+     */
     public void close() throws IOException {
         synchronized (managedEndpoints) {
             for (final Endpoint endpoint : this.managedEndpoints) {

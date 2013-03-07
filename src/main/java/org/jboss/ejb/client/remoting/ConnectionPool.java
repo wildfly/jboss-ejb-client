@@ -45,8 +45,11 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
+ * A pool which creates and hands out remoting {@link Connection}s and maintains a reference count to close the connections handed
+ * out, when the count reaches zero.
+ *
  * @author Jaikiran Pai
- *         Courtesy: Remote naming project
+ * Courtesy: Remote naming project
  */
 class ConnectionPool {
     private static final Logger logger = Logger.getLogger(ConnectionPool.class);
@@ -56,6 +59,7 @@ class ConnectionPool {
     static {
         SecurityActions.addShutdownHook(new Thread(new ShutdownTask(INSTANCE)));
     }
+
     private final ConcurrentMap<CacheKey, PooledConnection> cache = new ConcurrentHashMap<CacheKey, PooledConnection>();
 
     private ConnectionPool() {
@@ -108,6 +112,9 @@ class ConnectionPool {
         cache.clear();
     }
 
+    /**
+     * The key to the pooled connection
+     */
     private static final class CacheKey {
         final Endpoint endpoint;
         final String host;
@@ -161,6 +168,9 @@ class ConnectionPool {
         }
     }
 
+    /**
+     * The pooled connection
+     */
     private final class PooledConnection implements Connection {
         private final AtomicInteger referenceCount = new AtomicInteger(0);
         private final CacheKey cacheKey;
@@ -227,6 +237,10 @@ class ConnectionPool {
         }
     }
 
+    /**
+     * A {@link Runtime#addShutdownHook(Thread) shutdown task} which {@link org.jboss.ejb.client.remoting.ConnectionPool#shutdown() shuts down}
+     * the connection pool
+     */
     private static final class ShutdownTask implements Runnable {
 
         private final ConnectionPool pool;
