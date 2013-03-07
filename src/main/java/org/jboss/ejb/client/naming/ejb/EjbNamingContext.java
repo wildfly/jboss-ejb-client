@@ -57,10 +57,12 @@ import java.util.concurrent.atomic.AtomicLong;
 class EjbNamingContext implements Context {
 
     private static final Logger log = Logger.getLogger("org.jboss.ejb.client.naming");
+
     private static final String SCOPED_EJB_CLIENT_CONTEXT_NAME_PREFIX = "EJBClientContext$";
     private static final AtomicLong nextEJBClientContextNumber = new AtomicLong();
 
     private static final String JNDI_PROPERTY_CREATE_SCOPED_EJB_CLIENT_CONTEXT = "org.jboss.ejb.client.scoped.context";
+    private static final String ENV_PROPERTY_SCOPED_EJB_CLIENT_CONTEXT_IDENTIFIER = "org.jboss.ejb.client.scoped.context.identifier";
 
     /* The environment configuration */
     private final Hashtable environment;
@@ -93,22 +95,49 @@ class EjbNamingContext implements Context {
         root = true;
 
         // setup a "identifiable" (a.k.a named) EJB client context if applicable
+        this.ejbClientContextIdentifier = setupScopedEjbClientContextIfNeeded();
+    }
+
+    private synchronized EJBClientContextIdentifier setupScopedEjbClientContextIfNeeded() {
+        // A scoped EJB client context has already been created for this context. No need to create one more
+        final EJBClientContextIdentifier alreadyCreatedContextIdentifier = (EJBClientContextIdentifier) this.environment.get(ENV_PROPERTY_SCOPED_EJB_CLIENT_CONTEXT_IDENTIFIER);
+        if (alreadyCreatedContextIdentifier != null) {
+            if (log.isTraceEnabled()) {
+                log.trace("Skipping creation of scoped EJB client context for EJB naming context " + this + " with environment " + this.environment
+                        + " since one has already been created with identifier: " + alreadyCreatedContextIdentifier);
+            }
+            return alreadyCreatedContextIdentifier;
+        }
+        // setup a "identifiable" (a.k.a named) EJB client context if applicable
         if (!this.requiresScopedEJBClientContext(this.environment)) {
-            this.ejbClientContextIdentifier = null;
+            return null;
         } else {
             final ContextSelector<EJBClientContext> currentSelector = EJBClientContext.getSelector();
             // if the selector isn't able to handle identity based EJB client contexts, then we don't create one.
             if (!(currentSelector instanceof IdentityEJBClientContextSelector)) {
-                this.ejbClientContextIdentifier = null;
                 log.info("Cannot create a scoped EJB client context for JNDI naming context " + this + " since the current " +
                         "EJB client context selector can't handle scoped contexts");
+                return null;
             } else {
                 // create the EJB client context based on the JNDI environment properties
                 final EJBClientContext ejbClientContext = this.createIdentifiableEjbClientContext(this.environment);
                 final String ejbClientContextName = SCOPED_EJB_CLIENT_CONTEXT_NAME_PREFIX + nextEJBClientContextNumber.addAndGet(1);
-                this.ejbClientContextIdentifier = new NamedEJBClientContextIdentifier(ejbClientContextName);
+                final EJBClientContextIdentifier contextIdentifier = new NamedEJBClientContextIdentifier(ejbClientContextName);
                 // register it with the identity based EJB client context selector
-                ((IdentityEJBClientContextSelector) currentSelector).registerContext(this.ejbClientContextIdentifier, ejbClientContext);
+                ((IdentityEJBClientContextSelector) currentSelector).registerContext(contextIdentifier, ejbClientContext);
+                // add the identifier to our environment of this context, so that subsequent look ups using this naming context
+                // doesn't end up creating more unnecessary EJB client contexts. Adding this to our environment does *not*
+                // pollute the user application's properties/hashtable since the environment that's passed to us by the naming
+                // implementation is a cloned copy. So it is safe to add this property to our environment
+                try {
+                    addToEnvironment(ENV_PROPERTY_SCOPED_EJB_CLIENT_CONTEXT_IDENTIFIER, contextIdentifier);
+                } catch (NamingException ne) {
+                    throw Logs.MAIN.failedToCreateScopedEjbClientContext(ne);
+                }
+                if (log.isTraceEnabled()) {
+                    log.trace("Created scoped EJB client context with identifier: " + contextIdentifier + " for EJB naming context " + this + " with environment " + this.environment);
+                }
+                return contextIdentifier;
             }
         }
     }

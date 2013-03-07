@@ -22,6 +22,7 @@
 
 package org.jboss.ejb.client.remoting;
 
+import org.jboss.ejb.client.EJBClientConfiguration;
 import org.jboss.ejb.client.EJBClientContext;
 import org.jboss.ejb.client.EJBReceiver;
 import org.jboss.remoting3.Connection;
@@ -41,33 +42,27 @@ import java.util.concurrent.TimeUnit;
 class EJBClientContextConnectionReconnectHandler extends MaxAttemptsReconnectHandler {
 
     private final EJBClientContext ejbClientContext;
-    private final long reconnectTimeout;
-    private final TimeUnit reconnectTimeUnit;
     private final RemotingCleanupHandler remotingCleanupHandler = new RemotingCleanupHandler();
 
-    EJBClientContextConnectionReconnectHandler(final EJBClientContext clientContext, final Endpoint endpoint, final String destinationHost, final int destinationPort,
-                                               final OptionMap connectionCreationOptions, final CallbackHandler callbackHandler, final OptionMap channelCreationOptions,
-                                               final int maxReconnectAttempts, final long reconnectTimeout, final TimeUnit timeoutTimeUnit) {
-        super(endpoint, destinationHost, destinationPort, connectionCreationOptions, callbackHandler, channelCreationOptions, maxReconnectAttempts);
+    EJBClientContextConnectionReconnectHandler(final EJBClientContext clientContext, final Endpoint endpoint, final String host, final int port, final EJBClientConfiguration.CommonConnectionCreationConfiguration connectionConfiguration, final int maxReconnectAttempts) {
+        super(endpoint, host, port, connectionConfiguration, maxReconnectAttempts);
         this.ejbClientContext = clientContext;
         // register a EJB client context listener so that we can close the connections we create, when the
         // EJB client context is closed
         this.ejbClientContext.registerEJBClientContextListener(this.remotingCleanupHandler);
-        this.reconnectTimeout = reconnectTimeout;
-        this.reconnectTimeUnit = timeoutTimeUnit;
     }
 
     @Override
     public void reconnect() throws IOException {
         Connection connection = null;
         try {
-            connection = this.tryConnect(this.reconnectTimeout, this.reconnectTimeUnit);
+            connection = this.tryConnect();
             if (connection == null) {
                 return;
             }
             // keep track of this connection so that we can close it when the EJB client context is closed
             this.remotingCleanupHandler.addConnection(connection);
-            final EJBReceiver ejbReceiver = new RemotingConnectionEJBReceiver(connection, this, channelCreationOptions);
+            final EJBReceiver ejbReceiver = new RemotingConnectionEJBReceiver(connection, this, connectionConfiguration.getChannelCreationOptions());
             this.ejbClientContext.registerEJBReceiver(ejbReceiver);
         } finally {
             // if we successfully re-connected or if no more attempts are allowed for re-connecting
