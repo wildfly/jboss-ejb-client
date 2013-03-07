@@ -33,6 +33,10 @@ import java.util.Collections;
 import java.util.List;
 
 /**
+ * A {@link RemotingConnectionManager} can be used to obtain remoting {@link Connection} by passing it the connection configurations.
+ * A {@link RemotingConnectionManager} will act as a central entity for creating the connections and internally will interact with pooled
+ * connections.
+ *
  * @author: Jaikiran Pai
  */
 public class RemotingConnectionManager {
@@ -50,6 +54,10 @@ public class RemotingConnectionManager {
         return connection;
     }
 
+    /**
+     * Closes all the "managed" connections that were handed out by this {@link RemotingConnectionManager}. A "close"
+     * doesn't necessarily translate to a real close of the {@link Connection} since these "managed" connections are pooled connections
+     */
     public void safeClose() {
         synchronized (managedConnections) {
             for (final Connection connection : this.managedConnections) {
@@ -62,6 +70,10 @@ public class RemotingConnectionManager {
         }
     }
 
+    /**
+     * Closes all the "managed" connections that were handed out by this {@link RemotingConnectionManager}. A "close"
+     * doesn't necessarily translate to a real close of the {@link Connection} since these "managed" connections are pooled connections
+     */
     public void closeAsync() {
         synchronized (managedConnections) {
             for (final Connection connection : this.managedConnections) {
@@ -70,6 +82,10 @@ public class RemotingConnectionManager {
         }
     }
 
+    /**
+     * Closes all the "managed" connections that were handed out by this {@link RemotingConnectionManager}. A "close"
+     * doesn't necessarily translate to a real close of the {@link Connection} since these "managed" connections are pooled connections
+     */
     public void close() throws IOException {
         synchronized (managedConnections) {
             for (final Connection connection : this.managedConnections) {

@@ -107,7 +107,7 @@ public class ConfigBasedEJBClientContextSelector implements IdentityEJBClientCon
         return this.ejbClientContext;
     }
 
-    protected void setupEJBReceivers() throws IOException {
+    private void setupEJBReceivers() throws IOException {
         if (!this.ejbClientConfiguration.getConnectionConfigurations().hasNext()) {
             // no connections configured so no EJB receivers to create
             return;
@@ -139,7 +139,7 @@ public class ConfigBasedEJBClientContextSelector implements IdentityEJBClientCon
                 // add a reconnect handler for this connection
                 if (reconnectHandler != null) {
                     this.ejbClientContext.registerReconnectHandler(reconnectHandler);
-                    logger.info("Registered a reconnect handler in EJB client context " + this.ejbClientContext + " for remote://" + host + ":" + port);
+                    logger.debug("Registered a reconnect handler in EJB client context " + this.ejbClientContext + " for remote://" + host + ":" + port);
                 }
 
             }

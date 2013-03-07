@@ -53,10 +53,10 @@ import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
- * A cache which creates and hands out a {@link Endpoint} based on the endpoint creation attributes
+ * A pool which creates and hands out a {@link Endpoint} based on the endpoint creation attributes
  *
  * @author Jaikiran Pai
- * Courtesy: Remote naming project
+ *         Courtesy: Remote naming project
  */
 class EndpointPool {
 
@@ -68,7 +68,7 @@ class EndpointPool {
         SecurityActions.addShutdownHook(new Thread(new ShutdownTask(INSTANCE)));
     }
 
-    private final ConcurrentMap<CacheKey, CacheEntry> cache = new ConcurrentHashMap<CacheKey, CacheEntry>();
+    private final ConcurrentMap<CacheKey, PooledEndpoint> cache = new ConcurrentHashMap<CacheKey, PooledEndpoint>();
 
     private EndpointPool() {
 
@@ -76,35 +76,30 @@ class EndpointPool {
 
     synchronized Endpoint getEndpoint(final String endpointName, final OptionMap endPointCreationOptions, final OptionMap remoteConnectionProviderOptions) throws IOException {
         final CacheKey key = new CacheKey(remoteConnectionProviderOptions, endPointCreationOptions, endpointName);
-        CacheEntry cacheEntry = cache.get(key);
-        if (cacheEntry == null) {
+        PooledEndpoint pooledEndpoint = cache.get(key);
+        if (pooledEndpoint == null) {
             final Endpoint endpoint = Remoting.createEndpoint(endpointName, endPointCreationOptions);
             endpoint.addConnectionProvider("remote", new RemoteConnectionProviderFactory(), remoteConnectionProviderOptions);
             // We don't want to hold stale endpoint(s), so add a close handler which removes the entry
             // from the cache when the endpoint is closed
             endpoint.addCloseHandler(new CacheEntryRemovalHandler(key));
 
-            cacheEntry = new CacheEntry(endpoint, new PooledEndpoint(key, endpoint));
-            cache.putIfAbsent(key, cacheEntry);
+            pooledEndpoint = new PooledEndpoint(key, endpoint);
+            cache.putIfAbsent(key, pooledEndpoint);
         }
-        cacheEntry.referenceCount.incrementAndGet();
-        return cacheEntry.pooledEndpoint;
+        pooledEndpoint.referenceCount.incrementAndGet();
+        return pooledEndpoint;
     }
 
     private synchronized void release(final CacheKey endpointHash, final boolean async) {
-        final CacheEntry cacheEntry = cache.get(endpointHash);
-        if (cacheEntry.referenceCount.decrementAndGet() == 0) {
+        final PooledEndpoint pooledEndpoint = cache.get(endpointHash);
+        if (pooledEndpoint.referenceCount.decrementAndGet() == 0) {
             try {
                 if (async) {
-                    cacheEntry.endpoint.closeAsync();
+                    pooledEndpoint.underlyingEndpoint.closeAsync();
                 } else {
-                    try {
-                        cacheEntry.endpoint.close();
-                    } catch (IOException e) {
-                        throw new RuntimeException("Failed to close endpoint", e);
-                    }
+                    safeClose(pooledEndpoint.underlyingEndpoint);
                 }
-
             } finally {
                 cache.remove(endpointHash);
             }
@@ -112,107 +107,111 @@ class EndpointPool {
     }
 
     private synchronized void shutdown() {
-        for (Map.Entry<CacheKey, CacheEntry> entry : cache.entrySet()) {
-            safeClose(entry.getValue().endpoint);
+        for (Map.Entry<CacheKey, PooledEndpoint> entry : cache.entrySet()) {
+            safeClose(entry.getValue().underlyingEndpoint);
         }
         cache.clear();
     }
 
+    /**
+     * The pooled endpoint
+     */
     private class PooledEndpoint implements Endpoint {
+        private final AtomicInteger referenceCount = new AtomicInteger(0);
         private final CacheKey endpointHash;
-        private final Endpoint endpoint;
+        private final Endpoint underlyingEndpoint;
 
         private PooledEndpoint(final CacheKey endpointHash, final Endpoint endpoint) {
             this.endpointHash = endpointHash;
-            this.endpoint = endpoint;
+            this.underlyingEndpoint = endpoint;
         }
 
         public String getName() {
-            return endpoint.getName();
+            return underlyingEndpoint.getName();
         }
 
         public Registration registerService(String s, OpenListener openListener, OptionMap optionMap) throws ServiceRegistrationException {
-            return endpoint.registerService(s, openListener, optionMap);
+            return underlyingEndpoint.registerService(s, openListener, optionMap);
         }
 
         public IoFuture<Connection> connect(URI uri) throws IOException {
-            return endpoint.connect(uri);
+            return underlyingEndpoint.connect(uri);
         }
 
         public IoFuture<Connection> connect(URI uri, OptionMap optionMap) throws IOException {
-            return endpoint.connect(uri, optionMap);
+            return underlyingEndpoint.connect(uri, optionMap);
         }
 
         public IoFuture<Connection> connect(URI uri, OptionMap optionMap, CallbackHandler callbackHandler) throws IOException {
-            return endpoint.connect(uri, optionMap, callbackHandler);
+            return underlyingEndpoint.connect(uri, optionMap, callbackHandler);
         }
 
         public IoFuture<Connection> connect(URI uri, OptionMap optionMap, CallbackHandler callbackHandler, SSLContext sslContext) throws IOException {
-            return endpoint.connect(uri, optionMap, callbackHandler, sslContext);
+            return underlyingEndpoint.connect(uri, optionMap, callbackHandler, sslContext);
         }
 
         public IoFuture<Connection> connect(URI uri, OptionMap optionMap, CallbackHandler callbackHandler, XnioSsl xnioSsl) throws IOException {
-            return endpoint.connect(uri, optionMap, callbackHandler, xnioSsl);
+            return underlyingEndpoint.connect(uri, optionMap, callbackHandler, xnioSsl);
         }
 
         public IoFuture<Connection> connect(URI uri, OptionMap optionMap, String s, String s1, char[] chars) throws IOException {
-            return endpoint.connect(uri, optionMap, s, s1, chars);
+            return underlyingEndpoint.connect(uri, optionMap, s, s1, chars);
         }
 
         public IoFuture<Connection> connect(URI uri, OptionMap optionMap, String s, String s1, char[] chars, SSLContext sslContext) throws IOException {
-            return endpoint.connect(uri, optionMap, s, s1, chars, sslContext);
+            return underlyingEndpoint.connect(uri, optionMap, s, s1, chars, sslContext);
         }
 
         public IoFuture<Connection> connect(URI uri, OptionMap optionMap, String s, String s1, char[] chars, XnioSsl xnioSsl) throws IOException {
-            return endpoint.connect(uri, optionMap, s, s1, chars, xnioSsl);
+            return underlyingEndpoint.connect(uri, optionMap, s, s1, chars, xnioSsl);
         }
 
         public IoFuture<Connection> connect(String s, SocketAddress socketAddress, SocketAddress socketAddress1) throws IOException {
-            return endpoint.connect(s, socketAddress, socketAddress1);
+            return underlyingEndpoint.connect(s, socketAddress, socketAddress1);
         }
 
         public IoFuture<Connection> connect(String s, SocketAddress socketAddress, SocketAddress socketAddress1, OptionMap optionMap) throws IOException {
-            return endpoint.connect(s, socketAddress, socketAddress1, optionMap);
+            return underlyingEndpoint.connect(s, socketAddress, socketAddress1, optionMap);
         }
 
         public IoFuture<Connection> connect(String s, SocketAddress socketAddress, SocketAddress socketAddress1, OptionMap optionMap, CallbackHandler callbackHandler) throws IOException {
-            return endpoint.connect(s, socketAddress, socketAddress1, optionMap, callbackHandler);
+            return underlyingEndpoint.connect(s, socketAddress, socketAddress1, optionMap, callbackHandler);
         }
 
         public IoFuture<Connection> connect(String s, SocketAddress socketAddress, SocketAddress socketAddress1, OptionMap optionMap, CallbackHandler callbackHandler, SSLContext sslContext) throws IOException {
-            return endpoint.connect(s, socketAddress, socketAddress1, optionMap, callbackHandler, sslContext);
+            return underlyingEndpoint.connect(s, socketAddress, socketAddress1, optionMap, callbackHandler, sslContext);
         }
 
         public IoFuture<Connection> connect(String s, SocketAddress socketAddress, SocketAddress socketAddress1, OptionMap optionMap, CallbackHandler callbackHandler, XnioSsl xnioSsl) throws IOException {
-            return endpoint.connect(s, socketAddress, socketAddress1, optionMap, callbackHandler, xnioSsl);
+            return underlyingEndpoint.connect(s, socketAddress, socketAddress1, optionMap, callbackHandler, xnioSsl);
         }
 
         public IoFuture<Connection> connect(String s, SocketAddress socketAddress, SocketAddress socketAddress1, OptionMap optionMap, String s1, String s2, char[] chars) throws IOException {
-            return endpoint.connect(s, socketAddress, socketAddress1, optionMap, s1, s2, chars);
+            return underlyingEndpoint.connect(s, socketAddress, socketAddress1, optionMap, s1, s2, chars);
         }
 
         public IoFuture<Connection> connect(String s, SocketAddress socketAddress, SocketAddress socketAddress1, OptionMap optionMap, String s1, String s2, char[] chars, SSLContext sslContext) throws IOException {
-            return endpoint.connect(s, socketAddress, socketAddress1, optionMap, s1, s2, chars, sslContext);
+            return underlyingEndpoint.connect(s, socketAddress, socketAddress1, optionMap, s1, s2, chars, sslContext);
         }
 
         public IoFuture<Connection> connect(String s, SocketAddress socketAddress, SocketAddress socketAddress1, OptionMap optionMap, String s1, String s2, char[] chars, XnioSsl xnioSsl) throws IOException {
-            return endpoint.connect(s, socketAddress, socketAddress1, optionMap, s1, s2, chars, xnioSsl);
+            return underlyingEndpoint.connect(s, socketAddress, socketAddress1, optionMap, s1, s2, chars, xnioSsl);
         }
 
         public Registration addConnectionProvider(String s, ConnectionProviderFactory connectionProviderFactory, OptionMap optionMap) throws DuplicateRegistrationException, IOException {
-            return endpoint.addConnectionProvider(s, connectionProviderFactory, optionMap);
+            return underlyingEndpoint.addConnectionProvider(s, connectionProviderFactory, optionMap);
         }
 
         public <T> T getConnectionProviderInterface(String s, Class<T> tClass) throws UnknownURISchemeException, ClassCastException {
-            return endpoint.getConnectionProviderInterface(s, tClass);
+            return underlyingEndpoint.getConnectionProviderInterface(s, tClass);
         }
 
         public boolean isValidUriScheme(String s) {
-            return endpoint.isValidUriScheme(s);
+            return underlyingEndpoint.isValidUriScheme(s);
         }
 
         public XnioWorker getXnioWorker() {
-            return endpoint.getXnioWorker();
+            return underlyingEndpoint.getXnioWorker();
         }
 
         public void close() throws IOException {
@@ -220,11 +219,11 @@ class EndpointPool {
         }
 
         public void awaitClosed() throws InterruptedException {
-            endpoint.awaitClosed();
+            underlyingEndpoint.awaitClosed();
         }
 
         public void awaitClosedUninterruptibly() {
-            endpoint.awaitClosedUninterruptibly();
+            underlyingEndpoint.awaitClosedUninterruptibly();
         }
 
         public void closeAsync() {
@@ -232,22 +231,11 @@ class EndpointPool {
         }
 
         public Key addCloseHandler(CloseHandler<? super Endpoint> closeHandler) {
-            return endpoint.addCloseHandler(closeHandler);
+            return underlyingEndpoint.addCloseHandler(closeHandler);
         }
 
         public Attachments getAttachments() {
-            return endpoint.getAttachments();
-        }
-    }
-
-    private static class CacheEntry {
-        private final AtomicInteger referenceCount = new AtomicInteger(0);
-        private final Endpoint endpoint;
-        private final PooledEndpoint pooledEndpoint;
-
-        private CacheEntry(final Endpoint endpoint, final PooledEndpoint pooledEndpoint) {
-            this.endpoint = endpoint;
-            this.pooledEndpoint = pooledEndpoint;
+            return underlyingEndpoint.getAttachments();
         }
     }
 
@@ -296,6 +284,10 @@ class EndpointPool {
         }
     }
 
+    /**
+     * A {@link Runtime#addShutdownHook(Thread) shutdown task} which {@link org.jboss.ejb.client.remoting.EndpointPool#shutdown() shuts down}
+     * the endpoint pool
+     */
     private static final class ShutdownTask implements Runnable {
         private final EndpointPool pool;
 
