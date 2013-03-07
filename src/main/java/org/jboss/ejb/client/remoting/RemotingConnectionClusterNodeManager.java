@@ -84,11 +84,9 @@ class RemotingConnectionClusterNodeManager implements ClusterNodeManager {
                     // use default configurations
                     final CallbackHandler callbackHandler = ejbClientConfiguration.getCallbackHandler();
                     final OptionMap connectionCreationOpts = RemotingConnectionUtil.addSilentLocalAuthOptionsIfApplicable(callbackHandler, DEFAULT_CONNECTION_CREATION_OPTIONS);
-                    final IoFuture<Connection> futureConnection = NetworkUtil.connect(endpoint, clusterNode.getDestinationAddress(), clusterNode.getDestinationPort(), null, connectionCreationOpts, callbackHandler, null);
-                    // wait for the connection to be established
-                    connection = IoFutureHelper.get(futureConnection, 5000, TimeUnit.MILLISECONDS);
+                    final EJBClientConfiguration.CommonConnectionCreationConfiguration connectionConfig = new ConnectionConfig(connectionCreationOpts, callbackHandler, 5000, channelCreationOptions);
                     // create a re-connect handler (which will be used on connection breaking down)
-                    reconnectHandler = new ClusterContextConnectionReconnectHandler(clusterContext, endpoint, clusterNode.getDestinationAddress(), clusterNode.getDestinationPort(), connectionCreationOpts, callbackHandler, channelCreationOptions, MAX_RECONNECT_ATTEMPTS, 5000, TimeUnit.MILLISECONDS);
+                    reconnectHandler = new ClusterContextConnectionReconnectHandler(clusterContext, endpoint, clusterNode.getDestinationAddress(), clusterNode.getDestinationPort(), connectionConfig, MAX_RECONNECT_ATTEMPTS);
 
                 } else {
                     final EJBClientConfiguration.ClusterNodeConfiguration clusterNodeConfiguration = clusterConfiguration.getNodeConfiguration(this.getNodeName());
@@ -97,36 +95,63 @@ class RemotingConnectionClusterNodeManager implements ClusterNodeManager {
                     final CallbackHandler callbackHandler = clusterNodeConfiguration == null ? clusterConfiguration.getCallbackHandler() : clusterNodeConfiguration.getCallbackHandler();
                     OptionMap connectionCreationOptions = clusterNodeConfiguration == null ? clusterConfiguration.getConnectionCreationOptions() : clusterNodeConfiguration.getConnectionCreationOptions();
                     connectionCreationOptions = RemotingConnectionUtil.addSilentLocalAuthOptionsIfApplicable(callbackHandler, connectionCreationOptions);
-
-                    final IoFuture<Connection> futureConnection = NetworkUtil.connect(endpoint, clusterNode.getDestinationAddress(), clusterNode.getDestinationPort(), null, connectionCreationOptions, callbackHandler, null);
                     final long timeout = clusterNodeConfiguration == null ? clusterConfiguration.getConnectionTimeout() : clusterNodeConfiguration.getConnectionTimeout();
-                    // wait for the connection to be established
-                    connection = IoFutureHelper.get(futureConnection, timeout, TimeUnit.MILLISECONDS);
+
+                    final EJBClientConfiguration.CommonConnectionCreationConfiguration connectionConfiguration = new ConnectionConfig(connectionCreationOptions, callbackHandler, timeout, channelCreationOptions);
                     // create a re-connect handler (which will be used on connection breaking down)
-                    reconnectHandler = new ClusterContextConnectionReconnectHandler(clusterContext, endpoint, clusterNode.getDestinationAddress(), clusterNode.getDestinationPort(), connectionCreationOptions, callbackHandler, channelCreationOptions, MAX_RECONNECT_ATTEMPTS, timeout, TimeUnit.MILLISECONDS);
+                    reconnectHandler = new ClusterContextConnectionReconnectHandler(clusterContext, endpoint, clusterNode.getDestinationAddress(), clusterNode.getDestinationPort(), connectionConfiguration, MAX_RECONNECT_ATTEMPTS);
                 }
 
             } else {
                 // create the connection using defaults
                 final CallbackHandler callbackHandler = new DefaultCallbackHandler();
                 final OptionMap connectionCreationOpts = RemotingConnectionUtil.addSilentLocalAuthOptionsIfApplicable(callbackHandler, DEFAULT_CONNECTION_CREATION_OPTIONS);
-                final IoFuture<Connection> futureConnection = NetworkUtil.connect(endpoint, clusterNode.getDestinationAddress(), clusterNode.getDestinationPort(), null, connectionCreationOpts, callbackHandler, null);
-                // wait for the connection to be established
-                connection = IoFutureHelper.get(futureConnection, 5000, TimeUnit.MILLISECONDS);
+                final EJBClientConfiguration.CommonConnectionCreationConfiguration connectionConfig = new ConnectionConfig(connectionCreationOpts, callbackHandler, 5000, channelCreationOptions);
                 // create a re-connect handler (which will be used on connection breaking down)
-                reconnectHandler = new ClusterContextConnectionReconnectHandler(clusterContext, endpoint, clusterNode.getDestinationAddress(), clusterNode.getDestinationPort(), connectionCreationOpts, callbackHandler, channelCreationOptions, MAX_RECONNECT_ATTEMPTS, 5000, TimeUnit.MILLISECONDS);
+                reconnectHandler = new ClusterContextConnectionReconnectHandler(clusterContext, endpoint, clusterNode.getDestinationAddress(), clusterNode.getDestinationPort(), connectionConfig, MAX_RECONNECT_ATTEMPTS);
 
             }
         } catch (Exception e) {
             logger.info("Could not create a connection for cluster node " + this.clusterNode + " in cluster " + clusterContext.getClusterName(), e);
             return null;
-        } finally {
-            if (connection != null) {
-                // keep track of the created connection to auto close on JVM shutdown
-                AutoConnectionCloser.INSTANCE.addConnection(connection);
-            }
         }
         return new RemotingConnectionEJBReceiver(connection, reconnectHandler, channelCreationOptions);
     }
 
+    private class ConnectionConfig implements EJBClientConfiguration.CommonConnectionCreationConfiguration {
+
+        private final long connectionTimeout;
+        private final OptionMap connectionCreationOptions;
+        private final OptionMap channelCreationOptions;
+        private final CallbackHandler callbackHandler;
+
+        ConnectionConfig(final OptionMap connectionCreationOptions, final CallbackHandler callbackHandler, final long connectionTimeout,
+                         final OptionMap channelCreationOptions) {
+
+            this.callbackHandler = callbackHandler;
+            this.connectionCreationOptions = connectionCreationOptions;
+            this.channelCreationOptions = channelCreationOptions;
+            this.connectionTimeout = connectionTimeout;
+        }
+
+        @Override
+        public OptionMap getConnectionCreationOptions() {
+            return this.connectionCreationOptions;
+        }
+
+        @Override
+        public CallbackHandler getCallbackHandler() {
+            return this.callbackHandler;
+        }
+
+        @Override
+        public long getConnectionTimeout() {
+            return this.connectionTimeout;
+        }
+
+        @Override
+        public OptionMap getChannelCreationOptions() {
+            return this.channelCreationOptions;
+        }
+    }
 }

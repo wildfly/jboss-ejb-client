@@ -22,14 +22,10 @@
 
 package org.jboss.ejb.client.remoting;
 
+import org.jboss.ejb.client.EJBClientConfiguration;
 import org.jboss.logging.Logger;
 import org.jboss.remoting3.Connection;
 import org.jboss.remoting3.Endpoint;
-import org.xnio.IoFuture;
-import org.xnio.OptionMap;
-
-import javax.security.auth.callback.CallbackHandler;
-import java.util.concurrent.TimeUnit;
 
 /**
  * A {@link ReconnectHandler} which has a upper bound on the reconnect attempt
@@ -41,43 +37,35 @@ abstract class MaxAttemptsReconnectHandler implements ReconnectHandler {
     private static final Logger logger = Logger.getLogger(MaxAttemptsReconnectHandler.class);
 
     protected final Endpoint endpoint;
-    protected final String destinationHost;
-    protected final int destinationPort;
-    protected final OptionMap connectionCreationOptions;
-    protected final CallbackHandler callbackHandler;
-    protected final OptionMap channelCreationOptions;
+    protected final String host;
+    protected final int port;
+    protected final EJBClientConfiguration.CommonConnectionCreationConfiguration connectionConfiguration;
     protected final int maxReconnectAttempts;
+    private final RemotingConnectionManager remotingConnectionManager = new RemotingConnectionManager();
 
     protected volatile int reconnectAttempts;
 
 
-    MaxAttemptsReconnectHandler(final Endpoint endpoint, final String destinationHost, final int destinationPort,
-                                final OptionMap connectionCreationOptions, final CallbackHandler callbackHandler,
-                                final OptionMap channelCreationOptions, final int maxReconnectAttempts) {
+    MaxAttemptsReconnectHandler(final Endpoint endpoint, final String host, final int port, final EJBClientConfiguration.CommonConnectionCreationConfiguration connectionConfiguration, final int maxReconnectAttempts) {
         this.endpoint = endpoint;
-        this.destinationHost = destinationHost;
-        this.destinationPort = destinationPort;
-        this.connectionCreationOptions = connectionCreationOptions;
-        this.callbackHandler = callbackHandler;
-        this.channelCreationOptions = channelCreationOptions == null ? OptionMap.EMPTY : channelCreationOptions;
+        this.connectionConfiguration = connectionConfiguration;
         this.maxReconnectAttempts = maxReconnectAttempts;
+        this.host = host;
+        this.port = port;
     }
 
-    protected Connection tryConnect(final long connectionTimeout, final TimeUnit unit) {
+    protected Connection tryConnect() {
         if (reconnectAttempts >= maxReconnectAttempts) {
             return null;
         }
         reconnectAttempts++;
         try {
-            final IoFuture<Connection> futureConnection = NetworkUtil.connect(endpoint, destinationHost, destinationPort, null, connectionCreationOptions, callbackHandler, null);
-            final Connection connection = IoFutureHelper.get(futureConnection, connectionTimeout, unit);
-            // keep track of the created connection to auto-close on JVM shutdown
-            AutoConnectionCloser.INSTANCE.addConnection(connection);
+            final Connection connection = remotingConnectionManager.getConnection(endpoint, host, port, connectionConfiguration);
             logger.debug("Successfully reconnected on attempt#" + reconnectAttempts + " to connection " + connection);
             return connection;
 
         } catch (Exception e) {
-            logger.debug("Re-connect attempt# " + reconnectAttempts + " failed for " + destinationHost + ":" + destinationPort, e);
+            logger.debug("Re-connect attempt# " + reconnectAttempts + " failed for " + host + ":" + port, e);
             return null;
         }
 
