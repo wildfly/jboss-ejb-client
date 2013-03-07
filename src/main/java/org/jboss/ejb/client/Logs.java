@@ -254,6 +254,9 @@ public interface Logs extends BasicLogger {
     @Message(id = 59, value = "Could not send a message over remoting channel, to cancel invocation for invocation id %s")
     void failedToSendInvocationCancellationMessage(short invocationId, @Cause Exception e);
 
+    @Message(id = 60, value = "Failed to create scoped EJB client context")
+    RuntimeException failedToCreateScopedEjbClientContext(@Cause Exception e);
+
     // Proxy API errors
 
     @Message(id = 100, value = "Object '%s' is not a valid proxy object")
