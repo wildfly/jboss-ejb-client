@@ -31,11 +31,9 @@ import org.jboss.ejb.client.Logs;
 import org.jboss.logging.Logger;
 import org.jboss.remoting3.Connection;
 import org.jboss.remoting3.Endpoint;
-import org.xnio.IoFuture;
 import org.xnio.OptionMap;
 
 import javax.security.auth.callback.CallbackHandler;
-import java.util.concurrent.TimeUnit;
 
 /**
  * A {@link RemotingConnectionClusterNodeManager} uses JBoss Remoting to create a {@link EJBReceiver}
@@ -53,12 +51,15 @@ class RemotingConnectionClusterNodeManager implements ClusterNodeManager {
     private final ClusterNode clusterNode;
     private final Endpoint endpoint;
     private final EJBClientConfiguration ejbClientConfiguration;
+    private final RemotingConnectionManager remotingConnectionManager = new RemotingConnectionManager();
+    private final EJBClientConfiguration.CommonConnectionCreationConfiguration connectionConfiguration;
 
     RemotingConnectionClusterNodeManager(final ClusterContext clusterContext, final ClusterNode clusterNode, final Endpoint endpoint, final EJBClientConfiguration ejbClientConfiguration) {
         this.clusterContext = clusterContext;
         this.clusterNode = clusterNode;
         this.endpoint = endpoint;
         this.ejbClientConfiguration = ejbClientConfiguration;
+        this.connectionConfiguration = createConnectionConfiguration();
     }
 
     @Override
@@ -72,50 +73,45 @@ class RemotingConnectionClusterNodeManager implements ClusterNodeManager {
             Logs.REMOTING.cannotCreateEJBReceiverDueToUnknownTarget(this.clusterNode.toString());
             return null;
         }
-        Connection connection = null;
-        final ReconnectHandler reconnectHandler;
-        OptionMap channelCreationOptions = OptionMap.EMPTY;
-        final int MAX_RECONNECT_ATTEMPTS = 65535; // TODO: Let's keep this high for now and later allow configuration and a smaller default value
         try {
-            // if the client configuration is available create the connection using those configs
-            if (this.ejbClientConfiguration != null) {
-                final EJBClientConfiguration.ClusterConfiguration clusterConfiguration = this.ejbClientConfiguration.getClusterConfiguration(clusterContext.getClusterName());
-                if (clusterConfiguration == null) {
-                    // use default configurations
-                    final CallbackHandler callbackHandler = ejbClientConfiguration.getCallbackHandler();
-                    final OptionMap connectionCreationOpts = RemotingConnectionUtil.addSilentLocalAuthOptionsIfApplicable(callbackHandler, DEFAULT_CONNECTION_CREATION_OPTIONS);
-                    final EJBClientConfiguration.CommonConnectionCreationConfiguration connectionConfig = new ConnectionConfig(connectionCreationOpts, callbackHandler, 5000, channelCreationOptions);
-                    // create a re-connect handler (which will be used on connection breaking down)
-                    reconnectHandler = new ClusterContextConnectionReconnectHandler(clusterContext, endpoint, clusterNode.getDestinationAddress(), clusterNode.getDestinationPort(), connectionConfig, MAX_RECONNECT_ATTEMPTS);
-
-                } else {
-                    final EJBClientConfiguration.ClusterNodeConfiguration clusterNodeConfiguration = clusterConfiguration.getNodeConfiguration(this.getNodeName());
-                    // use the specified configurations
-                    channelCreationOptions = clusterNodeConfiguration == null ? clusterConfiguration.getChannelCreationOptions() : clusterNodeConfiguration.getChannelCreationOptions();
-                    final CallbackHandler callbackHandler = clusterNodeConfiguration == null ? clusterConfiguration.getCallbackHandler() : clusterNodeConfiguration.getCallbackHandler();
-                    OptionMap connectionCreationOptions = clusterNodeConfiguration == null ? clusterConfiguration.getConnectionCreationOptions() : clusterNodeConfiguration.getConnectionCreationOptions();
-                    connectionCreationOptions = RemotingConnectionUtil.addSilentLocalAuthOptionsIfApplicable(callbackHandler, connectionCreationOptions);
-                    final long timeout = clusterNodeConfiguration == null ? clusterConfiguration.getConnectionTimeout() : clusterNodeConfiguration.getConnectionTimeout();
-
-                    final EJBClientConfiguration.CommonConnectionCreationConfiguration connectionConfiguration = new ConnectionConfig(connectionCreationOptions, callbackHandler, timeout, channelCreationOptions);
-                    // create a re-connect handler (which will be used on connection breaking down)
-                    reconnectHandler = new ClusterContextConnectionReconnectHandler(clusterContext, endpoint, clusterNode.getDestinationAddress(), clusterNode.getDestinationPort(), connectionConfiguration, MAX_RECONNECT_ATTEMPTS);
-                }
-
-            } else {
-                // create the connection using defaults
-                final CallbackHandler callbackHandler = new DefaultCallbackHandler();
-                final OptionMap connectionCreationOpts = RemotingConnectionUtil.addSilentLocalAuthOptionsIfApplicable(callbackHandler, DEFAULT_CONNECTION_CREATION_OPTIONS);
-                final EJBClientConfiguration.CommonConnectionCreationConfiguration connectionConfig = new ConnectionConfig(connectionCreationOpts, callbackHandler, 5000, channelCreationOptions);
-                // create a re-connect handler (which will be used on connection breaking down)
-                reconnectHandler = new ClusterContextConnectionReconnectHandler(clusterContext, endpoint, clusterNode.getDestinationAddress(), clusterNode.getDestinationPort(), connectionConfig, MAX_RECONNECT_ATTEMPTS);
-
-            }
+            final Connection connection = remotingConnectionManager.getConnection(endpoint, clusterNode.getDestinationAddress(), clusterNode.getDestinationPort(), connectionConfiguration);
+            // create a re-connect handler (which will be used on connection breaking down)
+            final int MAX_RECONNECT_ATTEMPTS = 65535; // TODO: Let's keep this high for now and later allow configuration and a smaller default value
+            final ReconnectHandler reconnectHandler = new ClusterContextConnectionReconnectHandler(clusterContext, endpoint, clusterNode.getDestinationAddress(), clusterNode.getDestinationPort(), connectionConfiguration, MAX_RECONNECT_ATTEMPTS);
+            return new RemotingConnectionEJBReceiver(connection, reconnectHandler, connectionConfiguration.getChannelCreationOptions());
         } catch (Exception e) {
             logger.info("Could not create a connection for cluster node " + this.clusterNode + " in cluster " + clusterContext.getClusterName(), e);
             return null;
         }
-        return new RemotingConnectionEJBReceiver(connection, reconnectHandler, channelCreationOptions);
+    }
+
+    private EJBClientConfiguration.CommonConnectionCreationConfiguration createConnectionConfiguration() {
+        final EJBClientConfiguration.CommonConnectionCreationConfiguration connectionConfiguration;
+        // if the client configuration is available create the connection using those configs
+        if (this.ejbClientConfiguration != null) {
+            final EJBClientConfiguration.ClusterConfiguration clusterConfiguration = this.ejbClientConfiguration.getClusterConfiguration(clusterContext.getClusterName());
+            if (clusterConfiguration == null) {
+                // use default configurations
+                final CallbackHandler callbackHandler = ejbClientConfiguration.getCallbackHandler();
+                final OptionMap connectionCreationOpts = RemotingConnectionUtil.addSilentLocalAuthOptionsIfApplicable(callbackHandler, DEFAULT_CONNECTION_CREATION_OPTIONS);
+                connectionConfiguration = new ConnectionConfig(connectionCreationOpts, callbackHandler, 5000, OptionMap.EMPTY);
+            } else {
+                final EJBClientConfiguration.ClusterNodeConfiguration clusterNodeConfiguration = clusterConfiguration.getNodeConfiguration(this.getNodeName());
+                // use the specified configurations
+                final OptionMap channelCreationOptions = clusterNodeConfiguration == null ? clusterConfiguration.getChannelCreationOptions() : clusterNodeConfiguration.getChannelCreationOptions();
+                final CallbackHandler callbackHandler = clusterNodeConfiguration == null ? clusterConfiguration.getCallbackHandler() : clusterNodeConfiguration.getCallbackHandler();
+                OptionMap connectionCreationOptions = clusterNodeConfiguration == null ? clusterConfiguration.getConnectionCreationOptions() : clusterNodeConfiguration.getConnectionCreationOptions();
+                connectionCreationOptions = RemotingConnectionUtil.addSilentLocalAuthOptionsIfApplicable(callbackHandler, connectionCreationOptions);
+                final long timeout = clusterNodeConfiguration == null ? clusterConfiguration.getConnectionTimeout() : clusterNodeConfiguration.getConnectionTimeout();
+                connectionConfiguration = new ConnectionConfig(connectionCreationOptions, callbackHandler, timeout, channelCreationOptions);
+            }
+        } else {
+            // create the connection using defaults
+            final CallbackHandler callbackHandler = new DefaultCallbackHandler();
+            final OptionMap connectionCreationOpts = RemotingConnectionUtil.addSilentLocalAuthOptionsIfApplicable(callbackHandler, DEFAULT_CONNECTION_CREATION_OPTIONS);
+            connectionConfiguration = new ConnectionConfig(connectionCreationOpts, callbackHandler, 5000, OptionMap.EMPTY);
+        }
+        return connectionConfiguration;
     }
 
     private class ConnectionConfig implements EJBClientConfiguration.CommonConnectionCreationConfiguration {
