@@ -39,7 +39,7 @@ import java.util.List;
  *
  * @author: Jaikiran Pai
  */
-public class RemotingConnectionManager {
+class RemotingConnectionManager {
 
     private static final Logger logger = Logger.getLogger(RemotingConnectionManager.class);
 
@@ -47,7 +47,7 @@ public class RemotingConnectionManager {
 
     private final List<Connection> managedConnections = Collections.synchronizedList(new ArrayList<Connection>());
 
-    public Connection getConnection(final Endpoint endpoint, final String host, final int port, final EJBClientConfiguration.CommonConnectionCreationConfiguration connectionConfiguration) throws IOException {
+    Connection getConnection(final Endpoint endpoint, final String host, final int port, final EJBClientConfiguration.CommonConnectionCreationConfiguration connectionConfiguration) throws IOException {
         final Connection connection = this.connectionPool.getConnection(endpoint, host, port, connectionConfiguration);
         // track this connection so that we can release it back to the pool when appropriate
         trackConnection(connection);
@@ -58,7 +58,7 @@ public class RemotingConnectionManager {
      * Closes all the "managed" connections that were handed out by this {@link RemotingConnectionManager}. A "close"
      * doesn't necessarily translate to a real close of the {@link Connection} since these "managed" connections are pooled connections
      */
-    public void safeClose() {
+    void safeClose() {
         synchronized (managedConnections) {
             for (final Connection connection : this.managedConnections) {
                 try {
@@ -74,7 +74,7 @@ public class RemotingConnectionManager {
      * Closes all the "managed" connections that were handed out by this {@link RemotingConnectionManager}. A "close"
      * doesn't necessarily translate to a real close of the {@link Connection} since these "managed" connections are pooled connections
      */
-    public void closeAsync() {
+    void closeAsync() {
         synchronized (managedConnections) {
             for (final Connection connection : this.managedConnections) {
                 connection.closeAsync();
@@ -86,7 +86,7 @@ public class RemotingConnectionManager {
      * Closes all the "managed" connections that were handed out by this {@link RemotingConnectionManager}. A "close"
      * doesn't necessarily translate to a real close of the {@link Connection} since these "managed" connections are pooled connections
      */
-    public void close() throws IOException {
+    void close() throws IOException {
         synchronized (managedConnections) {
             for (final Connection connection : this.managedConnections) {
                 connection.close();
