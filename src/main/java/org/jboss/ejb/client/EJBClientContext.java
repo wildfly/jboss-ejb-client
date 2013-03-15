@@ -1005,13 +1005,14 @@ public final class EJBClientContext extends Attachable implements Closeable {
         }
 
         final CountDownLatch reconnectTasksCompletionNotifierLatch;
-        if (this.reconnectHandlers.isEmpty()) {
-            // no reconnections to attempt just return
+        final List<ReconnectHandler> reconnectHandlersToAttempt = new ArrayList<ReconnectHandler>(this.reconnectHandlers);
+        if (reconnectHandlersToAttempt.isEmpty()) {
+            // no re-connections to attempt, just return
             return;
         }
-        reconnectTasksCompletionNotifierLatch = new CountDownLatch(this.reconnectHandlers.size());
-        for (final ReconnectHandler reconnectHandler : this.reconnectHandlers) {
-            // submit each of the reconnection tasks
+        reconnectTasksCompletionNotifierLatch = new CountDownLatch(reconnectHandlersToAttempt.size());
+        for (final ReconnectHandler reconnectHandler : reconnectHandlersToAttempt) {
+            // submit each of the re-connection tasks
             this.reconnectionExecutorService.submit(new ReconnectAttempt(reconnectHandler, reconnectTasksCompletionNotifierLatch));
         }
         // wait for all tasks to complete (with a upper bound on time limit)
