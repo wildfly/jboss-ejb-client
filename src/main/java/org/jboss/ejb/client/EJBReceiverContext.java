@@ -48,7 +48,7 @@ public final class EJBReceiverContext extends Attachable implements Closeable {
         return clientContext;
     }
 
-    EJBReceiver getReceiver() {
+    public EJBReceiver getReceiver() {
         return receiver;
     }
 

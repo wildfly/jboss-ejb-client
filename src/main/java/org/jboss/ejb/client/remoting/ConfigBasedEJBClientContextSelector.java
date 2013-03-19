@@ -27,6 +27,7 @@ import org.jboss.ejb.client.EJBClientContext;
 import org.jboss.ejb.client.EJBClientContextIdentifier;
 import org.jboss.ejb.client.EJBClientContextListener;
 import org.jboss.ejb.client.EJBReceiver;
+import org.jboss.ejb.client.EJBReceiverContext;
 import org.jboss.ejb.client.IdentityEJBClientContextSelector;
 import org.jboss.ejb.client.Logs;
 import org.jboss.logging.Logger;
@@ -123,7 +124,7 @@ public class ConfigBasedEJBClientContextSelector implements IdentityEJBClientCon
             final int port = connectionConfiguration.getPort();
             final int MAX_RECONNECT_ATTEMPTS = 65535; // TODO: Let's keep this high for now and later allow configuration and a smaller default value
             // create a re-connect handler (which will be used on connection breaking down)
-            final ReconnectHandler reconnectHandler =  new EJBClientContextConnectionReconnectHandler(ejbClientContext, endpoint, host, port, connectionConfiguration, MAX_RECONNECT_ATTEMPTS);
+            final ReconnectHandler reconnectHandler = new EJBClientContextConnectionReconnectHandler(ejbClientContext, endpoint, host, port, connectionConfiguration, MAX_RECONNECT_ATTEMPTS);
             try {
                 // wait for the connection to be established
                 final Connection connection = this.remotingConnectionManager.getConnection(endpoint, host, port, connectionConfiguration);
@@ -173,6 +174,14 @@ public class ConfigBasedEJBClientContextSelector implements IdentityEJBClientCon
             // for the EJB client context that just closed
             remotingConnectionManager.safeClose();
             remotingEndpointManager.safeClose();
+        }
+
+        @Override
+        public void receiverRegistered(EJBReceiverContext receiverContext) {
+        }
+
+        @Override
+        public void receiverUnRegistered(EJBReceiverContext receiverContext) {
         }
     }
 }

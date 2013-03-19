@@ -23,6 +23,7 @@
 package org.jboss.ejb.client;
 
 import javax.transaction.xa.XAException;
+import javax.transaction.xa.Xid;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.Set;
@@ -185,6 +186,20 @@ public abstract class EJBReceiver extends Attachable {
     @SuppressWarnings("unused")
     protected void sendForget(final EJBReceiverContext context, final TransactionID transactionID) throws XAException {
         throw new XAException(XAException.XA_RBOTHER);
+    }
+
+    /**
+     * Send a transaction recover message with the <code>recoveryFlags</code>. The {@link EJBReceiver receiver} is expected to
+     * returns zero or more {@link Xid}s of the transaction branches that are currently in a prepared or heuristically completed state.
+     * See {@link javax.transaction.xa.XAResource#recover(int)} for more details.
+     *
+     * @param receiverContext The EJB receiver context
+     * @param recoveryFlags @see {@link javax.transaction.xa.XAResource#recover(int)}
+     * @return Returns zero or more {@link Xid}s of the transaction branches that are currently in a prepared or heuristically completed state.
+     * @throws XAException If an error occurs during the operation
+     */
+    protected Xid[] sendRecover(final EJBReceiverContext receiverContext, final String txParentNodeName, final int recoveryFlags) throws XAException {
+        return new Xid[0];
     }
 
     /**

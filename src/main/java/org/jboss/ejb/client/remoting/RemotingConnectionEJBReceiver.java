@@ -41,6 +41,7 @@ import org.xnio.IoFuture;
 import org.xnio.OptionMap;
 
 import javax.transaction.xa.XAException;
+import javax.transaction.xa.Xid;
 import java.io.DataOutputStream;
 import java.io.IOException;
 import java.util.IdentityHashMap;
@@ -410,6 +411,43 @@ public final class RemotingConnectionEJBReceiver extends EJBReceiver {
             // wait for result
             final EJBReceiverInvocationContext.ResultProducer resultProducer = futureResultProducer.get();
             resultProducer.getResult();
+        } catch (XAException xae) {
+            throw xae;
+        } catch (RuntimeException re) {
+            throw re;
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    @Override
+    protected Xid[] sendRecover(final EJBReceiverContext receiverContext, final String txParentNodeName, final int recoveryFlags) throws XAException {
+        final ChannelAssociation channelAssociation = this.requireChannelAssociation(receiverContext);
+        final short invocationId = channelAssociation.getNextInvocationId();
+        final Future<EJBReceiverInvocationContext.ResultProducer> futureResultProducer = channelAssociation.enrollForResult(invocationId);
+        final MessageOutputStream messageOutputStream;
+        try {
+            messageOutputStream = channelAssociation.acquireChannelMessageOutputStream();
+            final DataOutputStream dataOutputStream = new DataOutputStream(messageOutputStream);
+            final TransactionMessageWriter transactionMessageWriter = new TransactionMessageWriter();
+            try {
+                // write the tx recover message
+                transactionMessageWriter.writeTxRecover(dataOutputStream, invocationId, txParentNodeName, recoveryFlags);
+            } finally {
+                channelAssociation.releaseChannelMessageOutputStream(messageOutputStream);
+                dataOutputStream.close();
+            }
+        } catch (Exception e) {
+            throw new RuntimeException("Error sending transaction recover message", e);
+        }
+        try {
+            // wait for result
+            final EJBReceiverInvocationContext.ResultProducer resultProducer = futureResultProducer.get();
+            final Object result = resultProducer.getResult();
+            if (result instanceof Xid[]) {
+                return (Xid[]) result;
+            }
+            throw new RuntimeException("Unexpected result for transaction recover: " + result);
         } catch (XAException xae) {
             throw xae;
         } catch (RuntimeException re) {
