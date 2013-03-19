@@ -38,6 +38,7 @@ class TransactionMessageWriter extends AbstractMessageWriter {
     private static final byte HEADER_TX_PREPARE_MESSAGE = 0x11;
     private static final byte HEADER_TX_FORGET_MESSAGE = 0x12;
     private static final byte HEADER_TX_BEFORE_COMPLETION_MESSAGE = 0x13;
+    private static final byte HEADER_TX_RECOVER_MESSAGE = 0x19;
 
 
     void writeTxCommit(final DataOutput output, final short invocationId, final TransactionID transactionID, final boolean onePhaseCommit) throws IOException {
@@ -101,4 +102,16 @@ class TransactionMessageWriter extends AbstractMessageWriter {
         // write the transaction id bytes
         output.write(transactionIDBytes);
     }
+
+    void writeTxRecover(final DataOutput output, final short invocationId, final String txParentNodeName, final int flags) throws IOException {
+        // write the header
+        output.writeByte(HEADER_TX_RECOVER_MESSAGE);
+        // write the invocation id
+        output.writeShort(invocationId);
+        // write the node name of the transaction parent
+        output.writeUTF(txParentNodeName);
+        // the recovery flags
+        output.writeInt(flags);
+    }
+
 }

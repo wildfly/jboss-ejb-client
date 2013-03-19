@@ -53,7 +53,7 @@ public final class XidTransactionID extends TransactionID {
         }
     }
 
-    XidTransactionID(final Xid original) {
+    public XidTransactionID(final Xid original) {
         this(encode(original));
     }
 

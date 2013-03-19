@@ -24,6 +24,8 @@ package org.jboss.ejb.client.remoting;
 
 import org.jboss.ejb.client.EJBClientContext;
 import org.jboss.ejb.client.EJBClientContextListener;
+import org.jboss.ejb.client.EJBReceiver;
+import org.jboss.ejb.client.EJBReceiverContext;
 import org.jboss.logging.Logger;
 import org.jboss.remoting3.Connection;
 import org.jboss.remoting3.Endpoint;
@@ -49,6 +51,16 @@ class RemotingCleanupHandler implements EJBClientContextListener {
     @Override
     public void contextClosed(EJBClientContext ejbClientContext) {
         this.closeAll();
+    }
+
+    @Override
+    public void receiverRegistered(final EJBReceiverContext receiverContext) {
+        // we don't have to do anything
+    }
+
+    @Override
+    public void receiverUnRegistered(final EJBReceiverContext receiverContext) {
+        // we don't have to do anything
     }
 
     void addEndpoint(final Endpoint endpoint) {
