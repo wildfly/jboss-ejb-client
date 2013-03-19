@@ -37,4 +37,20 @@ public interface EJBClientContextListener {
      * @param ejbClientContext The EJB client context which was closed
      */
     void contextClosed(EJBClientContext ejbClientContext);
+
+    /**
+     * This method will be invoked when a {@link EJBReceiver} is registered to a {@link EJBClientContext}
+     *
+     * @param receiverContext The {@link EJBReceiverContext} which was associated to the {@link EJBClientContext} when the {@link EJBReceiver}
+     *                        was registered with the context
+     */
+    void receiverRegistered(final EJBReceiverContext receiverContext);
+
+    /**
+     * This method will be invoked when a {@link EJBReceiver} is unregistered from a {@link EJBClientContext}
+     *
+     * @param receiverContext The {@link EJBReceiverContext} which was disassociated from the {@link EJBClientContext}
+     *                        when the {@link EJBReceiver} was unregistered from the context
+     */
+    void receiverUnRegistered(final EJBReceiverContext receiverContext);
 }

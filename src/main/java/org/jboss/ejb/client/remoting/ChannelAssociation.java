@@ -324,6 +324,9 @@ class ChannelAssociation {
             case 0x18:
                 // node removal message handler
                 return new ClusterNodeRemovalHandler(this);
+            case 0x1A:
+                // transaction recovery response
+                return new TransactionRecoveryResponseHandler(this, this.marshallerFactory);
             default:
                 return null;
         }

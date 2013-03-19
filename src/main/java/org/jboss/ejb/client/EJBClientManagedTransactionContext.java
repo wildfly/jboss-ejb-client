@@ -30,6 +30,8 @@ import javax.transaction.TransactionSynchronizationRegistry;
 import javax.transaction.xa.XAException;
 import javax.transaction.xa.XAResource;
 import javax.transaction.xa.Xid;
+import java.io.ObjectStreamException;
+import java.io.Serializable;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 
@@ -149,9 +151,20 @@ public final class EJBClientManagedTransactionContext extends EJBClientTransacti
             participantCnt = old.participantCnt;
             this.suspended = suspended;
         }
+
+        @Override
+        public String toString() {
+            final StringBuilder sb = new StringBuilder();
+            sb.append("State");
+            sb.append("{transactionID=").append(transactionID);
+            sb.append(", suspended=").append(suspended);
+            sb.append(", participantCnt=").append(participantCnt);
+            sb.append('}');
+            return sb.toString();
+        }
     }
 
-    final class ResourceImpl implements XAResource {
+    final class ResourceImpl implements XAResource, Serializable {
         private final Object transactionKey;
         private final EJBClientContext ejbClientContext;
         private final String nodeName;
@@ -259,5 +272,49 @@ public final class EJBClientManagedTransactionContext extends EJBClientTransacti
         public Xid[] recover(final int flags) throws XAException {
             return new Xid[0];
         }
+
+        @Override
+        public String toString() {
+            final StringBuilder sb = new StringBuilder();
+            sb.append("ResourceImpl");
+            sb.append("{transactionKey=").append(transactionKey);
+            sb.append(", ejbClientContext=").append(ejbClientContext);
+            sb.append(", nodeName='").append(nodeName).append('\'');
+            sb.append(", state=").append(state);
+            sb.append('}');
+            return sb.toString();
+        }
+
+        // serializes to RecoveryOnlySerializedEJBXAResource
+        private Object writeReplace() throws ObjectStreamException {
+            return new RecoveryOnlySerializedEJBXAResource(this.nodeName);
+        }
     }
+
+    /**
+     * Returns a EJB {@link XAResource} which can be used *only* during transaction recovery process
+     *
+     * @param transactionOriginNodeIdentifier
+     *                        The node identifier of the node from which the transaction originated
+     * @param receiverContext The EJB receiver context of the target EJB receiver/server which will be used to fetch the Xid(s)
+     *                        which need to be recovered
+     * @return
+     */
+    public static XAResource getEJBXAResourceForRecovery(final EJBReceiverContext receiverContext, final String transactionOriginNodeIdentifier) {
+        return new RecoveryOnlyEJBXAResource(transactionOriginNodeIdentifier, receiverContext);
+    }
+
+    /**
+     * Returns true if the passed <code>className</code> corresponds to the fully qualified classname of any of the known EJB XAResource(s).
+     * Else returns false.
+     *
+     * @param className The fully qualified name of the class which is being checked for being a EJB XAResource
+     * @return
+     */
+    public static boolean isEJBXAResourceClass(final String className) {
+        return RecoveryOnlySerializedEJBXAResource.class.getName().equals(className)
+                || ResourceImpl.class.getName().equals(className)
+                || RecoveryOnlyEJBXAResource.class.getName().equals(className);
+    }
+
 }
