@@ -99,7 +99,7 @@ public final class EJBClientContext extends Attachable implements Closeable {
     private final ClusterFormationNotifier clusterFormationNotifier = new ClusterFormationNotifier();
     private final DeploymentNodeSelector deploymentNodeSelector;
 
-    private final ExecutorService reconnectionExecutorService = Executors.newCachedThreadPool(new DaemonThreadFactory("ejb-client-remote-connection-reconnect"));
+    private final ExecutorService ejbClientContextTasksExecutorService = Executors.newCachedThreadPool(new DaemonThreadFactory("ejb-client-context-tasks"));
     private final List<ReconnectHandler> reconnectHandlers = new ArrayList<ReconnectHandler>();
 
     private final Collection<EJBClientContextListener> ejbClientContextListeners = Collections.synchronizedSet(new HashSet<EJBClientContextListener>());
@@ -382,7 +382,26 @@ public final class EJBClientContext extends Attachable implements Closeable {
             // will be closed and ultimately the association removed from this client context.
             // So registration is successful only if the association is still in the associations map of this
             // client context
-            return this.ejbReceiverAssociations.get(receiver) != null;
+            final boolean registered = this.ejbReceiverAssociations.get(receiver) != null;
+            // let the EJBClientContextListener(s) know that a receiver was registered
+            if (registered) {
+                // we *don't* want to send these notification to listeners synchronously since the listeners can be any arbitrary
+                // application code and can potential block for a long time. So invoke the listeners asynchronously via our ExecutorService
+                for (final EJBClientContextListener listener : this.ejbClientContextListeners) {
+                    this.ejbClientContextTasksExecutorService.submit(new Runnable() {
+                        @Override
+                        public void run() {
+                            try {
+                                listener.receiverRegistered(ejbReceiverContext);
+                            } catch (Throwable t) {
+                                // log and ignore
+                                logger.debug("Exception trying to invoke EJBClientContextListener " + listener + " for EJB client context " + EJBClientContext.this + " on registertation of EJBReceiver " + receiver, t);
+                            }
+                        }
+                    });
+                }
+            }
+            return registered;
         }
     }
 
@@ -406,6 +425,21 @@ public final class EJBClientContext extends Attachable implements Closeable {
                 final EJBReceiverContextCloseHandler receiverContextCloseHandler = this.receiverContextCloseHandlers.remove(receiverContext);
                 if (receiverContextCloseHandler != null) {
                     receiverContextCloseHandler.receiverContextClosed(receiverContext);
+                }
+                // we *don't* want to send these notification to listeners synchronously since the listeners can be any arbitrary
+                // application code and can potential block for a long time. So invoke the listeners asynchronously via our ExecutorService
+                for (final EJBClientContextListener listener : this.ejbClientContextListeners) {
+                    this.ejbClientContextTasksExecutorService.submit(new Runnable() {
+                        @Override
+                        public void run() {
+                            try {
+                                listener.receiverUnRegistered(receiverContext);
+                            } catch (Throwable t) {
+                                // log and ignore
+                                logger.debug("Exception trying to invoke EJBClientContextListener " + listener + " for EJB client context " + EJBClientContext.this + " on un-registertation of EJBReceiver " + receiver, t);
+                            }
+                        }
+                    });
                 }
             }
         }
@@ -1013,7 +1047,7 @@ public final class EJBClientContext extends Attachable implements Closeable {
         reconnectTasksCompletionNotifierLatch = new CountDownLatch(reconnectHandlersToAttempt.size());
         for (final ReconnectHandler reconnectHandler : reconnectHandlersToAttempt) {
             // submit each of the re-connection tasks
-            this.reconnectionExecutorService.submit(new ReconnectAttempt(reconnectHandler, reconnectTasksCompletionNotifierLatch));
+            this.ejbClientContextTasksExecutorService.submit(new ReconnectAttempt(reconnectHandler, reconnectTasksCompletionNotifierLatch));
         }
         // wait for all tasks to complete (with a upper bound on time limit)
         try {
@@ -1052,7 +1086,7 @@ public final class EJBClientContext extends Attachable implements Closeable {
         }
 
         // close the executor we use for reconnect handlers
-        this.reconnectionExecutorService.shutdownNow();
+        this.ejbClientContextTasksExecutorService.shutdownNow();
 
     }
 
