@@ -32,12 +32,14 @@ public class DefaultInterceptorsClientContextInitializer implements EJBClientCon
     private static final int RECEIVER_INTERCEPTOR = 0x10000;
     private static final int TRANSACTION_INTERCEPTOR = 0x20000;
     private static final int EJB_HOME_CREATE_METHOD_INVOCATION_INTERCEPTOR = 0x30000;
+    private static final int EJB_OBJECT_CREATE_METHOD_INVOCATION_INTERCEPTOR = 0x30001;
 
     @Override
     public void initialize(EJBClientContext context) {
         // setup the interceptors
         context.registerInterceptor(TRANSACTION_INTERCEPTOR, new TransactionInterceptor());
         context.registerInterceptor(RECEIVER_INTERCEPTOR, new ReceiverInterceptor());
-        context.registerInterceptor(EJB_HOME_CREATE_METHOD_INVOCATION_INTERCEPTOR, new EJBHomeCreateInterceptor());
+        context.registerInterceptor(EJB_HOME_CREATE_METHOD_INVOCATION_INTERCEPTOR, new EJBHomeInterceptor());
+        context.registerInterceptor(EJB_OBJECT_CREATE_METHOD_INVOCATION_INTERCEPTOR, new EJBObjectInterceptor());
     }
 }
