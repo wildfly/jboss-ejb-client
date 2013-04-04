@@ -124,7 +124,7 @@ class RemotingConnectionClusterNodeManager implements ClusterNodeManager {
         ConnectionConfig(final OptionMap connectionCreationOptions, final CallbackHandler callbackHandler, final long connectionTimeout,
                          final OptionMap channelCreationOptions) {
 
-            this.callbackHandler = callbackHandler;
+            this.callbackHandler = callbackHandler == null ? new DefaultCallbackHandler() : callbackHandler;
             this.connectionCreationOptions = connectionCreationOptions;
             this.channelCreationOptions = channelCreationOptions;
             this.connectionTimeout = connectionTimeout;
