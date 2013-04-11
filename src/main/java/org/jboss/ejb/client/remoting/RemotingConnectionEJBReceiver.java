@@ -22,6 +22,7 @@
 
 package org.jboss.ejb.client.remoting;
 
+import org.jboss.ejb.client.AttachmentKeys;
 import org.jboss.ejb.client.EJBClientConfiguration;
 import org.jboss.ejb.client.EJBClientInvocationContext;
 import org.jboss.ejb.client.EJBReceiver;
@@ -30,6 +31,7 @@ import org.jboss.ejb.client.EJBReceiverInvocationContext;
 import org.jboss.ejb.client.Logs;
 import org.jboss.ejb.client.StatefulEJBLocator;
 import org.jboss.ejb.client.TransactionID;
+import org.jboss.ejb.client.annotation.DataCompressionHint;
 import org.jboss.logging.Logger;
 import org.jboss.marshalling.MarshallerFactory;
 import org.jboss.marshalling.Marshalling;
@@ -44,11 +46,14 @@ import javax.transaction.xa.XAException;
 import javax.transaction.xa.Xid;
 import java.io.DataOutputStream;
 import java.io.IOException;
+import java.lang.reflect.Method;
 import java.util.IdentityHashMap;
 import java.util.Map;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
+import java.util.zip.Deflater;
+import java.util.zip.DeflaterOutputStream;
 
 /**
  * A {@link EJBReceiver} which uses JBoss Remoting to communicate with the server for EJB invocations
@@ -214,14 +219,14 @@ public final class RemotingConnectionEJBReceiver extends EJBReceiver {
         final ChannelAssociation channelAssociation = this.requireChannelAssociation(ejbReceiverInvocationContext.getEjbReceiverContext());
         final MethodInvocationMessageWriter messageWriter = new MethodInvocationMessageWriter(this.clientProtocolVersion, this.marshallerFactory);
         final MessageOutputStream messageOutputStream = channelAssociation.acquireChannelMessageOutputStream();
-        final DataOutputStream dataOutputStream = new DataOutputStream(messageOutputStream);
+        final DataOutputStream dataOutputStream = wrapMessageOutputStream(clientInvocationContext, ejbReceiverInvocationContext, messageOutputStream);
         try {
             final short invocationId = channelAssociation.getNextInvocationId();
             channelAssociation.receiveResponse(invocationId, ejbReceiverInvocationContext);
             messageWriter.writeMessage(dataOutputStream, invocationId, clientInvocationContext);
         } finally {
-            channelAssociation.releaseChannelMessageOutputStream(messageOutputStream);
             dataOutputStream.close();
+            channelAssociation.releaseChannelMessageOutputStream(messageOutputStream);
         }
     }
 
@@ -561,6 +566,67 @@ public final class RemotingConnectionEJBReceiver extends EJBReceiver {
             throw Logs.MAIN.channelNotReadyForCommunication(EJB_CHANNEL_NAME, ejbReceiverContext);
         }
         return channelAssociation;
+    }
+
+    private DataOutputStream wrapMessageOutputStream(final EJBClientInvocationContext invocationContext, final EJBReceiverInvocationContext receiverInvocationContext, final MessageOutputStream messageOutputStream) throws Exception {
+        // if "hints" are disabled, just return a DataOutputStream without the necessity of processing any "hints"
+        final Boolean hintsDisabled = invocationContext.getProxyAttachment(AttachmentKeys.HINTS_DISABLED);
+        if (hintsDisabled != null && hintsDisabled.booleanValue()) {
+            if (logger.isTraceEnabled()) {
+                logger.trace("Hints are disabled. Ignoring any DataCompressionHint on methods being invoked on view " + invocationContext.getViewClass());
+            }
+            return new DataOutputStream(messageOutputStream);
+        }
+
+        // process any DataCompressionHint
+        final DataCompressionHint dataCompressionHint;
+        // first check method level
+        final Map<Method, DataCompressionHint> dataCompressionHintMethods = invocationContext.getProxyAttachment(AttachmentKeys.VIEW_METHOD_DATA_COMPRESSION_HINT_ATTACHMENT_KEY);
+        if (dataCompressionHintMethods == null || dataCompressionHintMethods.isEmpty()) {
+            // check class level
+            dataCompressionHint = invocationContext.getProxyAttachment(AttachmentKeys.VIEW_CLASS_DATA_COMPRESSION_HINT_ATTACHMENT_KEY);
+        } else {
+            final DataCompressionHint dataCompressionHintOnMethod = dataCompressionHintMethods.get(invocationContext.getInvokedMethod());
+            if (dataCompressionHintOnMethod == null) {
+                // check class level
+                dataCompressionHint = invocationContext.getProxyAttachment(AttachmentKeys.VIEW_CLASS_DATA_COMPRESSION_HINT_ATTACHMENT_KEY);
+            } else {
+                dataCompressionHint = dataCompressionHintOnMethod;
+            }
+        }
+        // if no DataCompressionHint is applicable for this invocation
+        if (dataCompressionHint == null) {
+            return new DataOutputStream(messageOutputStream);
+        }
+
+        final DataCompressionHint.Data dataToCompress = dataCompressionHint.data();
+        final int compressionLevel = dataCompressionHint.compressionLevel();
+        // write out a attachment to indicate whether or not the response has to be compressed
+        if (dataToCompress == DataCompressionHint.Data.REQUEST_AND_RESPONSE || dataToCompress == DataCompressionHint.Data.RESPONSE) {
+            invocationContext.putAttachment(AttachmentKeys.COMPRESS_RESPONSE, true);
+            invocationContext.putAttachment(AttachmentKeys.RESPONSE_COMPRESSION_LEVEL, compressionLevel);
+            if (logger.isTraceEnabled()) {
+                logger.trace("Letting the server know that the response of method " + invocationContext.getInvokedMethod() + " has to be compressed with compression level = " + compressionLevel);
+            }
+        }
+
+        // create a compressed invocation data *only* if the request has to be compressed (note, it's perfectly valid for certain methods to just specify that only the response is compressed)
+        if (dataToCompress == DataCompressionHint.Data.REQUEST || dataToCompress == DataCompressionHint.Data.REQUEST_AND_RESPONSE) {
+            // write out the header indicating that it's a compressed stream
+            messageOutputStream.write(0x1B);
+            // create the deflater using the specified level
+            final Deflater deflater = new Deflater(compressionLevel);
+            // wrap the message outputstream with the deflater stream so that *any subsequent* data writes to the stream are compressed
+            final DeflaterOutputStream deflaterOutputStream = new DeflaterOutputStream(messageOutputStream, deflater);
+            if (logger.isTraceEnabled()) {
+                logger.trace("Using a compressing stream with compression level = " + compressionLevel + " for request data for EJB invocation on method " + invocationContext.getInvokedMethod());
+            }
+            return new DataOutputStream(deflaterOutputStream);
+        } else {
+            // just return a normal DataOutputStream without any compression
+            return new DataOutputStream(messageOutputStream);
+        }
+
     }
 
     @Override

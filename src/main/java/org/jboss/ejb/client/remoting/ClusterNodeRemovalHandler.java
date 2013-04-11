@@ -26,11 +26,11 @@ import org.jboss.ejb.client.ClusterContext;
 import org.jboss.ejb.client.EJBClientContext;
 import org.jboss.ejb.client.EJBReceiverContext;
 import org.jboss.logging.Logger;
-import org.jboss.remoting3.MessageInputStream;
 
 import java.io.DataInput;
 import java.io.DataInputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -53,13 +53,13 @@ class ClusterNodeRemovalHandler extends ProtocolMessageHandler {
     }
 
     @Override
-    protected void processMessage(MessageInputStream messageInputStream) throws IOException {
-        if (messageInputStream == null) {
+    protected void processMessage(InputStream inputStream) throws IOException {
+        if (inputStream == null) {
             throw new IllegalArgumentException("Cannot read from null stream");
         }
         final Map<String, Collection<String>> removedNodesPerCluster = new HashMap<String, Collection<String>>();
         try {
-            final DataInput input = new DataInputStream(messageInputStream);
+            final DataInput input = new DataInputStream(inputStream);
             // read the cluster count
             final int clusterCount = PackedInteger.readPackedInteger(input);
             for (int i = 0; i < clusterCount; i++) {
@@ -77,7 +77,7 @@ class ClusterNodeRemovalHandler extends ProtocolMessageHandler {
                 removedNodesPerCluster.put(clusterName, removedNodes);
             }
         } finally {
-            messageInputStream.close();
+            inputStream.close();
         }
         // let the client context know about the removed cluster nodes
         final EJBReceiverContext ejbReceiverContext = this.channelAssociation.getEjbReceiverContext();

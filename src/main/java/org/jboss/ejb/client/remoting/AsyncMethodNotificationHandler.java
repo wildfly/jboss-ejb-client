@@ -22,10 +22,9 @@
 
 package org.jboss.ejb.client.remoting;
 
-import org.jboss.remoting3.MessageInputStream;
-
 import java.io.DataInputStream;
 import java.io.IOException;
+import java.io.InputStream;
 
 /**
  * User: jpai
@@ -39,11 +38,11 @@ class AsyncMethodNotificationHandler extends ProtocolMessageHandler {
     }
 
     @Override
-    protected void processMessage(MessageInputStream messageInputStream) throws IOException {
-        if (messageInputStream == null) {
+    protected void processMessage(InputStream inputStream) throws IOException {
+        if (inputStream == null) {
             throw new IllegalArgumentException("Cannot read from null stream");
         }
-        final DataInputStream input = new DataInputStream(messageInputStream);
+        final DataInputStream input = new DataInputStream(inputStream);
         short invocationId;
         try {
             // read the invocation id
