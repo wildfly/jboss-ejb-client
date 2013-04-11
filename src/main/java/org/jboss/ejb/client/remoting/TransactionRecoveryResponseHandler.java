@@ -26,11 +26,11 @@ import org.jboss.ejb.client.EJBReceiverInvocationContext;
 import org.jboss.ejb.client.XidTransactionID;
 import org.jboss.marshalling.MarshallerFactory;
 import org.jboss.marshalling.Unmarshaller;
-import org.jboss.remoting3.MessageInputStream;
 
 import javax.transaction.xa.Xid;
 import java.io.DataInputStream;
 import java.io.IOException;
+import java.io.InputStream;
 
 /**
  * Responsible for handling the response returned back for a transaction recovery request
@@ -48,9 +48,9 @@ class TransactionRecoveryResponseHandler extends ProtocolMessageHandler {
     }
 
     @Override
-    protected void processMessage(final MessageInputStream messageInputStream) throws IOException {
+    protected void processMessage(final InputStream inputStream) throws IOException {
         // read the invocation id
-        final DataInputStream dataInputStream = new DataInputStream(messageInputStream);
+        final DataInputStream dataInputStream = new DataInputStream(inputStream);
         try {
             final short invocationId = dataInputStream.readShort();
             final int numXidsToRecover = PackedInteger.readPackedInteger(dataInputStream);

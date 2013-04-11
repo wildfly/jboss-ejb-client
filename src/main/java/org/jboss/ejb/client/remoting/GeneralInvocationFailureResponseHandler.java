@@ -23,11 +23,11 @@
 package org.jboss.ejb.client.remoting;
 
 import org.jboss.ejb.client.EJBReceiverInvocationContext;
-import org.jboss.remoting3.MessageInputStream;
 
 import javax.ejb.EJBException;
 import java.io.DataInputStream;
 import java.io.IOException;
+import java.io.InputStream;
 
 /**
  * Responsible for parsing an invocation failure message from the stream and throwing back the exception as
@@ -57,12 +57,12 @@ class GeneralInvocationFailureResponseHandler extends ProtocolMessageHandler {
     /**
      * Process the passed <code>MessageInputStream</code> for the invocation failure
      *
-     * @param messageInputStream The message input stream
-     * @throws IOException If there's a problem while reading the stream
+     *
+     * @param inputStream@throws IOException If there's a problem while reading the stream
      */
     @Override
-    protected void processMessage(MessageInputStream messageInputStream) throws IOException {
-        final DataInputStream dataInputStream = new DataInputStream(messageInputStream);
+    protected void processMessage(InputStream inputStream) throws IOException {
+        final DataInputStream dataInputStream = new DataInputStream(inputStream);
         try {
             // read invocation id
             final short invocationId = dataInputStream.readShort();

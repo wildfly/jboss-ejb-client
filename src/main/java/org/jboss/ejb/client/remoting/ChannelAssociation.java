@@ -36,6 +36,7 @@ import org.jboss.remoting3.RemotingOptions;
 import org.xnio.FutureResult;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
@@ -291,6 +292,7 @@ class ChannelAssociation {
      */
     private ProtocolMessageHandler getProtocolMessageHandler(final byte header) {
         switch (header) {
+            // Please try and maintain the case statements in the numerical order of the headers for the sake of quickly finding the highest known response header at present.
             case 0x02:
                 return new SessionOpenResponseHandler(this, this.marshallerFactory);
             case 0x05:
@@ -327,9 +329,28 @@ class ChannelAssociation {
             case 0x1A:
                 // transaction recovery response
                 return new TransactionRecoveryResponseHandler(this, this.marshallerFactory);
+            case 0x1B:
+                // compressed data (response)
+                return new CompressedMessageHandler(this);
             default:
                 return null;
         }
+    }
+
+    void processResponse(final InputStream inputStream) throws IOException {
+        // get the header in the message
+        final int header = inputStream.read();
+        if (logger.isTraceEnabled()) {
+            logger.trace("Received message with header 0x" + Integer.toHexString(header));
+        }
+        // get the protocol message handler for the header
+        final ProtocolMessageHandler messageHandler = getProtocolMessageHandler((byte) header);
+        if (messageHandler == null) {
+            logger.debug("Unsupported message received with header 0x" + Integer.toHexString(header));
+            return;
+        }
+        // let the protocol handler process the stream
+        messageHandler.processMessage(inputStream);
     }
 
     private void notifyBrokenChannel(final IOException ioException) {
@@ -410,17 +431,7 @@ class ChannelAssociation {
         public void handleMessage(Channel channel, MessageInputStream messageInputStream) {
 
             try {
-                final int header = messageInputStream.read();
-                if (logger.isTraceEnabled()) {
-                    logger.trace("Received message with header 0x" + Integer.toHexString(header));
-                }
-                final ProtocolMessageHandler messageHandler = ChannelAssociation.this.getProtocolMessageHandler((byte) header);
-                if (messageHandler == null) {
-                    logger.debug("Unsupported message received with header 0x" + Integer.toHexString(header));
-                    return;
-                }
-                messageHandler.processMessage(messageInputStream);
-
+                processResponse(messageInputStream);
             } catch (IOException e) {
                 this.handleError(channel, e);
             } finally {

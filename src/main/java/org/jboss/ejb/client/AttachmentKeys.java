@@ -22,6 +22,11 @@
 
 package org.jboss.ejb.client;
 
+import org.jboss.ejb.client.annotation.DataCompressionHint;
+
+import java.lang.reflect.Method;
+import java.util.Map;
+
 /**
  * Commonly-used attachment keys.
  *
@@ -41,4 +46,15 @@ public final class AttachmentKeys {
      * may proceed to another node or cluster.  This key is normally associated with a proxy, and copied to an invocation.
      */
     public static final AttachmentKey<Affinity> WEAK_AFFINITY = new AttachmentKey<Affinity>();
+
+
+    public static final AttachmentKey<Boolean> HINTS_DISABLED = new AttachmentKey<Boolean>();
+
+    public static final AttachmentKey<DataCompressionHint> VIEW_CLASS_DATA_COMPRESSION_HINT_ATTACHMENT_KEY = new AttachmentKey<DataCompressionHint>();
+
+    public static final AttachmentKey<Map<Method, DataCompressionHint>> VIEW_METHOD_DATA_COMPRESSION_HINT_ATTACHMENT_KEY = new AttachmentKey<Map<Method, DataCompressionHint>>();
+
+    public static final AttachmentKey<Boolean> COMPRESS_RESPONSE = new AttachmentKey<Boolean>();
+
+    public static final AttachmentKey<Integer> RESPONSE_COMPRESSION_LEVEL = new AttachmentKey<Integer>();
 }

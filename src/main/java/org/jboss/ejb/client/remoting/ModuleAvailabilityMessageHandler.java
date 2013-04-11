@@ -23,11 +23,11 @@
 package org.jboss.ejb.client.remoting;
 
 import org.jboss.ejb.client.EJBReceiverContext;
-import org.jboss.remoting3.MessageInputStream;
 
 import java.io.DataInput;
 import java.io.DataInputStream;
 import java.io.IOException;
+import java.io.InputStream;
 
 /**
  * Responsible for parsing module availability and unavailability messages from a stream, as per the EJB remoting client
@@ -59,17 +59,17 @@ class ModuleAvailabilityMessageHandler extends ProtocolMessageHandler {
      * Processes the passed <code>messageInputStream</code> for module availability and/or module unavailability
      * report. This method then let's the {@link RemotingConnectionEJBReceiver} know about the module availability/unavailability
      *
-     * @param messageInputStream The message input stream
-     * @throws IOException If there's a problem while reading the stream
+     *
+     * @param inputStream@throws IOException If there's a problem while reading the stream
      */
     @Override
-    protected void processMessage(final MessageInputStream messageInputStream) throws IOException {
-        if (messageInputStream == null) {
+    protected void processMessage(final InputStream inputStream) throws IOException {
+        if (inputStream == null) {
             throw new IllegalArgumentException("Cannot read from null stream");
         }
         EJBModuleIdentifier[] ejbModules = null;
         try {
-            final DataInput input = new DataInputStream(messageInputStream);
+            final DataInput input = new DataInputStream(inputStream);
             // read the count
             final int count = PackedInteger.readPackedInteger(input);
             ejbModules = new EJBModuleIdentifier[count];
@@ -89,7 +89,7 @@ class ModuleAvailabilityMessageHandler extends ProtocolMessageHandler {
                 ejbModules[i] = new EJBModuleIdentifier(appName, moduleName, distinctName);
             }
         } finally {
-            messageInputStream.close();
+            inputStream.close();
         }
         switch (this.type) {
             case MODULE_AVAILABLE:

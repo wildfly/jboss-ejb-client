@@ -22,11 +22,6 @@
 
 package org.jboss.ejb.client.remoting;
 
-import java.io.IOException;
-import java.io.InvalidObjectException;
-import java.util.IdentityHashMap;
-import java.util.Map;
-
 import org.jboss.ejb.client.Affinity;
 import org.jboss.ejb.client.AttachmentKeys;
 import org.jboss.ejb.client.EJBClientInvocationContext;
@@ -34,6 +29,11 @@ import org.jboss.ejb.client.TransactionID;
 import org.jboss.marshalling.Marshaller;
 import org.jboss.marshalling.ObjectTable;
 import org.jboss.marshalling.Unmarshaller;
+
+import java.io.IOException;
+import java.io.InvalidObjectException;
+import java.util.IdentityHashMap;
+import java.util.Map;
 
 /**
  * @author <a href="mailto:david.lloyd@redhat.com">David M. Lloyd</a>
@@ -51,7 +51,9 @@ public final class ProtocolV1ObjectTable implements ObjectTable {
             Affinity.WEAK_AFFINITY_CONTEXT_KEY,
             EJBClientInvocationContext.PRIVATE_ATTACHMENTS_KEY,
             AttachmentKeys.TRANSACTION_ID_KEY,
-            AttachmentKeys.WEAK_AFFINITY
+            AttachmentKeys.WEAK_AFFINITY,
+            AttachmentKeys.COMPRESS_RESPONSE,
+            AttachmentKeys.RESPONSE_COMPRESSION_LEVEL
     };
 
     static {
