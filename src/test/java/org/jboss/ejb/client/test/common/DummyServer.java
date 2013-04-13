@@ -146,7 +146,7 @@ public class DummyServer {
             private void sendVersionMessage(final Channel channel) throws IOException {
                 final DataOutputStream outputStream = new DataOutputStream(channel.writeMessage());
                 // write the version
-                outputStream.write(0x01);
+                outputStream.write(0x02);
                 // write the marshaller type count
                 PackedInteger.writePackedInteger(outputStream, supportedMarshallerTypes.length);
                 // write the marshaller types
@@ -171,11 +171,11 @@ public class DummyServer {
     }
 
 
-    class Version1Receiver implements Channel.Receiver {
+    class LatestVersionProtocolHandler implements Channel.Receiver {
 
         private final DummyProtocolHandler dummyProtocolHandler;
 
-        Version1Receiver(final String marshallingType) {
+        LatestVersionProtocolHandler(final String marshallingType) {
             this.dummyProtocolHandler = new DummyProtocolHandler(marshallingType);
         }
 
@@ -542,7 +542,8 @@ public class DummyServer {
                 input.close();
                 switch (version) {
                     case 0x01:
-                        final Version1Receiver receiver = new Version1Receiver(clientMarshallingType);
+                    case 0x02:
+                        final LatestVersionProtocolHandler receiver = new LatestVersionProtocolHandler(clientMarshallingType);
                         DummyServer.this.openChannels.add(channel);
                         channel.receiveMessage(receiver);
                         // send module availability report to clients

@@ -41,7 +41,7 @@ import java.util.Map;
 /**
  * @author Jaikiran Pai
  */
-class AbstractMessageWriter {
+abstract class AbstractMessageWriter {
 
     protected void writeAttachments(final ObjectOutput output, final EJBClientInvocationContext invocationContext) throws IOException {
         // we write out the private (a.k.a JBoss specific) attachments as well as public invocation context data
@@ -148,4 +148,5 @@ class AbstractMessageWriter {
         return marshallerFactory.createMarshaller(marshallingConfiguration);
     }
 
+    abstract byte getHeader();
 }
