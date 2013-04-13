@@ -50,4 +50,9 @@ class InvocationCancellationMessageWriter extends AbstractMessageWriter {
         // write the invocation id
         output.writeShort(invocationId);
     }
+
+    @Override
+    byte getHeader() {
+        return HEADER_INVOCATION_CANCEL_MESSAGE;
+    }
 }
