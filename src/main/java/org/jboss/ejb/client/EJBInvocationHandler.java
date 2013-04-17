@@ -22,11 +22,6 @@
 
 package org.jboss.ejb.client;
 
-import org.jboss.ejb.client.annotation.DataCompressionHint;
-
-import javax.ejb.EJBException;
-import javax.ejb.EJBHome;
-import javax.ejb.EJBObject;
 import java.io.Serializable;
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
@@ -37,6 +32,12 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.Future;
+
+import javax.ejb.EJBException;
+import javax.ejb.EJBHome;
+import javax.ejb.EJBObject;
+
+import org.jboss.ejb.client.annotation.DataCompressionHint;
 
 /**
  * @param <T> the proxy view type

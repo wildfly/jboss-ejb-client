@@ -22,10 +22,10 @@
 
 package org.jboss.ejb.client;
 
-import org.jboss.ejb.client.annotation.DataCompressionHint;
-
 import java.lang.reflect.Method;
 import java.util.Map;
+
+import org.jboss.ejb.client.annotation.DataCompressionHint;
 
 /**
  * Commonly-used attachment keys.
@@ -48,13 +48,28 @@ public final class AttachmentKeys {
     public static final AttachmentKey<Affinity> WEAK_AFFINITY = new AttachmentKey<Affinity>();
 
 
+    /**
+     * An attachment key which specifies whether "hints" (like {@link DataCompressionHint}) are disabled
+     */
     public static final AttachmentKey<Boolean> HINTS_DISABLED = new AttachmentKey<Boolean>();
 
+    /**
+     * A key to an attachment which contains the {@link DataCompressionHint}s specified on the remote view class level
+     */
     public static final AttachmentKey<DataCompressionHint> VIEW_CLASS_DATA_COMPRESSION_HINT_ATTACHMENT_KEY = new AttachmentKey<DataCompressionHint>();
 
+    /**
+     * A key to an attachment which contains the {@link DataCompressionHint}s for methods which have been annotated with that data
+     */
     public static final AttachmentKey<Map<Method, DataCompressionHint>> VIEW_METHOD_DATA_COMPRESSION_HINT_ATTACHMENT_KEY = new AttachmentKey<Map<Method, DataCompressionHint>>();
 
+    /**
+     * A key to an attachment which specifies whether the response payload data of an EJB invocation should be compressed
+     */
     public static final AttachmentKey<Boolean> COMPRESS_RESPONSE = new AttachmentKey<Boolean>();
 
+    /**
+     * A key to an attachment which specifies the "compression level" of the response payload data of an EJB invocation
+     */
     public static final AttachmentKey<Integer> RESPONSE_COMPRESSION_LEVEL = new AttachmentKey<Integer>();
 }

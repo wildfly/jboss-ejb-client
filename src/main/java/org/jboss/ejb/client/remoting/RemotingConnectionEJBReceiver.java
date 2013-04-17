@@ -22,6 +22,20 @@
 
 package org.jboss.ejb.client.remoting;
 
+import java.io.DataOutputStream;
+import java.io.IOException;
+import java.lang.reflect.Method;
+import java.util.IdentityHashMap;
+import java.util.Map;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
+import java.util.zip.Deflater;
+import java.util.zip.DeflaterOutputStream;
+
+import javax.transaction.xa.XAException;
+import javax.transaction.xa.Xid;
+
 import org.jboss.ejb.client.AttachmentKeys;
 import org.jboss.ejb.client.EJBClientConfiguration;
 import org.jboss.ejb.client.EJBClientInvocationContext;
@@ -41,19 +55,6 @@ import org.jboss.remoting3.Connection;
 import org.jboss.remoting3.MessageOutputStream;
 import org.xnio.IoFuture;
 import org.xnio.OptionMap;
-
-import javax.transaction.xa.XAException;
-import javax.transaction.xa.Xid;
-import java.io.DataOutputStream;
-import java.io.IOException;
-import java.lang.reflect.Method;
-import java.util.IdentityHashMap;
-import java.util.Map;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.Future;
-import java.util.concurrent.TimeUnit;
-import java.util.zip.Deflater;
-import java.util.zip.DeflaterOutputStream;
 
 /**
  * A {@link EJBReceiver} which uses JBoss Remoting to communicate with the server for EJB invocations
@@ -572,6 +573,17 @@ public final class RemotingConnectionEJBReceiver extends EJBReceiver {
         return channelAssociation;
     }
 
+    /**
+     * Wraps the {@link MessageOutputStream message output stream} into a relevant {@link DataOutputStream}, taking into account various factors like the necessity to
+     * compress the data that gets passed along the stream
+     *
+     * @param invocationContext         The EJB client invocation context
+     * @param receiverInvocationContext The receiver invocation context
+     * @param channelAssociation        The channel association
+     * @param messageOutputStream       The message outputstream that needs to be wrapped
+     * @return
+     * @throws Exception
+     */
     private DataOutputStream wrapMessageOutputStream(final EJBClientInvocationContext invocationContext, final EJBReceiverInvocationContext receiverInvocationContext,
                                                      final ChannelAssociation channelAssociation, final MessageOutputStream messageOutputStream) throws Exception {
         // if the negotiated protocol version doesn't support compressed messages then just return a normal DataOutputStream

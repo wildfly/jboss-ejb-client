@@ -22,6 +22,13 @@
 
 package org.jboss.ejb.client.remoting;
 
+import java.io.DataOutput;
+import java.io.IOException;
+import java.io.ObjectOutput;
+import java.io.OutputStream;
+import java.util.Map;
+
+import org.jboss.ejb.client.AttachmentKeys;
 import org.jboss.ejb.client.EJBClientInvocationContext;
 import org.jboss.marshalling.ByteOutput;
 import org.jboss.marshalling.Marshaller;
@@ -29,12 +36,6 @@ import org.jboss.marshalling.MarshallerFactory;
 import org.jboss.marshalling.Marshalling;
 import org.jboss.marshalling.MarshallingConfiguration;
 import org.jboss.marshalling.reflect.SunReflectiveCreator;
-
-import java.io.DataOutput;
-import java.io.IOException;
-import java.io.ObjectOutput;
-import java.io.OutputStream;
-import java.util.Map;
 
 /**
  * @author Jaikiran Pai
@@ -122,5 +123,10 @@ abstract class AbstractMessageWriter {
         return marshallerFactory.createMarshaller(marshallingConfiguration);
     }
 
+    /**
+     * Returns the byte header of the message that this writer represents
+     *
+     * @return
+     */
     abstract byte getHeader();
 }
