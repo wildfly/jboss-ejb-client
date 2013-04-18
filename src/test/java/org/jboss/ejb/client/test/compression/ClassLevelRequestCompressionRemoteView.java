@@ -1,12 +1,12 @@
 package org.jboss.ejb.client.test.compression;
 
 
-import org.jboss.ejb.client.annotation.DataCompressionHint;
+import org.jboss.ejb.client.annotation.CompressionHint;
 
 /**
  * @author: Jaikiran Pai
  */
-@DataCompressionHint(data = DataCompressionHint.Data.REQUEST)
+@CompressionHint(compressResponse = false)
 public interface ClassLevelRequestCompressionRemoteView {
     String echo(String msg);
 }

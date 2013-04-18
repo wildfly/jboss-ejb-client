@@ -25,7 +25,7 @@ package org.jboss.ejb.client;
 import java.lang.reflect.Method;
 import java.util.Map;
 
-import org.jboss.ejb.client.annotation.DataCompressionHint;
+import org.jboss.ejb.client.annotation.CompressionHint;
 
 /**
  * Commonly-used attachment keys.
@@ -49,19 +49,19 @@ public final class AttachmentKeys {
 
 
     /**
-     * An attachment key which specifies whether "hints" (like {@link DataCompressionHint}) are disabled
+     * An attachment key which specifies whether "hints" (like {@link org.jboss.ejb.client.annotation.CompressionHint}) are disabled
      */
     public static final AttachmentKey<Boolean> HINTS_DISABLED = new AttachmentKey<Boolean>();
 
     /**
-     * A key to an attachment which contains the {@link DataCompressionHint}s specified on the remote view class level
+     * A key to an attachment which contains the {@link org.jboss.ejb.client.annotation.CompressionHint}s specified on the remote view class level
      */
-    public static final AttachmentKey<DataCompressionHint> VIEW_CLASS_DATA_COMPRESSION_HINT_ATTACHMENT_KEY = new AttachmentKey<DataCompressionHint>();
+    public static final AttachmentKey<CompressionHint> VIEW_CLASS_DATA_COMPRESSION_HINT_ATTACHMENT_KEY = new AttachmentKey<CompressionHint>();
 
     /**
-     * A key to an attachment which contains the {@link DataCompressionHint}s for methods which have been annotated with that data
+     * A key to an attachment which contains the {@link org.jboss.ejb.client.annotation.CompressionHint}s for methods which have been annotated with that data
      */
-    public static final AttachmentKey<Map<Method, DataCompressionHint>> VIEW_METHOD_DATA_COMPRESSION_HINT_ATTACHMENT_KEY = new AttachmentKey<Map<Method, DataCompressionHint>>();
+    public static final AttachmentKey<Map<Method, CompressionHint>> VIEW_METHOD_DATA_COMPRESSION_HINT_ATTACHMENT_KEY = new AttachmentKey<Map<Method, CompressionHint>>();
 
     /**
      * A key to an attachment which specifies whether the response payload data of an EJB invocation should be compressed

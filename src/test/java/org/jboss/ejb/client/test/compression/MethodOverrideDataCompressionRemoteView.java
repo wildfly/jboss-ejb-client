@@ -1,18 +1,18 @@
 package org.jboss.ejb.client.test.compression;
 
 
-import org.jboss.ejb.client.annotation.DataCompressionHint;
+import org.jboss.ejb.client.annotation.CompressionHint;
 
 /**
  * @author: Jaikiran Pai
  */
-@DataCompressionHint(data = DataCompressionHint.Data.REQUEST_AND_RESPONSE)
+@CompressionHint
 public interface MethodOverrideDataCompressionRemoteView {
 
-    @DataCompressionHint(data = DataCompressionHint.Data.RESPONSE)
+    @CompressionHint(compressRequest = false)
     String echoWithResponseCompress(final String msg);
 
-    @DataCompressionHint(data = DataCompressionHint.Data.REQUEST)
+    @CompressionHint(compressResponse = false)
     String echoWithRequestCompress(final String msg);
 
     String echoWithNoExplicitDataCompressionHintOnMethod(String msg);
