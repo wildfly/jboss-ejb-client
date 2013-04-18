@@ -24,11 +24,11 @@ package org.jboss.ejb.client.remoting;
 
 import org.jboss.ejb.client.EJBReceiverInvocationContext;
 import org.jboss.logging.Logger;
-import org.jboss.remoting3.MessageInputStream;
 
 import javax.ejb.NoSuchEJBException;
 import java.io.DataInputStream;
 import java.io.IOException;
+import java.io.InputStream;
 
 /**
  * Responsible for handling {@link NoSuchEJBException} response from a server and retrying that invocation
@@ -49,12 +49,12 @@ class NoSuchEJBExceptionResponseHandler extends ProtocolMessageHandler {
     /**
      * Process the passed <code>MessageInputStream</code> for the invocation failure
      *
-     * @param messageInputStream The message input stream
-     * @throws java.io.IOException If there's a problem while reading the stream
+     *
+     * @param inputStream@throws java.io.IOException If there's a problem while reading the stream
      */
     @Override
-    protected void processMessage(MessageInputStream messageInputStream) throws IOException {
-        final DataInputStream dataInputStream = new DataInputStream(messageInputStream);
+    protected void processMessage(InputStream inputStream) throws IOException {
+        final DataInputStream dataInputStream = new DataInputStream(inputStream);
         final NoSuchEJBException noSuchEJBException;
         final short invocationId;
         try {

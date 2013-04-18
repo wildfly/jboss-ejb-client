@@ -56,6 +56,7 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-surefire-plugin</artifactId>
+                <version>2.11</version>
                 <configuration>
                     <redirectTestOutputToFile>true</redirectTestOutputToFile>
                     <systemProperties>
@@ -64,6 +65,10 @@
                             <value>org.jboss.logmanager.LogManager</value>
                         </property>
                     </systemProperties>
+                    <!-- Jaikiran: Do not change this since we intentionally want the tests to run in an isolated JVM so as to facilitate
+                        certain tests (like ClasspathConfigBasedSelectorTestCase) to not be impacted by system properties potentially
+                        set by some other tests -->
+                    <forkMode>always</forkMode>
                 </configuration>
             </plugin>
             <!-- Checkstyle -->

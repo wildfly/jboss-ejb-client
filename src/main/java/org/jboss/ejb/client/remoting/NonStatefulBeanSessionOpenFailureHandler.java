@@ -23,10 +23,10 @@
 package org.jboss.ejb.client.remoting;
 
 import org.jboss.ejb.client.EJBReceiverInvocationContext;
-import org.jboss.remoting3.MessageInputStream;
 
 import java.io.DataInputStream;
 import java.io.IOException;
+import java.io.InputStream;
 
 /**
  * Handles a failure response message returned by the server when a session open request is made for a non-stateful
@@ -43,8 +43,8 @@ class NonStatefulBeanSessionOpenFailureHandler extends ProtocolMessageHandler {
     }
 
     @Override
-    protected void processMessage(MessageInputStream messageInputStream) throws IOException {
-        final DataInputStream dataInputStream = new DataInputStream(messageInputStream);
+    protected void processMessage(InputStream inputStream) throws IOException {
+        final DataInputStream dataInputStream = new DataInputStream(inputStream);
         try {
             // read invocation id
             final short invocationId = dataInputStream.readShort();

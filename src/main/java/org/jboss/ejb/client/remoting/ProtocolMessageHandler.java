@@ -29,7 +29,6 @@ import org.jboss.marshalling.Marshalling;
 import org.jboss.marshalling.MarshallingConfiguration;
 import org.jboss.marshalling.Unmarshaller;
 import org.jboss.marshalling.reflect.SunReflectiveCreator;
-import org.jboss.remoting3.MessageInputStream;
 
 import java.io.DataInput;
 import java.io.DataInputStream;
@@ -46,7 +45,7 @@ import java.util.Map;
  */
 abstract class ProtocolMessageHandler {
 
-    protected abstract void processMessage(final MessageInputStream messageInputStream) throws IOException;
+    protected abstract void processMessage(final InputStream inputStream) throws IOException;
 
     protected Map<String, Object> readAttachments(final ObjectInput input) throws IOException, ClassNotFoundException {
         final int numAttachments = input.readByte();

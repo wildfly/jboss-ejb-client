@@ -22,6 +22,21 @@
 
 package org.jboss.ejb.client.remoting;
 
+import java.io.DataOutputStream;
+import java.io.IOException;
+import java.lang.reflect.Method;
+import java.util.IdentityHashMap;
+import java.util.Map;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
+import java.util.zip.Deflater;
+import java.util.zip.DeflaterOutputStream;
+
+import javax.transaction.xa.XAException;
+import javax.transaction.xa.Xid;
+
+import org.jboss.ejb.client.AttachmentKeys;
 import org.jboss.ejb.client.EJBClientConfiguration;
 import org.jboss.ejb.client.EJBClientInvocationContext;
 import org.jboss.ejb.client.EJBReceiver;
@@ -30,6 +45,7 @@ import org.jboss.ejb.client.EJBReceiverInvocationContext;
 import org.jboss.ejb.client.Logs;
 import org.jboss.ejb.client.StatefulEJBLocator;
 import org.jboss.ejb.client.TransactionID;
+import org.jboss.ejb.client.annotation.CompressionHint;
 import org.jboss.logging.Logger;
 import org.jboss.marshalling.MarshallerFactory;
 import org.jboss.marshalling.Marshalling;
@@ -39,16 +55,6 @@ import org.jboss.remoting3.Connection;
 import org.jboss.remoting3.MessageOutputStream;
 import org.xnio.IoFuture;
 import org.xnio.OptionMap;
-
-import javax.transaction.xa.XAException;
-import javax.transaction.xa.Xid;
-import java.io.DataOutputStream;
-import java.io.IOException;
-import java.util.IdentityHashMap;
-import java.util.Map;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.Future;
-import java.util.concurrent.TimeUnit;
 
 /**
  * A {@link EJBReceiver} which uses JBoss Remoting to communicate with the server for EJB invocations
@@ -66,7 +72,7 @@ public final class RemotingConnectionEJBReceiver extends EJBReceiver {
     private final Map<EJBReceiverContext, ChannelAssociation> channelAssociations = new IdentityHashMap<EJBReceiverContext, ChannelAssociation>();
 
     // TODO: The version and the marshalling strategy shouldn't be hardcoded here
-    private final byte clientProtocolVersion = 0x01;
+    private final byte[] legibleClientProtocolVersions = new byte[]{0x01, 0x02};
     private final String clientMarshallingStrategy = "river";
 
     /**
@@ -125,7 +131,7 @@ public final class RemotingConnectionEJBReceiver extends EJBReceiver {
             this.moduleAvailabilityReportLatches.put(context, initialModuleAvailabilityLatch);
         }
 
-        final VersionReceiver versionReceiver = new VersionReceiver(versionHandshakeLatch, this.clientProtocolVersion, this.clientMarshallingStrategy);
+        final VersionReceiver versionReceiver = new VersionReceiver(versionHandshakeLatch, this.legibleClientProtocolVersions, this.clientMarshallingStrategy);
         final IoFuture<Channel> futureChannel = connection.openChannel(EJB_CHANNEL_NAME, this.channelCreationOptions);
         futureChannel.addNotifier(new IoFuture.HandlingNotifier<Channel, EJBReceiverContext>() {
             public void handleCancelled(final EJBReceiverContext context) {
@@ -168,7 +174,7 @@ public final class RemotingConnectionEJBReceiver extends EJBReceiver {
             successfulHandshake = versionHandshakeLatch.await(versionHandshakeTimeoutInMillis, TimeUnit.MILLISECONDS);
             if (successfulHandshake) {
                 final Channel compatibleChannel = versionReceiver.getCompatibleChannel();
-                final ChannelAssociation channelAssociation = new ChannelAssociation(this, context, compatibleChannel, this.clientProtocolVersion, this.marshallerFactory, this.reconnectHandler);
+                final ChannelAssociation channelAssociation = new ChannelAssociation(this, context, compatibleChannel, (byte) versionReceiver.getNegotiatedProtocolVersion(), this.marshallerFactory, this.reconnectHandler);
                 synchronized (this.channelAssociations) {
                     this.channelAssociations.put(context, channelAssociation);
                 }
@@ -212,23 +218,23 @@ public final class RemotingConnectionEJBReceiver extends EJBReceiver {
     @Override
     public void processInvocation(final EJBClientInvocationContext clientInvocationContext, final EJBReceiverInvocationContext ejbReceiverInvocationContext) throws Exception {
         final ChannelAssociation channelAssociation = this.requireChannelAssociation(ejbReceiverInvocationContext.getEjbReceiverContext());
-        final MethodInvocationMessageWriter messageWriter = new MethodInvocationMessageWriter(this.clientProtocolVersion, this.marshallerFactory);
+        final MethodInvocationMessageWriter messageWriter = new MethodInvocationMessageWriter(this.marshallerFactory);
         final MessageOutputStream messageOutputStream = channelAssociation.acquireChannelMessageOutputStream();
-        final DataOutputStream dataOutputStream = new DataOutputStream(messageOutputStream);
+        final DataOutputStream dataOutputStream = wrapMessageOutputStream(clientInvocationContext, ejbReceiverInvocationContext, channelAssociation, messageOutputStream);
         try {
             final short invocationId = channelAssociation.getNextInvocationId();
             channelAssociation.receiveResponse(invocationId, ejbReceiverInvocationContext);
             messageWriter.writeMessage(dataOutputStream, invocationId, clientInvocationContext);
         } finally {
-            channelAssociation.releaseChannelMessageOutputStream(messageOutputStream);
             dataOutputStream.close();
+            channelAssociation.releaseChannelMessageOutputStream(messageOutputStream);
         }
     }
 
     @Override
     protected <T> StatefulEJBLocator<T> openSession(final EJBReceiverContext receiverContext, final Class<T> viewType, final String appName, final String moduleName, final String distinctName, final String beanName) throws IllegalArgumentException {
         final ChannelAssociation channelAssociation = this.requireChannelAssociation(receiverContext);
-        final SessionOpenRequestWriter sessionOpenRequestWriter = new SessionOpenRequestWriter(this.clientProtocolVersion);
+        final SessionOpenRequestWriter sessionOpenRequestWriter = new SessionOpenRequestWriter();
         final DataOutputStream dataOutputStream;
         final MessageOutputStream messageOutputStream;
         try {
@@ -293,7 +299,7 @@ public final class RemotingConnectionEJBReceiver extends EJBReceiver {
         try {
             messageOutputStream = channelAssociation.acquireChannelMessageOutputStream();
             final DataOutputStream dataOutputStream = new DataOutputStream(messageOutputStream);
-            final TransactionMessageWriter transactionMessageWriter = new TransactionMessageWriter();
+            final TransactionMessageWriter transactionMessageWriter = TransactionMessageWriter.getTransactionCommitWriter();
             try {
                 // write the tx commit message
                 transactionMessageWriter.writeTxCommit(dataOutputStream, invocationId, transactionID, onePhase);
@@ -326,7 +332,7 @@ public final class RemotingConnectionEJBReceiver extends EJBReceiver {
         try {
             messageOutputStream = channelAssociation.acquireChannelMessageOutputStream();
             final DataOutputStream dataOutputStream = new DataOutputStream(messageOutputStream);
-            final TransactionMessageWriter transactionMessageWriter = new TransactionMessageWriter();
+            final TransactionMessageWriter transactionMessageWriter = TransactionMessageWriter.getTransactionRollbackWriter();
             try {
                 // write the tx rollback message
                 transactionMessageWriter.writeTxRollback(dataOutputStream, invocationId, transactionID);
@@ -359,7 +365,7 @@ public final class RemotingConnectionEJBReceiver extends EJBReceiver {
         try {
             messageOutputStream = channelAssociation.acquireChannelMessageOutputStream();
             final DataOutputStream dataOutputStream = new DataOutputStream(messageOutputStream);
-            final TransactionMessageWriter transactionMessageWriter = new TransactionMessageWriter();
+            final TransactionMessageWriter transactionMessageWriter = TransactionMessageWriter.getTransactionPrepareWriter();
             try {
                 // write the tx prepare message
                 transactionMessageWriter.writeTxPrepare(dataOutputStream, invocationId, transactionID);
@@ -396,7 +402,7 @@ public final class RemotingConnectionEJBReceiver extends EJBReceiver {
         try {
             messageOutputStream = channelAssociation.acquireChannelMessageOutputStream();
             final DataOutputStream dataOutputStream = new DataOutputStream(messageOutputStream);
-            final TransactionMessageWriter transactionMessageWriter = new TransactionMessageWriter();
+            final TransactionMessageWriter transactionMessageWriter = TransactionMessageWriter.getTransactionForgetWriter();
             try {
                 // write the tx forget message
                 transactionMessageWriter.writeTxForget(dataOutputStream, invocationId, transactionID);
@@ -423,13 +429,17 @@ public final class RemotingConnectionEJBReceiver extends EJBReceiver {
     @Override
     protected Xid[] sendRecover(final EJBReceiverContext receiverContext, final String txParentNodeName, final int recoveryFlags) throws XAException {
         final ChannelAssociation channelAssociation = this.requireChannelAssociation(receiverContext);
+        final TransactionMessageWriter transactionMessageWriter = TransactionMessageWriter.getTransactionRecoverWriter();
+        if (!channelAssociation.isMessageCompatibleForNegotiatedProtocolVersion(transactionMessageWriter.getHeader())) {
+            Logs.REMOTING.transactionRecoveryMessageNotSupported(receiverContext.getReceiver());
+            return new Xid[0];
+        }
         final short invocationId = channelAssociation.getNextInvocationId();
         final Future<EJBReceiverInvocationContext.ResultProducer> futureResultProducer = channelAssociation.enrollForResult(invocationId);
         final MessageOutputStream messageOutputStream;
         try {
             messageOutputStream = channelAssociation.acquireChannelMessageOutputStream();
             final DataOutputStream dataOutputStream = new DataOutputStream(messageOutputStream);
-            final TransactionMessageWriter transactionMessageWriter = new TransactionMessageWriter();
             try {
                 // write the tx recover message
                 transactionMessageWriter.writeTxRecover(dataOutputStream, invocationId, txParentNodeName, recoveryFlags);
@@ -466,7 +476,7 @@ public final class RemotingConnectionEJBReceiver extends EJBReceiver {
         try {
             messageOutputStream = channelAssociation.acquireChannelMessageOutputStream();
             final DataOutputStream dataOutputStream = new DataOutputStream(messageOutputStream);
-            final TransactionMessageWriter transactionMessageWriter = new TransactionMessageWriter();
+            final TransactionMessageWriter transactionMessageWriter = TransactionMessageWriter.getTransactionBeforeCompletionWriter();
             try {
                 // write the beforeCompletion message
                 transactionMessageWriter.writeTxBeforeCompletion(dataOutputStream, invocationId, transactionID);
@@ -561,6 +571,85 @@ public final class RemotingConnectionEJBReceiver extends EJBReceiver {
             throw Logs.MAIN.channelNotReadyForCommunication(EJB_CHANNEL_NAME, ejbReceiverContext);
         }
         return channelAssociation;
+    }
+
+    /**
+     * Wraps the {@link MessageOutputStream message output stream} into a relevant {@link DataOutputStream}, taking into account various factors like the necessity to
+     * compress the data that gets passed along the stream
+     *
+     * @param invocationContext         The EJB client invocation context
+     * @param receiverInvocationContext The receiver invocation context
+     * @param channelAssociation        The channel association
+     * @param messageOutputStream       The message outputstream that needs to be wrapped
+     * @return
+     * @throws Exception
+     */
+    private DataOutputStream wrapMessageOutputStream(final EJBClientInvocationContext invocationContext, final EJBReceiverInvocationContext receiverInvocationContext,
+                                                     final ChannelAssociation channelAssociation, final MessageOutputStream messageOutputStream) throws Exception {
+        // if the negotiated protocol version doesn't support compressed messages then just return a normal DataOutputStream
+        if (!channelAssociation.isMessageCompatibleForNegotiatedProtocolVersion((byte) 0x1B)) {
+            if (logger.isTraceEnabled()) {
+                logger.trace("Cannot send compressed data messages to server because the negotiated protocol version " + channelAssociation.getNegotiatedProtocolVersion() + " doesn't support compressed messages. Going to send uncompressed message");
+            }
+            return new DataOutputStream(messageOutputStream);
+        }
+
+        // if "hints" are disabled, just return a DataOutputStream without the necessity of processing any "hints"
+        final Boolean hintsDisabled = invocationContext.getProxyAttachment(AttachmentKeys.HINTS_DISABLED);
+        if (hintsDisabled != null && hintsDisabled.booleanValue()) {
+            if (logger.isTraceEnabled()) {
+                logger.trace("Hints are disabled. Ignoring any CompressionHint on methods being invoked on view " + invocationContext.getViewClass());
+            }
+            return new DataOutputStream(messageOutputStream);
+        }
+
+        // process any CompressionHint
+        final CompressionHint compressionHint;
+        // first check method level
+        final Map<Method, CompressionHint> dataCompressionHintMethods = invocationContext.getProxyAttachment(AttachmentKeys.VIEW_METHOD_DATA_COMPRESSION_HINT_ATTACHMENT_KEY);
+        if (dataCompressionHintMethods == null || dataCompressionHintMethods.isEmpty()) {
+            // check class level
+            compressionHint = invocationContext.getProxyAttachment(AttachmentKeys.VIEW_CLASS_DATA_COMPRESSION_HINT_ATTACHMENT_KEY);
+        } else {
+            final CompressionHint compressionHintOnMethod = dataCompressionHintMethods.get(invocationContext.getInvokedMethod());
+            if (compressionHintOnMethod == null) {
+                // check class level
+                compressionHint = invocationContext.getProxyAttachment(AttachmentKeys.VIEW_CLASS_DATA_COMPRESSION_HINT_ATTACHMENT_KEY);
+            } else {
+                compressionHint = compressionHintOnMethod;
+            }
+        }
+        // if no CompressionHint is applicable for this invocation
+        if (compressionHint == null) {
+            return new DataOutputStream(messageOutputStream);
+        }
+        final int compressionLevel = compressionHint.compressionLevel();
+        // write out a attachment to indicate whether or not the response has to be compressed
+        if (compressionHint.compressResponse()) {
+            invocationContext.putAttachment(AttachmentKeys.COMPRESS_RESPONSE, true);
+            invocationContext.putAttachment(AttachmentKeys.RESPONSE_COMPRESSION_LEVEL, compressionLevel);
+            if (logger.isTraceEnabled()) {
+                logger.trace("Letting the server know that the response of method " + invocationContext.getInvokedMethod() + " has to be compressed with compression level = " + compressionLevel);
+            }
+        }
+
+        // create a compressed invocation data *only* if the request has to be compressed (note, it's perfectly valid for certain methods to just specify that only the response is compressed)
+        if (compressionHint.compressRequest()) {
+            // write out the header indicating that it's a compressed stream
+            messageOutputStream.write(0x1B);
+            // create the deflater using the specified level
+            final Deflater deflater = new Deflater(compressionLevel);
+            // wrap the message outputstream with the deflater stream so that *any subsequent* data writes to the stream are compressed
+            final DeflaterOutputStream deflaterOutputStream = new DeflaterOutputStream(messageOutputStream, deflater);
+            if (logger.isTraceEnabled()) {
+                logger.trace("Using a compressing stream with compression level = " + compressionLevel + " for request data for EJB invocation on method " + invocationContext.getInvokedMethod());
+            }
+            return new DataOutputStream(deflaterOutputStream);
+        } else {
+            // just return a normal DataOutputStream without any compression
+            return new DataOutputStream(messageOutputStream);
+        }
+
     }
 
     @Override

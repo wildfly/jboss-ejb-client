@@ -22,15 +22,15 @@
 
 package org.jboss.ejb.client.remoting;
 
+import org.jboss.ejb.client.TransactionID;
+
 import java.io.DataOutput;
 import java.io.IOException;
-
-import org.jboss.ejb.client.TransactionID;
 
 /**
  * User: jpai
  */
-class TransactionMessageWriter extends AbstractMessageWriter {
+abstract class TransactionMessageWriter extends AbstractMessageWriter {
 
 
     private static final byte HEADER_TX_COMMIT_MESSAGE = 0x0F;
@@ -40,6 +40,59 @@ class TransactionMessageWriter extends AbstractMessageWriter {
     private static final byte HEADER_TX_BEFORE_COMPLETION_MESSAGE = 0x13;
     private static final byte HEADER_TX_RECOVER_MESSAGE = 0x19;
 
+    static TransactionMessageWriter getTransactionCommitWriter() {
+        return new TransactionMessageWriter() {
+            @Override
+            byte getHeader() {
+                return HEADER_TX_COMMIT_MESSAGE;
+            }
+        };
+    }
+
+    static TransactionMessageWriter getTransactionRollbackWriter() {
+        return new TransactionMessageWriter() {
+            @Override
+            byte getHeader() {
+                return HEADER_TX_ROLLBACK_MESSAGE;
+            }
+        };
+    }
+
+    static TransactionMessageWriter getTransactionPrepareWriter() {
+        return new TransactionMessageWriter() {
+            @Override
+            byte getHeader() {
+                return HEADER_TX_PREPARE_MESSAGE;
+            }
+        };
+    }
+
+    static TransactionMessageWriter getTransactionForgetWriter() {
+        return new TransactionMessageWriter() {
+            @Override
+            byte getHeader() {
+                return HEADER_TX_FORGET_MESSAGE;
+            }
+        };
+    }
+
+    static TransactionMessageWriter getTransactionBeforeCompletionWriter() {
+        return new TransactionMessageWriter() {
+            @Override
+            byte getHeader() {
+                return HEADER_TX_BEFORE_COMPLETION_MESSAGE;
+            }
+        };
+    }
+
+    static TransactionMessageWriter getTransactionRecoverWriter() {
+        return new TransactionMessageWriter() {
+            @Override
+            byte getHeader() {
+                return HEADER_TX_RECOVER_MESSAGE;
+            }
+        };
+    }
 
     void writeTxCommit(final DataOutput output, final short invocationId, final TransactionID transactionID, final boolean onePhaseCommit) throws IOException {
         // write the header

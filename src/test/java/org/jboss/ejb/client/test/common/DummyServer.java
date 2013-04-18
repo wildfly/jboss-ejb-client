@@ -21,7 +21,9 @@
  */
 package org.jboss.ejb.client.test.common;
 
+import org.jboss.ejb.client.AttachmentKeys;
 import org.jboss.ejb.client.ClusterAffinity;
+import org.jboss.ejb.client.EJBClientInvocationContext;
 import org.jboss.ejb.client.SessionID;
 import org.jboss.ejb.client.remoting.DummyProtocolHandler;
 import org.jboss.ejb.client.remoting.MethodInvocationRequest;
@@ -33,6 +35,7 @@ import org.jboss.remoting3.Channel;
 import org.jboss.remoting3.CloseHandler;
 import org.jboss.remoting3.Endpoint;
 import org.jboss.remoting3.MessageInputStream;
+import org.jboss.remoting3.MessageOutputStream;
 import org.jboss.remoting3.OpenListener;
 import org.jboss.remoting3.Remoting;
 import org.jboss.remoting3.remote.RemoteConnectionProviderFactory;
@@ -50,6 +53,7 @@ import java.io.DataInputStream;
 import java.io.DataOutput;
 import java.io.DataOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.net.InetAddress;
@@ -63,6 +67,9 @@ import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArraySet;
 import java.util.concurrent.Future;
+import java.util.zip.Deflater;
+import java.util.zip.DeflaterOutputStream;
+import java.util.zip.InflaterInputStream;
 
 /**
  * @author <a href="mailto:cdewolf@redhat.com">Carlo de Wolf</a>
@@ -70,9 +77,13 @@ import java.util.concurrent.Future;
 public class DummyServer {
 
     private static final Logger logger = Logger.getLogger(DummyServer.class);
+    public static final String REQUEST_WAS_COMPRESSED = "request-was-compressed";
+    public static final String RESPONSE_WAS_COMPRESSED = "Response was compressed";
 
     private static final String[] supportedMarshallerTypes = new String[]{"river", "java-serial"};
     private static final String CLUSTER_NAME = "dummy-cluster";
+    private static final ThreadLocal<Boolean> requestCompressed = new ThreadLocal<Boolean>();
+    private static final ThreadLocal<Boolean> responseCompressed = new ThreadLocal<Boolean>();
 
     private Endpoint endpoint;
 
@@ -135,7 +146,7 @@ public class DummyServer {
             private void sendVersionMessage(final Channel channel) throws IOException {
                 final DataOutputStream outputStream = new DataOutputStream(channel.writeMessage());
                 // write the version
-                outputStream.write(0x01);
+                outputStream.write(0x02);
                 // write the marshaller type count
                 PackedInteger.writePackedInteger(outputStream, supportedMarshallerTypes.length);
                 // write the marshaller types
@@ -160,29 +171,36 @@ public class DummyServer {
     }
 
 
-    class Version1Receiver implements Channel.Receiver {
+    class LatestVersionProtocolHandler implements Channel.Receiver {
 
         private final DummyProtocolHandler dummyProtocolHandler;
 
-        Version1Receiver(final String marshallingType) {
+        LatestVersionProtocolHandler(final String marshallingType) {
             this.dummyProtocolHandler = new DummyProtocolHandler(marshallingType);
         }
 
         @Override
         public void handleError(Channel channel, IOException error) {
-            //To change body of implemented methods use File | Settings | File Templates.
         }
 
         @Override
         public void handleEnd(Channel channel) {
-            //To change body of implemented methods use File | Settings | File Templates.
         }
 
         @Override
         public void handleMessage(Channel channel, MessageInputStream messageInputStream) {
-            final DataInputStream inputStream = new DataInputStream(messageInputStream);
             try {
-                final byte header = inputStream.readByte();
+                processMessage(channel, messageInputStream);
+            } finally {
+                // receive next message
+                channel.receiveMessage(this);
+                IoUtils.safeClose(messageInputStream);
+            }
+        }
+
+        private void processMessage(final Channel channel, final InputStream inputStream) {
+            try {
+                final int header = inputStream.read();
                 logger.info("Received message with header 0x" + Integer.toHexString(header));
                 switch (header) {
                     case 0x03:
@@ -211,23 +229,48 @@ public class DummyServer {
                         }
                         logger.info("Method invocation result on server " + methodInvocationResult);
                         // write the method invocation result
-                        final DataOutputStream outputStream = new DataOutputStream(channel.writeMessage());
+                        final DataOutputStream dataOutputStream = wrapMessgeOutputStream(channel.writeMessage(), methodInvocationRequest);
                         try {
-                            this.dummyProtocolHandler.writeMethodInvocationResponse(outputStream, methodInvocationRequest.getInvocationId(), methodInvocationResult, methodInvocationRequest.getAttachments());
+                            Object modifiedResult = methodInvocationResult;
+                            if (requestCompressed.get() != null && requestCompressed.get().booleanValue()) {
+                                // prefix a string to the result that the request was compressed. This is just to facilitate testing of compressed requests.
+                                // Just consider string responses
+                                if (methodInvocationResult instanceof String) {
+                                    modifiedResult = REQUEST_WAS_COMPRESSED + " " + modifiedResult;
+                                }
+                            }
+                            // prefix a string to the result that the response is compressed (if it is)
+                            if (responseCompressed.get() != null && responseCompressed.get().booleanValue()) {
+                                // prefix a string to the result that the response was compressed. This is just to facilitate testing of compressed responses.
+                                // Just consider string responses
+                                if (methodInvocationResult instanceof String) {
+                                    modifiedResult = RESPONSE_WAS_COMPRESSED + " " + modifiedResult;
+                                }
+                            }
+                            this.dummyProtocolHandler.writeMethodInvocationResponse(dataOutputStream, methodInvocationRequest.getInvocationId(), modifiedResult, methodInvocationRequest.getAttachments());
                         } finally {
-                            outputStream.close();
+                            dataOutputStream.close();
                         }
 
                         break;
                     case 0x01:
                         // session open request
                         try {
-                            this.handleSessionOpenRequest(channel, messageInputStream);
+                            this.handleSessionOpenRequest(channel, inputStream);
                         } catch (Exception e) {
                             // TODO: Let the client know of this exception
                             throw new RuntimeException(e);
                         }
 
+                        break;
+                    case 0x1B:
+                        // compressed data
+                        // create an inflater input stream
+                        logger.info("Received compressed data");
+                        // setup a thread local so that subsequent part of the invocation will know that the request was compressed. This is just to facilitate the tests and the outcome
+                        requestCompressed.set(true);
+                        final InputStream inflaterInputStream = new InflaterInputStream(inputStream);
+                        this.processMessage(channel, inflaterInputStream);
                         break;
                     default:
                         logger.warn("Not supported message header 0x" + Integer.toHexString(header) + " received by " + this);
@@ -237,18 +280,47 @@ public class DummyServer {
             } catch (IOException e) {
                 throw new RuntimeException(e);
             } finally {
-                // receive next message
-                channel.receiveMessage(this);
-                IoUtils.safeClose(inputStream);
+                // clear thread locals
+                requestCompressed.remove();
+                responseCompressed.remove();
             }
+
 
         }
 
-        private void handleSessionOpenRequest(Channel channel, MessageInputStream messageInputStream) throws IOException {
-            if (messageInputStream == null) {
-                throw new IllegalArgumentException("Cannot read from null message inputstream");
+        private DataOutputStream wrapMessgeOutputStream(final MessageOutputStream messageOutputStream, final MethodInvocationRequest methodInvocationRequest) throws IOException {
+            final Map attachments = methodInvocationRequest.getAttachments();
+            final DataOutput dataOutput;
+            if (attachments == null || attachments.isEmpty()) {
+                return new DataOutputStream(messageOutputStream);
             }
-            final DataInputStream dataInputStream = new DataInputStream(messageInputStream);
+            final Map privateAttachments = (Map) attachments.get(EJBClientInvocationContext.PRIVATE_ATTACHMENTS_KEY);
+            if (privateAttachments == null || privateAttachments.isEmpty()) {
+                return new DataOutputStream(messageOutputStream);
+            }
+            final Boolean compressResponse = (Boolean) privateAttachments.get(AttachmentKeys.COMPRESS_RESPONSE);
+            if (compressResponse == null) {
+                return new DataOutputStream(messageOutputStream);
+            }
+            if (!compressResponse) {
+                return new DataOutputStream(messageOutputStream);
+            }
+            // write out a header to indicate that the response will be compressed
+            messageOutputStream.write(0x1B);
+            // mark a thread local indicating that the response was compressed
+            responseCompressed.set(true);
+            // now create a deflater
+            final Integer compressionLevel = (Integer) attachments.get(AttachmentKeys.RESPONSE_COMPRESSION_LEVEL);
+            final Deflater deflater = new Deflater(compressionLevel == null ? Deflater.DEFAULT_COMPRESSION : compressionLevel);
+            final DeflaterOutputStream deflaterOutputStream = new DeflaterOutputStream(messageOutputStream, deflater);
+            return new DataOutputStream(deflaterOutputStream);
+        }
+
+        private void handleSessionOpenRequest(Channel channel, InputStream inputStream) throws IOException {
+            if (inputStream == null) {
+                throw new IllegalArgumentException("Cannot read from null inputstream");
+            }
+            final DataInputStream dataInputStream = new DataInputStream(inputStream);
 
             // read invocation id
             final short invocationId = dataInputStream.readShort();
@@ -470,7 +542,8 @@ public class DummyServer {
                 input.close();
                 switch (version) {
                     case 0x01:
-                        final Version1Receiver receiver = new Version1Receiver(clientMarshallingType);
+                    case 0x02:
+                        final LatestVersionProtocolHandler receiver = new LatestVersionProtocolHandler(clientMarshallingType);
                         DummyServer.this.openChannels.add(channel);
                         channel.receiveMessage(receiver);
                         // send module availability report to clients

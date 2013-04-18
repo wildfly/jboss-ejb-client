@@ -35,6 +35,7 @@ import org.jboss.marshalling.MarshallingConfiguration;
 import org.jboss.marshalling.Unmarshaller;
 
 import java.io.DataInput;
+import java.io.DataInputStream;
 import java.io.DataOutput;
 import java.io.EOFException;
 import java.io.IOException;
@@ -65,6 +66,8 @@ public class DummyProtocolHandler {
     private static final byte HEADER_INVOCATION_EXCEPTION = 0x06;
     private static final byte HEADER_ASYNC_METHOD_NOTIFICATION = 0x0E;
 
+    public static final String REQUEST_RECEIVED_WAS_COMPRESSED = "Request received by server was compressed";
+
     public DummyProtocolHandler(final String marshallerType) {
         this.marshallerFactory = Marshalling.getProvidedMarshallerFactory(marshallerType);
         if (this.marshallerFactory == null) {
@@ -72,7 +75,8 @@ public class DummyProtocolHandler {
         }
     }
 
-    public MethodInvocationRequest readMethodInvocationRequest(final DataInput input, final ClassLoader cl) throws IOException {
+    public MethodInvocationRequest readMethodInvocationRequest(final InputStream inputStream, final ClassLoader cl) throws IOException {
+        final DataInput input = new DataInputStream(inputStream);
         // read the invocation id
         final short invocationId = input.readShort();
         final String methodName = input.readUTF();
@@ -128,8 +132,6 @@ public class DummyProtocolHandler {
         if (output == null) {
             throw new IllegalArgumentException("Cannot write to null output");
         }
-
-        // write invocation response header
         output.write(HEADER_INVOCATION_RESPONSE);
         // write the invocation id
         output.writeShort(invocationId);

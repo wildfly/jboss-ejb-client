@@ -25,11 +25,11 @@ package org.jboss.ejb.client.remoting;
 import org.jboss.ejb.client.EJBClientContext;
 import org.jboss.ejb.client.EJBReceiverContext;
 import org.jboss.logging.Logger;
-import org.jboss.remoting3.MessageInputStream;
 
 import java.io.DataInput;
 import java.io.DataInputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashSet;
@@ -50,13 +50,13 @@ class ClusterRemovalMessageHandler extends ProtocolMessageHandler {
     }
 
     @Override
-    protected void processMessage(final MessageInputStream messageInputStream) throws IOException {
-        if (messageInputStream == null) {
+    protected void processMessage(final InputStream inputStream) throws IOException {
+        if (inputStream == null) {
             throw new IllegalArgumentException("Cannot read from a null stream");
         }
         final Collection<String> removedClusters = new HashSet<String>();
         try {
-            final DataInput input = new DataInputStream(messageInputStream);
+            final DataInput input = new DataInputStream(inputStream);
             // read the cluster count
             final int clusterCount = PackedInteger.readPackedInteger(input);
             // for each of the clusters, read the cluster name
@@ -66,7 +66,7 @@ class ClusterRemovalMessageHandler extends ProtocolMessageHandler {
                 removedClusters.add(clusterName);
             }
         } finally {
-            messageInputStream.close();
+            inputStream.close();
         }
         // let the client context know that about the removed clusters
         final EJBClientContext clientContext = this.ejbReceiverContext.getClientContext();

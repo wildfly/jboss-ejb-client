@@ -29,10 +29,10 @@ import org.jboss.ejb.client.EJBReceiverInvocationContext;
 import org.jboss.logging.Logger;
 import org.jboss.marshalling.MarshallerFactory;
 import org.jboss.marshalling.Unmarshaller;
-import org.jboss.remoting3.MessageInputStream;
 
 import java.io.DataInputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.util.Map;
 
 /**
@@ -62,15 +62,15 @@ class MethodInvocationResponseHandler extends ProtocolMessageHandler {
      * stream in its {@link org.jboss.ejb.client.EJBReceiverInvocationContext.ResultProducer#getResult()} (whenever that
      * gets invoked)
      *
-     * @param messageInputStream The message input stream
-     * @throws IOException If there is a problem reading from the stream
+     *
+     * @param inputStream@throws IOException If there is a problem reading from the stream
      */
     @Override
-    protected void processMessage(MessageInputStream messageInputStream) throws IOException {
-        if (messageInputStream == null) {
+    protected void processMessage(InputStream inputStream) throws IOException {
+        if (inputStream == null) {
             throw new IllegalArgumentException("Cannot read from null stream");
         }
-        final DataInputStream input = new DataInputStream(messageInputStream);
+        final DataInputStream input = new DataInputStream(inputStream);
         // read the invocation id
         final short invocationId = input.readShort();
 

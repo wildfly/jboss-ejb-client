@@ -29,11 +29,11 @@ import org.jboss.ejb.client.EJBClientContext;
 import org.jboss.ejb.client.EJBReceiverContext;
 import org.jboss.logging.Logger;
 import org.jboss.remoting3.Endpoint;
-import org.jboss.remoting3.MessageInputStream;
 
 import java.io.DataInput;
 import java.io.DataInputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.net.InetAddress;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -64,13 +64,13 @@ class ClusterTopologyMessageHandler extends ProtocolMessageHandler {
     }
 
     @Override
-    protected void processMessage(final MessageInputStream messageInputStream) throws IOException {
-        if (messageInputStream == null) {
+    protected void processMessage(final InputStream inputStream) throws IOException {
+        if (inputStream == null) {
             throw new IllegalArgumentException("Cannot read from null stream");
         }
         final Map<String, Collection<ClusterNode>> clusterNodes = new HashMap<String, Collection<ClusterNode>>();
         try {
-            final DataInput input = new DataInputStream(messageInputStream);
+            final DataInput input = new DataInputStream(inputStream);
             // read the cluster count
             final int clusterCount = PackedInteger.readPackedInteger(input);
             for (int i = 0; i < clusterCount; i++) {
@@ -119,7 +119,7 @@ class ClusterTopologyMessageHandler extends ProtocolMessageHandler {
                 clusterNodes.put(clusterName, nodes);
             }
         } finally {
-            messageInputStream.close();
+            inputStream.close();
         }
         // let the client context know about the cluster topologies
         final EJBReceiverContext ejbReceiverContext = this.channelAssociation.getEjbReceiverContext();

@@ -22,15 +22,14 @@
 
 package org.jboss.ejb.client.remoting;
 
-import java.io.DataOutput;
-import java.io.IOException;
-import java.lang.reflect.Method;
-import java.util.Map;
-
 import org.jboss.ejb.client.EJBClientInvocationContext;
 import org.jboss.ejb.client.EJBLocator;
 import org.jboss.marshalling.Marshaller;
 import org.jboss.marshalling.MarshallerFactory;
+
+import java.io.DataOutput;
+import java.io.IOException;
+import java.lang.reflect.Method;
 
 /**
  * Responsible for writing out a method invocation message, as per the EJB remoting client protocol specification to a stream.
@@ -43,12 +42,9 @@ class MethodInvocationMessageWriter extends AbstractMessageWriter {
 
     private static final char METHOD_PARAM_TYPE_SEPARATOR = ',';
 
-    private final byte protocolVersion;
-
     private final MarshallerFactory marshallerFactory;
 
-    MethodInvocationMessageWriter(final byte protocolVersion, final MarshallerFactory marshallerFactory) {
-        this.protocolVersion = protocolVersion;
+    MethodInvocationMessageWriter(final MarshallerFactory marshallerFactory) {
         this.marshallerFactory = marshallerFactory;
     }
 
@@ -110,5 +106,10 @@ class MethodInvocationMessageWriter extends AbstractMessageWriter {
         // finish marshalling
         marshaller.finish();
 
+    }
+
+    @Override
+    byte getHeader() {
+        return METHOD_INVOCATION_HEADER;
     }
 }

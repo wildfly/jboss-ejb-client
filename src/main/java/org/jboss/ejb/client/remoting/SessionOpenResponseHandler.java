@@ -29,10 +29,10 @@ import org.jboss.ejb.client.SessionID;
 import org.jboss.logging.Logger;
 import org.jboss.marshalling.MarshallerFactory;
 import org.jboss.marshalling.Unmarshaller;
-import org.jboss.remoting3.MessageInputStream;
 
 import java.io.DataInputStream;
 import java.io.IOException;
+import java.io.InputStream;
 
 /**
  * Responsible for parsing a stream for a (prior) session open request's response, as per the EJB remote client protocol
@@ -56,15 +56,15 @@ class SessionOpenResponseHandler extends ProtocolMessageHandler {
      * This method does <i>not</i> fully read the passed stream, instead it reads enough to create a {@link org.jboss.ejb.client.EJBReceiverInvocationContext.ResultProducer}
      * which can then read the rest of the stream when the {@link org.jboss.ejb.client.EJBReceiverInvocationContext.ResultProducer#getResult()} is called
      *
-     * @param messageInputStream The message input stream
-     * @throws IOException If there's a problem reading the stream
+     *
+     * @param inputStream@throws IOException If there's a problem reading the stream
      */
     @Override
-    protected void processMessage(final MessageInputStream messageInputStream) throws IOException {
-        if (messageInputStream == null) {
+    protected void processMessage(final InputStream inputStream) throws IOException {
+        if (inputStream == null) {
             throw Logs.MAIN.paramCannotBeNull("Message input stream");
         }
-        final DataInputStream input = new DataInputStream(messageInputStream);
+        final DataInputStream input = new DataInputStream(inputStream);
         // read the invocation id
         final short invocationId = input.readShort();
         // create a ResultProducer which can be used to get the session id result

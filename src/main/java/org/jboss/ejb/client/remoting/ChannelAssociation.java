@@ -36,6 +36,7 @@ import org.jboss.remoting3.RemotingOptions;
 import org.xnio.FutureResult;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
@@ -84,6 +85,8 @@ class ChannelAssociation {
     // Keeps track of the invocation ids for each of the EJB receiver invocation contexts
     private final Map<EJBReceiverInvocationContext, Short> invocationIdsPerReceiverInvocationCtx = Collections.synchronizedMap(new IdentityHashMap<EJBReceiverInvocationContext, Short>());
 
+    private final MessageCompatibilityChecker messageCompatibilityChecker;
+
     /**
      * Creates a channel association for the passed {@link EJBReceiverContext} and the {@link Channel}
      *
@@ -125,6 +128,17 @@ class ChannelAssociation {
             maxOutboundWrites = 80;
         }
         this.channelWriteSemaphore = new Semaphore(maxOutboundWrites, true);
+
+        switch (protocolVersion) {
+            case 0x01:
+                this.messageCompatibilityChecker = new ProtocolVersionOneMessageCompatibilityChecker();
+                break;
+            case 0x02:
+                this.messageCompatibilityChecker = new ProtocolVersionTwoMessageCompatibilityChecker();
+                break;
+            default:
+                this.messageCompatibilityChecker = null;
+        }
     }
 
     /**
@@ -291,6 +305,7 @@ class ChannelAssociation {
      */
     private ProtocolMessageHandler getProtocolMessageHandler(final byte header) {
         switch (header) {
+            // Please try and maintain the case statements in the numerical order of the headers for the sake of quickly finding the highest known response header at present.
             case 0x02:
                 return new SessionOpenResponseHandler(this, this.marshallerFactory);
             case 0x05:
@@ -327,9 +342,39 @@ class ChannelAssociation {
             case 0x1A:
                 // transaction recovery response
                 return new TransactionRecoveryResponseHandler(this, this.marshallerFactory);
+            case 0x1B:
+                // compressed data (response)
+                return new CompressedMessageHandler(this);
             default:
                 return null;
         }
+    }
+
+    void processResponse(final InputStream inputStream) throws IOException {
+        // get the header in the message
+        final int header = inputStream.read();
+        if (logger.isTraceEnabled()) {
+            logger.trace("Received message with header 0x" + Integer.toHexString(header));
+        }
+        // get the protocol message handler for the header
+        final ProtocolMessageHandler messageHandler = getProtocolMessageHandler((byte) header);
+        if (messageHandler == null) {
+            logger.debug("Unsupported message received with header 0x" + Integer.toHexString(header));
+            return;
+        }
+        // let the protocol handler process the stream
+        messageHandler.processMessage(inputStream);
+    }
+
+    boolean isMessageCompatibleForNegotiatedProtocolVersion(final byte messageHeader) {
+        if (messageCompatibilityChecker == null) {
+            return false;
+        }
+        return messageCompatibilityChecker.isMessageCompatible(messageHeader);
+    }
+
+    byte getNegotiatedProtocolVersion() {
+        return this.protocolVersion;
     }
 
     private void notifyBrokenChannel(final IOException ioException) {
@@ -410,17 +455,7 @@ class ChannelAssociation {
         public void handleMessage(Channel channel, MessageInputStream messageInputStream) {
 
             try {
-                final int header = messageInputStream.read();
-                if (logger.isTraceEnabled()) {
-                    logger.trace("Received message with header 0x" + Integer.toHexString(header));
-                }
-                final ProtocolMessageHandler messageHandler = ChannelAssociation.this.getProtocolMessageHandler((byte) header);
-                if (messageHandler == null) {
-                    logger.debug("Unsupported message received with header 0x" + Integer.toHexString(header));
-                    return;
-                }
-                messageHandler.processMessage(messageInputStream);
-
+                processResponse(messageInputStream);
             } catch (IOException e) {
                 this.handleError(channel, e);
             } finally {
@@ -451,6 +486,51 @@ class ChannelAssociation {
 
         @Override
         public void discardResult() {
+        }
+    }
+
+    private interface MessageCompatibilityChecker {
+        /**
+         * Returns true if the message represented by the <code>messageHeader</code> is compatible in the protocol version represented by the {@link MessageCompatibilityChecker}. Else
+         * returns false.
+         *
+         * @param messageHeader The message header
+         * @return
+         */
+        boolean isMessageCompatible(final byte messageHeader);
+    }
+
+    private class ProtocolVersionOneMessageCompatibilityChecker implements MessageCompatibilityChecker {
+
+        @Override
+        public boolean isMessageCompatible(final byte messageHeader) {
+            switch (messageHeader) {
+                case 0x01: // session open request
+                case 0x03: // method invocation request
+                case 0x0F: // tx commit request
+                case 0x10: // tx rollback request
+                case 0x11: // tx prepare request
+                case 0x12: // tx forget request
+                case 0x13: // tx before completion request
+                case 0x04: // method invocation cancel request
+                    return true;
+                default:
+                    return false;
+
+            }
+        }
+    }
+
+    private class ProtocolVersionTwoMessageCompatibilityChecker extends ProtocolVersionOneMessageCompatibilityChecker {
+        @Override
+        public boolean isMessageCompatible(final byte messageHeader) {
+            switch (messageHeader) {
+                case 0x19: // tx recover request
+                case 0x1B: // compressed message request
+                    return true;
+                default:
+                    return super.isMessageCompatible(messageHeader);
+            }
         }
     }
 }
