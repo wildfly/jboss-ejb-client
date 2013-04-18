@@ -15,26 +15,20 @@ import java.util.zip.Deflater;
  */
 @Target({ElementType.METHOD, ElementType.TYPE})
 @Retention(RetentionPolicy.RUNTIME)
-public @interface DataCompressionHint {
-
-    enum Data {
-        REQUEST,
-        RESPONSE,
-        REQUEST_AND_RESPONSE
-    }
+public @interface CompressionHint {
 
     /**
-     * The data that should be compressed. It can either be the {@link Data#REQUEST request}, {@link Data#RESPONSE response} or both the {@link Data#REQUEST_AND_RESPONSE request and response} of
-     * a EJB invocation. By default both request and response data is compressed, when the {@link DataCompressionHint} is honoured.
-     *
-     * @return
+     * True if the request data of an EJB invocation should be compressed. False otherwise. By default this is <code>true</code>.
      */
-    Data data() default org.jboss.ejb.client.annotation.DataCompressionHint.Data.REQUEST_AND_RESPONSE; // fully qualified classname for the enum is required as a workaround for Sun/Oracle compiler bug http://bugs.sun.com/view_bug.do?bug_id=6512707
+    boolean compressRequest() default true;
+
+    /**
+     * True if the response data of an EJB invocation should be compressed. False otherwise. By default this is <code>true</code>.
+     */
+    boolean compressResponse() default true;
 
     /**
      * The compression level to be used while compressing the data. The values can be any of those that are supported by {@link Deflater}. By default the compression level is {@link Deflater#DEFAULT_COMPRESSION}
-     *
-     * @return
      */
     int compressionLevel() default Deflater.DEFAULT_COMPRESSION;
 }

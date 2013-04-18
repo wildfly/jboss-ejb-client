@@ -1,8 +1,8 @@
 package org.jboss.ejb.client.test.compression;
 
-import org.jboss.ejb.client.annotation.DataCompressionHint;
-
 import java.util.zip.Deflater;
+
+import org.jboss.ejb.client.annotation.CompressionHint;
 
 /**
  * @author: Jaikiran Pai
@@ -10,13 +10,13 @@ import java.util.zip.Deflater;
 public interface CompressableDataRemoteView {
 
 
-    @DataCompressionHint(data = DataCompressionHint.Data.REQUEST, compressionLevel = Deflater.BEST_COMPRESSION)
+    @CompressionHint(compressResponse = false, compressionLevel = Deflater.BEST_COMPRESSION)
     String echoWithRequestCompress(String msg);
 
-    @DataCompressionHint(data = DataCompressionHint.Data.RESPONSE)
+    @CompressionHint(compressRequest = false)
     String echoWithResponseCompress(String msg);
 
-    @DataCompressionHint(data = DataCompressionHint.Data.REQUEST_AND_RESPONSE)
+    @CompressionHint
     String echoWithRequestAndResponseCompress(String msg);
 
     String echoWithNoCompress(String msg);

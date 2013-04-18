@@ -45,7 +45,7 @@ import org.jboss.ejb.client.EJBReceiverInvocationContext;
 import org.jboss.ejb.client.Logs;
 import org.jboss.ejb.client.StatefulEJBLocator;
 import org.jboss.ejb.client.TransactionID;
-import org.jboss.ejb.client.annotation.DataCompressionHint;
+import org.jboss.ejb.client.annotation.CompressionHint;
 import org.jboss.logging.Logger;
 import org.jboss.marshalling.MarshallerFactory;
 import org.jboss.marshalling.Marshalling;
@@ -598,36 +598,34 @@ public final class RemotingConnectionEJBReceiver extends EJBReceiver {
         final Boolean hintsDisabled = invocationContext.getProxyAttachment(AttachmentKeys.HINTS_DISABLED);
         if (hintsDisabled != null && hintsDisabled.booleanValue()) {
             if (logger.isTraceEnabled()) {
-                logger.trace("Hints are disabled. Ignoring any DataCompressionHint on methods being invoked on view " + invocationContext.getViewClass());
+                logger.trace("Hints are disabled. Ignoring any CompressionHint on methods being invoked on view " + invocationContext.getViewClass());
             }
             return new DataOutputStream(messageOutputStream);
         }
 
-        // process any DataCompressionHint
-        final DataCompressionHint dataCompressionHint;
+        // process any CompressionHint
+        final CompressionHint compressionHint;
         // first check method level
-        final Map<Method, DataCompressionHint> dataCompressionHintMethods = invocationContext.getProxyAttachment(AttachmentKeys.VIEW_METHOD_DATA_COMPRESSION_HINT_ATTACHMENT_KEY);
+        final Map<Method, CompressionHint> dataCompressionHintMethods = invocationContext.getProxyAttachment(AttachmentKeys.VIEW_METHOD_DATA_COMPRESSION_HINT_ATTACHMENT_KEY);
         if (dataCompressionHintMethods == null || dataCompressionHintMethods.isEmpty()) {
             // check class level
-            dataCompressionHint = invocationContext.getProxyAttachment(AttachmentKeys.VIEW_CLASS_DATA_COMPRESSION_HINT_ATTACHMENT_KEY);
+            compressionHint = invocationContext.getProxyAttachment(AttachmentKeys.VIEW_CLASS_DATA_COMPRESSION_HINT_ATTACHMENT_KEY);
         } else {
-            final DataCompressionHint dataCompressionHintOnMethod = dataCompressionHintMethods.get(invocationContext.getInvokedMethod());
-            if (dataCompressionHintOnMethod == null) {
+            final CompressionHint compressionHintOnMethod = dataCompressionHintMethods.get(invocationContext.getInvokedMethod());
+            if (compressionHintOnMethod == null) {
                 // check class level
-                dataCompressionHint = invocationContext.getProxyAttachment(AttachmentKeys.VIEW_CLASS_DATA_COMPRESSION_HINT_ATTACHMENT_KEY);
+                compressionHint = invocationContext.getProxyAttachment(AttachmentKeys.VIEW_CLASS_DATA_COMPRESSION_HINT_ATTACHMENT_KEY);
             } else {
-                dataCompressionHint = dataCompressionHintOnMethod;
+                compressionHint = compressionHintOnMethod;
             }
         }
-        // if no DataCompressionHint is applicable for this invocation
-        if (dataCompressionHint == null) {
+        // if no CompressionHint is applicable for this invocation
+        if (compressionHint == null) {
             return new DataOutputStream(messageOutputStream);
         }
-
-        final DataCompressionHint.Data dataToCompress = dataCompressionHint.data();
-        final int compressionLevel = dataCompressionHint.compressionLevel();
+        final int compressionLevel = compressionHint.compressionLevel();
         // write out a attachment to indicate whether or not the response has to be compressed
-        if (dataToCompress == DataCompressionHint.Data.REQUEST_AND_RESPONSE || dataToCompress == DataCompressionHint.Data.RESPONSE) {
+        if (compressionHint.compressResponse()) {
             invocationContext.putAttachment(AttachmentKeys.COMPRESS_RESPONSE, true);
             invocationContext.putAttachment(AttachmentKeys.RESPONSE_COMPRESSION_LEVEL, compressionLevel);
             if (logger.isTraceEnabled()) {
@@ -636,7 +634,7 @@ public final class RemotingConnectionEJBReceiver extends EJBReceiver {
         }
 
         // create a compressed invocation data *only* if the request has to be compressed (note, it's perfectly valid for certain methods to just specify that only the response is compressed)
-        if (dataToCompress == DataCompressionHint.Data.REQUEST || dataToCompress == DataCompressionHint.Data.REQUEST_AND_RESPONSE) {
+        if (compressionHint.compressRequest()) {
             // write out the header indicating that it's a compressed stream
             messageOutputStream.write(0x1B);
             // create the deflater using the specified level

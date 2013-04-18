@@ -37,7 +37,7 @@ import javax.ejb.EJBException;
 import javax.ejb.EJBHome;
 import javax.ejb.EJBObject;
 
-import org.jboss.ejb.client.annotation.DataCompressionHint;
+import org.jboss.ejb.client.annotation.CompressionHint;
 
 /**
  * @param <T> the proxy view type
@@ -71,7 +71,7 @@ final class EJBInvocationHandler<T> extends Attachable implements InvocationHand
      */
     // The whole annotation scanning business is for now contained within this invocation handler class and isn't exposed or isn't allowed to be "pluggable" to avoid unnecesary complexity
     // in the EJB client API. The only control user applications have over annotation scanning of view class(es), for now, is via setting a system property to enable or disable the scanning.
-    private final transient AnnotationScanner[] annotationScanners = new AnnotationScanner[]{new DataCompressionHintAnnotationScanner()};
+    private final transient AnnotationScanner[] annotationScanners = new AnnotationScanner[]{new CompressionHintAnnotationScanner()};
 
     /**
      * map of methods that can be handled on the client side
@@ -121,7 +121,7 @@ final class EJBInvocationHandler<T> extends Attachable implements InvocationHand
             scanAnnotationsOnViewClass();
         } else {
             // let's for the sake of potential performance optimization, add an attachment which lets the EJBReceiver(s) and any other decision making
-            // code to decide whether it can entirely skip any logic related to "hints" (like @org.jboss.ejb.client.annotation.DataCompressionHint)
+            // code to decide whether it can entirely skip any logic related to "hints" (like @org.jboss.ejb.client.annotation.CompressionHint)
             putAttachment(AttachmentKeys.HINTS_DISABLED, true);
         }
     }
@@ -444,38 +444,38 @@ final class EJBInvocationHandler<T> extends Attachable implements InvocationHand
     }
 
     /**
-     * An {@link AnnotationScanner} responsible for scanning the {@link DataCompressionHint} annotation on the view class and its methods. This
-     * {@link DataCompressionHintAnnotationScanner} attaches the found annotations (if any) to the invocation handler through the use of {@link EJBInvocationHandler#putAttachment(AttachmentKey, Object)}
-     * method. The class level {@link DataCompressionHint} annotation (if any) is attached with {@link AttachmentKeys#VIEW_CLASS_DATA_COMPRESSION_HINT_ATTACHMENT_KEY} as the key and the method level
-     * {@link DataCompressionHint} annotations (if any) is attached with {@link AttachmentKeys#VIEW_METHOD_DATA_COMPRESSION_HINT_ATTACHMENT_KEY} as the key
+     * An {@link AnnotationScanner} responsible for scanning the {@link org.jboss.ejb.client.annotation.CompressionHint} annotation on the view class and its methods. This
+     * {@link org.jboss.ejb.client.EJBInvocationHandler.CompressionHintAnnotationScanner} attaches the found annotations (if any) to the invocation handler through the use of {@link EJBInvocationHandler#putAttachment(AttachmentKey, Object)}
+     * method. The class level {@link org.jboss.ejb.client.annotation.CompressionHint} annotation (if any) is attached with {@link AttachmentKeys#VIEW_CLASS_DATA_COMPRESSION_HINT_ATTACHMENT_KEY} as the key and the method level
+     * {@link org.jboss.ejb.client.annotation.CompressionHint} annotations (if any) is attached with {@link AttachmentKeys#VIEW_METHOD_DATA_COMPRESSION_HINT_ATTACHMENT_KEY} as the key
      */
-    private final class DataCompressionHintAnnotationScanner implements AnnotationScanner {
+    private final class CompressionHintAnnotationScanner implements AnnotationScanner {
 
         @Override
         public void scanClass(Class view) {
-            final DataCompressionHint dataCompressionHint = (DataCompressionHint) view.getAnnotation(DataCompressionHint.class);
+            final CompressionHint compressionHint = (CompressionHint) view.getAnnotation(CompressionHint.class);
             // nothing to do
-            if (dataCompressionHint == null) {
+            if (compressionHint == null) {
                 return;
             }
             // add it as an attachment to the invocation handler so that it's available during an invocation via the EJBClientInvocationContext#getProxyAttachment()
-            EJBInvocationHandler.this.putAttachment(AttachmentKeys.VIEW_CLASS_DATA_COMPRESSION_HINT_ATTACHMENT_KEY, dataCompressionHint);
+            EJBInvocationHandler.this.putAttachment(AttachmentKeys.VIEW_CLASS_DATA_COMPRESSION_HINT_ATTACHMENT_KEY, compressionHint);
         }
 
         @Override
         public void scanMethod(Method method) {
-            final DataCompressionHint dataCompressionHint = (DataCompressionHint) method.getAnnotation(DataCompressionHint.class);
+            final CompressionHint compressionHint = (CompressionHint) method.getAnnotation(CompressionHint.class);
             // nothing to do
-            if (dataCompressionHint == null) {
+            if (compressionHint == null) {
                 return;
             }
-            Map<Method, DataCompressionHint> annotatedMethods = EJBInvocationHandler.this.getAttachment(AttachmentKeys.VIEW_METHOD_DATA_COMPRESSION_HINT_ATTACHMENT_KEY);
+            Map<Method, CompressionHint> annotatedMethods = EJBInvocationHandler.this.getAttachment(AttachmentKeys.VIEW_METHOD_DATA_COMPRESSION_HINT_ATTACHMENT_KEY);
             if (annotatedMethods == null) {
                 // Intentionally avoiding IdentityHashMap since it doesn't work out because the methods being scanned here and the methods being invoked upon later, aren't the "same" (i.e. this method != that method)
-                annotatedMethods = new HashMap<Method, DataCompressionHint>();
+                annotatedMethods = new HashMap<Method, CompressionHint>();
                 EJBInvocationHandler.this.putAttachment(AttachmentKeys.VIEW_METHOD_DATA_COMPRESSION_HINT_ATTACHMENT_KEY, annotatedMethods);
             }
-            annotatedMethods.put(method, dataCompressionHint);
+            annotatedMethods.put(method, compressionHint);
         }
     }
 }

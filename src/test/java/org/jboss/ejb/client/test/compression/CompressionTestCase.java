@@ -1,5 +1,9 @@
 package org.jboss.ejb.client.test.compression;
 
+import java.io.IOException;
+import java.io.InputStream;
+import java.util.Properties;
+
 import junit.framework.Assert;
 import org.jboss.ejb.client.ContextSelector;
 import org.jboss.ejb.client.EJBClient;
@@ -14,18 +18,14 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 
-import java.io.IOException;
-import java.io.InputStream;
-import java.util.Properties;
-
 /**
- * Tests that the {@link org.jboss.ejb.client.annotation.DataCompressionHint} on view classes and the view methods is taken into account during EJB invocations
+ * Tests that the {@link org.jboss.ejb.client.annotation.CompressionHint} on view classes and the view methods is taken into account during EJB invocations
  *
  * @author: Jaikiran Pai
  */
-public class DataCompressionTestCase {
+public class CompressionTestCase {
 
-    private static final Logger logger = Logger.getLogger(DataCompressionTestCase.class);
+    private static final Logger logger = Logger.getLogger(CompressionTestCase.class);
 
     private static final String APP_NAME = "my-foo-app";
     private static final String MODULE_NAME = "my-bar-module";
