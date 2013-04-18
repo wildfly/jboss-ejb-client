@@ -34,10 +34,7 @@ class SessionOpenRequestWriter extends AbstractMessageWriter {
 
     private static final byte HEADER_SESSION_OPEN_REQUEST = 0x01;
 
-    private final byte protocolVersion;
-
-    SessionOpenRequestWriter(final byte protocolVersion) {
-        this.protocolVersion = protocolVersion;
+    SessionOpenRequestWriter() {
     }
 
     /**
@@ -71,4 +68,8 @@ class SessionOpenRequestWriter extends AbstractMessageWriter {
         output.writeUTF(beanName);
     }
 
+    @Override
+    byte getHeader() {
+        return HEADER_SESSION_OPEN_REQUEST;
+    }
 }

@@ -23,10 +23,10 @@
 package org.jboss.ejb.client.remoting;
 
 import org.jboss.ejb.client.EJBReceiverInvocationContext;
-import org.jboss.remoting3.MessageInputStream;
 
 import java.io.DataInputStream;
 import java.io.IOException;
+import java.io.InputStream;
 
 /**
  * User: jpai
@@ -40,9 +40,9 @@ class TransactionInvocationResponseHandler extends ProtocolMessageHandler {
     }
 
     @Override
-    protected void processMessage(final MessageInputStream messageInputStream) throws IOException {
+    protected void processMessage(final InputStream inputStream) throws IOException {
         // read the invocation id
-        final DataInputStream dataInputStream = new DataInputStream(messageInputStream);
+        final DataInputStream dataInputStream = new DataInputStream(inputStream);
         try {
             final short invocationId = dataInputStream.readShort();
             // check to see if this was a response to a "prepare" invocation. If yes, then

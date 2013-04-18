@@ -24,13 +24,13 @@ package org.jboss.ejb.client.remoting;
 
 import java.io.DataInputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.util.Map;
 
 import org.jboss.ejb.client.EJBReceiverInvocationContext;
 import org.jboss.logging.Logger;
 import org.jboss.marshalling.MarshallerFactory;
 import org.jboss.marshalling.Unmarshaller;
-import org.jboss.remoting3.MessageInputStream;
 
 /**
  * @author Jaikiran Pai
@@ -50,11 +50,11 @@ class InvocationExceptionResponseHandler extends ProtocolMessageHandler {
 
 
     @Override
-    protected void processMessage(MessageInputStream messageInputStream) throws IOException {
-        if (messageInputStream == null) {
+    protected void processMessage(InputStream inputStream) throws IOException {
+        if (inputStream == null) {
             throw new IllegalArgumentException("Cannot read from null stream");
         }
-        final DataInputStream input = new DataInputStream(messageInputStream);
+        final DataInputStream input = new DataInputStream(inputStream);
         // read the invocation id
         final short invocationId = input.readShort();
         // create a ResultProducer which can unmarshall and return the result, later
