@@ -137,15 +137,16 @@ public class ConfigBasedEJBClientContextSelector implements IdentityEJBClientCon
         while (connectionConfigurations.hasNext()) {
             final EJBClientConfiguration.RemotingConnectionConfiguration connectionConfiguration = connectionConfigurations.next();
             final String host = connectionConfiguration.getHost();
+            final String protocol = connectionConfiguration.getProtocol();
             final int port = connectionConfiguration.getPort();
             final int MAX_RECONNECT_ATTEMPTS = 65535; // TODO: Let's keep this high for now and later allow configuration and a smaller default value
             // create a re-connect handler (which will be used on connection breaking down)
-            final ReconnectHandler reconnectHandler = new EJBClientContextConnectionReconnectHandler(ejbClientContext, endpoint, host, port, connectionConfiguration, MAX_RECONNECT_ATTEMPTS);
+            final ReconnectHandler reconnectHandler = new EJBClientContextConnectionReconnectHandler(ejbClientContext, endpoint, protocol, host, port, connectionConfiguration, MAX_RECONNECT_ATTEMPTS);
             try {
                 // wait for the connection to be established
-                final Connection connection = this.remotingConnectionManager.getConnection(endpoint, host, port, connectionConfiguration);
+                final Connection connection = this.remotingConnectionManager.getConnection(endpoint, protocol, host, port, connectionConfiguration);
                 // create a remoting EJB receiver for this connection
-                final EJBReceiver remotingEJBReceiver = new RemotingConnectionEJBReceiver(connection, reconnectHandler, connectionConfiguration.getChannelCreationOptions());
+                final EJBReceiver remotingEJBReceiver = new RemotingConnectionEJBReceiver(connection, reconnectHandler, connectionConfiguration.getChannelCreationOptions(), protocol);
                 // associate it with the client context
                 this.ejbClientContext.registerEJBReceiver(remotingEJBReceiver);
                 // keep track of successful registrations for logging purposes

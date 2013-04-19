@@ -184,6 +184,14 @@ public interface EJBClientConfiguration {
          */
         int getPort();
 
+        /**
+         * The protocol to use. Can be remoting, http-remoting or https-remoting
+         *
+         *
+         * @return The protocol
+         */
+        String getProtocol();
+
     }
 
     /**

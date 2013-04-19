@@ -109,7 +109,7 @@ class ClusterTopologyMessageHandler extends ProtocolMessageHandler {
                         // read the destination port
                         final short destinationPort = input.readShort();
                         // create a ClientMapping out of this
-                        clientMappings[c] = new ClientMapping(clientNetworkAddress, clientNetMask & 0xff, destinationAddress, destinationPort);
+                        clientMappings[c] = new ClientMapping(clientNetworkAddress, clientNetMask & 0xff, destinationAddress, destinationPort, channelAssociation.getRemotingProtocol());
                     }
                     // form a cluster node out of the available information
                     final ClusterNode clusterNode = new ClusterNode(clusterName, nodeName, clientMappings);
@@ -144,7 +144,7 @@ class ClusterTopologyMessageHandler extends ProtocolMessageHandler {
         final ClusterNodeManager[] clusterNodeManagers = new ClusterNodeManager[clusterNodes.size()];
         int i = 0;
         for (final ClusterNode clusterNode : clusterNodes) {
-            clusterNodeManagers[i++] = new RemotingConnectionClusterNodeManager(clusterContext, clusterNode, endpoint, ejbClientConfiguration);
+            clusterNodeManagers[i++] = new RemotingConnectionClusterNodeManager(clusterContext, clusterNode, endpoint, ejbClientConfiguration, channelAssociation.getRemotingProtocol());
         }
         // add the cluster nodes to the cluster context
         clusterContext.addClusterNodes(clusterNodeManagers);

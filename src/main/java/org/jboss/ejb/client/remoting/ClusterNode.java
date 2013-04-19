@@ -101,6 +101,15 @@ final class ClusterNode {
     }
 
     /**
+     * Returns the protocol to use to connect tot he cluster node
+     *
+     * @return
+     */
+    String getDestinationProtocol() {
+        return this.resolvedDestination.destinationProtocol;
+    }
+
+    /**
      * Returns the destination address of the cluster node
      *
      * @return
@@ -145,7 +154,7 @@ final class ClusterNode {
                 final boolean match = NetworkUtil.belongsToNetwork(address, sourceNetworkAddress, (byte) (netMask & 0xff));
                 if (match) {
                     logger.debug("Client mapping " + clientMapping + " matches client address " + address);
-                    this.resolvedDestination = new ResolvedDestination(clientMapping.getDestinationAddress(), clientMapping.getDestinationPort());
+                    this.resolvedDestination = new ResolvedDestination(clientMapping.getDestinationAddress(), clientMapping.getDestinationPort(), clientMapping.getDestinationProtocol());
                     return;
                 }
             }
@@ -155,8 +164,10 @@ final class ClusterNode {
     private static final class ResolvedDestination {
         private final String destinationAddress;
         private final int destinationPort;
+        private final String destinationProtocol;
 
-        ResolvedDestination(final String destinationAddress, final int destinationPort) {
+        ResolvedDestination(final String destinationAddress, final int destinationPort, final String destinationProtocol) {
+            this.destinationProtocol = destinationProtocol;
             this.destinationAddress = NetworkUtil.formatPossibleIpv6Address(destinationAddress);
             this.destinationPort = destinationPort;
         }

@@ -64,6 +64,11 @@ import org.xnio.OptionMap;
  */
 public final class RemotingConnectionEJBReceiver extends EJBReceiver {
 
+    public static final String REMOTE = "remote";
+    public static final String HTTP_REMOTING = "http-remoting";
+    public static final String HTTPS_REMOTING = "https-remoting";
+
+
     private static final Logger logger = Logger.getLogger(RemotingConnectionEJBReceiver.class);
 
     private static final String EJB_CHANNEL_NAME = "jboss.ejb";
@@ -89,27 +94,41 @@ public final class RemotingConnectionEJBReceiver extends EJBReceiver {
     private final ReconnectHandler reconnectHandler;
     private final OptionMap channelCreationOptions;
 
+    private final String remotingProtocol;
+
+    /**
+     * Construct a new instance.
+     *
+     * @param connection the connection to associate with
+     * @param remotingProtocol the remoting protocol in use
+     */
+    public RemotingConnectionEJBReceiver(final Connection connection, final String remotingProtocol) {
+        this(connection, null, OptionMap.EMPTY, remotingProtocol);
+    }
+
     /**
      * Construct a new instance.
      *
      * @param connection the connection to associate with
      */
+    @Deprecated
     public RemotingConnectionEJBReceiver(final Connection connection) {
-        this(connection, null, OptionMap.EMPTY);
+        this(connection, HTTP_REMOTING);
     }
-
 
     /**
      * Construct a new instance.
      *
      * @param connection             the connection to associate with
-     * @param reconnectHandler       The {@link ReconnectHandler} to use when the connection breaks
-     * @param channelCreationOptions The {@link OptionMap options} to be used during channel creation
+     * @param reconnectHandler       The {@link org.jboss.ejb.client.remoting.ReconnectHandler} to use when the connection breaks
+     * @param channelCreationOptions The {@link org.xnio.OptionMap options} to be used during channel creation
+     * @param remotingProtocol
      */
-    public RemotingConnectionEJBReceiver(final Connection connection, final ReconnectHandler reconnectHandler, final OptionMap channelCreationOptions) {
+    public RemotingConnectionEJBReceiver(final Connection connection, final ReconnectHandler reconnectHandler, final OptionMap channelCreationOptions, final String remotingProtocol) {
         super(connection.getRemoteEndpointName());
         this.connection = connection;
         this.reconnectHandler = reconnectHandler;
+        this.remotingProtocol = remotingProtocol;
         this.channelCreationOptions = channelCreationOptions == null ? OptionMap.EMPTY : channelCreationOptions;
 
         this.cachedToString = new StringBuffer("Remoting connection EJB receiver [connection=").append(this.connection)
@@ -175,7 +194,7 @@ public final class RemotingConnectionEJBReceiver extends EJBReceiver {
             successfulHandshake = versionHandshakeLatch.await(versionHandshakeTimeoutInMillis, TimeUnit.MILLISECONDS);
             if (successfulHandshake) {
                 final Channel compatibleChannel = versionReceiver.getCompatibleChannel();
-                final ChannelAssociation channelAssociation = new ChannelAssociation(this, context, compatibleChannel, (byte) versionReceiver.getNegotiatedProtocolVersion(), this.marshallerFactory, this.reconnectHandler);
+                final ChannelAssociation channelAssociation = new ChannelAssociation(this, context, compatibleChannel, (byte) versionReceiver.getNegotiatedProtocolVersion(), this.marshallerFactory, this.reconnectHandler, remotingProtocol);
                 synchronized (this.channelAssociations) {
                     this.channelAssociations.put(context, channelAssociation);
                 }

@@ -53,12 +53,14 @@ class RemotingConnectionClusterNodeManager implements ClusterNodeManager {
     private final EJBClientConfiguration ejbClientConfiguration;
     private final RemotingConnectionManager remotingConnectionManager = new RemotingConnectionManager();
     private final EJBClientConfiguration.CommonConnectionCreationConfiguration connectionConfiguration;
+    private final String remotingProtocol;
 
-    RemotingConnectionClusterNodeManager(final ClusterContext clusterContext, final ClusterNode clusterNode, final Endpoint endpoint, final EJBClientConfiguration ejbClientConfiguration) {
+    RemotingConnectionClusterNodeManager(final ClusterContext clusterContext, final ClusterNode clusterNode, final Endpoint endpoint, final EJBClientConfiguration ejbClientConfiguration, final String remotingProtocol) {
         this.clusterContext = clusterContext;
         this.clusterNode = clusterNode;
         this.endpoint = endpoint;
         this.ejbClientConfiguration = ejbClientConfiguration;
+        this.remotingProtocol = remotingProtocol;
         this.connectionConfiguration = createConnectionConfiguration();
     }
 
@@ -74,11 +76,11 @@ class RemotingConnectionClusterNodeManager implements ClusterNodeManager {
             return null;
         }
         try {
-            final Connection connection = remotingConnectionManager.getConnection(endpoint, clusterNode.getDestinationAddress(), clusterNode.getDestinationPort(), connectionConfiguration);
+            final Connection connection = remotingConnectionManager.getConnection(endpoint, remotingProtocol, clusterNode.getDestinationAddress(), clusterNode.getDestinationPort(), connectionConfiguration);
             // create a re-connect handler (which will be used on connection breaking down)
             final int MAX_RECONNECT_ATTEMPTS = 65535; // TODO: Let's keep this high for now and later allow configuration and a smaller default value
-            final ReconnectHandler reconnectHandler = new ClusterContextConnectionReconnectHandler(clusterContext, endpoint, clusterNode.getDestinationAddress(), clusterNode.getDestinationPort(), connectionConfiguration, MAX_RECONNECT_ATTEMPTS);
-            return new RemotingConnectionEJBReceiver(connection, reconnectHandler, connectionConfiguration.getChannelCreationOptions());
+            final ReconnectHandler reconnectHandler = new ClusterContextConnectionReconnectHandler(clusterContext, endpoint, remotingProtocol, clusterNode.getDestinationAddress(), clusterNode.getDestinationPort(), connectionConfiguration, MAX_RECONNECT_ATTEMPTS);
+            return new RemotingConnectionEJBReceiver(connection, reconnectHandler, connectionConfiguration.getChannelCreationOptions(), remotingProtocol);
         } catch (Exception e) {
             logger.info("Could not create a connection for cluster node " + this.clusterNode + " in cluster " + clusterContext.getClusterName(), e);
             return null;

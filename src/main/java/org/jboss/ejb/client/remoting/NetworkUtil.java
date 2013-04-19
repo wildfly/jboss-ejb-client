@@ -115,6 +115,7 @@ public class NetworkUtil {
      * it's a IPv6 address.
      *
      * @param endpoint                  The {@link Endpoint} that will be used to establish the connection
+     * @param protocol                  The protocol to use
      * @param destinationHost           The destination host to connect to. This can either be a host name or a IP address
      * @param destinationPort           The destination port to connect to.
      * @param sourceBindAddress         An optional source bind address to be used while connecting.
@@ -124,12 +125,12 @@ public class NetworkUtil {
      * @return
      * @throws IOException
      */
-    public static IoFuture<Connection> connect(final Endpoint endpoint, final String destinationHost, final int destinationPort,
+    public static IoFuture<Connection> connect(final Endpoint endpoint, final String protocol, final String destinationHost, final int destinationPort,
                                                final InetSocketAddress sourceBindAddress, final OptionMap connectionCreationOptions,
                                                final CallbackHandler callbackHandler, final SSLContext sslContext) throws IOException {
 
         InetSocketAddress destinationSocketAddress = new InetSocketAddress(formatPossibleIpv6Address(destinationHost), destinationPort);
-        return connect(endpoint, destinationSocketAddress, sourceBindAddress, connectionCreationOptions, callbackHandler, sslContext);
+        return connect(endpoint, protocol, destinationSocketAddress, sourceBindAddress, connectionCreationOptions, callbackHandler, sslContext);
     }
 
     /**
@@ -137,6 +138,7 @@ public class NetworkUtil {
      * <p/>
      *
      * @param endpoint                  The {@link Endpoint} that will be used to establish the connection
+     * @param protocol                  The protocol to use
      * @param destination               The {@link InetSocketAddress} destination to connect to
      * @param sourceBindAddress         An optional source bind address to be used while connecting.
      * @param connectionCreationOptions The connection creations options to use while connecting
@@ -145,9 +147,9 @@ public class NetworkUtil {
      * @return
      * @throws IOException
      */
-    public static IoFuture<Connection> connect(final Endpoint endpoint, final InetSocketAddress destination,
+    public static IoFuture<Connection> connect(final Endpoint endpoint, final String protocol, final InetSocketAddress destination,
                                                final InetSocketAddress sourceBindAddress, final OptionMap connectionCreationOptions,
                                                final CallbackHandler callbackHandler, final SSLContext sslContext) throws IOException {
-        return endpoint.connect(REMOTE_PROTOCOL, sourceBindAddress, destination, connectionCreationOptions, callbackHandler, sslContext);
+        return endpoint.connect(protocol, sourceBindAddress, destination, connectionCreationOptions, callbackHandler, sslContext);
     }
 }

@@ -87,6 +87,8 @@ class ChannelAssociation {
 
     private final MessageCompatibilityChecker messageCompatibilityChecker;
 
+    private final String remotingProtocol;
+
     /**
      * Creates a channel association for the passed {@link EJBReceiverContext} and the {@link Channel}
      *
@@ -96,16 +98,18 @@ class ChannelAssociation {
      * @param protocolVersion    The protocol version
      * @param marshallerFactory  The marshalling factory
      * @param reconnectHandler   The reconnect handler to use for broken connections/channels. Can be null.
+     * @param remotingProtocol
      */
     ChannelAssociation(final RemotingConnectionEJBReceiver ejbReceiver, final EJBReceiverContext ejbReceiverContext,
                        final Channel channel, final byte protocolVersion, final MarshallerFactory marshallerFactory,
-                       final ReconnectHandler reconnectHandler) {
+                       final ReconnectHandler reconnectHandler, final String remotingProtocol) {
         this.ejbReceiver = ejbReceiver;
         this.ejbReceiverContext = ejbReceiverContext;
         this.channel = channel;
         this.protocolVersion = protocolVersion;
         this.marshallerFactory = marshallerFactory;
         this.reconnectHandler = reconnectHandler;
+        this.remotingProtocol = remotingProtocol;
 
         this.channel.addCloseHandler(new CloseHandler<Channel>() {
             @Override
@@ -532,5 +536,9 @@ class ChannelAssociation {
                     return super.isMessageCompatible(messageHeader);
             }
         }
+    }
+
+    String getRemotingProtocol() {
+        return remotingProtocol;
     }
 }

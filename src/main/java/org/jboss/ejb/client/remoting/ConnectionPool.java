@@ -66,11 +66,11 @@ class ConnectionPool {
 
     }
 
-    synchronized Connection getConnection(final Endpoint clientEndpoint, final String host, final int port, final EJBClientConfiguration.CommonConnectionCreationConfiguration connectionConfiguration) throws IOException {
-        final CacheKey key = new CacheKey(clientEndpoint, connectionConfiguration.getCallbackHandler().getClass(), connectionConfiguration.getConnectionCreationOptions(), host, port);
+    synchronized Connection getConnection(final Endpoint clientEndpoint, final String protocol, final String host, final int port, final EJBClientConfiguration.CommonConnectionCreationConfiguration connectionConfiguration) throws IOException {
+        final CacheKey key = new CacheKey(clientEndpoint, connectionConfiguration.getCallbackHandler().getClass(), connectionConfiguration.getConnectionCreationOptions(), host, port, protocol);
         PooledConnection pooledConnection = cache.get(key);
         if (pooledConnection == null) {
-            final IoFuture<Connection> futureConnection = NetworkUtil.connect(clientEndpoint, host, port, null, connectionConfiguration.getConnectionCreationOptions(), connectionConfiguration.getCallbackHandler(), null);
+            final IoFuture<Connection> futureConnection = NetworkUtil.connect(clientEndpoint, protocol, host, port, null, connectionConfiguration.getConnectionCreationOptions(), connectionConfiguration.getCallbackHandler(), null);
             // wait for the connection to be established
             final Connection connection = IoFutureHelper.get(futureConnection, connectionConfiguration.getConnectionTimeout(), TimeUnit.MILLISECONDS);
             // We don't want to hold stale connection(s), so add a close handler which removes the entry
@@ -119,15 +119,17 @@ class ConnectionPool {
         final Endpoint endpoint;
         final String host;
         final int port;
+        final String protocol;
         final OptionMap connectOptions;
         final Class<?> callbackHandlerClass;
 
-        private CacheKey(final Endpoint endpoint, final Class<?> callbackHandlerClass, final OptionMap connectOptions, final String host, final int port) {
+        private CacheKey(final Endpoint endpoint, final Class<?> callbackHandlerClass, final OptionMap connectOptions, final String host, final int port, final String protocol) {
             this.endpoint = endpoint;
             this.callbackHandlerClass = callbackHandlerClass;
             this.connectOptions = connectOptions;
             this.host = host;
             this.port = port;
+            this.protocol = protocol;
         }
 
         @Override
@@ -144,6 +146,7 @@ class ConnectionPool {
                 return false;
             if (endpoint != null ? !endpoint.equals(cacheKey.endpoint) : cacheKey.endpoint != null) return false;
             if (host != null ? !host.equals(cacheKey.host) : cacheKey.host != null) return false;
+            if (protocol != null ? !protocol.equals(cacheKey.protocol) : cacheKey.protocol != null) return false;
 
             return true;
         }
@@ -155,6 +158,7 @@ class ConnectionPool {
             result = 31 * result + port;
             result = 31 * result + (connectOptions != null ? connectOptions.hashCode() : 0);
             result = 31 * result + (callbackHandlerClass != null ? callbackHandlerClass.hashCode() : 0);
+            result = 31 * result + (protocol != null ? protocol.hashCode() : 0);
             return result;
         }
     }

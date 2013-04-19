@@ -47,8 +47,8 @@ class RemotingConnectionManager {
 
     private final List<Connection> managedConnections = Collections.synchronizedList(new ArrayList<Connection>());
 
-    Connection getConnection(final Endpoint endpoint, final String host, final int port, final EJBClientConfiguration.CommonConnectionCreationConfiguration connectionConfiguration) throws IOException {
-        final Connection connection = this.connectionPool.getConnection(endpoint, host, port, connectionConfiguration);
+    Connection getConnection(final Endpoint endpoint, final String protocol, final String host, final int port, final EJBClientConfiguration.CommonConnectionCreationConfiguration connectionConfiguration) throws IOException {
+        final Connection connection = this.connectionPool.getConnection(endpoint, protocol, host, port, connectionConfiguration);
         // track this connection so that we can release it back to the pool when appropriate
         trackConnection(connection);
         return connection;
