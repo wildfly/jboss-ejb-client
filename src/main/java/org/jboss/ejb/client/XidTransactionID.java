@@ -26,6 +26,9 @@ import java.util.Arrays;
 
 import javax.transaction.xa.Xid;
 
+import static java.lang.Math.min;
+import static java.util.Arrays.copyOfRange;
+
 /**
  * A transaction ID for an XID, used to propagate transactions from a transaction controller running on this or
  * a calling node.
@@ -36,19 +39,30 @@ public final class XidTransactionID extends TransactionID {
 
     private static final long serialVersionUID = -1895745528459825578L;
 
-    private final int formatId;
-    private final byte gtidLen;
     private final Xid xid = new XidImpl();
 
+    /*
+     * The format is:
+     *    byte 0: 0x02
+     *    byte 1..4: XID format ID
+     *    byte 5: gtid length == g
+     *    byte 6..6+g-1: gtid
+     *    byte 6+g: bqal length == b
+     *    byte 7+g..7+g+b-1: bqal
+     *
+     * assert g = length - 7 - b
+     * assert b = length - 7 - g
+     * assert length = g + b + 7
+     */
     XidTransactionID(final byte[] encodedBytes) {
         super(encodedBytes);
-        // Format ID, big-endian
-        formatId = (encodedBytes[1] & 0xff) << 24 | (encodedBytes[2] & 0xff) << 16 | (encodedBytes[3] & 0xff) << 8 | (encodedBytes[4] & 0xff);
-        if ((gtidLen = encodedBytes[5]) > Xid.MAXGTRIDSIZE) {
+        final byte gtidLen = encodedBytes[5];
+        final int length = encodedBytes.length;
+        if (gtidLen > min(Byte.MAX_VALUE, Xid.MAXGTRIDSIZE) || gtidLen > length - 7) {
             throw new IllegalArgumentException("Invalid global transaction ID length");
         }
         final byte bqalLen = encodedBytes[6 + gtidLen];
-        if (bqalLen > Xid.MAXBQUALSIZE || bqalLen != encodedBytes.length - gtidLen - 7) {
+        if (bqalLen > min(Byte.MAX_VALUE, Xid.MAXBQUALSIZE) || bqalLen != length - gtidLen - 7) {
             throw new IllegalArgumentException("Invalid branch qualifier length");
         }
     }
@@ -74,6 +88,14 @@ public final class XidTransactionID extends TransactionID {
         return target;
     }
 
+    static int getGtidLen(byte[] raw) {
+        return raw[5];
+    }
+
+    static int getBqalLen(byte[] raw) {
+        return raw[getGtidLen(raw) + 6];
+    }
+
     /**
      * Get the corresponding XID for this transaction.
      *
@@ -96,20 +118,19 @@ public final class XidTransactionID extends TransactionID {
     final class XidImpl implements Xid {
 
         public int getFormatId() {
-            return formatId;
+            final byte[] raw = getEncodedFormRaw();
+            return (raw[1] & 0xff) << 24 | (raw[2] & 0xff) << 16 | (raw[3] & 0xff) << 8 | (raw[4] & 0xff);
         }
 
         public byte[] getGlobalTransactionId() {
-            final byte[] target = new byte[gtidLen];
-            System.arraycopy(getEncodedFormRaw(), 6, target, 0, gtidLen);
-            return target;
+            final byte[] raw = getEncodedFormRaw();
+            return copyOfRange(raw, 6, getGtidLen(raw) + 6);
         }
 
         public byte[] getBranchQualifier() {
             final byte[] raw = getEncodedFormRaw();
-            final byte[] target = new byte[raw.length - gtidLen - 6];
-            System.arraycopy(raw, 6, target, 0, gtidLen);
-            return target;
+            assert raw.length == 7 + getGtidLen(raw) + getBqalLen(raw);
+            return copyOfRange(raw, 7 + getGtidLen(raw), raw.length);
         }
 
         public boolean equals(Object other) {
