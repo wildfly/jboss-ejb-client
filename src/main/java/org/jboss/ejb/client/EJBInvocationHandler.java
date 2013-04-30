@@ -194,8 +194,8 @@ final class EJBInvocationHandler<T> extends Attachable implements InvocationHand
         final EJBClientInvocationContext invocationContext = new EJBClientInvocationContext(ejbInvocationHandler, clientContext, proxy, method, args);
 
         try {
-            invocationContext.sendRequest();
-
+            // send the request
+            sendRequestWithPossibleRetries(invocationContext, true);
 
             if (!async) {
                 // wait for invocation to complete
@@ -234,6 +234,38 @@ final class EJBInvocationHandler<T> extends Attachable implements InvocationHand
                 throw new RemoteException("Error", e);
             }
             throw new EJBException(e);
+        }
+    }
+
+    /**
+     * Sends a method invocation request to an eligible EJB receiver. If the request sending fails with a {@link RequestSendFailedException} then this method attempts to
+     * retry sending that request to some other eligible node (if any). It does this till either the request was successfully sent or till there are no more eligible EJB receivers
+     * which can handle this request
+     *
+     * @param clientInvocationContext The EJB client invocation context
+     * @param firstAttempt            True if this is a first attempt at sending the request, false if this is a retry
+     * @throws Exception
+     */
+    private static void sendRequestWithPossibleRetries(final EJBClientInvocationContext clientInvocationContext, final boolean firstAttempt) throws Exception {
+        try {
+            // this is the first attempt so use the sendRequest API
+            if (firstAttempt) {
+                clientInvocationContext.sendRequest();
+            } else {
+                // retry
+                clientInvocationContext.retryRequest();
+            }
+        } catch (RequestSendFailedException rsfe) {
+            final String failedNodeName = rsfe.getFailedNodeName();
+            if (failedNodeName != null) {
+                Logs.MAIN.debug("Retrying invocation " + clientInvocationContext + " which failed on node: " + failedNodeName + " due to:", rsfe);
+                // exclude this failed node, during the retry
+                clientInvocationContext.markNodeAsExcluded(failedNodeName);
+                // retry
+                sendRequestWithPossibleRetries(clientInvocationContext, false);
+            } else {
+                throw rsfe;
+            }
         }
     }
 

@@ -22,10 +22,13 @@
 
 package org.jboss.ejb.client;
 
-import javax.transaction.UserTransaction;
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Proxy;
+import java.util.Collection;
+import java.util.HashSet;
 import java.util.concurrent.Future;
+
+import javax.transaction.UserTransaction;
 
 /**
  * The main EJB client API class.  This class contains helper methods which may be used to create proxies, open sessions,
@@ -196,9 +199,36 @@ public final class EJBClient {
             // use the "current" EJB client context
             clientContext = EJBClientContext.requireCurrent();
         }
-        final EJBReceiver ejbReceiver = clientContext.requireEJBReceiver(appName, moduleName, distinctName);
+        return createSessionWithPossibleRetries(clientContext, new HashSet<String>(), viewType, appName, moduleName, beanName, distinctName);
+    }
+
+    /**
+     * Create a new EJB session with possible retries to different eligible node(s) if the session creation failed on some node(s)
+     *
+     * @param clientContext The EJB client context
+     * @param excludedNodeNames The node names of EJB receivers which have to be ignored while selecting a EJB receiver for handling the session creation
+     * @param viewType The view type
+     * @param appName The app name
+     * @param moduleName Module name
+     * @param beanName bean name
+     * @param distinctName Distinct name
+     * @param <T>
+     * @return
+     * @throws Exception
+     */
+    private static <T> StatefulEJBLocator<T> createSessionWithPossibleRetries(final EJBClientContext clientContext, final Collection<String> excludedNodeNames, final Class<T> viewType, final String appName,
+                                                                              final String moduleName, final String beanName, final String distinctName) throws Exception {
+        // find a receiver
+        final EJBReceiver ejbReceiver = clientContext.requireEJBReceiver(excludedNodeNames, appName, moduleName, distinctName);
         final EJBReceiverContext receiverContext = clientContext.requireEJBReceiverContext(ejbReceiver);
-        return ejbReceiver.openSession(receiverContext, viewType, appName, moduleName, distinctName, beanName);
+        try {
+            return ejbReceiver.openSession(receiverContext, viewType, appName, moduleName, distinctName, beanName);
+        } catch (Exception e) {
+            Logs.MAIN.debug("Retrying session creation which failed on node " + ejbReceiver.getNodeName() + " due to:", e);
+            // retry ignoring the current failed node
+            excludedNodeNames.add(ejbReceiver.getNodeName());
+            return createSessionWithPossibleRetries(clientContext, excludedNodeNames, viewType, appName, moduleName, beanName, distinctName);
+        }
     }
 
     /**
