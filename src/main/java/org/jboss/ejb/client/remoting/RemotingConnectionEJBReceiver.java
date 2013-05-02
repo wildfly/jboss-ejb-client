@@ -43,6 +43,7 @@ import org.jboss.ejb.client.EJBReceiver;
 import org.jboss.ejb.client.EJBReceiverContext;
 import org.jboss.ejb.client.EJBReceiverInvocationContext;
 import org.jboss.ejb.client.Logs;
+import org.jboss.ejb.client.RequestSendFailedException;
 import org.jboss.ejb.client.StatefulEJBLocator;
 import org.jboss.ejb.client.TransactionID;
 import org.jboss.ejb.client.annotation.CompressionHint;
@@ -217,17 +218,27 @@ public final class RemotingConnectionEJBReceiver extends EJBReceiver {
 
     @Override
     public void processInvocation(final EJBClientInvocationContext clientInvocationContext, final EJBReceiverInvocationContext ejbReceiverInvocationContext) throws Exception {
-        final ChannelAssociation channelAssociation = this.requireChannelAssociation(ejbReceiverInvocationContext.getEjbReceiverContext());
-        final MethodInvocationMessageWriter messageWriter = new MethodInvocationMessageWriter(this.marshallerFactory);
-        final MessageOutputStream messageOutputStream = channelAssociation.acquireChannelMessageOutputStream();
-        final DataOutputStream dataOutputStream = wrapMessageOutputStream(clientInvocationContext, ejbReceiverInvocationContext, channelAssociation, messageOutputStream);
+        ChannelAssociation channelAssociation = null;
+        DataOutputStream dataOutputStream = null;
+        MessageOutputStream messageOutputStream = null;
         try {
+            channelAssociation = this.requireChannelAssociation(ejbReceiverInvocationContext.getEjbReceiverContext());
+            final MethodInvocationMessageWriter messageWriter = new MethodInvocationMessageWriter(this.marshallerFactory);
+            messageOutputStream = channelAssociation.acquireChannelMessageOutputStream();
+            dataOutputStream = wrapMessageOutputStream(clientInvocationContext, ejbReceiverInvocationContext, channelAssociation, messageOutputStream);
             final short invocationId = channelAssociation.getNextInvocationId();
             channelAssociation.receiveResponse(invocationId, ejbReceiverInvocationContext);
             messageWriter.writeMessage(dataOutputStream, invocationId, clientInvocationContext);
+        } catch (Throwable t) {
+            // let the caller know that the request *wasn't* sent successfully
+            throw new RequestSendFailedException(ejbReceiverInvocationContext.getNodeName(), t.getMessage(), t);
         } finally {
-            dataOutputStream.close();
-            channelAssociation.releaseChannelMessageOutputStream(messageOutputStream);
+            if (dataOutputStream != null) {
+                dataOutputStream.close();
+            }
+            if (channelAssociation != null) {
+                channelAssociation.releaseChannelMessageOutputStream(messageOutputStream);
+            }
         }
     }
 
@@ -274,8 +285,8 @@ public final class RemotingConnectionEJBReceiver extends EJBReceiver {
         final SessionOpenResponseHandler.SessionOpenResponse sessionOpenResponse;
         try {
             sessionOpenResponse = (SessionOpenResponseHandler.SessionOpenResponse) resultProducer.getResult();
-        } catch (IllegalArgumentException iae) {
-            throw iae;
+        } catch (RuntimeException rte) {
+            throw rte;
         } catch (Exception e) {
             throw new RuntimeException(e);
         }

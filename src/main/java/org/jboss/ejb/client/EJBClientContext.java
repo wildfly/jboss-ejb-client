@@ -22,12 +22,6 @@
 
 package org.jboss.ejb.client;
 
-import org.jboss.ejb.client.remoting.ConfigBasedEJBClientContextSelector;
-import org.jboss.ejb.client.remoting.ReconnectHandler;
-import org.jboss.ejb.client.remoting.RemotingConnectionEJBReceiver;
-import org.jboss.logging.Logger;
-import org.jboss.remoting3.Connection;
-
 import java.io.Closeable;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -49,6 +43,12 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
+
+import org.jboss.ejb.client.remoting.ConfigBasedEJBClientContextSelector;
+import org.jboss.ejb.client.remoting.ReconnectHandler;
+import org.jboss.ejb.client.remoting.RemotingConnectionEJBReceiver;
+import org.jboss.logging.Logger;
+import org.jboss.remoting3.Connection;
 
 /**
  * The public API for an EJB client context.  An EJB client context may be associated with (and used by) one or more threads concurrently.
@@ -638,7 +638,7 @@ public final class EJBClientContext extends Attachable implements Closeable {
      * @return the first EJB receiver to match, or {@code null} if none match
      */
     EJBReceiver getEJBReceiver(final String appName, final String moduleName, final String distinctName) {
-        return this.getEJBReceiver(null, appName, moduleName, distinctName);
+        return this.getEJBReceiver((Collection<String>) null, appName, moduleName, distinctName);
     }
 
     /**
@@ -725,6 +725,70 @@ public final class EJBClientContext extends Attachable implements Closeable {
         final EJBReceiver ejbReceiver = this.getEJBReceiver(clientInvocationContext, appName, moduleName, distinctName);
         if (ejbReceiver == null) {
             throw Logs.MAIN.noEJBReceiverAvailableForDeploymentDuringInvocation(appName, moduleName, distinctName, clientInvocationContext);
+        }
+        return ejbReceiver;
+    }
+
+    /**
+     * Get the first EJB receiver which matches the given combination of app, module and distinct name.
+     *
+     * @param excludedNodeNames The node names of the EJBReceiver(s) which should be ignored while selecting the eligible receivers. Can be null or empty collection.
+     * @param appName           the application name, or {@code null} for a top-level module
+     * @param moduleName        the module name
+     * @param distinctName      the distinct name, or {@code null} for none
+     * @return the first EJB receiver to match, or {@code null} if none match
+     */
+    EJBReceiver getEJBReceiver(final Collection<String> excludedNodeNames, final String appName, final String moduleName, final String distinctName) {
+        final Iterator<EJBReceiver> iterator = getEJBReceivers(appName, moduleName, distinctName).iterator();
+        if (!iterator.hasNext()) {
+            return null;
+        }
+        final Map<String, EJBReceiver> eligibleReceivers = new HashMap<String, EJBReceiver>();
+        while (iterator.hasNext()) {
+            final EJBReceiver receiver = iterator.next();
+            final String nodeName = receiver.getNodeName();
+            // The receiver is not eligible if this is an excluded node
+            if (excludedNodeNames != null && excludedNodeNames.contains(nodeName)) {
+                logger.debugf("%s has been asked to be excluded from handling appName=%s, moduleName=%s=, distinctName=%s", nodeName, appName, moduleName, distinctName);
+                continue;
+            }
+            // make a note that the receiver is eligible
+            eligibleReceivers.put(receiver.getNodeName(), receiver);
+        }
+        if (eligibleReceivers.isEmpty()) {
+            return null;
+        }
+        // let the deployment node selector, select a node
+        final String selectedNode = this.deploymentNodeSelector.selectNode(eligibleReceivers.keySet().toArray(new String[eligibleReceivers.size()]), appName, moduleName, distinctName);
+        logger.debugf("%s deployment node selector selected %s node for appname=%s, modulename=%s, distinctName=%s", this.deploymentNodeSelector, selectedNode, appName, moduleName, distinctName);
+        // if the deployment node selector picked a node which didn't belong to the eligible receivers
+        // then let's just return (a random) eligible node from the iterator
+        if (selectedNode == null || selectedNode.trim().isEmpty() || !eligibleReceivers.containsKey(selectedNode)) {
+            logger.debugf("Selected node %s doesn't belong to eligible receivers. Continuing with a random eligible receiver", selectedNode);
+            return iterator.next();
+        }
+        return eligibleReceivers.get(selectedNode);
+    }
+
+    /**
+     * Get the first EJB receiver which matches the given combination of app, module and distinct name. If there's
+     * no such EJB receiver, then this method throws a {@link IllegalStateException}
+     *
+     * @param excludedNodeNames The node names of the EJBReceiver(s) which should be ignored while selecting the eligible receivers. Can be null or empty collection.
+     * @param appName           the application name, or {@code null} for a top-level module
+     * @param moduleName        the module name
+     * @param distinctName      the distinct name, or {@code null} for none
+     * @return the first EJB receiver to match
+     * @throws IllegalStateException If there's no {@link EJBReceiver} which can handle a EJB for the passed combination
+     *                               of app, module and distinct name.
+     */
+    EJBReceiver requireEJBReceiver(final Collection<String> excludedNodeNames, final String appName, final String moduleName, final String distinctName)
+            throws IllegalStateException {
+
+        // try and find a receiver which can handle this combination
+        final EJBReceiver ejbReceiver = this.getEJBReceiver(excludedNodeNames, appName, moduleName, distinctName);
+        if (ejbReceiver == null) {
+            throw Logs.MAIN.noEJBReceiverAvailableForDeployment(appName, moduleName, distinctName);
         }
         return ejbReceiver;
     }
