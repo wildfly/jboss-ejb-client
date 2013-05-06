@@ -131,7 +131,12 @@ final class EJBHomeInterceptor implements EJBClientInterceptor {
             final Collection ejbProxies = (Collection) originalResult;
             final List recreatedEJBProxies = new ArrayList();
             // recreate each proxy in the Collection, to use the context identifier
-            for (Object ejbProxy : ejbProxies) {
+            for (final Object ejbProxy : ejbProxies) {
+                if (ejbProxy == null) {
+                    // nothing to recreate, just add null to the collection to be returned
+                    recreatedEJBProxies.add(null);
+                    continue;
+                }
                 // we *don't* change the locator of the original proxy
                 final EJBLocator ejbLocator = EJBClient.getLocatorFor(ejbProxy);
                 // get the EJB client context identifier (if any) that's applicable for the home view on which this
