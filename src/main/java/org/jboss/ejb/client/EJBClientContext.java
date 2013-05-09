@@ -387,7 +387,8 @@ public final class EJBClientContext extends Attachable implements Closeable {
             if (registered) {
                 // we *don't* want to send these notification to listeners synchronously since the listeners can be any arbitrary
                 // application code and can potential block for a long time. So invoke the listeners asynchronously via our ExecutorService
-                for (final EJBClientContextListener listener : this.ejbClientContextListeners) {
+                final Collection<EJBClientContextListener> listeners = new ArrayList<EJBClientContextListener>(this.ejbClientContextListeners);
+                for (final EJBClientContextListener listener : listeners) {
                     this.ejbClientContextTasksExecutorService.submit(new Runnable() {
                         @Override
                         public void run() {
@@ -428,7 +429,8 @@ public final class EJBClientContext extends Attachable implements Closeable {
                 }
                 // we *don't* want to send these notification to listeners synchronously since the listeners can be any arbitrary
                 // application code and can potential block for a long time. So invoke the listeners asynchronously via our ExecutorService
-                for (final EJBClientContextListener listener : this.ejbClientContextListeners) {
+                final Collection<EJBClientContextListener> listeners = new ArrayList<EJBClientContextListener>(this.ejbClientContextListeners);
+                for (final EJBClientContextListener listener : listeners) {
                     this.ejbClientContextTasksExecutorService.submit(new Runnable() {
                         @Override
                         public void run() {
