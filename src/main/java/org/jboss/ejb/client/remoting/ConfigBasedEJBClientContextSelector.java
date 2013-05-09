@@ -55,7 +55,7 @@ public class ConfigBasedEJBClientContextSelector implements IdentityEJBClientCon
 
     private final ConcurrentMap<EJBClientContextIdentifier, EJBClientContext> identifiableContexts = new ConcurrentHashMap<EJBClientContextIdentifier, EJBClientContext>();
 
-    private boolean receiversSetup;
+    private volatile boolean receiversSetup;
 
 
     /**
@@ -107,8 +107,8 @@ public class ConfigBasedEJBClientContextSelector implements IdentityEJBClientCon
             try {
                 // now setup the receivers (if any) for the context
                 if (this.ejbClientConfiguration == null) {
-                    logger.debug("EJB client context " + this.ejbClientContext + " will have no EJB receivers associated with it since there was no " +
-                            "EJB client configuration available to create the receivers");
+                    logger.debugf("EJB client context %s will have no EJB receivers associated with it since there was no " +
+                            "EJB client configuration available to create the receivers", this.ejbClientContext);
                     return this.ejbClientContext;
                 }
                 try {
