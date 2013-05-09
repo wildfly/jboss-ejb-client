@@ -22,6 +22,11 @@
 
 package org.jboss.ejb.client.remoting;
 
+import java.io.IOException;
+import java.util.Iterator;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
+
 import org.jboss.ejb.client.EJBClientConfiguration;
 import org.jboss.ejb.client.EJBClientContext;
 import org.jboss.ejb.client.EJBClientContextIdentifier;
@@ -33,11 +38,6 @@ import org.jboss.ejb.client.Logs;
 import org.jboss.logging.Logger;
 import org.jboss.remoting3.Connection;
 import org.jboss.remoting3.Endpoint;
-
-import java.io.IOException;
-import java.util.Iterator;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentMap;
 
 /**
  * An EJB client context selector which uses {@link EJBClientConfiguration} to create {@link org.jboss.ejb.client.remoting.RemotingConnectionEJBReceiver}s.
@@ -54,6 +54,9 @@ public class ConfigBasedEJBClientContextSelector implements IdentityEJBClientCon
     private final RemotingConnectionManager remotingConnectionManager = new RemotingConnectionManager();
 
     private final ConcurrentMap<EJBClientContextIdentifier, EJBClientContext> identifiableContexts = new ConcurrentHashMap<EJBClientContextIdentifier, EJBClientContext>();
+
+    private boolean receiversSetup;
+
 
     /**
      * Creates a {@link ConfigBasedEJBClientContextSelector} using the passed <code>ejbClientConfiguration</code>.
@@ -90,21 +93,34 @@ public class ConfigBasedEJBClientContextSelector implements IdentityEJBClientCon
         // when the EJB client context closes
         this.ejbClientContext.registerEJBClientContextListener(new ContextCloseListener());
 
-        // now setup the receivers (if any) for the context
-        if (this.ejbClientConfiguration == null) {
-            logger.debug("EJB client context " + this.ejbClientContext + " will have no EJB receivers associated with it since there was no " +
-                    "EJB client configuration available to create the receivers");
-            return;
-        }
-        try {
-            this.setupEJBReceivers();
-        } catch (IOException ioe) {
-            logger.warn("EJB client context " + this.ejbClientContext + " will have no EJB receivers due to an error setting up EJB receivers", ioe);
-        }
     }
 
     @Override
     public EJBClientContext getCurrent() {
+        if (this.receiversSetup) {
+            return this.ejbClientContext;
+        }
+        synchronized (this) {
+            if (this.receiversSetup) {
+                return this.ejbClientContext;
+            }
+            try {
+                // now setup the receivers (if any) for the context
+                if (this.ejbClientConfiguration == null) {
+                    logger.debug("EJB client context " + this.ejbClientContext + " will have no EJB receivers associated with it since there was no " +
+                            "EJB client configuration available to create the receivers");
+                    return this.ejbClientContext;
+                }
+                try {
+                    this.setupEJBReceivers();
+                } catch (IOException ioe) {
+                    logger.warn("EJB client context " + this.ejbClientContext + " will have no EJB receivers due to an error setting up EJB receivers", ioe);
+                }
+            } finally {
+                this.receiversSetup = true;
+            }
+
+        }
         return this.ejbClientContext;
     }
 
