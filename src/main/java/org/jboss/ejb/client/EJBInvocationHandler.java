@@ -278,6 +278,10 @@ final class EJBInvocationHandler<T> extends Attachable implements InvocationHand
         return async ? this : new EJBInvocationHandler<T>(this);
     }
 
+    boolean isAsyncHandler() {
+        return this.async;
+    }
+
     EJBLocator<T> getLocator() {
         return locator;
     }

@@ -68,7 +68,7 @@ public final class EJBClient {
         if (invocationHandler instanceof EJBInvocationHandler) {
             final EJBInvocationHandler remoteInvocationHandler = (EJBInvocationHandler) invocationHandler;
             // determine proxy "type", return existing instance if it's already async
-            if (true) {
+            if (remoteInvocationHandler.isAsyncHandler()) {
                 return proxy;
             } else {
                 return (T) Proxy.newProxyInstance(proxy.getClass().getClassLoader(), proxy.getClass().getInterfaces(), remoteInvocationHandler.getAsyncHandler());

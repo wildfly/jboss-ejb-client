@@ -22,6 +22,11 @@
 
 package org.jboss.ejb.client.test.async;
 
+import java.io.IOException;
+import java.io.InputStream;
+import java.util.Properties;
+import java.util.concurrent.Future;
+
 import org.jboss.ejb.client.ContextSelector;
 import org.jboss.ejb.client.EJBClient;
 import org.jboss.ejb.client.EJBClientConfiguration;
@@ -35,11 +40,6 @@ import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
-
-import java.io.IOException;
-import java.io.InputStream;
-import java.util.Properties;
-import java.util.concurrent.Future;
 
 /**
  * @author Jaikiran Pai
@@ -61,9 +61,11 @@ public class AsyncInvocationTestCase {
         server.start();
 
         final SlowEcho asyncBean = new AsyncBean();
+        final ExceptionThrowingBean exceptionThrowingBean = new ExceptionThrowingBean();
 
         // deploy on server
         server.register(APP_NAME, MODULE_NAME, DISTINCT_NAME, AsyncBean.class.getSimpleName(), asyncBean);
+        server.register(APP_NAME, MODULE_NAME, DISTINCT_NAME, ExceptionThrowingBean.class.getSimpleName(), exceptionThrowingBean);
 
         // setup EJB client context
         final String clientPropsName = "async-invocation-jboss-ejb-client.properties";
@@ -117,5 +119,20 @@ public class AsyncInvocationTestCase {
             Assert.assertTrue("Unexpected return for isCancelled() after a call to cancel() returned true", futureResult.isCancelled());
         }
 
+    }
+
+    /**
+     * Tests that the {@link EJBClient#asynchronous(Object)} method returns a proxy which treats invocations on the proxy to be asynchronous.
+     */
+    @Test
+    public void testAsyncProxy() throws Exception {
+        // create a simple proxy for invocation
+        final StatelessEJBLocator<ExceptionThrower> statelessEJBLocator = new StatelessEJBLocator<ExceptionThrower>(ExceptionThrower.class, APP_NAME, MODULE_NAME, ExceptionThrowingBean.class.getSimpleName(), "");
+        final ExceptionThrower normalProxy = EJBClient.createProxy(statelessEJBLocator);
+        // now create an async proxy out of it
+        final ExceptionThrower asyncProxy = EJBClient.asynchronous(normalProxy);
+        logger.info("Invoking on async proxy");
+        // fire. this invocation should return immediately without any exception since it's a async proxy and the client as a result will not wait for the (exception) response from the server
+        asyncProxy.justThrowBackSomeException();
     }
 }
