@@ -34,10 +34,12 @@ import org.jboss.remoting3.Registration;
 import org.jboss.remoting3.Remoting;
 import org.jboss.remoting3.ServiceRegistrationException;
 import org.jboss.remoting3.UnknownURISchemeException;
+import org.jboss.remoting3.remote.HttpUpgradeConnectionProviderFactory;
 import org.jboss.remoting3.remote.RemoteConnectionProviderFactory;
 import org.jboss.remoting3.spi.ConnectionProviderFactory;
 import org.xnio.IoFuture;
 import org.xnio.OptionMap;
+import org.xnio.Options;
 import org.xnio.XnioWorker;
 import org.xnio.ssl.XnioSsl;
 
@@ -79,7 +81,10 @@ class EndpointPool {
         PooledEndpoint pooledEndpoint = cache.get(key);
         if (pooledEndpoint == null) {
             final Endpoint endpoint = Remoting.createEndpoint(endpointName, endPointCreationOptions);
-            endpoint.addConnectionProvider("remote", new RemoteConnectionProviderFactory(), remoteConnectionProviderOptions);
+            endpoint.addConnectionProvider(RemotingConnectionEJBReceiver.REMOTE, new RemoteConnectionProviderFactory(), remoteConnectionProviderOptions);
+            endpoint.addConnectionProvider(RemotingConnectionEJBReceiver.HTTP_REMOTING, new HttpUpgradeConnectionProviderFactory(), OptionMap.builder().addAll(remoteConnectionProviderOptions).set(Options.SSL_ENABLED, Boolean.FALSE).getMap());
+            endpoint.addConnectionProvider(RemotingConnectionEJBReceiver.HTTPS_REMOTING, new HttpUpgradeConnectionProviderFactory(), OptionMap.builder().addAll(remoteConnectionProviderOptions).set(Options.SSL_ENABLED, Boolean.TRUE).getMap());
+
             // We don't want to hold stale endpoint(s), so add a close handler which removes the entry
             // from the cache when the endpoint is closed
             endpoint.addCloseHandler(new CacheEntryRemovalHandler(key));

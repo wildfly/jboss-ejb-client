@@ -37,6 +37,7 @@ abstract class MaxAttemptsReconnectHandler implements ReconnectHandler {
     private static final Logger logger = Logger.getLogger(MaxAttemptsReconnectHandler.class);
 
     protected final Endpoint endpoint;
+    protected final String protocol;
     protected final String host;
     protected final int port;
     protected final EJBClientConfiguration.CommonConnectionCreationConfiguration connectionConfiguration;
@@ -46,10 +47,11 @@ abstract class MaxAttemptsReconnectHandler implements ReconnectHandler {
     protected volatile int reconnectAttempts;
 
 
-    MaxAttemptsReconnectHandler(final Endpoint endpoint, final String host, final int port, final EJBClientConfiguration.CommonConnectionCreationConfiguration connectionConfiguration, final int maxReconnectAttempts) {
+    MaxAttemptsReconnectHandler(final Endpoint endpoint, final String protocol, final String host, final int port, final EJBClientConfiguration.CommonConnectionCreationConfiguration connectionConfiguration, final int maxReconnectAttempts) {
         this.endpoint = endpoint;
         this.connectionConfiguration = connectionConfiguration;
         this.maxReconnectAttempts = maxReconnectAttempts;
+        this.protocol = protocol;
         this.host = host;
         this.port = port;
     }
@@ -60,7 +62,7 @@ abstract class MaxAttemptsReconnectHandler implements ReconnectHandler {
         }
         reconnectAttempts++;
         try {
-            final Connection connection = remotingConnectionManager.getConnection(endpoint, host, port, connectionConfiguration);
+            final Connection connection = remotingConnectionManager.getConnection(endpoint, protocol, host, port, connectionConfiguration);
             logger.debug("Successfully reconnected on attempt#" + reconnectAttempts + " to connection " + connection);
             return connection;
 

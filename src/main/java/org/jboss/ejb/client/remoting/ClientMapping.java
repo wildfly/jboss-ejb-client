@@ -35,6 +35,7 @@ class ClientMapping {
     private final byte sourceNetworkMaskBits;
     private final String destinationAddress;
     private final int destinationPort;
+    private final String destinationProtocol;
 
     private final String cachedToString;
 
@@ -46,10 +47,11 @@ class ClientMapping {
      * @param sourceNetworkMaskBits The masked portion of the source network to match the outbound interface against
      * @param destinationAddress    The destination host/ip the client should connect to.
      * @param destinationPort       The destination port the client should connect to.  A value of -1 indicates that
-     *                              the effective server listening port should be used.
+     * @param destinationProtocol
      */
-    ClientMapping(InetAddress sourceNetworkAddress, int sourceNetworkMaskBits, String destinationAddress, int destinationPort) {
+    ClientMapping(InetAddress sourceNetworkAddress, int sourceNetworkMaskBits, String destinationAddress, int destinationPort, final String destinationProtocol) {
         this.sourceNetworkAddress = sourceNetworkAddress;
+        this.destinationProtocol = destinationProtocol;
         this.sourceNetworkMaskBits = (byte) sourceNetworkMaskBits;
         this.destinationAddress = destinationAddress;
         this.destinationPort = destinationPort;
@@ -100,6 +102,14 @@ class ClientMapping {
      */
     int getDestinationPort() {
         return destinationPort;
+    }
+
+    /**
+     * The protocol that the client should use to connect.
+     * @return
+     */
+    String getDestinationProtocol() {
+        return destinationProtocol;
     }
 
     @Override

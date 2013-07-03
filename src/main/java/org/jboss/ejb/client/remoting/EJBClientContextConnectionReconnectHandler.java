@@ -27,11 +27,8 @@ import org.jboss.ejb.client.EJBClientContext;
 import org.jboss.ejb.client.EJBReceiver;
 import org.jboss.remoting3.Connection;
 import org.jboss.remoting3.Endpoint;
-import org.xnio.OptionMap;
 
-import javax.security.auth.callback.CallbackHandler;
 import java.io.IOException;
-import java.util.concurrent.TimeUnit;
 
 /**
  * A {@link MaxAttemptsReconnectHandler} which creates a {@link RemotingConnectionEJBReceiver} out of the
@@ -44,8 +41,8 @@ class EJBClientContextConnectionReconnectHandler extends MaxAttemptsReconnectHan
     private final EJBClientContext ejbClientContext;
     private final RemotingCleanupHandler remotingCleanupHandler = new RemotingCleanupHandler();
 
-    EJBClientContextConnectionReconnectHandler(final EJBClientContext clientContext, final Endpoint endpoint, final String host, final int port, final EJBClientConfiguration.CommonConnectionCreationConfiguration connectionConfiguration, final int maxReconnectAttempts) {
-        super(endpoint, host, port, connectionConfiguration, maxReconnectAttempts);
+    EJBClientContextConnectionReconnectHandler(final EJBClientContext clientContext, final Endpoint endpoint, final String protocol, final String host, final int port, final EJBClientConfiguration.CommonConnectionCreationConfiguration connectionConfiguration, final int maxReconnectAttempts) {
+        super(endpoint, protocol, host, port, connectionConfiguration, maxReconnectAttempts);
         this.ejbClientContext = clientContext;
         // register a EJB client context listener so that we can close the connections we create, when the
         // EJB client context is closed
@@ -62,7 +59,7 @@ class EJBClientContextConnectionReconnectHandler extends MaxAttemptsReconnectHan
             }
             // keep track of this connection so that we can close it when the EJB client context is closed
             this.remotingCleanupHandler.addConnection(connection);
-            final EJBReceiver ejbReceiver = new RemotingConnectionEJBReceiver(connection, this, connectionConfiguration.getChannelCreationOptions());
+            final EJBReceiver ejbReceiver = new RemotingConnectionEJBReceiver(connection, this, connectionConfiguration.getChannelCreationOptions(), protocol);
             this.ejbClientContext.registerEJBReceiver(ejbReceiver);
         } finally {
             // if we successfully re-connected or if no more attempts are allowed for re-connecting

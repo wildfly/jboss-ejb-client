@@ -452,8 +452,22 @@ public final class EJBClientContext extends Attachable implements Closeable {
      *
      * @param connection the connection to register
      */
+    @Deprecated
     public void registerConnection(final Connection connection) {
-        registerEJBReceiver(new RemotingConnectionEJBReceiver(connection));
+        //TODO: the protocol is hard coded to remote here. If this method is used to
+        //add a cconnection that is then used to setup a cluster this could cause issues
+        registerEJBReceiver(new RemotingConnectionEJBReceiver(connection, RemotingConnectionEJBReceiver.HTTP_REMOTING));
+    }
+    /**
+     * Register a Remoting connection with this client context.
+     *
+     * @param connection the connection to register
+     * @param remotingProtocol The remoting protocol. Can be 'remote', 'http-remoting' or 'https-remoting'
+     */
+    public void registerConnection(final Connection connection, String remotingProtocol) {
+        //TODO: the protocol is hard coded to remote here. If this method is used to
+        //add a cconnection that is then used to setup a cluster this could cause issues
+        registerEJBReceiver(new RemotingConnectionEJBReceiver(connection, remotingProtocol));
     }
 
     /**
@@ -797,7 +811,7 @@ public final class EJBClientContext extends Attachable implements Closeable {
 
     /**
      * Returns a {@link EJBReceiverContext} for the passed <code>receiver</code>. If the <code>receiver</code>
-     * hasn't been registered with this {@link EJBClientContext}, either through a call to {@link #registerConnection(org.jboss.remoting3.Connection)}
+     * hasn't been registered with this {@link EJBClientContext}, either through a call to {@link #registerConnection(org.jboss.remoting3.Connection, String)}
      * or to {@link #requireEJBReceiver(String, String, String)}, then this method throws an {@link IllegalStateException}
      * <p/>
      *

@@ -237,7 +237,7 @@ public class StatefulClusteredApplicationUndeploymentFailoverTestCase {
         // open a connection
         final IoFuture<Connection> futureConnection = endpoint.connect(new URI("remote://localhost:6999"), OptionMap.create(Options.SASL_POLICY_NOANONYMOUS, Boolean.FALSE), new AnonymousCallbackHandler());
         final Connection connection = get(futureConnection, 5, TimeUnit.SECONDS);
-        return new RemotingConnectionEJBReceiver(connection, null, OptionMap.EMPTY);
+        return new RemotingConnectionEJBReceiver(connection, null, OptionMap.EMPTY, "remote");
     }
 
     private EJBReceiver getServerTwoReceiver() throws IOException, URISyntaxException {
@@ -246,7 +246,7 @@ public class StatefulClusteredApplicationUndeploymentFailoverTestCase {
         // open a connection
         final IoFuture<Connection> futureConnection = endpoint.connect(new URI("remote://localhost:7999"), OptionMap.create(Options.SASL_POLICY_NOANONYMOUS, Boolean.FALSE), new AnonymousCallbackHandler());
         final Connection connection = get(futureConnection, 5, TimeUnit.SECONDS);
-        return new RemotingConnectionEJBReceiver(connection, null, OptionMap.EMPTY);
+        return new RemotingConnectionEJBReceiver(connection, null, OptionMap.EMPTY, "remote");
     }
 
 }

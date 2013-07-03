@@ -252,6 +252,7 @@ public class JNDIContextInvocationTestCase {
         ejbClientContextProps.put("remote.connection." + connectionName + ".host", "localhost");
         // add a property which points to the port on which the server is listening for EJB invocations
         ejbClientContextProps.put("remote.connection." + connectionName + ".port", "6999");
+        ejbClientContextProps.put("remote.connection." + connectionName + ".protocol", "remote");
         // since we are connecting to a dummy server, we use anonymous user
         ejbClientContextProps.put("remote.connection." + connectionName + ".connect.options.org.xnio.Options.SASL_POLICY_NOANONYMOUS", "false");
 
@@ -283,6 +284,6 @@ public class JNDIContextInvocationTestCase {
         // open a connection
         final IoFuture<Connection> futureConnection = endpoint.connect(new URI("remote://" + serverHost + ":" + serverPort), OptionMap.create(Options.SASL_POLICY_NOANONYMOUS, Boolean.FALSE), new AnonymousCallbackHandler());
         final Connection connection = get(futureConnection, 5, TimeUnit.SECONDS);
-        return new RemotingConnectionEJBReceiver(connection);
+        return new RemotingConnectionEJBReceiver(connection, "remote");
     }
 }

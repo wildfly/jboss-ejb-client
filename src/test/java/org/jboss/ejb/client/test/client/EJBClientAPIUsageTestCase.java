@@ -101,7 +101,7 @@ public class EJBClientAPIUsageTestCase {
         final EJBClientContext ejbClientContext = EJBClientContext.create();
         final ContextSelector<EJBClientContext> oldClientContextSelector = EJBClientContext.setConstantContext(ejbClientContext);
         try {
-            ejbClientContext.registerConnection(connection);
+            ejbClientContext.registerConnection(connection, "remote");
             final String echo = proxy.echo(message);
             Assert.assertEquals("Unexpected echo message", message, echo);
         } finally {
@@ -124,7 +124,7 @@ public class EJBClientAPIUsageTestCase {
         final EJBClientContext ejbClientContext = EJBClientContext.create();
         final ContextSelector<EJBClientContext> oldClientContextSelector = EJBClientContext.setConstantContext(ejbClientContext);
         try {
-            ejbClientContext.registerConnection(connection);
+            ejbClientContext.registerConnection(connection, "remote");
             final String echo = proxy.echo(message);
             Assert.assertEquals("Unexpected echo message", message, echo);
             // now close the context
@@ -157,7 +157,7 @@ public class EJBClientAPIUsageTestCase {
         final EJBClientInterceptor.Registration interceptorRegistration = ejbClientContext.registerInterceptor(99999, new SimpleInterceptor());
         final ContextSelector<EJBClientContext> oldClientContextSelector = EJBClientContext.setConstantContext(ejbClientContext);
         try {
-            ejbClientContext.registerConnection(connection);
+            ejbClientContext.registerConnection(connection, "remote");
             // we expect the interceptor to be invoked
             final String expectedEcho = SimpleInterceptor.class.getName() + " " + message;
             final String echo = proxy.echo(message);

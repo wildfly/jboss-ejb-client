@@ -85,6 +85,7 @@ public class PropertiesBasedEJBClientConfiguration implements EJBClientConfigura
     private static final String PROPERTY_KEY_CALLBACK_HANDLER_CLASS = "callback.handler.class";
 
     private static final String PROPERTY_KEY_CLUSTERS = "remote.clusters";
+    private static final String DEFAULT_PROTOCOL = "http-remoting";
 
 
     private final Properties ejbReceiversConfigurationProperties;
@@ -496,6 +497,12 @@ public class PropertiesBasedEJBClientConfiguration implements EJBClientConfigura
             Logs.MAIN.skippingConnectionCreationDueToInvalidPortNumber(portStringVal, connectionName);
             return null;
         }
+
+        String protocol = connectionSpecificProps.get("protocol");
+        if(protocol == null) {
+            protocol = DEFAULT_PROTOCOL;
+        }
+
         // get connect options for the connection
         final String connectOptionsPrefix = this.getConnectionSpecificConnectOptionsPrefix(connectionName);
         final OptionMap connectOptionsFromConfiguration = getOptionMapFromProperties(ejbReceiversConfigurationProperties, connectOptionsPrefix, getClientClassLoader());
@@ -518,7 +525,7 @@ public class PropertiesBasedEJBClientConfiguration implements EJBClientConfigura
         // Channel creation options for this connection
         final String channelOptionsPrefix = this.getConnectionSpecificChannelOptionsPrefix(connectionName);
         final OptionMap channelOptions = getOptionMapFromProperties(ejbReceiversConfigurationProperties, channelOptionsPrefix, getClientClassLoader());
-        return new RemotingConnectionConfigurationImpl(host, port, connectOptions, connectionTimeout, callbackHandler, channelOptions);
+        return new RemotingConnectionConfigurationImpl(protocol, host, port, connectOptions, connectionTimeout, callbackHandler, channelOptions);
 
     }
 
@@ -679,6 +686,7 @@ public class PropertiesBasedEJBClientConfiguration implements EJBClientConfigura
     }
 
     private class RemotingConnectionConfigurationImpl implements RemotingConnectionConfiguration {
+        final String protocol;
         final String host;
         final int port;
         final OptionMap connectionCreationOptions;
@@ -686,8 +694,9 @@ public class PropertiesBasedEJBClientConfiguration implements EJBClientConfigura
         final CallbackHandler callbackHandler;
         final OptionMap channelCreationOptions;
 
-        RemotingConnectionConfigurationImpl(final String host, final int port, final OptionMap connectionCreationOptions,
+        RemotingConnectionConfigurationImpl(final String protocol, final String host, final int port, final OptionMap connectionCreationOptions,
                                             final long connectionTimeout, final CallbackHandler callbackHandler, final OptionMap channelCreationOptions) {
+            this.protocol = protocol;
             this.host = host;
             this.port = port;
             this.connectionCreationOptions = connectionCreationOptions;
@@ -724,6 +733,11 @@ public class PropertiesBasedEJBClientConfiguration implements EJBClientConfigura
         @Override
         public OptionMap getChannelCreationOptions() {
             return this.channelCreationOptions;
+        }
+
+        @Override
+        public String getProtocol() {
+            return protocol;
         }
     }
 

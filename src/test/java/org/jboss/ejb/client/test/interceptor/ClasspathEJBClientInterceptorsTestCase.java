@@ -72,7 +72,7 @@ public class ClasspathEJBClientInterceptorsTestCase {
     /**
      * Tests that client interceptors added explicitly to the EJBClientContext and also found by the service loader
      * mechanism in the client classpath are invoked in the right order during an invocation on the EJB
-     * 
+     *
      * @throws Exception
      */
     @Test
@@ -123,6 +123,7 @@ public class ClasspathEJBClientInterceptorsTestCase {
         ejbClientContextProps.put("remote.connection." + connectionName + ".host", "localhost");
         // add a property which points to the port on which the server is listening for EJB invocations
         ejbClientContextProps.put("remote.connection." + connectionName + ".port", "7999");
+        ejbClientContextProps.put("remote.connection." + connectionName + ".protocol", "remote");
         // since we are connecting to a dummy server, we use anonymous user
         ejbClientContextProps.put("remote.connection." + connectionName + ".connect.options.org.xnio.Options.SASL_POLICY_NOANONYMOUS", "false");
 

@@ -44,11 +44,11 @@
         <version.org.jboss.logging.jboss-logging-processor>1.0.3.Final</version.org.jboss.logging.jboss-logging-processor>
         <version.org.jboss.logmanager>1.3.1.Final</version.org.jboss.logmanager>
         <version.org.jboss.marshalling>1.3.15.GA</version.org.jboss.marshalling>
-        <version.org.jboss.remoting3>3.2.8.GA</version.org.jboss.remoting3>
+        <version.org.jboss.remoting>4.0.0.Beta1</version.org.jboss.remoting>
         <version.org.jboss.sasl>1.0.1.Final</version.org.jboss.sasl>
         <version.org.jboss.spec.javax.ejb>1.0.1.Final</version.org.jboss.spec.javax.ejb>
         <version.org.jboss.spec.javax.transaction>1.0.0.Final</version.org.jboss.spec.javax.transaction>
-        <version.org.jboss.xnio>3.0.4.GA</version.org.jboss.xnio>
+        <version.org.jboss.xnio>3.1.0.CR3</version.org.jboss.xnio>
     </properties>
 
     <build>
@@ -153,9 +153,9 @@
         </dependency>
 
         <dependency>
-            <groupId>org.jboss.remoting3</groupId>
+            <groupId>org.jboss.remoting</groupId>
             <artifactId>jboss-remoting</artifactId>
-            <version>${version.org.jboss.remoting3}</version>
+            <version>${version.org.jboss.remoting}</version>
         </dependency>
 
         <dependency>
