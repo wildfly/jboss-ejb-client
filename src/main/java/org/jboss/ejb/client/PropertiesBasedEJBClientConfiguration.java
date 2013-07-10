@@ -22,11 +22,17 @@
 
 package org.jboss.ejb.client;
 
-import org.jboss.ejb.client.remoting.RemotingConnectionUtil;
-import org.jboss.logging.Logger;
-import org.xnio.Option;
-import org.xnio.OptionMap;
-import org.xnio.Options;
+import java.io.IOException;
+import java.net.URISyntaxException;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Iterator;
+import java.util.Map;
+import java.util.Properties;
+import java.util.StringTokenizer;
 
 import javax.security.auth.callback.Callback;
 import javax.security.auth.callback.CallbackHandler;
@@ -35,16 +41,12 @@ import javax.security.auth.callback.PasswordCallback;
 import javax.security.auth.callback.UnsupportedCallbackException;
 import javax.security.sasl.RealmCallback;
 import javax.xml.bind.DatatypeConverter;
-import java.io.IOException;
-import java.net.URISyntaxException;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Iterator;
-import java.util.Map;
-import java.util.Properties;
-import java.util.StringTokenizer;
+
+import org.jboss.ejb.client.remoting.RemotingConnectionUtil;
+import org.jboss.logging.Logger;
+import org.xnio.Option;
+import org.xnio.OptionMap;
+import org.xnio.Options;
 
 /**
  * A {@link EJBClientConfiguration} which is configured through {@link Properties}. Some well known
@@ -682,6 +684,28 @@ public class PropertiesBasedEJBClientConfiguration implements EJBClientConfigura
                     throw new UnsupportedCallbackException(current);
                 }
             }
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) return true;
+            if (o == null || getClass() != o.getClass()) return false;
+
+            AuthenticationCallbackHandler that = (AuthenticationCallbackHandler) o;
+
+            if (!Arrays.equals(password, that.password)) return false;
+            if (realm != null ? !realm.equals(that.realm) : that.realm != null) return false;
+            if (username != null ? !username.equals(that.username) : that.username != null) return false;
+
+            return true;
+        }
+
+        @Override
+        public int hashCode() {
+            int result = realm != null ? realm.hashCode() : 0;
+            result = 31 * result + (username != null ? username.hashCode() : 0);
+            result = 31 * result + (password != null ? Arrays.hashCode(password) : 0);
+            return result;
         }
     }
 
