@@ -22,6 +22,18 @@
 
 package org.jboss.ejb.client.remoting;
 
+import java.io.Closeable;
+import java.io.IOException;
+import java.security.Principal;
+import java.util.Collection;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
+
+import javax.security.auth.callback.CallbackHandler;
+
 import org.jboss.ejb.client.EJBClientConfiguration;
 import org.jboss.logging.Logger;
 import org.jboss.remoting3.Attachments;
@@ -33,16 +45,6 @@ import org.jboss.remoting3.HandleableCloseable;
 import org.jboss.remoting3.security.UserInfo;
 import org.xnio.IoFuture;
 import org.xnio.OptionMap;
-
-import java.io.Closeable;
-import java.io.IOException;
-import java.security.Principal;
-import java.util.Collection;
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentMap;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * A pool which creates and hands out remoting {@link Connection}s and maintains a reference count to close the connections handed
@@ -67,7 +69,7 @@ class ConnectionPool {
     }
 
     synchronized Connection getConnection(final Endpoint clientEndpoint, final String host, final int port, final EJBClientConfiguration.CommonConnectionCreationConfiguration connectionConfiguration) throws IOException {
-        final CacheKey key = new CacheKey(clientEndpoint, connectionConfiguration.getCallbackHandler().getClass(), connectionConfiguration.getConnectionCreationOptions(), host, port);
+        final CacheKey key = new CacheKey(clientEndpoint, connectionConfiguration.getCallbackHandler(), connectionConfiguration.getConnectionCreationOptions(), host, port);
         PooledConnection pooledConnection = cache.get(key);
         if (pooledConnection == null) {
             final IoFuture<Connection> futureConnection = NetworkUtil.connect(clientEndpoint, host, port, null, connectionConfiguration.getConnectionCreationOptions(), connectionConfiguration.getCallbackHandler(), null);
@@ -120,11 +122,11 @@ class ConnectionPool {
         final String host;
         final int port;
         final OptionMap connectOptions;
-        final Class<?> callbackHandlerClass;
+        final CallbackHandler callbackHandler;
 
-        private CacheKey(final Endpoint endpoint, final Class<?> callbackHandlerClass, final OptionMap connectOptions, final String host, final int port) {
+        private CacheKey(final Endpoint endpoint, final CallbackHandler callbackHandler, final OptionMap connectOptions, final String host, final int port) {
             this.endpoint = endpoint;
-            this.callbackHandlerClass = callbackHandlerClass;
+            this.callbackHandler = callbackHandler;
             this.connectOptions = connectOptions;
             this.host = host;
             this.port = port;
@@ -138,7 +140,7 @@ class ConnectionPool {
             CacheKey cacheKey = (CacheKey) o;
 
             if (port != cacheKey.port) return false;
-            if (callbackHandlerClass != null ? !callbackHandlerClass.equals(cacheKey.callbackHandlerClass) : cacheKey.callbackHandlerClass != null)
+            if (callbackHandler != null ? !callbackHandler.equals(cacheKey.callbackHandler) : cacheKey.callbackHandler != null)
                 return false;
             if (connectOptions != null ? !connectOptions.equals(cacheKey.connectOptions) : cacheKey.connectOptions != null)
                 return false;
@@ -154,7 +156,7 @@ class ConnectionPool {
             result = 31 * result + (host != null ? host.hashCode() : 0);
             result = 31 * result + port;
             result = 31 * result + (connectOptions != null ? connectOptions.hashCode() : 0);
-            result = 31 * result + (callbackHandlerClass != null ? callbackHandlerClass.hashCode() : 0);
+            result = 31 * result + (callbackHandler != null ? callbackHandler.hashCode() : 0);
             return result;
         }
     }
