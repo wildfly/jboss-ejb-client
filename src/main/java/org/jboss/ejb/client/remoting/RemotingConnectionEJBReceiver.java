@@ -110,10 +110,24 @@ public final class RemotingConnectionEJBReceiver extends EJBReceiver {
      * Construct a new instance.
      *
      * @param connection the connection to associate with
+     * @deprecated Since 2.0.0. Use {@link #RemotingConnectionEJBReceiver(org.jboss.remoting3.Connection, String)} instead
      */
     @Deprecated
     public RemotingConnectionEJBReceiver(final Connection connection) {
         this(connection, HTTP_REMOTING);
+    }
+
+    /**
+     * Construct a new instance.
+     *
+     * @param connection             the connection to associate with
+     * @param reconnectHandler       The {@link org.jboss.ejb.client.remoting.ReconnectHandler} to use when the connection breaks
+     * @param channelCreationOptions The {@link org.xnio.OptionMap options} to be used during channel creation
+     * @deprecated Since 2.0.0. Use {@link #RemotingConnectionEJBReceiver(org.jboss.remoting3.Connection, ReconnectHandler, org.xnio.OptionMap, String)} instead
+     */
+    @Deprecated
+    public RemotingConnectionEJBReceiver(final Connection connection, final ReconnectHandler reconnectHandler, final OptionMap channelCreationOptions) {
+        this(connection, reconnectHandler, channelCreationOptions, HTTP_REMOTING);
     }
 
     /**
