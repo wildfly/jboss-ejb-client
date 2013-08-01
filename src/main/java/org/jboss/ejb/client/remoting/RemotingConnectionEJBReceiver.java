@@ -221,6 +221,7 @@ public final class RemotingConnectionEJBReceiver extends EJBReceiver {
         ChannelAssociation channelAssociation = null;
         DataOutputStream dataOutputStream = null;
         MessageOutputStream messageOutputStream = null;
+        Throwable requestSendFailureCause = null;
         try {
             channelAssociation = this.requireChannelAssociation(ejbReceiverInvocationContext.getEjbReceiverContext());
             final MethodInvocationMessageWriter messageWriter = new MethodInvocationMessageWriter(this.marshallerFactory);
@@ -230,14 +231,20 @@ public final class RemotingConnectionEJBReceiver extends EJBReceiver {
             channelAssociation.receiveResponse(invocationId, ejbReceiverInvocationContext);
             messageWriter.writeMessage(dataOutputStream, invocationId, clientInvocationContext);
         } catch (Throwable t) {
-            // let the caller know that the request *wasn't* sent successfully
-            throw new RequestSendFailedException(ejbReceiverInvocationContext.getNodeName(), t.getMessage(), t);
+            requestSendFailureCause = t;
         } finally {
-            if (dataOutputStream != null) {
-                dataOutputStream.close();
-            }
-            if (channelAssociation != null) {
-                channelAssociation.releaseChannelMessageOutputStream(messageOutputStream);
+            try {
+                if (dataOutputStream != null) {
+                    dataOutputStream.close();
+                }
+                if (channelAssociation != null && messageOutputStream != null) {
+                    channelAssociation.releaseChannelMessageOutputStream(messageOutputStream);
+                }
+            } finally {
+                if (requestSendFailureCause != null) {
+                    // let the caller know that the request *wasn't* sent successfully
+                    throw new RequestSendFailedException(ejbReceiverInvocationContext.getNodeName(), requestSendFailureCause.getMessage(), requestSendFailureCause);
+                }
             }
         }
     }
