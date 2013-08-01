@@ -22,6 +22,17 @@
 
 package org.jboss.ejb.client.remoting;
 
+import java.io.IOException;
+import java.io.InputStream;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.IdentityHashMap;
+import java.util.Map;
+import java.util.concurrent.Future;
+import java.util.concurrent.Semaphore;
+import java.util.concurrent.atomic.AtomicInteger;
+
 import org.jboss.ejb.client.EJBClientContext;
 import org.jboss.ejb.client.EJBReceiverContext;
 import org.jboss.ejb.client.EJBReceiverInvocationContext;
@@ -34,17 +45,6 @@ import org.jboss.remoting3.MessageInputStream;
 import org.jboss.remoting3.MessageOutputStream;
 import org.jboss.remoting3.RemotingOptions;
 import org.xnio.FutureResult;
-
-import java.io.IOException;
-import java.io.InputStream;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.IdentityHashMap;
-import java.util.Map;
-import java.util.concurrent.Future;
-import java.util.concurrent.Semaphore;
-import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * A {@link ChannelAssociation} keeps track of the association between the {@link EJBReceiverContext}
@@ -276,6 +276,9 @@ class ChannelAssociation {
      * @throws IOException
      */
     void releaseChannelMessageOutputStream(final MessageOutputStream messageOutputStream) throws IOException {
+        if (messageOutputStream == null) {
+            return;
+        }
         try {
             messageOutputStream.close();
         } finally {
