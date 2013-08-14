@@ -22,10 +22,11 @@
 
 package org.jboss.ejb.client;
 
-import org.xnio.OptionMap;
+import java.util.Iterator;
 
 import javax.security.auth.callback.CallbackHandler;
-import java.util.Iterator;
+
+import org.xnio.OptionMap;
 
 /**
  * {@link EJBClientConfiguration} is responsible for providing the configurations that will be used
@@ -162,6 +163,17 @@ public interface EJBClientConfiguration {
          * @return
          */
         OptionMap getChannelCreationOptions();
+
+        /**
+         * If this method returns true, then the EJB client API will try and connect to the destination host "eagerly". when the {@link EJBClientContext}
+         * is being created out of the {@link EJBClientConfiguration} to which this connection configuration belongs.
+         * <p/>
+         * On the other hand, if this method returns false, then the EJB client API will try to connect to the destination host only if no other node/EJBReceiver within the EJB client context
+         * can handle a EJB invocation request. i.e. it tries to establish the connection lazily/on-demand.
+         *
+         * @return
+         */
+        boolean isConnectEagerly();
     }
 
     /**
