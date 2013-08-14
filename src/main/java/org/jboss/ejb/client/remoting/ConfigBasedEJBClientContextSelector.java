@@ -142,24 +142,33 @@ public class ConfigBasedEJBClientContextSelector implements IdentityEJBClientCon
             final int MAX_RECONNECT_ATTEMPTS = 65535; // TODO: Let's keep this high for now and later allow configuration and a smaller default value
             // create a re-connect handler (which will be used on connection breaking down)
             final ReconnectHandler reconnectHandler = new EJBClientContextConnectionReconnectHandler(ejbClientContext, endpoint, protocol, host, port, connectionConfiguration, MAX_RECONNECT_ATTEMPTS);
-            try {
-                // wait for the connection to be established
-                final Connection connection = this.remotingConnectionManager.getConnection(endpoint, protocol, host, port, connectionConfiguration);
-                // create a remoting EJB receiver for this connection
-                final EJBReceiver remotingEJBReceiver = new RemotingConnectionEJBReceiver(connection, reconnectHandler, connectionConfiguration.getChannelCreationOptions(), protocol);
-                // associate it with the client context
-                this.ejbClientContext.registerEJBReceiver(remotingEJBReceiver);
-                // keep track of successful registrations for logging purposes
-                successfulEJBReceiverRegistrations++;
-            } catch (Exception e) {
-                // just log the warn but don't throw an exception. Move onto the next connection configuration (if any)
-                logger.warn("Could not register a EJB receiver for connection to " + host + ":" + port, e);
-                // add a reconnect handler for this connection
-                if (reconnectHandler != null) {
-                    this.ejbClientContext.registerReconnectHandler(reconnectHandler);
-                    logger.debug("Registered a reconnect handler in EJB client context " + this.ejbClientContext + " for remote://" + host + ":" + port);
-                }
+            // if the connection attempt shouldn't be "eager" then we just register the reconnect handler to the client context so that the reconnect handler
+            // can attempt the connection whenever it's required to do so.
+            if (!connectionConfiguration.isConnectEagerly()) {
+                this.ejbClientContext.registerReconnectHandler(reconnectHandler);
+                logger.debug("Connection to host: " + host + " and port: " + port + ", in EJB client context: " + this.ejbClientContext + ", is configured to be attempted lazily. Skipping connection creation for now");
 
+            } else {
+                // attempt to connect eagerly
+                try {
+                    // wait for the connection to be established
+                    final Connection connection = this.remotingConnectionManager.getConnection(endpoint, protocol, host, port, connectionConfiguration);
+                    // create a remoting EJB receiver for this connection
+                    final EJBReceiver remotingEJBReceiver = new RemotingConnectionEJBReceiver(connection, reconnectHandler, connectionConfiguration.getChannelCreationOptions(), protocol);
+                    // associate it with the client context
+                    this.ejbClientContext.registerEJBReceiver(remotingEJBReceiver);
+                    // keep track of successful registrations for logging purposes
+                    successfulEJBReceiverRegistrations++;
+                } catch (Exception e) {
+                    // just log the warn but don't throw an exception. Move onto the next connection configuration (if any)
+                    logger.warn("Could not register a EJB receiver for connection to " + host + ":" + port, e);
+                    // add a reconnect handler for this connection
+                    if (reconnectHandler != null) {
+                        this.ejbClientContext.registerReconnectHandler(reconnectHandler);
+                        logger.debug("Registered a reconnect handler in EJB client context " + this.ejbClientContext + " for remote://" + host + ":" + port);
+                    }
+
+                }
             }
         }
         logger.debug("Registered " + successfulEJBReceiverRegistrations + " remoting EJB receivers for EJB client context " + this.ejbClientContext);
