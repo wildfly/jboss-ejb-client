@@ -1157,7 +1157,9 @@ public final class EJBClientContext extends Attachable implements Closeable {
         // (if any) know about the context being closed and let them handle closing the receivers if they want to
         this.closed = true;
 
-        for (final EJBClientContextListener listener : this.ejbClientContextListeners) {
+        // create a new collection to iterate on to avoid ConcurrentModificationException EJBCLIENT-92
+        final Collection<EJBClientContextListener> listeners = new ArrayList<EJBClientContextListener>(this.ejbClientContextListeners);
+        for (final EJBClientContextListener listener : listeners) {
             try {
                 listener.contextClosed(this);
             } catch (Throwable t) {
