@@ -31,11 +31,13 @@ import java.util.Collections;
 import java.util.List;
 
 /**
- * A serialzed version of EJB XAResource which can only be used during transaction recovery
+ * A serialized version of EJB XAResource which can only be used during transaction recovery
  *
  * @author Jaikiran Pai
  */
 class RecoveryOnlySerializedEJBXAResource implements XAResource, Serializable {
+
+    private static final long serialVersionUID = -8675861321388933320L;
 
     private final String ejbReceiverNodeName;
 

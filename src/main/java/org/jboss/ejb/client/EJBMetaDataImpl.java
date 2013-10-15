@@ -1,6 +1,6 @@
 /*
  * JBoss, Home of Professional Open Source.
- * Copyright 2008, Red Hat Middleware LLC, and individual contributors
+ * Copyright 2013, Red Hat, Inc., and individual contributors
  * as indicated by the @author tags. See the copyright.txt file in the
  * distribution for a full listing of individual contributors.
  *
@@ -33,6 +33,9 @@ import javax.ejb.EJBMetaData;
  * @author Stuart Douglas
  */
 public class EJBMetaDataImpl implements EJBMetaData, Serializable {
+
+    private static final long serialVersionUID = 100581743643837404L;
+
     private final Class remoteClass;
 
     private final Class homeClass;
