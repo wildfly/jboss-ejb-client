@@ -42,6 +42,7 @@ import org.jboss.logging.Logger;
  *
  * @author Jaikiran Pai
  */
+@Deprecated // make non-public
 public final class ClusterContext implements EJBClientContext.EJBReceiverContextCloseHandler {
 
     private static final Logger logger = Logger.getLogger(ClusterContext.class);

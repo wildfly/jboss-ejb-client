@@ -34,6 +34,7 @@ import java.util.concurrent.TimeoutException;
 /**
  * @author <a href="mailto:cdewolf@redhat.com">Carlo de Wolf</a>
  */
+@Deprecated // make non-public
 public class IoFutureHelper {
     public static <V> Future<V> future(final IoFuture<V> ioFuture) {
         return new Future<V>() {

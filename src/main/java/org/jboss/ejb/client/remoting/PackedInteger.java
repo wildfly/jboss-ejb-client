@@ -39,6 +39,7 @@ import org.jboss.marshalling.ByteOutput;
  *
  * @author <a href="mailto:cdewolf@redhat.com">Carlo de Wolf</a>
  */
+@Deprecated // protocol internals, make non-public
 public class PackedInteger {
 
 
