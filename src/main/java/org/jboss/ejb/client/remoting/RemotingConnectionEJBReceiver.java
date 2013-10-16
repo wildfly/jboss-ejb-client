@@ -83,8 +83,6 @@ public final class RemotingConnectionEJBReceiver extends EJBReceiver {
      */
     private final Map<EJBReceiverContext, CountDownLatch> moduleAvailabilityReportLatches = new IdentityHashMap<EJBReceiverContext, CountDownLatch>();
 
-    private final String cachedToString;
-
     private final MarshallerFactory marshallerFactory;
 
     private final ReconnectHandler reconnectHandler;
@@ -140,10 +138,6 @@ public final class RemotingConnectionEJBReceiver extends EJBReceiver {
         this.reconnectHandler = reconnectHandler;
         this.remotingProtocol = remotingProtocol;
         this.channelCreationOptions = channelCreationOptions == null ? OptionMap.EMPTY : channelCreationOptions;
-
-        this.cachedToString = new StringBuffer("Remoting connection EJB receiver [connection=").append(this.connection)
-                .append(",channel=").append(EJB_CHANNEL_NAME).append(",nodename=").append(this.getNodeName())
-                .append("]").toString();
 
         this.marshallerFactory = Marshalling.getProvidedMarshallerFactory("river");
         if (this.marshallerFactory == null) {
@@ -255,7 +249,7 @@ public final class RemotingConnectionEJBReceiver extends EJBReceiver {
             channelAssociation = this.requireChannelAssociation(ejbReceiverInvocationContext.getEjbReceiverContext());
             final MethodInvocationMessageWriter messageWriter = new MethodInvocationMessageWriter(this.marshallerFactory);
             messageOutputStream = channelAssociation.acquireChannelMessageOutputStream();
-            dataOutputStream = wrapMessageOutputStream(clientInvocationContext, ejbReceiverInvocationContext, channelAssociation, messageOutputStream);
+            dataOutputStream = wrapMessageOutputStream(clientInvocationContext, channelAssociation, messageOutputStream);
             final short invocationId = channelAssociation.getNextInvocationId();
             channelAssociation.receiveResponse(invocationId, ejbReceiverInvocationContext);
             messageWriter.writeMessage(dataOutputStream, invocationId, clientInvocationContext);
@@ -625,16 +619,14 @@ public final class RemotingConnectionEJBReceiver extends EJBReceiver {
      * compress the data that gets passed along the stream
      *
      * @param invocationContext         The EJB client invocation context
-     * @param receiverInvocationContext The receiver invocation context
      * @param channelAssociation        The channel association
      * @param messageOutputStream       The message outputstream that needs to be wrapped
      * @return
      * @throws Exception
      */
-    private DataOutputStream wrapMessageOutputStream(final EJBClientInvocationContext invocationContext, final EJBReceiverInvocationContext receiverInvocationContext,
-                                                     final ChannelAssociation channelAssociation, final MessageOutputStream messageOutputStream) throws Exception {
+    private DataOutputStream wrapMessageOutputStream(final EJBClientInvocationContext invocationContext, final ChannelAssociation channelAssociation, final MessageOutputStream messageOutputStream) throws Exception {
         // if the negotiated protocol version doesn't support compressed messages then just return a normal DataOutputStream
-        if (!channelAssociation.isMessageCompatibleForNegotiatedProtocolVersion((byte) 0x1B)) {
+        if (channelAssociation.getNegotiatedProtocolVersion() < 2) {
             if (logger.isTraceEnabled()) {
                 logger.trace("Cannot send compressed data messages to server because the negotiated protocol version " + channelAssociation.getNegotiatedProtocolVersion() + " doesn't support compressed messages. Going to send uncompressed message");
             }
@@ -701,7 +693,7 @@ public final class RemotingConnectionEJBReceiver extends EJBReceiver {
 
     @Override
     public String toString() {
-        return this.cachedToString;
+        return String.format("Remoting connection EJB receiver [connection=%s,channel=%s,nodename=%s]", this.connection, EJB_CHANNEL_NAME, getNodeName());
     }
 
 }
