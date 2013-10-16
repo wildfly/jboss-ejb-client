@@ -376,7 +376,7 @@ class ChannelAssociation {
         return messageCompatibilityChecker.isMessageCompatible(messageHeader);
     }
 
-    byte getNegotiatedProtocolVersion() {
+    int getNegotiatedProtocolVersion() {
         return this.protocolVersion;
     }
 
