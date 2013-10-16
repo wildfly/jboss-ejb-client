@@ -22,6 +22,9 @@
 
 package org.jboss.ejb.client.remoting;
 
+import static java.lang.Math.min;
+import static org.xnio.IoUtils.safeClose;
+
 import org.jboss.ejb.client.Logs;
 import org.jboss.logging.Logger;
 import org.jboss.marshalling.Marshalling;
@@ -32,10 +35,8 @@ import org.jboss.remoting3.MessageOutputStream;
 
 import java.io.DataOutputStream;
 import java.io.IOException;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.SortedSet;
-import java.util.TreeSet;
+import java.util.HashSet;
+import java.util.Set;
 import java.util.concurrent.CountDownLatch;
 
 /**
@@ -48,24 +49,17 @@ class VersionReceiver implements Channel.Receiver {
 
     private static final Logger logger = Logger.getLogger(VersionReceiver.class);
 
-    private final String clientMarshallingStrategy;
     private final CountDownLatch latch;
     private Channel compatibleChannel;
     private boolean compatibilityFailed;
-    private final SortedSet<Byte> legibleVersions = new TreeSet<Byte>();
     private volatile int negotiatedVersion = -1;
 
     /**
      * @param latch               The countdown latch which will be used to notify about a successful version handshake between
      *                            the client and the server
-     * @param clientVersions      The EJB remoting protocol versions that the client can handle
-     * @param marshallingStrategy The marshalling strategy which will be used by the client
+     *
      */
-    VersionReceiver(final CountDownLatch latch, final byte[] clientVersions, final String marshallingStrategy) {
-        for (final byte clientVersion : clientVersions) {
-            legibleVersions.add(clientVersion);
-        }
-        this.clientMarshallingStrategy = marshallingStrategy;
+    VersionReceiver(final CountDownLatch latch) {
         this.latch = latch;
         this.compatibilityFailed = false;
     }
@@ -93,46 +87,60 @@ class VersionReceiver implements Channel.Receiver {
     @Override
     public void handleMessage(final Channel channel, final MessageInputStream message) {
         final SimpleDataInput simpleDataInput = new SimpleDataInput(Marshalling.createByteInput(message));
-        byte serverVersion;
-        String[] serverMarshallerStrategies;
+        int serverVersion;
+        Set<String> serverMarshallerStrategies;
         try {
-            serverVersion = simpleDataInput.readByte();
+            serverVersion = simpleDataInput.readUnsignedByte();
             final int serverMarshallerCount = PackedInteger.readPackedInteger(simpleDataInput);
             if (serverMarshallerCount <= 0) {
                 throw new RuntimeException("Client cannot communicate with the server since no marshalling strategy has been " +
                         "configured on server side");
             }
-            serverMarshallerStrategies = new String[serverMarshallerCount];
+            serverMarshallerStrategies = new HashSet<String>(serverMarshallerCount, 0.5f);
             for (int i = 0; i < serverMarshallerCount; i++) {
-                serverMarshallerStrategies[i] = simpleDataInput.readUTF();
+                serverMarshallerStrategies.add(simpleDataInput.readUTF());
             }
-            Logs.REMOTING.receivedServerVersionAndMarshallingStrategies(String.valueOf(serverVersion), Arrays.toString(serverMarshallerStrategies));
+            Logs.REMOTING.receivedServerVersionAndMarshallingStrategies(serverVersion, serverMarshallerStrategies);
 
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
-        this.negotiatedVersion = matchBestCompatibleVersion(serverVersion, serverMarshallerStrategies);
-        if (this.negotiatedVersion == -1) {
-            // Probably not a good idea to log the exact version of the server, so just print out a generic error message
-            logger.error("EJB receiver cannot communicate with server, due to version incompatibility");
+
+        // make sure the server and client can handle a same marshaling strategy
+        if (! serverMarshallerStrategies.contains("river")) {
+            logger.error("Server doesn't support marshaling strategy: river");
             this.compatibilityFailed = true;
             return;
         }
 
+        this.negotiatedVersion = min(serverVersion, 2);
+
         try {
             // we have verified that the client can handle the version of the server. so send a version message to the server telling it
             // that the client is going to communicate with the server using a certain negotiated version.
-            this.sendVersionMessage(channel);
+            final MessageOutputStream channelOutputStream = channel.writeMessage();
+            try {
+                final DataOutputStream dataOutputStream = new DataOutputStream(channelOutputStream);
+                try {
+                    // write the client version
+                    dataOutputStream.write(this.negotiatedVersion);
+                    // write client marshalling strategy - always river
+                    dataOutputStream.writeUTF("river");
+                    dataOutputStream.close();
+                } finally {
+                    safeClose(dataOutputStream);
+                }
+                channelOutputStream.close();
+            } finally {
+                safeClose(channelOutputStream);
+            }
             // we had a successful version handshake with the server and our job is done, let the
             // EJBReceiver take it from here
             this.compatibleChannel = channel;
             this.latch.countDown();
-
         } catch (IOException ioe) {
             throw new RuntimeException(ioe);
         }
-
-
     }
 
     Channel getCompatibleChannel() {
@@ -147,44 +155,6 @@ class VersionReceiver implements Channel.Receiver {
      */
     int getNegotiatedProtocolVersion() {
         return negotiatedVersion;
-    }
-
-    private int matchBestCompatibleVersion(final byte serverVersion, final String[] serverMarshallingStrategies) {
-        // make sure the server and client can handle a same marshaling strategy
-        final Collection<String> serverSupportedStrategies = Arrays.asList(serverMarshallingStrategies);
-        if (!serverSupportedStrategies.contains(clientMarshallingStrategy)) {
-            logger.debug("Server doesn't support marshaling strategy: " + clientMarshallingStrategy);
-            return -1;
-        }
-        // at this point, we know the server and client can handle a particular marshaling strategy. Now let's compare the versions.
-        // see if the server version is one among the legible versions supported by the client
-        if (legibleVersions.contains(serverVersion)) {
-            // found the right version
-            return serverVersion;
-        }
-        // the server version isn't among the versions that the client knows of. Now see if the server version is greater that all versions known to the client.
-        // if yes, then the client should be able to talk to that higher version server.
-        final byte highestKnownVersionOnClient = this.legibleVersions.last();
-        if (highestKnownVersionOnClient < serverVersion) {
-            // found a compatible (higher) version of server
-            return serverVersion;
-        }
-        // no compatible version found
-        return -1;
-    }
-
-    private void sendVersionMessage(final Channel channel) throws IOException {
-        final MessageOutputStream channelOutputStream = channel.writeMessage();
-        final DataOutputStream dataOutputStream = new DataOutputStream(channelOutputStream);
-        try {
-            // write the client version
-            dataOutputStream.write(this.negotiatedVersion);
-            // write client marshalling strategy
-            dataOutputStream.writeUTF(this.clientMarshallingStrategy);
-        } finally {
-            dataOutputStream.close();
-            channelOutputStream.close();
-        }
     }
 
     /**

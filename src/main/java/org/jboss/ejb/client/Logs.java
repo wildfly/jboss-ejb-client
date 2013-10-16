@@ -32,6 +32,8 @@ import org.jboss.remoting3.Channel;
 
 import javax.naming.NamingException;
 import javax.transaction.NotSupportedException;
+
+import java.util.Set;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeoutException;
@@ -124,8 +126,8 @@ public interface Logs extends BasicLogger {
     void channelCanNoLongerProcessMessages(final Channel channel);
 
     @LogMessage(level = INFO)
-    @Message(id = 17, value = "Received server version %s and marshalling strategies %s")
-    void receivedServerVersionAndMarshallingStrategies(final String version, final String marshallingStrategies);
+    @Message(id = 17, value = "Received server version %d and marshalling strategies %s")
+    void receivedServerVersionAndMarshallingStrategies(final int version, final Set<String> marshallingStrategies);
 
     @Message(id = 18, value = "%s cannot be null")
     IllegalArgumentException paramCannotBeNull(final String paramName);
