@@ -77,10 +77,6 @@ public final class RemotingConnectionEJBReceiver extends EJBReceiver {
 
     private final Map<EJBReceiverContext, ChannelAssociation> channelAssociations = new IdentityHashMap<EJBReceiverContext, ChannelAssociation>();
 
-    // TODO: The version and the marshalling strategy shouldn't be hardcoded here
-    private final byte[] legibleClientProtocolVersions = new byte[]{0x01, 0x02};
-    private final String clientMarshallingStrategy = "river";
-
     /**
      * A latch which will be used to wait for the initial module availability report from the server
      * after the version handshake between the server and the client is successfully completed.
@@ -149,9 +145,9 @@ public final class RemotingConnectionEJBReceiver extends EJBReceiver {
                 .append(",channel=").append(EJB_CHANNEL_NAME).append(",nodename=").append(this.getNodeName())
                 .append("]").toString();
 
-        this.marshallerFactory = Marshalling.getProvidedMarshallerFactory(this.clientMarshallingStrategy);
+        this.marshallerFactory = Marshalling.getProvidedMarshallerFactory("river");
         if (this.marshallerFactory == null) {
-            throw new RuntimeException("Could not find a marshaller factory for " + this.clientMarshallingStrategy + " marshalling strategy");
+            throw new RuntimeException("Could not find a marshaller factory for 'river' marshalling strategy");
         }
     }
 
@@ -165,7 +161,7 @@ public final class RemotingConnectionEJBReceiver extends EJBReceiver {
             this.moduleAvailabilityReportLatches.put(context, initialModuleAvailabilityLatch);
         }
 
-        final VersionReceiver versionReceiver = new VersionReceiver(versionHandshakeLatch, this.legibleClientProtocolVersions, this.clientMarshallingStrategy);
+        final VersionReceiver versionReceiver = new VersionReceiver(versionHandshakeLatch);
         final IoFuture<Channel> futureChannel = connection.openChannel(EJB_CHANNEL_NAME, this.channelCreationOptions);
         futureChannel.addNotifier(new IoFuture.HandlingNotifier<Channel, EJBReceiverContext>() {
             public void handleCancelled(final EJBReceiverContext context) {
