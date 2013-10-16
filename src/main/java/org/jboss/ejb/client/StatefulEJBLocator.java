@@ -36,10 +36,12 @@ public final class StatefulEJBLocator<T> extends EJBLocator<T> {
 
     private static final long serialVersionUID = 8229686118358785586L;
 
-    private final SessionID sessionId;
-    private final transient int hashCode;
-    private final String sessionOwnerNode;
     private static final FieldSetter hashCodeSetter = FieldSetter.get(StatefulEJBLocator.class, "hashCode");
+
+    private final SessionID sessionId;
+    private final String sessionOwnerNode;
+
+    private final transient int hashCode;
 
     /**
      * Constructs a {@link StatefulEJBLocator}
