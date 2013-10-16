@@ -27,6 +27,7 @@ package org.jboss.ejb.client;
  *
  * @author Jaikiran Pai
  */
+@Deprecated // make non-public - should not need to use discovery API for this one
 public class DefaultInterceptorsClientContextInitializer implements EJBClientContextInitializer {
 
     private static final int RECEIVER_INTERCEPTOR = 0x10000;

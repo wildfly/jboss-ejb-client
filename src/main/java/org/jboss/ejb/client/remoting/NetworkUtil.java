@@ -37,6 +37,7 @@ import java.net.InetSocketAddress;
 /**
  * @author Jaikiran Pai
  */
+@Deprecated // make non-public
 public class NetworkUtil {
 
     private static final String REMOTE_PROTOCOL = "remote";

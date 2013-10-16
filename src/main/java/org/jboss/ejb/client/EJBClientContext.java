@@ -1042,6 +1042,7 @@ public final class EJBClientContext extends Attachable implements Closeable {
      * @param clusterName The name of the cluster
      * @return
      */
+    @Deprecated // make non-public
     public synchronized ClusterContext getOrCreateClusterContext(final String clusterName) {
         // make sure the EJB client context has not been closed
         this.assertNotClosed();
@@ -1063,6 +1064,7 @@ public final class EJBClientContext extends Attachable implements Closeable {
      * @param clusterName The name of the cluster
      * @return
      */
+    @Deprecated // make non-public
     public synchronized ClusterContext getClusterContext(final String clusterName) {
         if (this.closed) {
             if (logger.isTraceEnabled()) {
@@ -1079,6 +1081,7 @@ public final class EJBClientContext extends Attachable implements Closeable {
      *
      * @param clusterName The name of the cluster
      */
+    @Deprecated // make non-public
     public synchronized void removeCluster(final String clusterName) {
         final ClusterContext clusterContext = this.clusterContexts.remove(clusterName);
         if (clusterContext == null) {

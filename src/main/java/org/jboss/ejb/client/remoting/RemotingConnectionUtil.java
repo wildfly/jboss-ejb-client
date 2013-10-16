@@ -33,6 +33,7 @@ import javax.security.auth.callback.CallbackHandler;
 /**
  * @author Jaikiran Pai
  */
+@Deprecated // make non-public (org.jboss.ejb.client usages)
 public class RemotingConnectionUtil {
 
     private static final String JBOSS_SASL_LOCAL_USER_QUIET_AUTH_PROP = "jboss.sasl.local-user.quiet-auth";
