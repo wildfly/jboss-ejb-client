@@ -28,6 +28,7 @@ import javax.naming.Context;
  *
  * @author Stuart Douglas
  */
+@Deprecated // move to server code
 public class EjbNamingContextSetup {
 
     private static boolean setup = false;

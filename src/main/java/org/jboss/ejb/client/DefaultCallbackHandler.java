@@ -32,6 +32,7 @@ import java.io.IOException;
 /**
  * A {@link javax.security.auth.callback.CallbackHandler} which sets <code>anonymous</code> as the name during a {@link javax.security.auth.callback.NameCallback}
  */
+@Deprecated // make non-public
 public class DefaultCallbackHandler implements CallbackHandler {
 
     @Override

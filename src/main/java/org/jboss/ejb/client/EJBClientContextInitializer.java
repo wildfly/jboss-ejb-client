@@ -28,6 +28,7 @@ package org.jboss.ejb.client;
  *
  * @author <a href="mailto:david.lloyd@redhat.com">David M. Lloyd</a>
  */
+@Deprecated // make private - should not need public locator API for this
 public interface EJBClientContextInitializer {
 
     /**

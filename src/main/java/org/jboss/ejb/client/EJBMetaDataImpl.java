@@ -32,7 +32,7 @@ import javax.ejb.EJBMetaData;
  *
  * @author Stuart Douglas
  */
-public class EJBMetaDataImpl implements EJBMetaData, Serializable {
+public final class EJBMetaDataImpl implements EJBMetaData, Serializable {
 
     private static final long serialVersionUID = 100581743643837404L;
 
