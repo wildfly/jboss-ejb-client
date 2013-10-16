@@ -42,29 +42,6 @@ public final class StatefulEJBLocator<T> extends EJBLocator<T> {
     private static final FieldSetter hashCodeSetter = FieldSetter.get(StatefulEJBLocator.class, "hashCode");
 
     /**
-     * Construct a new instance.
-     *
-     * @param viewType     the view type
-     * @param appName      the application name
-     * @param moduleName   the module name
-     * @param beanName     the bean name
-     * @param distinctName the distinct name
-     * @param sessionId    the stateful session ID
-     * @param affinity     The {@link Affinity} for this stateful bean locator
-     * @deprecated Since 1.0.2. Use {@link #StatefulEJBLocator(Class, String, String, String, String, SessionID, Affinity, String)} instead
-     */
-    @Deprecated
-    public StatefulEJBLocator(final Class<T> viewType, final String appName, final String moduleName, final String beanName, final String distinctName, final SessionID sessionId, final Affinity affinity) {
-        super(viewType, appName, moduleName, beanName, distinctName, affinity);
-        if (sessionId == null) {
-            throw Logs.MAIN.paramCannotBeNull("Session id");
-        }
-        this.sessionId = sessionId;
-        this.sessionOwnerNode = null;
-        hashCode = sessionId.hashCode() * 13 + super.hashCode();
-    }
-
-    /**
      * Constructs a {@link StatefulEJBLocator}
      *
      * @param viewType         the view type
