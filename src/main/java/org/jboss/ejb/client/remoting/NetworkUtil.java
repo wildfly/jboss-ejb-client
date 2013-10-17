@@ -22,6 +22,8 @@
 
 package org.jboss.ejb.client.remoting;
 
+import static java.lang.Math.max;
+
 import org.jboss.remoting3.Connection;
 import org.jboss.remoting3.Endpoint;
 import org.xnio.IoFuture;
@@ -30,6 +32,8 @@ import org.xnio.OptionMap;
 import javax.net.ssl.SSLContext;
 import javax.security.auth.callback.CallbackHandler;
 import java.io.IOException;
+import java.net.Inet4Address;
+import java.net.Inet6Address;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 
@@ -38,6 +42,22 @@ import java.net.InetSocketAddress;
  */
 @Deprecated // make non-public
 public class NetworkUtil {
+
+    private static int getInt(byte[] b, int offs) {
+        return (b[offs] & 0xff) << 24 | (b[offs + 1] & 0xff) << 16 | (b[offs + 2] & 0xff) << 8 | b[offs + 3] & 0xff;
+    }
+
+    private static long getLong(byte[] b, int offs) {
+        return (getInt(b, offs) & 0xFFFFFFFFL) << 32 | getInt(b, offs + 4) & 0xFFFFFFFFL;
+    }
+
+    private static int nwsl(int arg, int places) {
+        return places <= 0 ? arg : places >= 32 ? 0 : arg << places;
+    }
+
+    private static long nwsl(long arg, int places) {
+        return places <= 0 ? arg : places >= 64 ? 0L : arg << places;
+    }
 
     /**
      * Returns true if the passed <code>address</code> is part of the network represented by the passed <code>networkAddress</code>
@@ -48,49 +68,29 @@ public class NetworkUtil {
      * @param networkMask    The network mask bits
      * @return
      */
-    public static boolean belongsToNetwork(final InetAddress address, final InetAddress networkAddress, final byte networkMask) {
+    public static boolean belongsToNetwork(final InetAddress address, final InetAddress networkAddress, final int networkMask) {
         if (address == null || networkAddress == null) {
             return false;
-        }
-        // a netmask of 0 means, it matches everything
-        if (networkMask == 0) {
-            return true;
         }
         // convert to bytes
         final byte[] addressBytes = address.getAddress();
         final byte[] networkAddressBytes = networkAddress.getAddress();
-        // we can't match a IPv4 (4 byte) address with a IPv6 (16 byte) address
-        if (addressBytes.length != networkAddressBytes.length) {
+        if (address instanceof Inet4Address && networkAddress instanceof Inet4Address) {
+            final int maskBits = nwsl(0xFFFFFFFF, 32 - networkMask);
+            final int addr = getInt(addressBytes, 0) & maskBits;
+            final int netAddr = getInt(networkAddressBytes, 0) & maskBits;
+            return addr == netAddr;
+        } else if (address instanceof Inet6Address && networkAddress instanceof Inet6Address) {
+            final long maskHigh = nwsl(0xFFFFFFFFFFFFFFFFL, 64 - networkMask);
+            final long maskLow = nwsl(0xFFFFFFFFFFFFFFFFL, 128 - networkMask);
+            final long addrHigh = getLong(addressBytes, 0) & maskHigh;
+            final long addrLow = getLong(addressBytes, 8) & maskLow;
+            final long netAddrHigh = getLong(networkAddressBytes, 0) & maskHigh;
+            final long netAddrLow = getLong(networkAddressBytes, 8) & maskLow;
+            return addrHigh == netAddrHigh && addrLow == netAddrLow;
+        } else {
             return false;
         }
-        // start processing each of those bytes
-        int currentByte = 0;
-        byte networkAddressByte = networkAddressBytes[currentByte];
-        byte otherAddressByte = addressBytes[currentByte];
-        // apply the masking
-        for (int i = 0; i < networkMask; i++) {
-            // The address bit and the network address bit, don't match, so the address doesn't belong to the
-            // network
-            if ((networkAddressByte & 128) != (otherAddressByte & 128)) {
-                return false;
-            }
-            // switch to next byte if we have processed all bits of the current byte
-            if ((i + 1) % 8 == 0) {
-                // all bytes have been processed and they all matched
-                if (currentByte == networkAddressBytes.length - 1) {
-                    return true;
-                }
-                // move to next byte
-                ++currentByte;
-                networkAddressByte = networkAddressBytes[currentByte];
-                otherAddressByte = addressBytes[currentByte];
-            } else {
-                // move to the next (lower order) bit in the byte
-                networkAddressByte = (byte) (networkAddressByte << 1);
-                otherAddressByte = (byte) (otherAddressByte << 1);
-            }
-        }
-        return true;
     }
 
     static String formatPossibleIpv6Address(String address) {
