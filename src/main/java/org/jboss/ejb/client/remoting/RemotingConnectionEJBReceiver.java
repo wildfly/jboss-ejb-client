@@ -22,6 +22,8 @@
 
 package org.jboss.ejb.client.remoting;
 
+import static org.xnio.IoUtils.safeClose;
+
 import java.io.DataOutputStream;
 import java.io.IOException;
 import java.lang.reflect.Method;
@@ -67,7 +69,6 @@ public final class RemotingConnectionEJBReceiver extends EJBReceiver {
     public static final String REMOTE = "remote";
     public static final String HTTP_REMOTING = "http-remoting";
     public static final String HTTPS_REMOTING = "https-remoting";
-
 
     private static final Logger logger = Logger.getLogger(RemotingConnectionEJBReceiver.class);
 
@@ -241,41 +242,36 @@ public final class RemotingConnectionEJBReceiver extends EJBReceiver {
 
     @Override
     public void processInvocation(final EJBClientInvocationContext clientInvocationContext, final EJBReceiverInvocationContext ejbReceiverInvocationContext) throws Exception {
-        ChannelAssociation channelAssociation = null;
-        DataOutputStream dataOutputStream = null;
-        MessageOutputStream messageOutputStream = null;
-        Throwable requestSendFailureCause = null;
+        final MethodInvocationMessageWriter messageWriter = new MethodInvocationMessageWriter(this.marshallerFactory);
+        final ChannelAssociation channelAssociation = this.requireChannelAssociation(ejbReceiverInvocationContext.getEjbReceiverContext());
         try {
-            channelAssociation = this.requireChannelAssociation(ejbReceiverInvocationContext.getEjbReceiverContext());
-            final MethodInvocationMessageWriter messageWriter = new MethodInvocationMessageWriter(this.marshallerFactory);
-            messageOutputStream = channelAssociation.acquireChannelMessageOutputStream();
-            dataOutputStream = wrapMessageOutputStream(clientInvocationContext, channelAssociation, messageOutputStream);
-            final short invocationId = channelAssociation.getNextInvocationId();
-            channelAssociation.receiveResponse(invocationId, ejbReceiverInvocationContext);
-            messageWriter.writeMessage(dataOutputStream, invocationId, clientInvocationContext);
-        } catch (Throwable t) {
-            requestSendFailureCause = t;
-        } finally {
+            final MessageOutputStream messageOutputStream = channelAssociation.acquireChannelMessageOutputStream();
             try {
-                if (dataOutputStream != null) {
+                final DataOutputStream dataOutputStream = wrapMessageOutputStream(clientInvocationContext, channelAssociation, messageOutputStream);
+                try {
+                    final short invocationId = channelAssociation.getNextInvocationId();
+                    channelAssociation.receiveResponse(invocationId, ejbReceiverInvocationContext);
+                    messageWriter.writeMessage(dataOutputStream, invocationId, clientInvocationContext);
                     dataOutputStream.close();
+                } finally {
+                    safeClose(dataOutputStream);
                 }
-                if (channelAssociation != null && messageOutputStream != null) {
-                    channelAssociation.releaseChannelMessageOutputStream(messageOutputStream);
-                }
+                messageOutputStream.close();
             } finally {
-                if (requestSendFailureCause != null) {
-                    // let the caller know that the request *wasn't* sent successfully
-                    throw new RequestSendFailedException(ejbReceiverInvocationContext.getNodeName(), requestSendFailureCause.getMessage(), requestSendFailureCause);
+                try {
+                    channelAssociation.releaseChannelMessageOutputStream(messageOutputStream);
+                } catch (IOException ignored) {
                 }
             }
+        } catch (IOException e) {
+            // let the caller know that the request *wasn't* sent successfully
+            throw new RequestSendFailedException(ejbReceiverInvocationContext.getNodeName(), e.getMessage(), e);
         }
     }
 
     @Override
     protected <T> StatefulEJBLocator<T> openSession(final EJBReceiverContext receiverContext, final Class<T> viewType, final String appName, final String moduleName, final String distinctName, final String beanName) throws IllegalArgumentException {
         final ChannelAssociation channelAssociation = this.requireChannelAssociation(receiverContext);
-        final SessionOpenRequestWriter sessionOpenRequestWriter = new SessionOpenRequestWriter();
         final DataOutputStream dataOutputStream;
         final MessageOutputStream messageOutputStream;
         try {
@@ -288,7 +284,15 @@ public final class RemotingConnectionEJBReceiver extends EJBReceiver {
         try {
             final short invocationId = channelAssociation.getNextInvocationId();
             futureResultProducer = channelAssociation.enrollForResult(invocationId);
-            sessionOpenRequestWriter.writeMessage(dataOutputStream, invocationId, appName, moduleName, distinctName, beanName);
+            // write the header
+            dataOutputStream.writeByte(Protocol.HEADER_SESSION_OPEN_REQUEST);
+            // write the invocation id
+            dataOutputStream.writeShort(invocationId);
+            // ejb identifier
+            dataOutputStream.writeUTF(appName == null ? "" : appName);
+            dataOutputStream.writeUTF(moduleName);
+            dataOutputStream.writeUTF(distinctName == null ? "" : distinctName);
+            dataOutputStream.writeUTF(beanName);
         } catch (IOException ioe) {
             throw new RuntimeException(ioe);
         } finally {
@@ -340,10 +344,19 @@ public final class RemotingConnectionEJBReceiver extends EJBReceiver {
         try {
             messageOutputStream = channelAssociation.acquireChannelMessageOutputStream();
             final DataOutputStream dataOutputStream = new DataOutputStream(messageOutputStream);
-            final TransactionMessageWriter transactionMessageWriter = TransactionMessageWriter.getTransactionCommitWriter();
             try {
                 // write the tx commit message
-                transactionMessageWriter.writeTxCommit(dataOutputStream, invocationId, transactionID, onePhase);
+                // write the header
+                dataOutputStream.writeByte(Protocol.HEADER_TX_COMMIT_MESSAGE);
+                // write the invocation id
+                dataOutputStream.writeShort(invocationId);
+                final byte[] transactionIDBytes = transactionID.getEncodedForm();
+                // write the length of the transaction id bytes
+                PackedInteger.writePackedInteger(dataOutputStream, transactionIDBytes.length);
+                // write the transaction id bytes
+                dataOutputStream.write(transactionIDBytes);
+                // write the "bit" indicating whether this is a one-phase commit
+                dataOutputStream.writeBoolean(onePhase);
             } finally {
                 channelAssociation.releaseChannelMessageOutputStream(messageOutputStream);
                 dataOutputStream.close();
@@ -373,10 +386,17 @@ public final class RemotingConnectionEJBReceiver extends EJBReceiver {
         try {
             messageOutputStream = channelAssociation.acquireChannelMessageOutputStream();
             final DataOutputStream dataOutputStream = new DataOutputStream(messageOutputStream);
-            final TransactionMessageWriter transactionMessageWriter = TransactionMessageWriter.getTransactionRollbackWriter();
             try {
                 // write the tx rollback message
-                transactionMessageWriter.writeTxRollback(dataOutputStream, invocationId, transactionID);
+                // write the header
+                dataOutputStream.writeByte(Protocol.HEADER_TX_ROLLBACK_MESSAGE);
+                // write the invocation id
+                dataOutputStream.writeShort(invocationId);
+                final byte[] transactionIDBytes = transactionID.getEncodedForm();
+                // write the length of the transaction id bytes
+                PackedInteger.writePackedInteger(dataOutputStream, transactionIDBytes.length);
+                // write the transaction id bytes
+                dataOutputStream.write(transactionIDBytes);
             } finally {
                 channelAssociation.releaseChannelMessageOutputStream(messageOutputStream);
                 dataOutputStream.close();
@@ -406,10 +426,17 @@ public final class RemotingConnectionEJBReceiver extends EJBReceiver {
         try {
             messageOutputStream = channelAssociation.acquireChannelMessageOutputStream();
             final DataOutputStream dataOutputStream = new DataOutputStream(messageOutputStream);
-            final TransactionMessageWriter transactionMessageWriter = TransactionMessageWriter.getTransactionPrepareWriter();
             try {
                 // write the tx prepare message
-                transactionMessageWriter.writeTxPrepare(dataOutputStream, invocationId, transactionID);
+                // write the header
+                dataOutputStream.writeByte(Protocol.HEADER_TX_PREPARE_MESSAGE);
+                // write the invocation id
+                dataOutputStream.writeShort(invocationId);
+                final byte[] transactionIDBytes = transactionID.getEncodedForm();
+                // write the length of the transaction id bytes
+                PackedInteger.writePackedInteger(dataOutputStream, transactionIDBytes.length);
+                // write the transaction id bytes
+                dataOutputStream.write(transactionIDBytes);
             } finally {
                 channelAssociation.releaseChannelMessageOutputStream(messageOutputStream);
                 dataOutputStream.close();
@@ -443,10 +470,17 @@ public final class RemotingConnectionEJBReceiver extends EJBReceiver {
         try {
             messageOutputStream = channelAssociation.acquireChannelMessageOutputStream();
             final DataOutputStream dataOutputStream = new DataOutputStream(messageOutputStream);
-            final TransactionMessageWriter transactionMessageWriter = TransactionMessageWriter.getTransactionForgetWriter();
             try {
                 // write the tx forget message
-                transactionMessageWriter.writeTxForget(dataOutputStream, invocationId, transactionID);
+                // write the header
+                dataOutputStream.writeByte(Protocol.HEADER_TX_FORGET_MESSAGE);
+                // write the invocation id
+                dataOutputStream.writeShort(invocationId);
+                final byte[] transactionIDBytes = transactionID.getEncodedForm();
+                // write the length of the transaction id bytes
+                PackedInteger.writePackedInteger(dataOutputStream, transactionIDBytes.length);
+                // write the transaction id bytes
+                dataOutputStream.write(transactionIDBytes);
             } finally {
                 channelAssociation.releaseChannelMessageOutputStream(messageOutputStream);
                 dataOutputStream.close();
@@ -470,8 +504,7 @@ public final class RemotingConnectionEJBReceiver extends EJBReceiver {
     @Override
     protected Xid[] sendRecover(final EJBReceiverContext receiverContext, final String txParentNodeName, final int recoveryFlags) throws XAException {
         final ChannelAssociation channelAssociation = this.requireChannelAssociation(receiverContext);
-        final TransactionMessageWriter transactionMessageWriter = TransactionMessageWriter.getTransactionRecoverWriter();
-        if (!channelAssociation.isMessageCompatibleForNegotiatedProtocolVersion(transactionMessageWriter.getHeader())) {
+        if (!channelAssociation.isMessageCompatibleForNegotiatedProtocolVersion(Protocol.HEADER_TX_RECOVER_MESSAGE)) {
             Logs.REMOTING.transactionRecoveryMessageNotSupported(receiverContext.getReceiver());
             return new Xid[0];
         }
@@ -483,7 +516,14 @@ public final class RemotingConnectionEJBReceiver extends EJBReceiver {
             final DataOutputStream dataOutputStream = new DataOutputStream(messageOutputStream);
             try {
                 // write the tx recover message
-                transactionMessageWriter.writeTxRecover(dataOutputStream, invocationId, txParentNodeName, recoveryFlags);
+                // write the header
+                dataOutputStream.writeByte(Protocol.HEADER_TX_RECOVER_MESSAGE);
+                // write the invocation id
+                dataOutputStream.writeShort(invocationId);
+                // write the node name of the transaction parent
+                dataOutputStream.writeUTF(txParentNodeName);
+                // the recovery flags
+                dataOutputStream.writeInt(recoveryFlags);
             } finally {
                 channelAssociation.releaseChannelMessageOutputStream(messageOutputStream);
                 dataOutputStream.close();
@@ -517,10 +557,17 @@ public final class RemotingConnectionEJBReceiver extends EJBReceiver {
         try {
             messageOutputStream = channelAssociation.acquireChannelMessageOutputStream();
             final DataOutputStream dataOutputStream = new DataOutputStream(messageOutputStream);
-            final TransactionMessageWriter transactionMessageWriter = TransactionMessageWriter.getTransactionBeforeCompletionWriter();
             try {
                 // write the beforeCompletion message
-                transactionMessageWriter.writeTxBeforeCompletion(dataOutputStream, invocationId, transactionID);
+                // write the header
+                dataOutputStream.writeByte(Protocol.HEADER_TX_BEFORE_COMPLETION_MESSAGE);
+                // write the invocation id
+                dataOutputStream.writeShort(invocationId);
+                final byte[] transactionIDBytes = transactionID.getEncodedForm();
+                // write the length of the transaction id bytes
+                PackedInteger.writePackedInteger(dataOutputStream, transactionIDBytes.length);
+                // write the transaction id bytes
+                dataOutputStream.write(transactionIDBytes);
             } finally {
                 channelAssociation.releaseChannelMessageOutputStream(messageOutputStream);
                 dataOutputStream.close();
@@ -563,10 +610,11 @@ public final class RemotingConnectionEJBReceiver extends EJBReceiver {
         try {
             messageOutputStream = channelAssociation.acquireChannelMessageOutputStream();
             final DataOutputStream dataOutputStream = new DataOutputStream(messageOutputStream);
-            final InvocationCancellationMessageWriter invocationCancellationMessageWriter = new InvocationCancellationMessageWriter();
             try {
-                // write the cancel message for a previous invocation
-                invocationCancellationMessageWriter.writeMessage(dataOutputStream, priorInvocationId);
+                // write the header
+                dataOutputStream.writeByte(Protocol.HEADER_INVOCATION_CANCEL_MESSAGE);
+                // write the invocation id
+                dataOutputStream.writeShort(priorInvocationId);
                 // we *don't* wait for a "result" of the cancel.
             } finally {
                 channelAssociation.releaseChannelMessageOutputStream(messageOutputStream);

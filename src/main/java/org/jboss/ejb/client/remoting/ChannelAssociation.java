@@ -33,6 +33,7 @@ import java.util.concurrent.Future;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import javax.imageio.IIOException;
 import org.jboss.ejb.client.EJBClientContext;
 import org.jboss.ejb.client.EJBReceiverContext;
 import org.jboss.ejb.client.EJBReceiverInvocationContext;
@@ -261,11 +262,16 @@ class ChannelAssociation {
      * @return
      * @throws Exception
      */
-    MessageOutputStream acquireChannelMessageOutputStream() throws Exception {
-        this.channelWriteSemaphore.acquire();
+    MessageOutputStream acquireChannelMessageOutputStream() throws IOException {
+        try {
+            this.channelWriteSemaphore.acquire();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new IIOException("Thread interrupted");
+        }
         try {
             return this.channel.writeMessage();
-        } catch (Exception e) {
+        } catch (IOException e) {
             // release
             this.channelWriteSemaphore.release();
             throw e;
