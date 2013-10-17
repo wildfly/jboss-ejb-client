@@ -75,8 +75,8 @@ import java.util.concurrent.Future;
  * @author <a href="mailto:david.lloyd@redhat.com">David M. Lloyd</a>
  * @author Jaikiran Pai
  */
-public final class ProtocolV1ClassTable implements ClassTable {
-    public static final ProtocolV1ClassTable INSTANCE = new ProtocolV1ClassTable();
+final class ProtocolV1ClassTable implements ClassTable {
+    static final ProtocolV1ClassTable INSTANCE = new ProtocolV1ClassTable();
 
     private static final Map<Class<?>, ByteWriter> writers;
     /**

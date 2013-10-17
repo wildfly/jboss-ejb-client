@@ -38,8 +38,8 @@ import java.util.Map;
 /**
  * @author <a href="mailto:david.lloyd@redhat.com">David M. Lloyd</a>
  */
-public final class ProtocolV1ObjectTable implements ObjectTable {
-    public static final ProtocolV1ObjectTable INSTANCE = new ProtocolV1ObjectTable();
+final class ProtocolV1ObjectTable implements ObjectTable {
+    static final ProtocolV1ObjectTable INSTANCE = new ProtocolV1ObjectTable();
 
     private static final Map<Object, ByteWriter> writers;
     /**

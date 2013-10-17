@@ -86,8 +86,6 @@ class ChannelAssociation {
     // Keeps track of the invocation ids for each of the EJB receiver invocation contexts
     private final Map<EJBReceiverInvocationContext, Short> invocationIdsPerReceiverInvocationCtx = Collections.synchronizedMap(new IdentityHashMap<EJBReceiverInvocationContext, Short>());
 
-    private final MessageCompatibilityChecker messageCompatibilityChecker;
-
     private final String remotingProtocol;
 
     /**
@@ -133,17 +131,6 @@ class ChannelAssociation {
             maxOutboundWrites = 80;
         }
         this.channelWriteSemaphore = new Semaphore(maxOutboundWrites, true);
-
-        switch (protocolVersion) {
-            case 0x01:
-                this.messageCompatibilityChecker = new ProtocolVersionOneMessageCompatibilityChecker();
-                break;
-            case 0x02:
-                this.messageCompatibilityChecker = new ProtocolVersionTwoMessageCompatibilityChecker();
-                break;
-            default:
-                this.messageCompatibilityChecker = null;
-        }
     }
 
     /**
@@ -380,10 +367,27 @@ class ChannelAssociation {
     }
 
     boolean isMessageCompatibleForNegotiatedProtocolVersion(final byte messageHeader) {
-        if (messageCompatibilityChecker == null) {
-            return false;
+        if (protocolVersion >= 1) {
+            switch (messageHeader) {
+                case Protocol.HEADER_SESSION_OPEN_REQUEST:
+                case Protocol.HEADER_METHOD_INVOCATION_MESSAGE:
+                case Protocol.HEADER_INVOCATION_CANCEL_MESSAGE:
+                case Protocol.HEADER_TX_COMMIT_MESSAGE:
+                case Protocol.HEADER_TX_ROLLBACK_MESSAGE:
+                case Protocol.HEADER_TX_PREPARE_MESSAGE:
+                case Protocol.HEADER_TX_FORGET_MESSAGE:
+                case Protocol.HEADER_TX_BEFORE_COMPLETION_MESSAGE:
+                    return true;
+            }
+            if (protocolVersion >= 2) {
+                switch (messageHeader) {
+                    case Protocol.HEADER_TX_RECOVER_MESSAGE:
+                    case 0x1B: // compressed message request
+                        return true;
+                }
+            }
         }
-        return messageCompatibilityChecker.isMessageCompatible(messageHeader);
+        return false;
     }
 
     int getNegotiatedProtocolVersion() {
@@ -499,51 +503,6 @@ class ChannelAssociation {
 
         @Override
         public void discardResult() {
-        }
-    }
-
-    private interface MessageCompatibilityChecker {
-        /**
-         * Returns true if the message represented by the <code>messageHeader</code> is compatible in the protocol version represented by the {@link MessageCompatibilityChecker}. Else
-         * returns false.
-         *
-         * @param messageHeader The message header
-         * @return
-         */
-        boolean isMessageCompatible(final byte messageHeader);
-    }
-
-    private class ProtocolVersionOneMessageCompatibilityChecker implements MessageCompatibilityChecker {
-
-        @Override
-        public boolean isMessageCompatible(final byte messageHeader) {
-            switch (messageHeader) {
-                case 0x01: // session open request
-                case 0x03: // method invocation request
-                case 0x0F: // tx commit request
-                case 0x10: // tx rollback request
-                case 0x11: // tx prepare request
-                case 0x12: // tx forget request
-                case 0x13: // tx before completion request
-                case 0x04: // method invocation cancel request
-                    return true;
-                default:
-                    return false;
-
-            }
-        }
-    }
-
-    private class ProtocolVersionTwoMessageCompatibilityChecker extends ProtocolVersionOneMessageCompatibilityChecker {
-        @Override
-        public boolean isMessageCompatible(final byte messageHeader) {
-            switch (messageHeader) {
-                case 0x19: // tx recover request
-                case 0x1B: // compressed message request
-                    return true;
-                default:
-                    return super.isMessageCompatible(messageHeader);
-            }
         }
     }
 

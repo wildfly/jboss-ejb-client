@@ -41,6 +41,7 @@ import javax.transaction.xa.Xid;
 import org.jboss.ejb.client.AttachmentKeys;
 import org.jboss.ejb.client.EJBClientConfiguration;
 import org.jboss.ejb.client.EJBClientInvocationContext;
+import org.jboss.ejb.client.EJBLocator;
 import org.jboss.ejb.client.EJBReceiver;
 import org.jboss.ejb.client.EJBReceiverContext;
 import org.jboss.ejb.client.EJBReceiverInvocationContext;
@@ -50,8 +51,11 @@ import org.jboss.ejb.client.StatefulEJBLocator;
 import org.jboss.ejb.client.TransactionID;
 import org.jboss.ejb.client.annotation.CompressionHint;
 import org.jboss.logging.Logger;
+import org.jboss.marshalling.ByteOutput;
+import org.jboss.marshalling.Marshaller;
 import org.jboss.marshalling.MarshallerFactory;
 import org.jboss.marshalling.Marshalling;
+import org.jboss.marshalling.MarshallingConfiguration;
 import org.jboss.remoting3.Channel;
 import org.jboss.remoting3.CloseHandler;
 import org.jboss.remoting3.Connection;
@@ -242,7 +246,6 @@ public final class RemotingConnectionEJBReceiver extends EJBReceiver {
 
     @Override
     public void processInvocation(final EJBClientInvocationContext clientInvocationContext, final EJBReceiverInvocationContext ejbReceiverInvocationContext) throws Exception {
-        final MethodInvocationMessageWriter messageWriter = new MethodInvocationMessageWriter(this.marshallerFactory);
         final ChannelAssociation channelAssociation = this.requireChannelAssociation(ejbReceiverInvocationContext.getEjbReceiverContext());
         try {
             final MessageOutputStream messageOutputStream = channelAssociation.acquireChannelMessageOutputStream();
@@ -251,7 +254,89 @@ public final class RemotingConnectionEJBReceiver extends EJBReceiver {
                 try {
                     final short invocationId = channelAssociation.getNextInvocationId();
                     channelAssociation.receiveResponse(invocationId, ejbReceiverInvocationContext);
-                    messageWriter.writeMessage(dataOutputStream, invocationId, clientInvocationContext);
+                    if (dataOutputStream == null) {
+                        throw new IllegalArgumentException("Cannot write to null output");
+                    }
+
+                    final Method invokedMethod = clientInvocationContext.getInvokedMethod();
+                    final Object[] methodParams = clientInvocationContext.getParameters();
+
+                    // write the header
+                    dataOutputStream.writeByte(Protocol.HEADER_METHOD_INVOCATION_MESSAGE);
+                    // write the invocation id
+                    dataOutputStream.writeShort(invocationId);
+                    // method name
+                    dataOutputStream.writeUTF(invokedMethod.getName());
+                    // param types
+                    final Class<?>[] methodParamTypes = invokedMethod.getParameterTypes();
+                    final StringBuilder methodSignature = new StringBuilder();
+                    for (int i = 0; i < methodParamTypes.length; i++) {
+                        methodSignature.append(methodParamTypes[i].getName());
+                        if (i != methodParamTypes.length - 1) {
+                            methodSignature.append(Protocol.METHOD_PARAM_TYPE_SEPARATOR);
+                        }
+                    }
+                    // write the method signature
+                    dataOutputStream.writeUTF(methodSignature.toString());
+
+                    // marshall the locator and method params
+                    final MarshallingConfiguration marshallingConfiguration = new MarshallingConfiguration();
+                    marshallingConfiguration.setClassTable(ProtocolV1ClassTable.INSTANCE);
+                    marshallingConfiguration.setObjectTable(ProtocolV1ObjectTable.INSTANCE);
+                    marshallingConfiguration.setVersion(2);
+                    final Marshaller marshaller = marshallerFactory.createMarshaller(marshallingConfiguration);
+                    final ByteOutput byteOutput = Marshalling.createByteOutput(dataOutputStream);
+                    // start the marshaller
+                    marshaller.start(byteOutput);
+
+                    final EJBLocator locator = clientInvocationContext.getLocator();
+                    // Write out the app/module/distinctname/bean name combination using the writeObject method
+                    // *and* using the objects returned by a call to the locator.getXXX() methods,
+                    // so that later when the locator is written out later, the marshalling impl uses back-references
+                    // to prevent duplicating this app/module/bean/distinctname (which is already present in the locator) twice
+                    marshaller.writeObject(locator.getAppName());
+                    marshaller.writeObject(locator.getModuleName());
+                    marshaller.writeObject(locator.getDistinctName());
+                    marshaller.writeObject(locator.getBeanName());
+                    // write the invocation locator
+                    marshaller.writeObject(locator);
+                    // and the parameters
+                    if (methodParams != null && methodParams.length > 0) {
+                        for (final Object methodParam : methodParams) {
+                            marshaller.writeObject(methodParam);
+                        }
+                    }
+                    // write out the attachments
+                    // we write out the private (a.k.a JBoss specific) attachments as well as public invocation context data
+                    // (a.k.a user application specific data)
+                    final Map<Object, Object> privateAttachments = clientInvocationContext.getAttachments();
+                    final Map<String, Object> contextData = clientInvocationContext.getContextData();
+                    // no private or public data to write out
+                    if (contextData == null && privateAttachments.isEmpty()) {
+                        marshaller.writeByte(0);
+                    } else {
+                        // write the attachment count which is the sum of invocation context data + 1 (since we write
+                        // out the private attachments under a single key with the value being the entire attachment map)
+                        int totalAttachments = contextData.size();
+                        if (!privateAttachments.isEmpty()) {
+                            totalAttachments++;
+                        }
+                        PackedInteger.writePackedInteger(marshaller, totalAttachments);
+                        // write out public (application specific) context data
+                        for (Map.Entry<String, Object> invocationContextData : contextData.entrySet()) {
+                            marshaller.writeObject(invocationContextData.getKey());
+                            marshaller.writeObject(invocationContextData.getValue());
+                        }
+                        if (!privateAttachments.isEmpty()) {
+                            // now write out the JBoss specific attachments under a single key and the value will be the
+                            // entire map of JBoss specific attachments
+                            marshaller.writeObject(EJBClientInvocationContext.PRIVATE_ATTACHMENTS_KEY);
+                            marshaller.writeObject(privateAttachments);
+                        }
+                    }
+                    // finish marshalling
+                    marshaller.finish();
+
                     dataOutputStream.close();
                 } finally {
                     safeClose(dataOutputStream);

@@ -27,13 +27,18 @@ package org.jboss.ejb.client.remoting;
  */
 final class Protocol {
 
+    // version 1
+    static final byte HEADER_SESSION_OPEN_REQUEST = 0x01;
+    static final byte HEADER_METHOD_INVOCATION_MESSAGE = 0x03;
     static final byte HEADER_INVOCATION_CANCEL_MESSAGE = 0x04;
     static final byte HEADER_TX_COMMIT_MESSAGE = 0x0F;
     static final byte HEADER_TX_ROLLBACK_MESSAGE = 0x10;
     static final byte HEADER_TX_PREPARE_MESSAGE = 0x11;
     static final byte HEADER_TX_FORGET_MESSAGE = 0x12;
     static final byte HEADER_TX_BEFORE_COMPLETION_MESSAGE = 0x13;
+
+    // version 2
     static final byte HEADER_TX_RECOVER_MESSAGE = 0x19;
-    static final byte HEADER_SESSION_OPEN_REQUEST = 0x01;
-    static final byte METHOD_INVOCATION_HEADER = 0x03;
+
+    static final char METHOD_PARAM_TYPE_SEPARATOR = ',';
 }
