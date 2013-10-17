@@ -28,7 +28,6 @@ import java.io.ObjectOutput;
 import java.io.OutputStream;
 import java.util.Map;
 
-import org.jboss.ejb.client.AttachmentKeys;
 import org.jboss.ejb.client.EJBClientInvocationContext;
 import org.jboss.marshalling.ByteOutput;
 import org.jboss.marshalling.Marshaller;

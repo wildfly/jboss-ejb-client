@@ -147,11 +147,6 @@ public class PropertiesBasedEJBClientConfiguration implements EJBClientConfigura
     }
 
     @Override
-    public Iterator<ClusterConfiguration> getClusterConfigurations() {
-        return this.clusterConfigurations.values().iterator();
-    }
-
-    @Override
     public ClusterConfiguration getClusterConfiguration(String clusterName) {
         return this.clusterConfigurations.get(clusterName);
     }
@@ -829,11 +824,6 @@ public class PropertiesBasedEJBClientConfiguration implements EJBClientConfigura
         @Override
         public long getMaximumAllowedConnectedNodes() {
             return this.maxAllowedConnectedNodes;
-        }
-
-        @Override
-        public Iterator<ClusterNodeConfiguration> getNodeConfigurations() {
-            return this.nodeConfigurations.values().iterator();
         }
 
         @Override

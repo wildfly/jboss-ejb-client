@@ -28,7 +28,6 @@ import java.io.InputStream;
 import java.util.Map;
 
 import org.jboss.ejb.client.EJBReceiverInvocationContext;
-import org.jboss.logging.Logger;
 import org.jboss.marshalling.MarshallerFactory;
 import org.jboss.marshalling.Unmarshaller;
 
@@ -36,8 +35,6 @@ import org.jboss.marshalling.Unmarshaller;
  * @author Jaikiran Pai
  */
 class InvocationExceptionResponseHandler extends ProtocolMessageHandler {
-
-    private static final Logger logger = Logger.getLogger(InvocationExceptionResponseHandler.class);
 
     private final MarshallerFactory marshallerFactory;
 

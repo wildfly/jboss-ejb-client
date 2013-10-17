@@ -24,11 +24,9 @@ package org.jboss.ejb.client.remoting;
 
 import org.jboss.ejb.client.EJBClientContext;
 import org.jboss.ejb.client.EJBClientContextListener;
-import org.jboss.ejb.client.EJBReceiver;
 import org.jboss.ejb.client.EJBReceiverContext;
 import org.jboss.logging.Logger;
 import org.jboss.remoting3.Connection;
-import org.jboss.remoting3.Endpoint;
 
 import java.io.Closeable;
 import java.util.ArrayList;
@@ -46,7 +44,6 @@ class RemotingCleanupHandler implements EJBClientContextListener {
     private static final Logger logger = Logger.getLogger(RemotingCleanupHandler.class);
 
     private final List<Connection> connections = new ArrayList<Connection>();
-    private final List<Endpoint> endpoints = new ArrayList<Endpoint>();
 
     @Override
     public void contextClosed(EJBClientContext ejbClientContext) {
@@ -63,13 +60,6 @@ class RemotingCleanupHandler implements EJBClientContextListener {
         // we don't have to do anything
     }
 
-    void addEndpoint(final Endpoint endpoint) {
-        if (endpoint == null) {
-            return;
-        }
-        this.endpoints.add(endpoint);
-    }
-
     void addConnection(final Connection connection) {
         if (connection == null) {
             return;
@@ -81,11 +71,6 @@ class RemotingCleanupHandler implements EJBClientContextListener {
         synchronized (this.connections) {
             for (final Connection connection : connections) {
                 safeClose(connection);
-            }
-        }
-        synchronized (this.endpoints) {
-            for (final Endpoint endpoint : endpoints) {
-                safeClose(endpoint);
             }
         }
     }

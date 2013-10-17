@@ -26,7 +26,6 @@ import org.jboss.ejb.client.Affinity;
 import org.jboss.ejb.client.EJBReceiverInvocationContext;
 import org.jboss.ejb.client.Logs;
 import org.jboss.ejb.client.SessionID;
-import org.jboss.logging.Logger;
 import org.jboss.marshalling.MarshallerFactory;
 import org.jboss.marshalling.Unmarshaller;
 
@@ -40,8 +39,6 @@ import java.io.InputStream;
  * User: Jaikiran Pai
  */
 class SessionOpenResponseHandler extends ProtocolMessageHandler {
-
-    private static final Logger logger = Logger.getLogger(SessionOpenResponseHandler.class);
 
     private final ChannelAssociation channelAssociation;
     private final MarshallerFactory marshallerFactory;

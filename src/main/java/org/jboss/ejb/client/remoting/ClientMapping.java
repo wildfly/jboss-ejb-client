@@ -35,7 +35,6 @@ class ClientMapping {
     private final byte sourceNetworkMaskBits;
     private final String destinationAddress;
     private final int destinationPort;
-    private final String destinationProtocol;
 
     private final String cachedToString;
 
@@ -47,11 +46,9 @@ class ClientMapping {
      * @param sourceNetworkMaskBits The masked portion of the source network to match the outbound interface against
      * @param destinationAddress    The destination host/ip the client should connect to.
      * @param destinationPort       The destination port the client should connect to.  A value of -1 indicates that
-     * @param destinationProtocol
      */
-    ClientMapping(InetAddress sourceNetworkAddress, int sourceNetworkMaskBits, String destinationAddress, int destinationPort, final String destinationProtocol) {
+    ClientMapping(InetAddress sourceNetworkAddress, int sourceNetworkMaskBits, String destinationAddress, int destinationPort) {
         this.sourceNetworkAddress = sourceNetworkAddress;
-        this.destinationProtocol = destinationProtocol;
         this.sourceNetworkMaskBits = (byte) sourceNetworkMaskBits;
         this.destinationAddress = destinationAddress;
         this.destinationPort = destinationPort;
@@ -73,7 +70,7 @@ class ClientMapping {
 
     /**
      * Source network the client connection binds on. A client should match this value with the ip returned by
-     * {@link #getSourceNetworkAddress()} against the desiered client host network interface,  and if matched the
+     * {@link #getSourceNetworkAddress()} against the desired client host network interface,  and if matched the
      * client should connect to the corresponding destination values.
      *
      * @return the number of mask bits starting from the LSB
@@ -102,14 +99,6 @@ class ClientMapping {
      */
     int getDestinationPort() {
         return destinationPort;
-    }
-
-    /**
-     * The protocol that the client should use to connect.
-     * @return
-     */
-    String getDestinationProtocol() {
-        return destinationProtocol;
     }
 
     @Override

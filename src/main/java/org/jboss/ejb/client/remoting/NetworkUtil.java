@@ -30,7 +30,6 @@ import org.xnio.OptionMap;
 import javax.net.ssl.SSLContext;
 import javax.security.auth.callback.CallbackHandler;
 import java.io.IOException;
-import java.net.Inet6Address;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 
@@ -39,8 +38,6 @@ import java.net.InetSocketAddress;
  */
 @Deprecated // make non-public
 public class NetworkUtil {
-
-    private static final String REMOTE_PROTOCOL = "remote";
 
     /**
      * Returns true if the passed <code>address</code> is part of the network represented by the passed <code>networkAddress</code>

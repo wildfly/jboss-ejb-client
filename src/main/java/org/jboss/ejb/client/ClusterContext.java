@@ -373,17 +373,6 @@ public final class ClusterContext implements EJBClientContext.EJBReceiverContext
     }
 
     /**
-     * Unregisters the passed {@link ClusterContextListener listener} from this cluster context
-     *
-     * @param listener The cluster context listener to unregister
-     * @return Returns true if the listener was previously registered and has been unregistered after the call to this method,
-     *         from the cluster context. Returns false otherwise
-     */
-    boolean unregisterListener(final ClusterContextListener listener) {
-        return this.clusterContextListeners.remove(listener);
-    }
-
-    /**
      * A {@link EJBReceiverAssociationTask} creates and associates a {@link EJBReceiver}
      * with a {@link ClusterContext}
      */

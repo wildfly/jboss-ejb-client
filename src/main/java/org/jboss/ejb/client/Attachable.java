@@ -22,7 +22,6 @@
 
 package org.jboss.ejb.client;
 
-import java.util.Collection;
 import java.util.Collections;
 import java.util.IdentityHashMap;
 import java.util.Map;

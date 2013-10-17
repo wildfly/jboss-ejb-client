@@ -63,15 +63,6 @@ abstract class ProtocolMessageHandler {
         return attachments;
     }
 
-    short getInvocationId(final DataInput input) throws IOException {
-        if (input == null) {
-            throw new IllegalArgumentException("Cannot read from null input");
-        }
-
-        // read the invocation id
-        return input.readShort();
-    }
-
     /**
      * Creates and returns a {@link org.jboss.marshalling.Unmarshaller} which is ready to be used for unmarshalling. The {@link org.jboss.marshalling.Unmarshaller#start(org.jboss.marshalling.ByteInput)}
      * will be invoked by this method, to use the passed {@link DataInput dataInput}, before returning the unmarshaller.

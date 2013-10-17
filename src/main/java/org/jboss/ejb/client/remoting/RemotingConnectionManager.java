@@ -70,30 +70,6 @@ class RemotingConnectionManager {
         }
     }
 
-    /**
-     * Closes all the "managed" connections that were handed out by this {@link RemotingConnectionManager}. A "close"
-     * doesn't necessarily translate to a real close of the {@link Connection} since these "managed" connections are pooled connections
-     */
-    void closeAsync() {
-        synchronized (managedConnections) {
-            for (final Connection connection : this.managedConnections) {
-                connection.closeAsync();
-            }
-        }
-    }
-
-    /**
-     * Closes all the "managed" connections that were handed out by this {@link RemotingConnectionManager}. A "close"
-     * doesn't necessarily translate to a real close of the {@link Connection} since these "managed" connections are pooled connections
-     */
-    void close() throws IOException {
-        synchronized (managedConnections) {
-            for (final Connection connection : this.managedConnections) {
-                connection.close();
-            }
-        }
-    }
-
     private void trackConnection(final Connection connection) {
         this.managedConnections.add(connection);
     }

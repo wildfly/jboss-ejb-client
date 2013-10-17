@@ -326,9 +326,9 @@ class ChannelAssociation {
             case 0x0A:
                 return new NoSuchEJBExceptionResponseHandler(this);
             case 0x0B:
-                return new GeneralInvocationFailureResponseHandler(this, GeneralInvocationFailureResponseHandler.FailureType.NO_SUCH_METHOD);
+                return new GeneralInvocationFailureResponseHandler(this);
             case 0x0C:
-                return new GeneralInvocationFailureResponseHandler(this, GeneralInvocationFailureResponseHandler.FailureType.SESSION_NOT_ACTIVE);
+                return new GeneralInvocationFailureResponseHandler(this);
             case 0x0D:
                 return new NonStatefulBeanSessionOpenFailureHandler(this);
             case 0x0E:
@@ -337,12 +337,12 @@ class ChannelAssociation {
                 return new TransactionInvocationResponseHandler(this);
             case 0x15:
                 // complete cluster topology message handler
-                return new ClusterTopologyMessageHandler(this, true);
+                return new ClusterTopologyMessageHandler(this);
             case 0x16:
                 return new ClusterRemovalMessageHandler(this.ejbReceiverContext);
             case 0x17:
                 // new node additions message handler
-                return new ClusterTopologyMessageHandler(this, false);
+                return new ClusterTopologyMessageHandler(this);
             case 0x18:
                 // node removal message handler
                 return new ClusterNodeRemovalHandler(this);

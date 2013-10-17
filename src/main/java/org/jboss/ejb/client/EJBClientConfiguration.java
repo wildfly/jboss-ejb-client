@@ -82,14 +82,6 @@ public interface EJBClientConfiguration {
     Iterator<RemotingConnectionConfiguration> getConnectionConfigurations();
 
     /**
-     * Returns the cluster configurations. If there are no such configurations, then this method will return an
-     * empty {@link Iterator}
-     *
-     * @return
-     */
-    Iterator<ClusterConfiguration> getClusterConfigurations();
-
-    /**
      * Returns a cluster configuration corresponding to the passed <code>clusterName</code>.
      * Returns null if no such cluster configuration exists.
      *
@@ -231,14 +223,6 @@ public interface EJBClientConfiguration {
          * @return
          */
         ClusterNodeSelector getClusterNodeSelector();
-
-        /**
-         * Returns the configurations of individual nodes in this cluster. If there are no such node specific
-         * configurations, then this method returns an empty {@link Iterator}
-         *
-         * @return
-         */
-        Iterator<ClusterNodeConfiguration> getNodeConfigurations();
 
         /**
          * Returns the configuration corresponding to the <code>nodeName</code> in this cluster. Returns null

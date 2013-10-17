@@ -27,8 +27,6 @@ import java.io.DataOutput;
 import java.io.DataOutputStream;
 import java.io.IOException;
 
-import org.jboss.marshalling.ByteOutput;
-
 /**
  * A {@link PackedInteger} is a variable-length integer. The most-significant bit of each byte of a
  * {@link PackedInteger} value indicates whether that byte is the final (lowest-order) byte of the value.

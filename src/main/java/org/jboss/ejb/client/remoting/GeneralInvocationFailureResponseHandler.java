@@ -37,20 +37,9 @@ import java.io.InputStream;
  */
 class GeneralInvocationFailureResponseHandler extends ProtocolMessageHandler {
 
-    /**
-     * Failure types
-     */
-    enum FailureType {
-        NO_SUCH_METHOD,
-        SESSION_NOT_ACTIVE,
-        EJB_NOT_STATEFUL
-    }
-
     private final ChannelAssociation channelAssociation;
-    private final FailureType failureType;
 
-    GeneralInvocationFailureResponseHandler(final ChannelAssociation channelAssociation, final FailureType failureType) {
-        this.failureType = failureType;
+    GeneralInvocationFailureResponseHandler(final ChannelAssociation channelAssociation) {
         this.channelAssociation = channelAssociation;
     }
 

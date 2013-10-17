@@ -22,8 +22,6 @@
 
 package org.jboss.ejb.client;
 
-import org.jboss.logging.Logger;
-
 import java.io.Closeable;
 
 /**
@@ -32,7 +30,7 @@ import java.io.Closeable;
  * @author <a href="mailto:david.lloyd@redhat.com">David M. Lloyd</a>
  */
 public final class EJBReceiverContext extends Attachable implements Closeable {
-    private static final Logger logger = Logger.getLogger(EJBReceiverContext.class);
+
     private final EJBReceiver receiver;
     private final EJBClientContext clientContext;
     private final String cachedToString;

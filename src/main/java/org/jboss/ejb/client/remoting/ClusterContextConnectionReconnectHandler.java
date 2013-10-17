@@ -25,7 +25,6 @@ package org.jboss.ejb.client.remoting;
 import org.jboss.ejb.client.ClusterContext;
 import org.jboss.ejb.client.EJBClientConfiguration;
 import org.jboss.ejb.client.EJBReceiver;
-import org.jboss.logging.Logger;
 import org.jboss.remoting3.Connection;
 import org.jboss.remoting3.Endpoint;
 
@@ -38,8 +37,6 @@ import java.io.IOException;
  * @author Jaikiran Pai
  */
 class ClusterContextConnectionReconnectHandler extends MaxAttemptsReconnectHandler {
-
-    private static Logger logger = Logger.getLogger(ClusterContextConnectionReconnectHandler.class);
 
     private final ClusterContext clusterContext;
     private final RemotingCleanupHandler remotingCleanupHandler = new RemotingCleanupHandler();

@@ -75,7 +75,6 @@ public final class EJBClientUserTransactionContext extends EJBClientTransactionC
     static class State {
         UserTransactionID currentId;
         int status = Status.STATUS_NO_TRANSACTION;
-        int timeout = 0;
 
         State() {
         }
@@ -201,7 +200,6 @@ public final class EJBClientUserTransactionContext extends EJBClientTransactionC
             if (state == null) {
                 CURRENT_TRANSACTION_STATE.set(state = new State());
             }
-            state.timeout = seconds;
         }
     }
 }

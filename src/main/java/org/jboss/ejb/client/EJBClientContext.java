@@ -918,17 +918,6 @@ public final class EJBClientContext extends Attachable implements Closeable {
      * Returns a {@link EJBReceiverContext} for the <code>clusterName</code>. If there's no such receiver context
      * for the cluster, then this method returns null
      *
-     * @param clusterName The name of the cluster
-     * @return
-     */
-    EJBReceiverContext getClusterEJBReceiverContext(final String clusterName) throws IllegalArgumentException {
-        return this.getClusterEJBReceiverContext(null, clusterName);
-    }
-
-    /**
-     * Returns a {@link EJBReceiverContext} for the <code>clusterName</code>. If there's no such receiver context
-     * for the cluster, then this method returns null
-     *
      * @param invocationContext
      * @param clusterName       The name of the cluster
      * @return

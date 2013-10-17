@@ -230,7 +230,7 @@ public abstract class EJBReceiver extends Attachable {
 
         ModuleID(final String appName, final String moduleName, final String distinctName) {
             if (moduleName == null) {
-                Logs.MAIN.paramCannotBeNull("Module name");
+                throw Logs.MAIN.paramCannotBeNull("Module name");
             }
             this.appName = appName == null ? moduleName : appName;
             this.moduleName = moduleName;

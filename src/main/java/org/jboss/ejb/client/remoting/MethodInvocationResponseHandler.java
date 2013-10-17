@@ -26,7 +26,6 @@ import org.jboss.ejb.client.Affinity;
 import org.jboss.ejb.client.AttachmentKeys;
 import org.jboss.ejb.client.EJBClientInvocationContext;
 import org.jboss.ejb.client.EJBReceiverInvocationContext;
-import org.jboss.logging.Logger;
 import org.jboss.marshalling.MarshallerFactory;
 import org.jboss.marshalling.Unmarshaller;
 
@@ -42,9 +41,6 @@ import java.util.Map;
  * User: Jaikiran Pai
  */
 class MethodInvocationResponseHandler extends ProtocolMessageHandler {
-
-
-    private static final Logger logger = Logger.getLogger(MethodInvocationResponseHandler.class);
 
     private final ChannelAssociation channelAssociation;
     private final MarshallerFactory marshallerFactory;

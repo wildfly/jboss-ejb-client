@@ -43,10 +43,7 @@ import java.util.Map;
 
 /**
  * Responsible for parsing the EJB remoting protocol messages which contain the information about the nodes that
- * are part of the cluster. If this {@link ClusterTopologyMessageHandler} was created by passing <code>true</code>
- * as the <code>completeTopology</code> param during {@link #ClusterTopologyMessageHandler(ChannelAssociation, boolean)} construction}
- * then the message will be parsed as a complete topology i.e. any previous nodes in the cluster context corresponding
- * to the cluster will be removed before adding this nodes to the context. Else, the nodes will be considered as new
+ * are part of the cluster. The nodes will be considered as new
  * nodes and will just be added to the cluster context (without removing any existing nodes from the context).
  *
  * @author Jaikiran Pai
@@ -56,11 +53,9 @@ class ClusterTopologyMessageHandler extends ProtocolMessageHandler {
     private static final Logger logger = Logger.getLogger(ClusterTopologyMessageHandler.class);
 
     private final ChannelAssociation channelAssociation;
-    private final boolean completeTopology;
 
-    ClusterTopologyMessageHandler(final ChannelAssociation channelAssociation, final boolean completeTopology) {
+    ClusterTopologyMessageHandler(final ChannelAssociation channelAssociation) {
         this.channelAssociation = channelAssociation;
-        this.completeTopology = completeTopology;
     }
 
     @Override
@@ -109,7 +104,7 @@ class ClusterTopologyMessageHandler extends ProtocolMessageHandler {
                         // read the destination port
                         final short destinationPort = input.readShort();
                         // create a ClientMapping out of this
-                        clientMappings[c] = new ClientMapping(clientNetworkAddress, clientNetMask & 0xff, destinationAddress, destinationPort, channelAssociation.getRemotingProtocol());
+                        clientMappings[c] = new ClientMapping(clientNetworkAddress, clientNetMask & 0xff, destinationAddress, destinationPort);
                     }
                     // form a cluster node out of the available information
                     final ClusterNode clusterNode = new ClusterNode(clusterName, nodeName, clientMappings);

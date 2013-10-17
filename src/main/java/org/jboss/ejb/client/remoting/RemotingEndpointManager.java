@@ -67,28 +67,4 @@ class RemotingEndpointManager {
             }
         }
     }
-
-    /**
-     * Closes all the "managed" endpoints that were handed out by this {@link RemotingEndpointManager}. A "close"
-     * doesn't necessarily translate to a real close of the {@link Endpoint} since these "managed" endpoints are pooled endpoints.
-     */
-    void closeAsync() {
-        synchronized (managedEndpoints) {
-            for (final Endpoint endpoint : this.managedEndpoints) {
-                endpoint.closeAsync();
-            }
-        }
-    }
-
-    /**
-     * Closes all the "managed" endpoints that were handed out by this {@link RemotingEndpointManager}. A "close"
-     * doesn't necessarily translate to a real close of the {@link Endpoint} since these "managed" endpoints are pooled endpoints.
-     */
-    void close() throws IOException {
-        synchronized (managedEndpoints) {
-            for (final Endpoint endpoint : this.managedEndpoints) {
-                endpoint.close();
-            }
-        }
-    }
 }
