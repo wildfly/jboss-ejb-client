@@ -26,7 +26,7 @@ import org.jboss.ejb.client.Affinity;
 import org.jboss.ejb.client.AttachmentKeys;
 import org.jboss.ejb.client.EJBClientInvocationContext;
 import org.jboss.ejb.client.TransactionID;
-import org.jboss.marshalling.Marshaller;
+import org.jboss.marshalling.ByteWriter;
 import org.jboss.marshalling.ObjectTable;
 import org.jboss.marshalling.Unmarshaller;
 
@@ -74,17 +74,5 @@ public final class ProtocolV1ObjectTable implements ObjectTable {
             throw new InvalidObjectException("ObjectTable " + this.getClass().getName() + " cannot find an object for object index " + idx);
         }
         return objects[idx];
-    }
-
-    static final class ByteWriter implements Writer {
-        final byte[] bytes;
-
-        ByteWriter(final byte... bytes) {
-            this.bytes = bytes;
-        }
-
-        public void writeObject(final Marshaller marshaller, final Object object) throws IOException {
-            marshaller.write(bytes);
-        }
     }
 }

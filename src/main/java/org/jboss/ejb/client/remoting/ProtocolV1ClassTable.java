@@ -39,6 +39,7 @@ import org.jboss.ejb.client.TransactionID;
 import org.jboss.ejb.client.UnknownSessionID;
 import org.jboss.ejb.client.UserTransactionID;
 import org.jboss.ejb.client.XidTransactionID;
+import org.jboss.marshalling.ByteWriter;
 import org.jboss.marshalling.ClassTable;
 import org.jboss.marshalling.Unmarshaller;
 
@@ -66,11 +67,8 @@ import javax.transaction.TransactionRequiredException;
 import javax.transaction.TransactionRolledbackException;
 import java.io.IOException;
 import java.rmi.RemoteException;
-import java.util.Collections;
-import java.util.HashSet;
 import java.util.IdentityHashMap;
 import java.util.Map;
-import java.util.Set;
 import java.util.concurrent.Future;
 
 /**
@@ -125,9 +123,9 @@ public final class ProtocolV1ClassTable implements ClassTable {
             TransactionRolledbackException.class,
             NotSupportedException.class,
             InvalidTransactionException.class,
-            Throwable.class,
-            Exception.class,
-            RuntimeException.class,
+            Throwable.class, // <--
+            Exception.class, // <--
+            RuntimeException.class, // <--
             StackTraceElement.class,
             SessionID.Serialized.class,
             TransactionID.class,
@@ -138,32 +136,18 @@ public final class ProtocolV1ClassTable implements ClassTable {
             ClusterAffinity.class,
     };
 
-    /**
-     * These classes will no longer use the ClassTable to write out the class descriptor. These are essentially
-     * a subset of the {@link #classes} and were at one point being written out by the ClassTable. However, they
-     * no longer use the ClassTable to write out the descriptor and in order to preserve backward compatibility of
-     * ClassTable, we use this separate set to maintain such classes and *not* change/re-order the {@link #classes}
-     */
-    private static final Set<Class<?>> deprecatedClassTableClasses;
-
-    static {
-        final Set<Class<?>> klasses = new HashSet<Class<?>>();
-        klasses.add(Throwable.class);
-        klasses.add(Exception.class);
-        klasses.add(RuntimeException.class);
-
-        deprecatedClassTableClasses = Collections.unmodifiableSet(klasses);
-    }
-
     static {
         final Map<Class<?>, ByteWriter> map = new IdentityHashMap<Class<?>, ByteWriter>();
+
+        Class<?> clazz;
+
         for (int i = 0, length = classes.length; i < length; i++) {
-            // Certain classes should no longer use the ClassTable to write out the class descriptor.
-            // So we skip such classes and instead let them use the normal mechanism while marshaling
-            if (deprecatedClassTableClasses.contains(classes[i])) {
+            clazz = classes[i];
+            if (clazz == Throwable.class || clazz == Exception.class || clazz == RuntimeException.class) {
+                // don't write out exception types as class table items since they're out of our control
                 continue;
             }
-            map.put(classes[i], new ByteWriter((byte) i));
+            map.put(clazz, new ByteWriter((byte) i));
         }
         writers = map;
     }
@@ -180,18 +164,6 @@ public final class ProtocolV1ClassTable implements ClassTable {
             throw new ClassNotFoundException("ClassTable " + this.getClass().getName() + " cannot find a class for class index " + idx);
         }
         return classes[idx];
-    }
-
-    static final class ByteWriter implements Writer {
-        final byte[] bytes;
-
-        ByteWriter(final byte... bytes) {
-            this.bytes = bytes;
-        }
-
-        public void writeClass(final org.jboss.marshalling.Marshaller marshaller, final Class<?> clazz) throws IOException {
-            marshaller.write(bytes);
-        }
     }
 
     private ProtocolV1ClassTable() {
