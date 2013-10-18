@@ -22,6 +22,7 @@
 
 package org.jboss.ejb.client.remoting;
 
+import static org.jboss.ejb.client.remoting.Protocol.*;
 import static org.xnio.IoUtils.safeClose;
 
 import java.io.DataOutputStream;
@@ -262,7 +263,7 @@ public final class RemotingConnectionEJBReceiver extends EJBReceiver {
                     final Object[] methodParams = clientInvocationContext.getParameters();
 
                     // write the header
-                    dataOutputStream.writeByte(Protocol.HEADER_METHOD_INVOCATION_MESSAGE);
+                    dataOutputStream.writeByte(HEADER_INVOCATION_REQUEST_MESSAGE);
                     // write the invocation id
                     dataOutputStream.writeShort(invocationId);
                     // method name
@@ -273,7 +274,7 @@ public final class RemotingConnectionEJBReceiver extends EJBReceiver {
                     for (int i = 0; i < methodParamTypes.length; i++) {
                         methodSignature.append(methodParamTypes[i].getName());
                         if (i != methodParamTypes.length - 1) {
-                            methodSignature.append(Protocol.METHOD_PARAM_TYPE_SEPARATOR);
+                            methodSignature.append(METHOD_PARAM_TYPE_SEPARATOR);
                         }
                     }
                     // write the method signature
@@ -370,7 +371,7 @@ public final class RemotingConnectionEJBReceiver extends EJBReceiver {
             final short invocationId = channelAssociation.getNextInvocationId();
             futureResultProducer = channelAssociation.enrollForResult(invocationId);
             // write the header
-            dataOutputStream.writeByte(Protocol.HEADER_SESSION_OPEN_REQUEST);
+            dataOutputStream.writeByte(HEADER_SESSION_OPEN_REQUEST_MESSAGE);
             // write the invocation id
             dataOutputStream.writeShort(invocationId);
             // ejb identifier
@@ -432,7 +433,7 @@ public final class RemotingConnectionEJBReceiver extends EJBReceiver {
             try {
                 // write the tx commit message
                 // write the header
-                dataOutputStream.writeByte(Protocol.HEADER_TX_COMMIT_MESSAGE);
+                dataOutputStream.writeByte(HEADER_TX_COMMIT_MESSAGE);
                 // write the invocation id
                 dataOutputStream.writeShort(invocationId);
                 final byte[] transactionIDBytes = transactionID.getEncodedForm();
@@ -474,7 +475,7 @@ public final class RemotingConnectionEJBReceiver extends EJBReceiver {
             try {
                 // write the tx rollback message
                 // write the header
-                dataOutputStream.writeByte(Protocol.HEADER_TX_ROLLBACK_MESSAGE);
+                dataOutputStream.writeByte(HEADER_TX_ROLLBACK_MESSAGE);
                 // write the invocation id
                 dataOutputStream.writeShort(invocationId);
                 final byte[] transactionIDBytes = transactionID.getEncodedForm();
@@ -514,7 +515,7 @@ public final class RemotingConnectionEJBReceiver extends EJBReceiver {
             try {
                 // write the tx prepare message
                 // write the header
-                dataOutputStream.writeByte(Protocol.HEADER_TX_PREPARE_MESSAGE);
+                dataOutputStream.writeByte(HEADER_TX_PREPARE_MESSAGE);
                 // write the invocation id
                 dataOutputStream.writeShort(invocationId);
                 final byte[] transactionIDBytes = transactionID.getEncodedForm();
@@ -558,7 +559,7 @@ public final class RemotingConnectionEJBReceiver extends EJBReceiver {
             try {
                 // write the tx forget message
                 // write the header
-                dataOutputStream.writeByte(Protocol.HEADER_TX_FORGET_MESSAGE);
+                dataOutputStream.writeByte(HEADER_TX_FORGET_MESSAGE);
                 // write the invocation id
                 dataOutputStream.writeShort(invocationId);
                 final byte[] transactionIDBytes = transactionID.getEncodedForm();
@@ -589,7 +590,7 @@ public final class RemotingConnectionEJBReceiver extends EJBReceiver {
     @Override
     protected Xid[] sendRecover(final EJBReceiverContext receiverContext, final String txParentNodeName, final int recoveryFlags) throws XAException {
         final ChannelAssociation channelAssociation = this.requireChannelAssociation(receiverContext);
-        if (!channelAssociation.isMessageCompatibleForNegotiatedProtocolVersion(Protocol.HEADER_TX_RECOVER_MESSAGE)) {
+        if (!channelAssociation.isMessageCompatibleForNegotiatedProtocolVersion(HEADER_TX_RECOVER_REQUEST_MESSAGE)) {
             Logs.REMOTING.transactionRecoveryMessageNotSupported(receiverContext.getReceiver());
             return new Xid[0];
         }
@@ -602,7 +603,7 @@ public final class RemotingConnectionEJBReceiver extends EJBReceiver {
             try {
                 // write the tx recover message
                 // write the header
-                dataOutputStream.writeByte(Protocol.HEADER_TX_RECOVER_MESSAGE);
+                dataOutputStream.writeByte(HEADER_TX_RECOVER_REQUEST_MESSAGE);
                 // write the invocation id
                 dataOutputStream.writeShort(invocationId);
                 // write the node name of the transaction parent
@@ -645,7 +646,7 @@ public final class RemotingConnectionEJBReceiver extends EJBReceiver {
             try {
                 // write the beforeCompletion message
                 // write the header
-                dataOutputStream.writeByte(Protocol.HEADER_TX_BEFORE_COMPLETION_MESSAGE);
+                dataOutputStream.writeByte(HEADER_TX_BEFORE_COMPLETION_MESSAGE);
                 // write the invocation id
                 dataOutputStream.writeShort(invocationId);
                 final byte[] transactionIDBytes = transactionID.getEncodedForm();
@@ -697,7 +698,7 @@ public final class RemotingConnectionEJBReceiver extends EJBReceiver {
             final DataOutputStream dataOutputStream = new DataOutputStream(messageOutputStream);
             try {
                 // write the header
-                dataOutputStream.writeByte(Protocol.HEADER_INVOCATION_CANCEL_MESSAGE);
+                dataOutputStream.writeByte(HEADER_INVOCATION_CANCEL_MESSAGE);
                 // write the invocation id
                 dataOutputStream.writeShort(priorInvocationId);
                 // we *don't* wait for a "result" of the cancel.
@@ -808,7 +809,7 @@ public final class RemotingConnectionEJBReceiver extends EJBReceiver {
         // create a compressed invocation data *only* if the request has to be compressed (note, it's perfectly valid for certain methods to just specify that only the response is compressed)
         if (compressionHint.compressRequest()) {
             // write out the header indicating that it's a compressed stream
-            messageOutputStream.write(0x1B);
+            messageOutputStream.write(HEADER_COMPRESSED_INVOCATION_DATA_MESSAGE);
             // create the deflater using the specified level
             final Deflater deflater = new Deflater(compressionLevel);
             // wrap the message outputstream with the deflater stream so that *any subsequent* data writes to the stream are compressed

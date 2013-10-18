@@ -22,6 +22,8 @@
 
 package org.jboss.ejb.client.remoting;
 
+import static org.jboss.ejb.client.remoting.Protocol.*;
+
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.Collection;
@@ -306,43 +308,40 @@ class ChannelAssociation {
     private ProtocolMessageHandler getProtocolMessageHandler(final byte header) {
         switch (header) {
             // Please try and maintain the case statements in the numerical order of the headers for the sake of quickly finding the highest known response header at present.
-            case 0x02:
+            case HEADER_SESSION_OPEN_RESPONSE_MESSAGE:
                 return new SessionOpenResponseHandler(this, this.marshallerFactory);
-            case 0x05:
+            case HEADER_INVOCATION_RESPONSE_MESSAGE:
                 return new MethodInvocationResponseHandler(this, this.marshallerFactory);
-            case 0x06:
+            case HEADER_INVOCATION_EXCEPTION_MESSAGE:
                 return new InvocationExceptionResponseHandler(this, this.marshallerFactory);
-            case 0x08:
+            case HEADER_MODULE_AVAILABILITY1_MESSAGE:
                 return new ModuleAvailabilityMessageHandler(this.ejbReceiver, this.ejbReceiverContext, ModuleAvailabilityMessageHandler.ModuleReportType.MODULE_AVAILABLE);
-            case 0x09:
+            case HEADER_MODULE_AVAILABILITY2_MESSAGE:
                 return new ModuleAvailabilityMessageHandler(this.ejbReceiver, this.ejbReceiverContext, ModuleAvailabilityMessageHandler.ModuleReportType.MODULE_UNAVAILABLE);
-            case 0x0A:
+            case HEADER_NO_SUCH_EJB_MESSAGE:
                 return new NoSuchEJBExceptionResponseHandler(this);
-            case 0x0B:
+            case HEADER_INVOCATION_GENERAL_FAILURE1_MESSAGE:
                 return new GeneralInvocationFailureResponseHandler(this);
-            case 0x0C:
+            case HEADER_INVOCATION_GENERAL_FAILURE2_MESSAGE:
                 return new GeneralInvocationFailureResponseHandler(this);
-            case 0x0D:
+            case HEADER_NON_STATEFUL_OPEN_MESSAGE:
                 return new NonStatefulBeanSessionOpenFailureHandler(this);
-            case 0x0E:
+            case HEADER_ASYNC_METHOD_MESSAGE:
                 return new AsyncMethodNotificationHandler(this);
-            case 0x14:
+            case HEADER_TX_INVOCATION_RESPONSE_MESSAGE:
                 return new TransactionInvocationResponseHandler(this);
-            case 0x15:
-                // complete cluster topology message handler
+            case HEADER_CLUSTER_COMPLETE_MESSAGE:
                 return new ClusterTopologyMessageHandler(this);
-            case 0x16:
+            case HEADER_CLUSTER_REMOVAL_MESSAGE:
                 return new ClusterRemovalMessageHandler(this.ejbReceiverContext);
-            case 0x17:
-                // new node additions message handler
+            case HEADER_CLUSTER_NODE_ADD_MESSAGE:
                 return new ClusterTopologyMessageHandler(this);
-            case 0x18:
-                // node removal message handler
+            case HEADER_CLUSTER_NODE_REMOVE_MESSAGE:
                 return new ClusterNodeRemovalHandler(this);
-            case 0x1A:
+            case HEADER_TX_RECOVER_RESPONSE_MESSAGE:
                 // transaction recovery response
                 return new TransactionRecoveryResponseHandler(this, this.marshallerFactory);
-            case 0x1B:
+            case HEADER_COMPRESSED_INVOCATION_DATA_MESSAGE:
                 // compressed data (response)
                 return new CompressedMessageHandler(this);
             default:
@@ -369,20 +368,20 @@ class ChannelAssociation {
     boolean isMessageCompatibleForNegotiatedProtocolVersion(final byte messageHeader) {
         if (protocolVersion >= 1) {
             switch (messageHeader) {
-                case Protocol.HEADER_SESSION_OPEN_REQUEST:
-                case Protocol.HEADER_METHOD_INVOCATION_MESSAGE:
-                case Protocol.HEADER_INVOCATION_CANCEL_MESSAGE:
-                case Protocol.HEADER_TX_COMMIT_MESSAGE:
-                case Protocol.HEADER_TX_ROLLBACK_MESSAGE:
-                case Protocol.HEADER_TX_PREPARE_MESSAGE:
-                case Protocol.HEADER_TX_FORGET_MESSAGE:
-                case Protocol.HEADER_TX_BEFORE_COMPLETION_MESSAGE:
+                case HEADER_SESSION_OPEN_REQUEST_MESSAGE:
+                case HEADER_INVOCATION_REQUEST_MESSAGE:
+                case HEADER_INVOCATION_CANCEL_MESSAGE:
+                case HEADER_TX_COMMIT_MESSAGE:
+                case HEADER_TX_ROLLBACK_MESSAGE:
+                case HEADER_TX_PREPARE_MESSAGE:
+                case HEADER_TX_FORGET_MESSAGE:
+                case HEADER_TX_BEFORE_COMPLETION_MESSAGE:
                     return true;
             }
             if (protocolVersion >= 2) {
                 switch (messageHeader) {
-                    case Protocol.HEADER_TX_RECOVER_MESSAGE:
-                    case 0x1B: // compressed message request
+                    case HEADER_TX_RECOVER_REQUEST_MESSAGE:
+                    case HEADER_COMPRESSED_INVOCATION_DATA_MESSAGE:
                         return true;
                 }
             }
