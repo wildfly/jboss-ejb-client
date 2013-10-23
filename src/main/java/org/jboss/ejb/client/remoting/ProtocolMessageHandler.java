@@ -23,16 +23,13 @@
 package org.jboss.ejb.client.remoting;
 
 import org.jboss.marshalling.AbstractClassResolver;
-import org.jboss.marshalling.ByteInput;
 import org.jboss.marshalling.MarshallerFactory;
 import org.jboss.marshalling.Marshalling;
 import org.jboss.marshalling.MarshallingConfiguration;
 import org.jboss.marshalling.Unmarshaller;
-import org.jboss.marshalling.reflect.SunReflectiveCreator;
 
 import java.io.DataInput;
 import java.io.DataInputStream;
-import java.io.EOFException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.ObjectInput;
@@ -73,32 +70,14 @@ abstract class ProtocolMessageHandler {
      * @throws IOException
      */
     protected Unmarshaller prepareForUnMarshalling(final MarshallerFactory marshallerFactory, final DataInputStream dataInput) throws IOException {
-        final Unmarshaller unmarshaller = this.getUnMarshaller(marshallerFactory);
-        final InputStream is = new InputStream() {
-            @Override
-            public int read() throws IOException {
-                try {
-
-                    final int b = dataInput.readByte();
-                    return b & 0xff;
-                } catch (EOFException eof) {
-                    return -1;
-                }
-            }
-
-            @Override
-            public int read(final byte[] b) throws IOException {
-                return dataInput.read(b);
-            }
-
-            @Override
-            public int read(final byte[] b, final int off, final int len) throws IOException {
-                return dataInput.read(b, off, len);
-            }
-        };
-        final ByteInput byteInput = Marshalling.createByteInput(is);
+        final MarshallingConfiguration marshallingConfiguration = new MarshallingConfiguration();
+        marshallingConfiguration.setVersion(2);
+        marshallingConfiguration.setClassTable(ProtocolV1ClassTable.INSTANCE);
+        marshallingConfiguration.setObjectTable(ProtocolV1ObjectTable.INSTANCE);
+        marshallingConfiguration.setClassResolver(TCCLClassResolver.INSTANCE);
+        final Unmarshaller unmarshaller = marshallerFactory.createUnmarshaller(marshallingConfiguration);
         // start the unmarshaller
-        unmarshaller.start(byteInput);
+        unmarshaller.start(Marshalling.createByteInput(dataInput));
 
         return unmarshaller;
     }
@@ -117,24 +96,6 @@ abstract class ProtocolMessageHandler {
         fst[est.length] = new StackTraceElement("..." + msg + "..", "", null, -1);
         System.arraycopy(userStackTrace, trimCount, fst, est.length + 1, userStackTrace.length - trimCount);
         exception.setStackTrace(fst);
-    }
-
-
-    /**
-     * Creates and returns a {@link Unmarshaller}
-     *
-     * @param marshallerFactory The marshaller factory
-     * @return
-     * @throws IOException
-     */
-    private Unmarshaller getUnMarshaller(final MarshallerFactory marshallerFactory) throws IOException {
-        final MarshallingConfiguration marshallingConfiguration = new MarshallingConfiguration();
-        marshallingConfiguration.setVersion(2);
-        marshallingConfiguration.setClassTable(ProtocolV1ClassTable.INSTANCE);
-        marshallingConfiguration.setObjectTable(ProtocolV1ObjectTable.INSTANCE);
-        marshallingConfiguration.setClassResolver(TCCLClassResolver.INSTANCE);
-        marshallingConfiguration.setSerializedCreator(new SunReflectiveCreator());
-        return marshallerFactory.createUnmarshaller(marshallingConfiguration);
     }
 
     /**
