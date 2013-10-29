@@ -26,6 +26,7 @@ import static org.jboss.ejb.client.remoting.Protocol.*;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.InterruptedIOException;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
@@ -35,7 +36,6 @@ import java.util.concurrent.Future;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import javax.imageio.IIOException;
 import org.jboss.ejb.client.EJBClientContext;
 import org.jboss.ejb.client.EJBReceiverContext;
 import org.jboss.ejb.client.EJBReceiverInvocationContext;
@@ -256,7 +256,7 @@ class ChannelAssociation {
             this.channelWriteSemaphore.acquire();
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
-            throw new IIOException("Thread interrupted");
+            throw new InterruptedIOException("Thread interrupted");
         }
         try {
             return this.channel.writeMessage();
