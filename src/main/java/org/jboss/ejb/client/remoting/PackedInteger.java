@@ -82,12 +82,4 @@ public class PackedInteger {
         }
     }
 
-    public static byte[] toPackedInteger(final int value) throws IOException {
-        ByteArrayOutputStream bos = new ByteArrayOutputStream();
-        DataOutputStream dos = new DataOutputStream(bos);
-        writePackedInteger(dos, value);
-        dos.flush();
-        return bos.toByteArray();
-    }
-
 }
