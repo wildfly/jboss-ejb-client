@@ -120,7 +120,7 @@ class VersionReceiver implements Channel.Receiver {
             // that the client is going to communicate with the server using a certain negotiated version.
             final MessageOutputStream channelOutputStream = channel.writeMessage();
             try {
-                final DataOutputStream dataOutputStream = new DataOutputStream(channelOutputStream);
+                final DataOutputStream dataOutputStream = new NoFlushDataOutputStream(channelOutputStream);
                 try {
                     // write the client version
                     dataOutputStream.write(this.negotiatedVersion);
