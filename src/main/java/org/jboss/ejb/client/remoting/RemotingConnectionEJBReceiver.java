@@ -362,7 +362,7 @@ public final class RemotingConnectionEJBReceiver extends EJBReceiver {
         final MessageOutputStream messageOutputStream;
         try {
             messageOutputStream = channelAssociation.acquireChannelMessageOutputStream();
-            dataOutputStream = new DataOutputStream(messageOutputStream);
+            dataOutputStream = new NoFlushDataOutputStream(messageOutputStream);
         } catch (Exception ioe) {
             throw new RuntimeException(ioe);
         }
@@ -429,7 +429,7 @@ public final class RemotingConnectionEJBReceiver extends EJBReceiver {
         final Future<EJBReceiverInvocationContext.ResultProducer> futureResultProducer = channelAssociation.enrollForResult(invocationId);
         try {
             messageOutputStream = channelAssociation.acquireChannelMessageOutputStream();
-            final DataOutputStream dataOutputStream = new DataOutputStream(messageOutputStream);
+            final DataOutputStream dataOutputStream = new NoFlushDataOutputStream(messageOutputStream);
             try {
                 // write the tx commit message
                 // write the header
@@ -471,7 +471,7 @@ public final class RemotingConnectionEJBReceiver extends EJBReceiver {
         final MessageOutputStream messageOutputStream;
         try {
             messageOutputStream = channelAssociation.acquireChannelMessageOutputStream();
-            final DataOutputStream dataOutputStream = new DataOutputStream(messageOutputStream);
+            final DataOutputStream dataOutputStream = new NoFlushDataOutputStream(messageOutputStream);
             try {
                 // write the tx rollback message
                 // write the header
@@ -511,7 +511,7 @@ public final class RemotingConnectionEJBReceiver extends EJBReceiver {
         final MessageOutputStream messageOutputStream;
         try {
             messageOutputStream = channelAssociation.acquireChannelMessageOutputStream();
-            final DataOutputStream dataOutputStream = new DataOutputStream(messageOutputStream);
+            final DataOutputStream dataOutputStream = new NoFlushDataOutputStream(messageOutputStream);
             try {
                 // write the tx prepare message
                 // write the header
@@ -555,7 +555,7 @@ public final class RemotingConnectionEJBReceiver extends EJBReceiver {
         final MessageOutputStream messageOutputStream;
         try {
             messageOutputStream = channelAssociation.acquireChannelMessageOutputStream();
-            final DataOutputStream dataOutputStream = new DataOutputStream(messageOutputStream);
+            final DataOutputStream dataOutputStream = new NoFlushDataOutputStream(messageOutputStream);
             try {
                 // write the tx forget message
                 // write the header
@@ -599,7 +599,7 @@ public final class RemotingConnectionEJBReceiver extends EJBReceiver {
         final MessageOutputStream messageOutputStream;
         try {
             messageOutputStream = channelAssociation.acquireChannelMessageOutputStream();
-            final DataOutputStream dataOutputStream = new DataOutputStream(messageOutputStream);
+            final DataOutputStream dataOutputStream = new NoFlushDataOutputStream(messageOutputStream);
             try {
                 // write the tx recover message
                 // write the header
@@ -642,7 +642,7 @@ public final class RemotingConnectionEJBReceiver extends EJBReceiver {
         final MessageOutputStream messageOutputStream;
         try {
             messageOutputStream = channelAssociation.acquireChannelMessageOutputStream();
-            final DataOutputStream dataOutputStream = new DataOutputStream(messageOutputStream);
+            final DataOutputStream dataOutputStream = new NoFlushDataOutputStream(messageOutputStream);
             try {
                 // write the beforeCompletion message
                 // write the header
@@ -695,7 +695,7 @@ public final class RemotingConnectionEJBReceiver extends EJBReceiver {
         final MessageOutputStream messageOutputStream;
         try {
             messageOutputStream = channelAssociation.acquireChannelMessageOutputStream();
-            final DataOutputStream dataOutputStream = new DataOutputStream(messageOutputStream);
+            final DataOutputStream dataOutputStream = new NoFlushDataOutputStream(messageOutputStream);
             try {
                 // write the header
                 dataOutputStream.writeByte(HEADER_INVOCATION_CANCEL_MESSAGE);
@@ -764,7 +764,7 @@ public final class RemotingConnectionEJBReceiver extends EJBReceiver {
             if (logger.isTraceEnabled()) {
                 logger.trace("Cannot send compressed data messages to server because the negotiated protocol version " + channelAssociation.getNegotiatedProtocolVersion() + " doesn't support compressed messages. Going to send uncompressed message");
             }
-            return new DataOutputStream(messageOutputStream);
+            return new NoFlushDataOutputStream(messageOutputStream);
         }
 
         // if "hints" are disabled, just return a DataOutputStream without the necessity of processing any "hints"
@@ -773,7 +773,7 @@ public final class RemotingConnectionEJBReceiver extends EJBReceiver {
             if (logger.isTraceEnabled()) {
                 logger.trace("Hints are disabled. Ignoring any CompressionHint on methods being invoked on view " + invocationContext.getViewClass());
             }
-            return new DataOutputStream(messageOutputStream);
+            return new NoFlushDataOutputStream(messageOutputStream);
         }
 
         // process any CompressionHint
@@ -794,7 +794,7 @@ public final class RemotingConnectionEJBReceiver extends EJBReceiver {
         }
         // if no CompressionHint is applicable for this invocation
         if (compressionHint == null) {
-            return new DataOutputStream(messageOutputStream);
+            return new NoFlushDataOutputStream(messageOutputStream);
         }
         final int compressionLevel = compressionHint.compressionLevel();
         // write out a attachment to indicate whether or not the response has to be compressed
@@ -817,10 +817,10 @@ public final class RemotingConnectionEJBReceiver extends EJBReceiver {
             if (logger.isTraceEnabled()) {
                 logger.trace("Using a compressing stream with compression level = " + compressionLevel + " for request data for EJB invocation on method " + invocationContext.getInvokedMethod());
             }
-            return new DataOutputStream(deflaterOutputStream);
+            return new NoFlushDataOutputStream(deflaterOutputStream);
         } else {
             // just return a normal DataOutputStream without any compression
-            return new DataOutputStream(messageOutputStream);
+            return new NoFlushDataOutputStream(messageOutputStream);
         }
 
     }
