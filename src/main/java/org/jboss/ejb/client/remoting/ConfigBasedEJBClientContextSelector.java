@@ -163,11 +163,8 @@ public class ConfigBasedEJBClientContextSelector implements IdentityEJBClientCon
                     // just log the warn but don't throw an exception. Move onto the next connection configuration (if any)
                     logger.warn("Could not register a EJB receiver for connection to " + host + ":" + port, e);
                     // add a reconnect handler for this connection
-                    if (reconnectHandler != null) {
-                        this.ejbClientContext.registerReconnectHandler(reconnectHandler);
-                        logger.debug("Registered a reconnect handler in EJB client context " + this.ejbClientContext + " for remote://" + host + ":" + port);
-                    }
-
+                    this.ejbClientContext.registerReconnectHandler(reconnectHandler);
+                    logger.debug("Registered a reconnect handler in EJB client context " + this.ejbClientContext + " for remote://" + host + ":" + port);
                 }
             }
         }

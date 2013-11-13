@@ -109,7 +109,7 @@ public final class ClusterContext implements EJBClientContext.EJBReceiverContext
         if (nodeManagers.isEmpty()) {
             return null;
         }
-        final Set<String> availableNodes = this.nodeManagers.keySet();
+        final Set<String> availableNodes = new HashSet<String>(this.nodeManagers.keySet());
         // remove the excluded nodes
         availableNodes.removeAll(excludedNodes);
         if (availableNodes.isEmpty()) {

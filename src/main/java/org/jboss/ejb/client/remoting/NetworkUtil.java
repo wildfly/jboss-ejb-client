@@ -22,8 +22,6 @@
 
 package org.jboss.ejb.client.remoting;
 
-import static java.lang.Math.max;
-
 import org.jboss.remoting3.Connection;
 import org.jboss.remoting3.Endpoint;
 import org.xnio.IoFuture;
@@ -71,6 +69,10 @@ public class NetworkUtil {
     public static boolean belongsToNetwork(final InetAddress address, final InetAddress networkAddress, final int networkMask) {
         if (address == null || networkAddress == null) {
             return false;
+        }
+        // a netmask of 0 means, it matches everything
+        if (networkMask == 0) {
+            return true;
         }
         // convert to bytes
         final byte[] addressBytes = address.getAddress();
