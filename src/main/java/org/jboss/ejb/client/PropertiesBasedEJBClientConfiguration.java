@@ -106,7 +106,7 @@ public class PropertiesBasedEJBClientConfiguration implements EJBClientConfigura
         if (properties != null) {
             for (Map.Entry<Object, Object> entry : properties.entrySet()) {
                 Object value = entry.getValue();
-                if (value instanceof String) {
+                if (! PROPERTY_KEY_PASSWORD.equals(entry.getKey()) && value instanceof String) {
                     value = PropertiesValueResolver.replaceProperties((String) value);
                 }
                 resolvedProperties.put(entry.getKey(), value);
