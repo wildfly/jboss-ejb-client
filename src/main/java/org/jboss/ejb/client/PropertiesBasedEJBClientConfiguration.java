@@ -101,13 +101,21 @@ public class PropertiesBasedEJBClientConfiguration implements EJBClientConfigura
     private long reconnectTasksTimeout = 0;
     private DeploymentNodeSelector deploymentNodeSelector = new RandomDeploymentNodeSelector();
 
+    private static final boolean expandPasswords = Boolean.valueOf(
+        System.getProperty("jboss-ejb-client.expandPasswords", "false")).booleanValue();
+
     public PropertiesBasedEJBClientConfiguration(final Properties properties) {
         final Properties resolvedProperties = new Properties();
         if (properties != null) {
             for (Map.Entry<Object, Object> entry : properties.entrySet()) {
                 Object value = entry.getValue();
-                if (! PROPERTY_KEY_PASSWORD.equals(entry.getKey()) && value instanceof String) {
+                if (value instanceof String) {
+                   boolean propertyIsAPassword = ((String)entry.getKey()).indexOf(PROPERTY_KEY_PASSWORD) >= 0 ? true : false;
+                   // if its not a password...expand it
+                   // if it is a password and we're supposed to expand it...then do so
+                   if( !propertyIsAPassword || ( propertyIsAPassword && expandPasswords ) ) {
                     value = PropertiesValueResolver.replaceProperties((String) value);
+                   }
                 }
                 resolvedProperties.put(entry.getKey(), value);
             }
