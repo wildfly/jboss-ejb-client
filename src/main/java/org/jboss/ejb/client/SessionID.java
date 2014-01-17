@@ -38,6 +38,7 @@ public abstract class SessionID implements Serializable {
     // The transient flags aren't really respected since we use object replacement.
 
     private final byte[] encodedForm;
+    private final String toString;
     private final transient int hashCode;
 
     /**
@@ -49,6 +50,7 @@ public abstract class SessionID implements Serializable {
     SessionID(final byte[] encodedForm) {
         this.encodedForm = encodedForm;
         hashCode = Arrays.hashCode(encodedForm);
+	toString = "{" + Arrays.toString(encodedForm) + '}';
     }
 
     /**
@@ -142,6 +144,6 @@ public abstract class SessionID implements Serializable {
 
     @Override
     public String toString() {
-        return "{" + Arrays.toString(encodedForm) + '}';
+        return toString; 
     }
 }
