@@ -78,7 +78,18 @@ class RecoveryOnlyEJBXAResource implements XAResource {
         if (xaResource == null) {
             return false;
         }
-        return EJBClientManagedTransactionContext.isEJBXAResourceClass(xaResource.getClass().getName());
+        boolean toReturn = EJBClientManagedTransactionContext.isEJBXAResourceClass(xaResource.getClass().getName());
+
+        if (toReturn) {
+            toReturn = xaResource instanceof RecoveryOnlyEJBXAResource;
+            if (toReturn) {
+                final EJBReceiver receiver = receiverContext.getReceiver();
+                RecoveryOnlyEJBXAResource other = (RecoveryOnlyEJBXAResource)xaResource;
+                final EJBReceiver otherReceiver = other.receiverContext.getReceiver();
+                toReturn = receiver.getNodeName().equals(otherReceiver.getNodeName());
+            }
+        }
+        return toReturn;
     }
 
     @Override
