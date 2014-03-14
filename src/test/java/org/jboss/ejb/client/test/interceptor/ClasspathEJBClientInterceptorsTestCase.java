@@ -22,6 +22,7 @@
 
 package org.jboss.ejb.client.test.interceptor;
 
+import org.jboss.beach.priv.runner.PrivilegedSetupRunner;
 import org.jboss.ejb.client.ClasspathConfigBasedSelectorTestCase;
 import org.jboss.ejb.client.EJBClient;
 import org.jboss.ejb.client.EJBClientConfiguration;
@@ -39,12 +40,14 @@ import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Test;
+import org.junit.runner.RunWith;
 
 import java.util.Properties;
 
 /**
  * @author Jaikiran Pai
  */
+@RunWith(PrivilegedSetupRunner.class)
 public class ClasspathEJBClientInterceptorsTestCase {
     private static final Logger logger = Logger.getLogger(ClasspathConfigBasedSelectorTestCase.class);
 
