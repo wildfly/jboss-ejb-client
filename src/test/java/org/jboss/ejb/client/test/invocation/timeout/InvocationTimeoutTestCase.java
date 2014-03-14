@@ -22,6 +22,7 @@
 
 package org.jboss.ejb.client.test.invocation.timeout;
 
+import org.jboss.beach.priv.runner.PrivilegedSetupRunner;
 import org.jboss.ejb.client.ContextSelector;
 import org.jboss.ejb.client.EJBClient;
 import org.jboss.ejb.client.EJBClientConfiguration;
@@ -35,6 +36,7 @@ import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
+import org.junit.runner.RunWith;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -51,6 +53,7 @@ import javax.ejb.EJBException;
  * @author Jaikiran Pai
  * @see https://issues.jboss.org/browse/EJBCLIENT-33
  */
+@RunWith(PrivilegedSetupRunner.class)
 public class InvocationTimeoutTestCase {
 
     private static final Logger logger = Logger.getLogger(InvocationTimeoutTestCase.class);
