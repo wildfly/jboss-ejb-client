@@ -27,6 +27,7 @@ import java.io.InputStream;
 import java.util.Properties;
 import java.util.concurrent.Future;
 
+import org.jboss.beach.priv.runner.PrivilegedSetupRunner;
 import org.jboss.ejb.client.ContextSelector;
 import org.jboss.ejb.client.EJBClient;
 import org.jboss.ejb.client.EJBClientConfiguration;
@@ -40,10 +41,12 @@ import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
+import org.junit.runner.RunWith;
 
 /**
  * @author Jaikiran Pai
  */
+@RunWith(PrivilegedSetupRunner.class)
 public class AsyncInvocationTestCase {
 
     private static final Logger logger = Logger.getLogger(AsyncInvocationTestCase.class);

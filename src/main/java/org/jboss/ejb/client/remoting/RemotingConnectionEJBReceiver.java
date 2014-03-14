@@ -22,12 +22,15 @@
 
 package org.jboss.ejb.client.remoting;
 
+import static java.security.AccessController.doPrivileged;
+
 import java.io.DataOutputStream;
 import java.io.IOException;
 import java.lang.reflect.Method;
 import java.security.AccessController;
 import java.security.PrivilegedActionException;
 import java.security.PrivilegedExceptionAction;
+import java.security.PrivilegedAction;
 import java.util.IdentityHashMap;
 import java.util.Map;
 import java.util.concurrent.CountDownLatch;
@@ -109,7 +112,12 @@ public final class RemotingConnectionEJBReceiver extends EJBReceiver {
         this.reconnectHandler = reconnectHandler;
         this.channelCreationOptions = channelCreationOptions == null ? OptionMap.EMPTY : channelCreationOptions;
 
-        this.marshallerFactory = Marshalling.getProvidedMarshallerFactory("river");
+        this.marshallerFactory = doPrivileged(new PrivilegedAction<MarshallerFactory>() {
+            @Override
+            public MarshallerFactory run() {
+                return Marshalling.getProvidedMarshallerFactory("river");
+            }
+        });
         if (this.marshallerFactory == null) {
             throw new RuntimeException("Could not find a marshaller factory for 'river' marshalling strategy");
         }

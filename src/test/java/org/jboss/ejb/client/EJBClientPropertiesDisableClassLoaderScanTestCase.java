@@ -22,6 +22,7 @@
 
 package org.jboss.ejb.client;
 
+import org.jboss.beach.priv.runner.PrivilegedSetupRunner;
 import org.jboss.ejb.client.remoting.ConfigBasedEJBClientContextSelector;
 import org.jboss.ejb.client.test.common.EchoBean;
 import org.jboss.ejb.client.test.common.DummyServer;
@@ -31,6 +32,7 @@ import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Test;
+import org.junit.runner.RunWith;
 
 import java.util.Collection;
 import java.util.Properties;
@@ -42,6 +44,7 @@ import java.util.Properties;
  *
  * @author Jaikiran Pai
  */
+@RunWith(PrivilegedSetupRunner.class)
 public class EJBClientPropertiesDisableClassLoaderScanTestCase {
 
     private static final Logger logger = Logger.getLogger(EJBClientPropertiesDisableClassLoaderScanTestCase.class);

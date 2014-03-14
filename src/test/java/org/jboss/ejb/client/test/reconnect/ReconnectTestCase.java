@@ -22,6 +22,11 @@
 
 package org.jboss.ejb.client.test.reconnect;
 
+import static java.security.AccessController.doPrivileged;
+import static java.security.AccessController.getContext;
+import static javax.security.auth.Subject.doAs;
+import static javax.security.auth.Subject.doAsPrivileged;
+
 import org.jboss.ejb.client.ContextSelector;
 import org.jboss.ejb.client.EJBClient;
 import org.jboss.ejb.client.EJBClientConfiguration;
@@ -29,6 +34,7 @@ import org.jboss.ejb.client.EJBClientContext;
 import org.jboss.ejb.client.PropertiesBasedEJBClientConfiguration;
 import org.jboss.ejb.client.StatelessEJBLocator;
 import org.jboss.ejb.client.remoting.ConfigBasedEJBClientContextSelector;
+import org.jboss.ejb.client.test.SimplePrincipal;
 import org.jboss.ejb.client.test.common.DummyServer;
 import org.jboss.logging.Logger;
 import org.junit.Assert;
@@ -36,7 +42,17 @@ import org.junit.Test;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.security.AccessControlContext;
+import java.security.AccessController;
+import java.security.DomainCombiner;
+import java.security.Principal;
+import java.security.PrivilegedAction;
+import java.security.PrivilegedActionException;
+import java.security.PrivilegedExceptionAction;
+import java.security.ProtectionDomain;
 import java.util.Properties;
+
+import javax.security.auth.Subject;
 
 /**
  * Tests various reconnect scenarios for remote connections registered in a EJB client context
@@ -201,9 +217,20 @@ public class ReconnectTestCase {
      * @throws IOException
      */
     private DummyServer startServer() throws IOException {
-        final DummyServer server = new DummyServer("localhost", 6999);
-        server.start();
-        return server;
+        Subject subject = new Subject();
+        subject.getPrincipals().add(new SimplePrincipal());
+        try {
+            return doAsPrivileged(subject, new PrivilegedExceptionAction<DummyServer>() {
+                @Override
+                public DummyServer run() throws IOException {
+                    final DummyServer server = new DummyServer("localhost", 6999);
+                    server.start();
+                    return server;
+                }
+            }, null);
+        } catch (PrivilegedActionException e) {
+            throw (IOException) e.getException();
+        }
     }
 
 }
