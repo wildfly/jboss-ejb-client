@@ -28,7 +28,7 @@
     <parent>
         <groupId>org.jboss</groupId>
         <artifactId>jboss-parent</artifactId>
-        <version>12</version>
+        <version>14</version>
     </parent>
 
     <artifactId>jboss-ejb-client</artifactId>
@@ -38,16 +38,15 @@
     <description>Client library for EJB applications working against Wildfly</description>
 
     <properties>
-        <version.checkstyle.plugin>2.9.1</version.checkstyle.plugin>
         <version.org.jboss.logging.jboss-logging>3.1.4.GA</version.org.jboss.logging.jboss-logging>
         <version.org.jboss.logging.jboss-logging-processor>1.1.0.Final</version.org.jboss.logging.jboss-logging-processor>
         <version.org.jboss.logmanager>1.5.2.Final</version.org.jboss.logmanager>
-        <version.org.jboss.marshalling>1.4.3.Final</version.org.jboss.marshalling>
-        <version.org.jboss.remoting>4.0.0.Final</version.org.jboss.remoting>
+        <version.org.jboss.marshalling>1.4.5.Final</version.org.jboss.marshalling>
+        <version.org.jboss.remoting>4.0.2.Final</version.org.jboss.remoting>
         <version.org.jboss.sasl>1.0.4.Final</version.org.jboss.sasl>
         <version.org.jboss.spec.javax.ejb>1.0.1.Final</version.org.jboss.spec.javax.ejb>
-        <version.org.jboss.spec.javax.transaction>1.0.0.Final</version.org.jboss.spec.javax.transaction>
-        <version.org.jboss.xnio>3.2.0.Final</version.org.jboss.xnio>
+        <version.org.jboss.spec.javax.transaction.jboss-transaction-api_1.2_spec>1.0.0.Final</version.org.jboss.spec.javax.transaction.jboss-transaction-api_1.2_spec>
+        <version.org.jboss.xnio>3.2.1.Final</version.org.jboss.xnio>
 
         <maven.compiler.source>1.6</maven.compiler.source>
         <maven.compiler.target>1.6</maven.compiler.target>
@@ -58,7 +57,7 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-surefire-plugin</artifactId>
-                <version>2.11</version>
+                <version>${version.surefire.plugin}</version>
                 <configuration>
                     <redirectTestOutputToFile>true</redirectTestOutputToFile>
                     <systemProperties>
@@ -101,7 +100,7 @@
             <plugin>
                 <groupId>org.jboss.maven.plugins</groupId>
                 <artifactId>maven-injection-plugin</artifactId>
-                <version>1.0.2</version>
+                <version>${version.injection.plugin}</version>
                 <executions>
                     <execution>
                         <phase>compile</phase>
@@ -196,8 +195,8 @@
 
         <dependency>
             <groupId>org.jboss.spec.javax.transaction</groupId>
-            <artifactId>jboss-transaction-api_1.1_spec</artifactId>
-            <version>${version.org.jboss.spec.javax.transaction}</version>
+            <artifactId>jboss-transaction-api_1.2_spec</artifactId>
+            <version>${version.org.jboss.spec.javax.transaction.jboss-transaction-api_1.2_spec}</version>
             <scope>provided</scope>
         </dependency>
 
@@ -205,7 +204,7 @@
         <dependency>
             <groupId>junit</groupId>
             <artifactId>junit</artifactId>
-            <version>4.8.2</version>
+            <version>4.11</version>
             <scope>test</scope>
         </dependency>
     </dependencies>
