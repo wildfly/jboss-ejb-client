@@ -1,3 +1,0 @@
-org.jboss.ejb.client.DefaultInterceptorsClientContextInitializer
-org.jboss.ejb.client.TransactionRecoveryContextInitializer
-

@@ -28,10 +28,7 @@ import java.io.Serializable;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Proxy;
 import java.lang.reflect.UndeclaredThrowableException;
-import java.security.AccessController;
-import java.security.PrivilegedAction;
 
 import javax.ejb.EJBHome;
 import javax.ejb.EJBObject;
@@ -52,13 +49,10 @@ public abstract class EJBLocator<T> implements Serializable {
     private final String beanName;
     private final String distinctName;
     private final Affinity affinity;
-    private final transient Class<? extends T> proxyClass;
-    private final transient Constructor<? extends T> proxyConstructor;
     private final transient int hashCode;
+    private transient EJBProxyInformation<T> proxyInformation;
 
     private static final FieldSetter hashCodeSetter = FieldSetter.get(EJBLocator.class, "hashCode");
-    private static final FieldSetter proxyClassSetter = FieldSetter.get(EJBLocator.class, "proxyClass");
-    private static final FieldSetter proxyConstructorSetter = FieldSetter.get(EJBLocator.class, "proxyConstructor");
 
     EJBLocator(final Class<T> viewType, final String appName, final String moduleName, final String beanName, final String distinctName, final Affinity affinity) {
         if (viewType == null) {
@@ -82,36 +76,20 @@ public abstract class EJBLocator<T> implements Serializable {
         this.beanName = beanName;
         this.distinctName = distinctName;
         this.affinity = affinity == null ? Affinity.NONE : affinity;
-        if(System.getSecurityManager() == null) {
-            proxyClass = Proxy.getProxyClass(viewType.getClassLoader(), viewType).asSubclass(viewType);
-            try {
-                proxyConstructor = proxyClass.getConstructor(InvocationHandler.class);
-            } catch (NoSuchMethodException e) {
-                throw new NoSuchMethodError("No valid constructor found on proxy class");
-            }
-        } else {
-            proxyClass = AccessController.doPrivileged(new PrivilegedAction<Class<? extends T>>() {
-                @Override
-                public Class<? extends T> run() {
-                    return Proxy.getProxyClass(viewType.getClassLoader(), viewType).asSubclass(viewType);
-                }
-            });
-            proxyConstructor = AccessController.doPrivileged(new PrivilegedAction<Constructor<? extends T>>() {
-                @Override
-                public Constructor<? extends T> run() {
-                    try {
-                        return proxyClass.getConstructor(InvocationHandler.class);
-                    } catch (NoSuchMethodException e) {
-                        throw new NoSuchMethodError("No valid constructor found on proxy class");
-                    }
-                }
-            });
-        }
         hashCode = calcHashCode(viewType, appName, moduleName, beanName, distinctName, this.affinity);
     }
 
     EJBLocator(final EJBLocator<T> original, final Affinity newAffinity) {
-        this(original.viewType, original.appName, original.moduleName, original.beanName, original.distinctName, newAffinity);
+        if (original == null) {
+            throw new IllegalArgumentException("original is null");
+        }
+        this.viewType = original.viewType;
+        this.appName = original.appName;
+        this.moduleName = original.moduleName;
+        this.beanName = original.beanName;
+        this.distinctName = original.distinctName;
+        this.affinity = newAffinity == null ? Affinity.NONE : newAffinity;
+        hashCode = calcHashCode(viewType, appName, moduleName, beanName, distinctName, affinity);
     }
 
     private static int calcHashCode(final Class<?> viewType, final String appName, final String moduleName, final String beanName, final String distinctName, final Affinity affinity) {
@@ -269,7 +247,7 @@ public abstract class EJBLocator<T> implements Serializable {
      * @return the proxy class
      */
     public Class<? extends T> getProxyClass() {
-        return proxyClass;
+        return getProxyInformation().getProxyClass();
     }
 
     /**
@@ -279,7 +257,12 @@ public abstract class EJBLocator<T> implements Serializable {
      * @return the proxy constructor
      */
     public Constructor<? extends T> getProxyConstructor() {
-        return proxyConstructor;
+        return getProxyInformation().getProxyConstructor();
+    }
+
+    EJBProxyInformation<T> getProxyInformation() {
+        final EJBProxyInformation<T> i = proxyInformation;
+        return i != null ? i : (proxyInformation = EJBProxyInformation.forViewType(viewType));
     }
 
     /**
@@ -293,7 +276,7 @@ public abstract class EJBLocator<T> implements Serializable {
             throw Logs.MAIN.paramCannotBeNull("Invocation handler");
         }
         try {
-            return proxyConstructor.newInstance(invocationHandler);
+            return getProxyConstructor().newInstance(invocationHandler);
         } catch (InstantiationException e) {
             throw new InstantiationError(e.getMessage());
         } catch (IllegalAccessException e) {
@@ -320,15 +303,6 @@ public abstract class EJBLocator<T> implements Serializable {
 
     private void readObject(ObjectInputStream ois) throws ClassNotFoundException, IOException {
         ois.defaultReadObject();
-        final Class<? extends T> proxyType = Proxy.getProxyClass(viewType.getClassLoader(), viewType).asSubclass(viewType);
-        final Constructor<? extends T> proxyConstructor;
-        try {
-            proxyConstructor = proxyType.getConstructor(InvocationHandler.class);
-        } catch (NoSuchMethodException e) {
-            throw new NoSuchMethodError("No valid constructor found on proxy class");
-        }
-        proxyClassSetter.set(this, proxyType);
-        proxyConstructorSetter.set(this, proxyConstructor);
         hashCodeSetter.setInt(this, calcHashCode(viewType, appName, moduleName, beanName, distinctName, affinity));
     }
 

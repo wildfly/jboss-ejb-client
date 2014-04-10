@@ -25,8 +25,11 @@ package org.jboss.ejb.client;
 import java.io.UnsupportedEncodingException;
 
 /**
+ * @deprecated Retained only for protocol compatibility.
+ *
  * @author <a href="mailto:david.lloyd@redhat.com">David M. Lloyd</a>
  */
+@Deprecated
 public final class UserTransactionID extends TransactionID {
 
     private static final long serialVersionUID = -791647046784989955L;

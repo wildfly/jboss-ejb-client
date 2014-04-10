@@ -51,10 +51,6 @@ public final class NodeAffinity extends Affinity {
         return nodeName;
     }
 
-    EJBReceiverContext requireReceiverContext(final EJBClientContext clientContext) {
-        return clientContext.requireNodeEJBReceiverContext(nodeName);
-    }
-
     public String toString() {
         return String.format("Node \"%s\"", nodeName);
     }

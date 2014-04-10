@@ -48,34 +48,4 @@ public interface EJBClientInterceptor {
      * @throws Exception if an invocation error occurred
      */
     Object handleInvocationResult(EJBClientInvocationContext context) throws Exception;
-
-    /**
-     * An interceptor registration handle.
-     */
-    class Registration implements Comparable<Registration> {
-        private final EJBClientContext clientContext;
-        private final EJBClientInterceptor interceptor;
-        private final int priority;
-
-        Registration(final EJBClientContext clientContext, final EJBClientInterceptor interceptor, final int priority) {
-            this.clientContext = clientContext;
-            this.interceptor = interceptor;
-            this.priority = priority;
-        }
-
-        /**
-         * Remove this registration.
-         */
-        public void remove() {
-            clientContext.removeInterceptor(this);
-        }
-
-        EJBClientInterceptor getInterceptor() {
-            return interceptor;
-        }
-
-        public int compareTo(final Registration o) {
-            return Integer.signum(priority - o.priority);
-        }
-    }
 }

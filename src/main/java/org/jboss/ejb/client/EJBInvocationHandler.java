@@ -22,24 +22,16 @@
 
 package org.jboss.ejb.client;
 
-import java.io.NotSerializableException;
 import java.io.Serializable;
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
 import java.rmi.RemoteException;
-import java.rmi.UnmarshalException;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.Map;
 import java.util.concurrent.Future;
 
 import javax.ejb.EJBException;
 import javax.ejb.EJBHome;
 import javax.ejb.EJBObject;
-
-import org.jboss.ejb.client.annotation.CompressionHint;
 
 /**
  * @param <T> the proxy view type
@@ -50,9 +42,11 @@ final class EJBInvocationHandler<T> extends Attachable implements InvocationHand
 
     private static final long serialVersionUID = 946555285095057230L;
 
-    private static final String ENABLE_ANNOTATION_SCANNING_SYSTEM_PROPERTY = "org.jboss.ejb.client.view.annotation.scan.enabled";
-
     private final transient boolean async;
+
+    private transient String toString;
+    private transient String toStringProxy;
+
     /**
      * @serial the associated EJB locator
      */
@@ -63,143 +57,92 @@ final class EJBInvocationHandler<T> extends Attachable implements InvocationHand
     private volatile Affinity weakAffinity = Affinity.NONE;
 
     /**
-     * An optional association to a EJB client context
-     */
-    // we don't serialize EJB client context identifier
-    private final transient EJBClientContextIdentifier ejbClientContextIdentifier;
-
-    /**
-     * The {@link AnnotationScanner}s which will be used for scanning annotations on the view class which corresponds to the proxy represented by this invocation handler
-     */
-    // The whole annotation scanning business is for now contained within this invocation handler class and isn't exposed or isn't allowed to be "pluggable" to avoid unnecesary complexity
-    // in the EJB client API. The only control user applications have over annotation scanning of view class(es), for now, is via setting a system property to enable or disable the scanning.
-    private final transient AnnotationScanner[] annotationScanners = new AnnotationScanner[]{new CompressionHintAnnotationScanner()};
-
-    /**
-     * map of methods that can be handled on the client side
-     */
-    private static final Map<MethodKey, MethodHandler> clientSideMethods;
-
-    static {
-        Map<MethodKey, MethodHandler> methods = new HashMap<MethodKey, MethodHandler>();
-        methods.put(new MethodKey("equals", Object.class), new EqualsMethodHandler());
-        methods.put(new MethodKey("hashCode"), new HashCodeMethodHandler());
-        methods.put(new MethodKey("toString"), new ToStringMethodHandler());
-        methods.put(new MethodKey("getPrimaryKey"), new GetPrimaryKeyHandler());
-        methods.put(new MethodKey("getHandle"), new GetHandleHandler());
-        methods.put(new MethodKey("isIdentical", EJBObject.class), new IsIdenticalHandler());
-        methods.put(new MethodKey("getHomeHandle"), new GetHomeHandleHandler());
-        clientSideMethods = Collections.unmodifiableMap(methods);
-    }
-
-    EJBInvocationHandler(final EJBLocator<T> locator) {
-        this(null, locator);
-    }
-
-    /**
-     * Creates an {@link EJBInvocationHandler} for the passed <code>locator</code> and associates this
-     * invocation handler with the passed <code>ejbClientContextIdentifier</code>
+     * Construct a new instance.
      *
-     * @param ejbClientContextIdentifier (Optional) EJB client context identifier. Can be null.
-     * @param locator                    The {@link EJBLocator} cannot be null.
+     * @param locator the EJB locator (not {@code null})
      */
-    EJBInvocationHandler(final EJBClientContextIdentifier ejbClientContextIdentifier, final EJBLocator<T> locator) {
+    EJBInvocationHandler(final EJBLocator<T> locator) {
         if (locator == null) {
             throw Logs.MAIN.paramCannotBeNull("EJB locator");
         }
-        this.ejbClientContextIdentifier = ejbClientContextIdentifier;
         this.locator = locator;
         async = false;
         if (locator instanceof StatefulEJBLocator) {
             // set the weak affinity to the node on which the session was created
-            final String sessionOwnerNode = ((StatefulEJBLocator<?>) locator).getSessionOwnerNode();
-            if (sessionOwnerNode != null) {
-                this.setWeakAffinity(new NodeAffinity(sessionOwnerNode));
-            }
-        }
-        // scan for annotations on the view class, if necessary
-        final String annotationScanEnabledSysPropVal = SecurityActions.getSystemProperty(ENABLE_ANNOTATION_SCANNING_SYSTEM_PROPERTY);
-        if (annotationScanEnabledSysPropVal != null && Boolean.valueOf(annotationScanEnabledSysPropVal.trim())) {
-            scanAnnotationsOnViewClass();
-        } else {
-            // let's for the sake of potential performance optimization, add an attachment which lets the EJBReceiver(s) and any other decision making
-            // code to decide whether it can entirely skip any logic related to "hints" (like @org.jboss.ejb.client.annotation.CompressionHint)
-            putAttachment(AttachmentKeys.HINTS_DISABLED, true);
+            setWeakAffinity(locator.getAffinity());
         }
     }
 
+    /**
+     * Construct a new asynchronous instance.
+     *
+     * @param other the synchronous invocation handler
+     */
     EJBInvocationHandler(final EJBInvocationHandler<T> other) {
         super(other);
         locator = other.locator;
         async = true;
-        ejbClientContextIdentifier = other.ejbClientContextIdentifier;
         if (locator instanceof StatefulEJBLocator) {
             // set the weak affinity to the node on which the session was created
-            final String sessionOwnerNode = ((StatefulEJBLocator<?>) locator).getSessionOwnerNode();
-            if (sessionOwnerNode != null) {
-                this.setWeakAffinity(new NodeAffinity(sessionOwnerNode));
+            setWeakAffinity(locator.getAffinity());
+        }
+    }
+
+    public Object invoke(final Object rawProxy, final Method method, final Object[] args) throws Exception {
+        final T proxy = locator.getViewType().cast(rawProxy);
+        final EJBProxyInformation.ProxyMethodInfo methodInfo = locator.getProxyInformation().getProxyMethodInfo(method);
+        switch (methodInfo.getMethodType()) {
+            case EJBProxyInformation.MT_EQUALS:
+            case EJBProxyInformation.MT_IS_IDENTICAL: {
+                assert args.length == 1; // checked by EJBProxyInformation
+                if (args[0] instanceof Proxy) {
+                    final InvocationHandler handler = Proxy.getInvocationHandler(args[0]);
+                    if (handler instanceof EJBInvocationHandler) {
+                        return Boolean.valueOf(locator.equals(((EJBInvocationHandler<?>) handler).getLocator()));
+                    }
+                }
+                return Boolean.FALSE;
+            }
+            case EJBProxyInformation.MT_HASH_CODE: {
+                // TODO: cache instance?
+                return Integer.valueOf(locator.hashCode());
+            }
+            case EJBProxyInformation.MT_TO_STRING: {
+                final String s = toStringProxy;
+                return s != null ? s : (toStringProxy = String.format("Proxy for remote EJB %s", locator));
+            }
+            case EJBProxyInformation.MT_GET_PRIMARY_KEY: {
+                if (locator instanceof EntityEJBLocator) {
+                    return ((EntityEJBLocator) locator).getPrimaryKey();
+                }
+                throw new RemoteException("Cannot invoke getPrimaryKey() on " + proxy);
+            }
+            case EJBProxyInformation.MT_GET_HANDLE: {
+                // TODO: cache instance
+                return EJBHandle.handleFor(locator.narrowTo(EJBObject.class));
+            }
+            case EJBProxyInformation.MT_GET_HOME_HANDLE: {
+                if (locator instanceof EJBHomeLocator) {
+                    // TODO: cache instance
+                    return EJBHomeHandle.handleFor(locator.narrowAsHome(EJBHome.class));
+                }
+                throw new RemoteException("Cannot invoke getHomeHandle() on " + proxy);
             }
         }
-    }
-
-    public Object invoke(final Object proxy, final Method method, final Object[] args) throws Throwable {
-        return doInvoke(locator.getViewType().cast(proxy), method, args);
-    }
-
-    void setWeakAffinity(Affinity newWeakAffinity) {
-        weakAffinity = newWeakAffinity;
-    }
-
-    Affinity getWeakAffinity() {
-        return weakAffinity;
-    }
-
-    /**
-     * Returns the {@link EJBClientContextIdentifier} associated with this invocation handler. If this
-     * invocation handler isn't associated with any {@link EJBClientContextIdentifier} then this method
-     * returns null
-     *
-     * @return
-     */
-    EJBClientContextIdentifier getEjbClientContextIdentifier() {
-        return this.ejbClientContextIdentifier;
-    }
-
-    Object doInvoke(final T proxy, final Method method, final Object[] args) throws Throwable {
-        final MethodHandler handler = clientSideMethods.get(new MethodKey(method));
-        if (handler != null && handler.canHandleInvocation(this, proxy, method, args)) {
-            return handler.invoke(this, proxy, method, args);
+        // otherwise it's a business method
+        assert methodInfo.getMethodType() == EJBProxyInformation.MT_BUSINESS;
+        final EJBClientContext clientContext = EJBClientContext.getCurrent();
+        final EJBReceiver receiver = clientContext.getEJBReceiver(locator);
+        if (receiver == null) {
+            throw new RemoteException("Cannot locate destination for EJB identified by " + locator);
         }
-        final EJBClientContext context;
-        // check if we are associated with a EJB client context identifier
-        if (ejbClientContextIdentifier == null) {
-            // we aren't associated with a EJB client context identifier, so select the "current"
-            // EJB client context
-            context = EJBClientContext.requireCurrent();
-        } else {
-            // we are associated with a specific EJB client context, so fetch it
-            context = EJBClientContext.require(this.ejbClientContextIdentifier);
-        }
-        return doInvoke(this, async, proxy, method, args, context);
-    }
-
-    @SuppressWarnings("unchecked")
-    static <T> EJBInvocationHandler<? extends T> forProxy(T proxy) {
-        InvocationHandler handler = Proxy.getInvocationHandler(proxy);
-        if (handler instanceof EJBInvocationHandler) {
-            return (EJBInvocationHandler<? extends T>) handler;
-        }
-        throw Logs.MAIN.proxyNotOurs(proxy, EJBClient.class.getName());
-    }
-
-    private static <T> Object doInvoke(final EJBInvocationHandler<T> ejbInvocationHandler, final boolean async, final T proxy, final Method method, final Object[] args, EJBClientContext clientContext) throws Throwable {
-        final EJBClientInvocationContext invocationContext = new EJBClientInvocationContext(ejbInvocationHandler, clientContext, proxy, method, args);
+        final EJBClientInvocationContext invocationContext = new EJBClientInvocationContext(this, clientContext, proxy, args, receiver, methodInfo);
 
         try {
             // send the request
-            sendRequestWithPossibleRetries(invocationContext, true);
+            invocationContext.sendRequest();
 
-            if (!async) {
+            if (!async && !methodInfo.isClientAsync()) {
                 // wait for invocation to complete
                 final Object value = invocationContext.awaitResponse();
                 if (value != EJBClientInvocationContext.PROCEED_ASYNC) {
@@ -219,11 +162,9 @@ final class EJBInvocationHandler<T> extends Attachable implements InvocationHand
                 EJBClient.setFutureResult(invocationContext.getFutureResponse());
                 return null;
             }
+        } catch (RuntimeException e) {
+            throw e;
         } catch (Exception e) {
-            //AS7-5937 prevent UndeclaredThrowableException
-            if (e instanceof RuntimeException) {
-                throw e;
-            }
             boolean remoteException = false;
             for (Class<?> exception : method.getExceptionTypes()) {
                 if (exception.isAssignableFrom(e.getClass())) {
@@ -239,47 +180,21 @@ final class EJBInvocationHandler<T> extends Attachable implements InvocationHand
         }
     }
 
-    /**
-     * Sends a method invocation request to an eligible EJB receiver. If the request sending fails with a {@link RequestSendFailedException} then this method attempts to
-     * retry sending that request to some other eligible node (if any). It does this till either the request was successfully sent or till there are no more eligible EJB receivers
-     * which can handle this request
-     *
-     * @param clientInvocationContext The EJB client invocation context
-     * @param firstAttempt            True if this is a first attempt at sending the request, false if this is a retry
-     * @throws Exception
-     */
-    private static void sendRequestWithPossibleRetries(final EJBClientInvocationContext clientInvocationContext, final boolean firstAttempt) throws Exception {
-        try {
-            // this is the first attempt so use the sendRequest API
-            if (firstAttempt) {
-                clientInvocationContext.sendRequest();
-            } else {
-                // retry
-                clientInvocationContext.retryRequest();
-            }
-        } catch (RequestSendFailedException rsfe) {
-            // check whether the first attempt fails during serialization
-            if (firstAttempt) {
-                // EJBCLIENT-106 supress retry and throw the root cause
-                if (rsfe.getCause() instanceof RuntimeException) {
-                    throw (RuntimeException) rsfe.getCause();
-                }else if(rsfe.getCause() instanceof NotSerializableException) {
-                    throw (NotSerializableException)rsfe.getCause();
-                }else if (rsfe.getCause() instanceof UnmarshalException) {
-                    throw (UnmarshalException) rsfe.getCause();
-                }
-            }
-            final String failedNodeName = rsfe.getFailedNodeName();
-            if (failedNodeName != null) {
-                Logs.MAIN.debugf(rsfe, "Retrying invocation %s which failed on node: %s due to:", clientInvocationContext, failedNodeName);
-                // exclude this failed node, during the retry
-                clientInvocationContext.markNodeAsExcluded(failedNodeName);
-                // retry
-                sendRequestWithPossibleRetries(clientInvocationContext, false);
-            } else {
-                throw rsfe;
-            }
+    void setWeakAffinity(Affinity newWeakAffinity) {
+        weakAffinity = newWeakAffinity;
+    }
+
+    Affinity getWeakAffinity() {
+        return weakAffinity;
+    }
+
+    @SuppressWarnings("unchecked")
+    static <T> EJBInvocationHandler<? extends T> forProxy(T proxy) {
+        InvocationHandler handler = Proxy.getInvocationHandler(proxy);
+        if (handler instanceof EJBInvocationHandler) {
+            return (EJBInvocationHandler<? extends T>) handler;
         }
+        throw Logs.MAIN.proxyNotOurs(proxy, EJBClient.class.getName());
     }
 
     @SuppressWarnings("unused")
@@ -299,232 +214,8 @@ final class EJBInvocationHandler<T> extends Attachable implements InvocationHand
         return locator;
     }
 
-    /**
-     * Scans for annotations on the view class and its methods using pre-configured {@link AnnotationScanner}s (if any)
-     */
-    private void scanAnnotationsOnViewClass() {
-        // nothing to do
-        if (annotationScanners == null || annotationScanners.length == 0) {
-            return;
-        }
-        final Class<?> viewClass = this.locator.getViewType();
-        final Method[] viewMethods = viewClass.getMethods();
-        for (final AnnotationScanner annotationScanner : annotationScanners) {
-            // scan class level annotations
-            annotationScanner.scanClass(viewClass);
-            // now method level annotations
-            for (final Method viewMethod : viewMethods) {
-                annotationScanner.scanMethod(viewMethod);
-            }
-        }
-    }
-
-    private static final class MethodKey {
-
-        private final String name;
-        private final Class<?>[] parameters;
-
-
-        public MethodKey(final String name, final Class<?>... parameters) {
-            this.name = name;
-            this.parameters = parameters;
-        }
-
-        public MethodKey(final Method method) {
-            this.name = method.getName();
-            this.parameters = method.getParameterTypes();
-        }
-
-        @Override
-        public boolean equals(final Object o) {
-            //we don't care about the return type
-            //we want covariant methods to still be handled
-            if (this == o) return true;
-            if (o == null || getClass() != o.getClass()) return false;
-
-            final MethodKey methodKey = (MethodKey) o;
-
-            if (!name.equals(methodKey.name)) return false;
-            if (!Arrays.equals(parameters, methodKey.parameters)) return false;
-
-            return true;
-        }
-
-        @Override
-        public int hashCode() {
-            int result = name.hashCode();
-            result = 31 * result + Arrays.hashCode(parameters);
-            return result;
-        }
-    }
-
-    private interface MethodHandler {
-
-        boolean canHandleInvocation(final EJBInvocationHandler<?> thisHandler, final Object proxy, final Method method, final Object[] args) throws Exception;
-
-        Object invoke(final EJBInvocationHandler<?> thisHandler, final Object proxy, final Method method, final Object[] args) throws Exception;
-    }
-
-    private static final class EqualsMethodHandler implements MethodHandler {
-
-        @Override
-        public boolean canHandleInvocation(final EJBInvocationHandler<?> thisHandler, final Object proxy, final Method method, final Object[] args) {
-            return true;
-        }
-
-        @Override
-        public Object invoke(final EJBInvocationHandler<?> thisHandler, final Object proxy, final Method method, final Object[] args) {
-            final Object other = args[0];
-            if (other instanceof Proxy) {
-                final InvocationHandler handler = Proxy.getInvocationHandler(other);
-                if (handler instanceof EJBInvocationHandler) {
-                    return thisHandler.locator.equals(((EJBInvocationHandler<?>) handler).locator);
-                }
-            }
-            return Boolean.FALSE;
-        }
-    }
-
-
-    private static final class HashCodeMethodHandler implements MethodHandler {
-
-        @Override
-        public boolean canHandleInvocation(final EJBInvocationHandler<?> thisHandler, final Object proxy, final Method method, final Object[] args) {
-            return true;
-        }
-
-        @Override
-        public Object invoke(final EJBInvocationHandler<?> thisHandler, final Object proxy, final Method method, final Object[] args) {
-            return thisHandler.locator.hashCode();
-        }
-    }
-
-    private static final class ToStringMethodHandler implements MethodHandler {
-
-        @Override
-        public boolean canHandleInvocation(final EJBInvocationHandler<?> thisHandler, final Object proxy, final Method method, final Object[] args) {
-            return true;
-        }
-
-        @Override
-        public Object invoke(final EJBInvocationHandler<?> thisHandler, final Object proxy, final Method method, final Object[] args) {
-            return String.format("Proxy for remote EJB %s", thisHandler.locator);
-        }
-    }
-
-    private static final class GetPrimaryKeyHandler implements MethodHandler {
-
-        @Override
-        public boolean canHandleInvocation(final EJBInvocationHandler<?> thisHandler, final Object proxy, final Method method, final Object[] args) throws Exception {
-            return proxy instanceof EJBObject;
-        }
-
-        @Override
-        public Object invoke(final EJBInvocationHandler<?> thisHandler, final Object proxy, final Method method, final Object[] args) throws Exception {
-            final EJBLocator<?> locator = thisHandler.locator;
-            if (locator instanceof EntityEJBLocator) {
-                return ((EntityEJBLocator) locator).getPrimaryKey();
-            }
-            throw new RemoteException("Cannot invoke getPrimaryKey() om " + proxy);
-        }
-    }
-
-    private static final class GetHandleHandler implements MethodHandler {
-
-        @Override
-        public boolean canHandleInvocation(final EJBInvocationHandler<?> thisHandler, final Object proxy, final Method method, final Object[] args) throws Exception {
-            return proxy instanceof EJBObject && thisHandler.locator instanceof EJBLocator;
-        }
-
-        @Override
-        public Object invoke(final EJBInvocationHandler<?> thisHandler, final Object proxy, final Method method, final Object[] args) throws Exception {
-            final EJBLocator locator = (EJBLocator) thisHandler.getLocator();
-            return new EJBHandle(locator);
-        }
-    }
-
-    private static final class IsIdenticalHandler implements MethodHandler {
-
-        @Override
-        public boolean canHandleInvocation(final EJBInvocationHandler<?> thisHandler, final Object proxy, final Method method, final Object[] args) throws Exception {
-            return proxy instanceof EJBObject && thisHandler.locator instanceof EJBLocator;
-        }
-
-        @Override
-        public Object invoke(final EJBInvocationHandler<?> thisHandler, final Object proxy, final Method method, final Object[] args) throws Exception {
-            final EJBLocator<?> locator = thisHandler.locator;
-            final Object other = args[0];
-            if (Proxy.isProxyClass(other.getClass())) {
-                final InvocationHandler handler = Proxy.getInvocationHandler(other);
-                if (handler instanceof EJBInvocationHandler) {
-                    return locator.equals(((EJBInvocationHandler<?>) handler).getLocator());
-                }
-            }
-            return false;
-        }
-    }
-
-    private static final class GetHomeHandleHandler implements MethodHandler {
-
-        @Override
-        public boolean canHandleInvocation(final EJBInvocationHandler<?> thisHandler, final Object proxy, final Method method, final Object[] args) throws Exception {
-            return proxy instanceof EJBHome;
-        }
-
-        @Override
-        public Object invoke(final EJBInvocationHandler<?> thisHandler, final Object proxy, final Method method, final Object[] args) throws Exception {
-            final EJBLocator locator = (EJBLocator) thisHandler.getLocator();
-            if (locator instanceof EJBHomeLocator) {
-                return new EJBHomeHandle((EJBHomeLocator) locator);
-            }
-            throw new RemoteException("Cannot invoke getHomeHandle() on " + proxy);
-        }
-    }
-
-    /**
-     * An {@link AnnotationScanner} is responsible for scanning for (some known) annotations on the view class and its methods. It's up to the implementations of this
-     * interface to decide what to do with the annotation it finds on the view class or the view method. Typical implementations attach the found annotation(s) as "attachments" to the
-     * {@link EJBInvocationHandler} so that the annotation information is available for invocations, happening on this invocation handler, through the use of {@link EJBClientInvocationContext#getProxyAttachment(AttachmentKey)}
-     */
-    private interface AnnotationScanner {
-        void scanClass(final Class<?> view);
-
-        void scanMethod(final Method method);
-    }
-
-    /**
-     * An {@link AnnotationScanner} responsible for scanning the {@link org.jboss.ejb.client.annotation.CompressionHint} annotation on the view class and its methods. This
-     * {@link org.jboss.ejb.client.EJBInvocationHandler.CompressionHintAnnotationScanner} attaches the found annotations (if any) to the invocation handler through the use of {@link EJBInvocationHandler#putAttachment(AttachmentKey, Object)}
-     * method. The class level {@link org.jboss.ejb.client.annotation.CompressionHint} annotation (if any) is attached with {@link AttachmentKeys#VIEW_CLASS_DATA_COMPRESSION_HINT_ATTACHMENT_KEY} as the key and the method level
-     * {@link org.jboss.ejb.client.annotation.CompressionHint} annotations (if any) is attached with {@link AttachmentKeys#VIEW_METHOD_DATA_COMPRESSION_HINT_ATTACHMENT_KEY} as the key
-     */
-    private final class CompressionHintAnnotationScanner implements AnnotationScanner {
-
-        @Override
-        public void scanClass(Class<?> view) {
-            final CompressionHint compressionHint = (CompressionHint) view.getAnnotation(CompressionHint.class);
-            // nothing to do
-            if (compressionHint == null) {
-                return;
-            }
-            // add it as an attachment to the invocation handler so that it's available during an invocation via the EJBClientInvocationContext#getProxyAttachment()
-            EJBInvocationHandler.this.putAttachment(AttachmentKeys.VIEW_CLASS_DATA_COMPRESSION_HINT_ATTACHMENT_KEY, compressionHint);
-        }
-
-        @Override
-        public void scanMethod(Method method) {
-            final CompressionHint compressionHint = (CompressionHint) method.getAnnotation(CompressionHint.class);
-            // nothing to do
-            if (compressionHint == null) {
-                return;
-            }
-            Map<Method, CompressionHint> annotatedMethods = EJBInvocationHandler.this.getAttachment(AttachmentKeys.VIEW_METHOD_DATA_COMPRESSION_HINT_ATTACHMENT_KEY);
-            if (annotatedMethods == null) {
-                // Intentionally avoiding IdentityHashMap since it doesn't work out because the methods being scanned here and the methods being invoked upon later, aren't the "same" (i.e. this method != that method)
-                annotatedMethods = new HashMap<Method, CompressionHint>();
-                EJBInvocationHandler.this.putAttachment(AttachmentKeys.VIEW_METHOD_DATA_COMPRESSION_HINT_ATTACHMENT_KEY, annotatedMethods);
-            }
-            annotatedMethods.put(method, compressionHint);
-        }
+    public String toString() {
+        final String s = toString;
+        return s != null ? s : (toString = String.format("Proxy invocation handler for %s", locator));
     }
 }

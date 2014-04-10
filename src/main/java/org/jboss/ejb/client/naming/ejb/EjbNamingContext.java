@@ -48,7 +48,7 @@ class EjbNamingContext implements Context {
 
     private static final Logger log = Logger.getLogger("org.jboss.ejb.client.naming");
 
-    public static final EjbNamingContext ROOT = new EjbNamingContext();
+    static final EjbNamingContext NONE_ROOT = new EjbNamingContext(Affinity.NONE);
 
     /* The environment configuration */
     private final Hashtable<String, Object> environment = new Hashtable<String, Object>();
@@ -57,19 +57,22 @@ class EjbNamingContext implements Context {
     private final String application;
     private final String module;
     private final String distinct;
+    private final Affinity providerAffinity;
 
-    protected EjbNamingContext(final String application, final String module, final String distinct) {
+    EjbNamingContext(final String application, final String module, final String distinct, final Affinity providerAffinity) {
         this.application = application;
         this.module = module;
         this.distinct = distinct;
+        this.providerAffinity = providerAffinity;
         root = false;
     }
 
-    protected EjbNamingContext() {
-        application = null;
-        module = null;
-        distinct = null;
-        root = true;
+    EjbNamingContext(final Affinity providerAffinity) {
+        this.application = null;
+        this.module = null;
+        this.distinct = null;
+        this.providerAffinity = providerAffinity;
+        this.root = true;
     }
 
     @Override
@@ -98,7 +101,7 @@ class EjbNamingContext implements Context {
     }
 
     private Object createEjbContext(final EjbJndiIdentifier identifier) {
-        return new EjbNamingContext(identifier.getApplication(), identifier.getModule(), identifier.getDistinctName());
+        return new EjbNamingContext(identifier.getApplication(), identifier.getModule(), identifier.getDistinctName(), providerAffinity);
     }
 
     protected Object createEjbProxy(final EjbJndiIdentifier identifier) throws NamingException {

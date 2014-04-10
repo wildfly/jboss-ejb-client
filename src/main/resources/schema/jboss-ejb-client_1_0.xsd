@@ -1,0 +1,107 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!--
+  ~ JBoss, Home of Professional Open Source.
+  ~ Copyright 2014, Red Hat, Inc., and individual contributors
+  ~ as indicated by the @author tags. See the copyright.txt file in the
+  ~ distribution for a full listing of individual contributors.
+  ~
+  ~ This is free software; you can redistribute it and/or modify it
+  ~ under the terms of the GNU Lesser General Public License as
+  ~ published by the Free Software Foundation; either version 2.1 of
+  ~ the License, or (at your option) any later version.
+  ~
+  ~ This software is distributed in the hope that it will be useful,
+  ~ but WITHOUT ANY WARRANTY; without even the implied warranty of
+  ~ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+  ~ Lesser General Public License for more details.
+  ~
+  ~ You should have received a copy of the GNU Lesser General Public
+  ~ License along with this software; if not, write to the Free
+  ~ Software Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
+  ~ 02110-1301 USA, or see the FSF site: http://www.fsf.org.
+  -->
+
+<xsd:schema xmlns:xsd="http://www.w3.org/2001/XMLSchema"
+            targetNamespace="urn:jboss:ejb-client:3.0"
+            xmlns="urn:jboss:ejb-client:3.0"
+            elementFormDefault="qualified"
+            attributeFormDefault="unqualified"
+            version="1.0">
+
+    <!-- Root elements -->
+
+    <xsd:element name="ejb-client" type="ejb-client-type"/>
+
+    <!-- Types -->
+
+    <xsd:complexType name="ejb-client-type">
+        <xsd:all minOccurs="1" maxOccurs="1">
+            <xsd:element name="discovery" type="discovery-type" minOccurs="0" maxOccurs="1"/>
+            <xsd:element name="global-interceptors" type="interceptors-type" minOccurs="0" maxOccurs="1"/>
+            <xsd:element name="connections" type="connections-type" minOccurs="0" maxOccurs="1"/>
+        </xsd:all>
+    </xsd:complexType>
+
+    <!-- Discovery -->
+
+    <xsd:complexType name="discovery-type">
+        <xsd:choice minOccurs="0" maxOccurs="unbounded">
+            <xsd:element name="static-node-discovery" type="static-node-discovery-type"/>
+            <xsd:element name="static-cluster-discovery" type="static-cluster-discovery-type"/>
+            <xsd:element name="static-ejb-discovery" type="static-ejb-discovery-type"/>
+        </xsd:choice>
+    </xsd:complexType>
+
+    <xsd:complexType name="static-node-discovery-type">
+        <xsd:attribute name="node-name" type="xsd:string" use="required"/>
+        <xsd:attribute name="uri" type="xsd:anyURI" use="required"/>
+    </xsd:complexType>
+
+    <xsd:complexType name="static-cluster-discovery-type">
+        <xsd:sequence minOccurs="1" maxOccurs="1">
+            <xsd:element name="connect-to" type="connect-to-type" minOccurs="0" maxOccurs="unbounded"/>
+        </xsd:sequence>
+        <xsd:attribute name="cluster-name" type="xsd:string" use="required"/>
+    </xsd:complexType>
+
+    <xsd:complexType name="connect-to-type">
+        <xsd:attribute name="uri" type="xsd:anyURI" use="required"/>
+    </xsd:complexType>
+
+    <xsd:complexType name="static-ejb-discovery-type">
+        <xsd:attribute name="app-name" type="xsd:string" use="required"/>
+        <xsd:attribute name="module-name" type="xsd:string" use="required"/> <!-- may be * -->
+        <xsd:attribute name="bean-name" type="xsd:string" use="required"/> <!-- may be * -->
+        <xsd:attribute name="distinct-name" type="xsd:string" use="optional" default=""/> <!-- may be * -->
+        <xsd:attribute name="uri" type="xsd:anyURI" use="required"/>
+    </xsd:complexType>
+
+    <!-- Interceptors -->
+
+    <xsd:complexType name="interceptors-type">
+        <xsd:choice minOccurs="0" maxOccurs="unbounded">
+            <xsd:element name="interceptor" type="interceptor-type"/>
+        </xsd:choice>
+    </xsd:complexType>
+
+    <xsd:complexType name="interceptor-type">
+        <xsd:attribute name="class" type="xsd:string" use="required"/>
+        <xsd:attribute name="module" type="xsd:string" use="optional"/>
+    </xsd:complexType>
+
+    <!-- Connections -->
+
+    <xsd:complexType name="connections-type">
+        <xsd:choice minOccurs="0" maxOccurs="unbounded">
+            <xsd:element name="connection" type="connection-type"/>
+        </xsd:choice>
+    </xsd:complexType>
+
+    <xsd:complexType name="connection-type">
+        <xsd:all minOccurs="1" maxOccurs="1">
+            <xsd:element name="interceptors" type="interceptors-type" minOccurs="0" maxOccurs="1"/>
+        </xsd:all>
+        <xsd:attribute name="uri" type="xsd:anyURI" use="required"/>
+    </xsd:complexType>
+</xsd:schema>

@@ -35,37 +35,69 @@ import java.io.ObjectInputStream;
 public final class StatefulEJBLocator<T> extends EJBLocator<T> {
 
     private static final long serialVersionUID = 8229686118358785586L;
-
     private static final FieldSetter hashCodeSetter = FieldSetter.get(StatefulEJBLocator.class, "hashCode");
 
     private final SessionID sessionId;
-    private final String sessionOwnerNode;
-
     private final transient int hashCode;
 
     /**
-     * Constructs a {@link StatefulEJBLocator}
+     * Construct a new instance.
      *
-     * @param viewType         the view type
-     * @param appName          the application name
-     * @param moduleName       the module name
-     * @param beanName         the bean name
-     * @param distinctName     the distinct name
-     * @param sessionId        the stateful session ID
-     * @param affinity         The {@link Affinity} for this stateful bean locator
-     * @param sessionOwnerNode The name of the node on which the sessionId was generated
+     * @param viewType     the view type
+     * @param appName      the application name
+     * @param moduleName   the module name
+     * @param beanName     the bean name
+     * @param sessionId    the stateful session ID
      */
-    public StatefulEJBLocator(final Class<T> viewType, final String appName, final String moduleName, final String beanName, final String distinctName, final SessionID sessionId, final Affinity affinity,
-                              final String sessionOwnerNode) {
+    public StatefulEJBLocator(final Class<T> viewType, final String appName, final String moduleName, final String beanName, final SessionID sessionId) {
+        this(viewType, appName, moduleName, beanName, sessionId, Affinity.NONE);
+    }
+
+    /**
+     * Construct a new instance.
+     *
+     * @param viewType     the view type
+     * @param appName      the application name
+     * @param moduleName   the module name
+     * @param beanName     the bean name
+     * @param sessionId    the stateful session ID
+     * @param affinity     The {@link Affinity} for this stateful bean locator
+     */
+    public StatefulEJBLocator(final Class<T> viewType, final String appName, final String moduleName, final String beanName, final SessionID sessionId, final Affinity affinity) {
+        this(viewType, appName, moduleName, beanName, null, sessionId, affinity);
+    }
+
+    /**
+     * Construct a new instance.
+     *
+     * @param viewType     the view type
+     * @param appName      the application name
+     * @param moduleName   the module name
+     * @param beanName     the bean name
+     * @param distinctName the distinct name
+     * @param sessionId    the stateful session ID
+     */
+    public StatefulEJBLocator(final Class<T> viewType, final String appName, final String moduleName, final String beanName, final String distinctName, final SessionID sessionId) {
+        this(viewType, appName, moduleName, beanName, distinctName, sessionId, Affinity.NONE);
+    }
+
+    /**
+     * Construct a new instance.
+     *
+     * @param viewType     the view type
+     * @param appName      the application name
+     * @param moduleName   the module name
+     * @param beanName     the bean name
+     * @param distinctName the distinct name
+     * @param sessionId    the stateful session ID
+     * @param affinity     The {@link Affinity} for this stateful bean locator
+     */
+    public StatefulEJBLocator(final Class<T> viewType, final String appName, final String moduleName, final String beanName, final String distinctName, final SessionID sessionId, final Affinity affinity) {
         super(viewType, appName, moduleName, beanName, distinctName, affinity);
         if (sessionId == null) {
-            throw Logs.MAIN.paramCannotBeNull("Session id");
-        }
-        if (sessionOwnerNode == null || sessionOwnerNode.trim().isEmpty()) {
-            throw Logs.MAIN.paramCannotBeNullOrEmptyString("Session owning node");
+            throw new IllegalArgumentException("sessionId is null");
         }
         this.sessionId = sessionId;
-        this.sessionOwnerNode = sessionOwnerNode;
         hashCode = sessionId.hashCode() * 13 + super.hashCode();
     }
 
@@ -76,7 +108,9 @@ public final class StatefulEJBLocator<T> extends EJBLocator<T> {
      * @param newAffinity the new affinity
      */
     public StatefulEJBLocator(final StatefulEJBLocator<T> original, final Affinity newAffinity) {
-        this(original.getViewType(), original.getAppName(), original.getModuleName(), original.getBeanName(), original.getDistinctName(), original.sessionId, newAffinity, original.sessionOwnerNode);
+        super(original, newAffinity);
+        this.sessionId = original.sessionId;
+        hashCode = sessionId.hashCode() * 13 + super.hashCode();
     }
 
     public EJBLocator<T> withNewAffinity(final Affinity affinity) {
@@ -144,21 +178,10 @@ public final class StatefulEJBLocator<T> extends EJBLocator<T> {
         return super.equals(other) && sessionId.equals(other.sessionId);
     }
 
-    /**
-     * Returns the name of the node on which the session was created for the stateful EJB represented by this
-     * {@link StatefulEJBLocator}
-     *
-     * @return
-     */
-    String getSessionOwnerNode() {
-        return this.sessionOwnerNode;
-    }
-
     private void readObject(ObjectInputStream ois) throws ClassNotFoundException, IOException {
         ois.defaultReadObject();
         hashCodeSetter.setInt(this, sessionId.hashCode() * 13 + super.hashCode());
     }
-
 
     @Override
     public String toString() {

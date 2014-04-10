@@ -43,6 +43,6 @@ public class ProxyEqualityTestCase {
         Assert.assertTrue(proxyA.equals(proxyB));
         Assert.assertEquals(proxyA.hashCode(), proxyB.hashCode());
         Assert.assertFalse(proxyA.equals(proxyC));
-        Assert.assertNotSame(proxyA.hashCode(), proxyC.hashCode());
+        Assert.assertTrue(proxyA.hashCode() != proxyC.hashCode());
     }
 }

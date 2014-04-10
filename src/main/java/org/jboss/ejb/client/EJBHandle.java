@@ -51,6 +51,10 @@ public final class EJBHandle<T extends EJBObject> implements Handle {
         this.locator = locator;
     }
 
+    static <T extends EJBObject> EJBHandle<T> handleFor(EJBLocator<T> locator) {
+        return new EJBHandle<>(locator);
+    }
+
     /**
      * {@inheritDoc}
      */
@@ -88,7 +92,9 @@ public final class EJBHandle<T extends EJBObject> implements Handle {
     }
 
     /**
-     * @return The locator for this handle
+     * Get the locator for this handle.
+     *
+     * @return the locator for this handle
      */
     public EJBLocator<T> getLocator() {
         return locator;

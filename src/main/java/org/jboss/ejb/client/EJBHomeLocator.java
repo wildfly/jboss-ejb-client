@@ -99,6 +99,19 @@ public final class EJBHomeLocator<T extends EJBHome> extends EJBLocator<T> {
         return new EJBHomeLocator<T>(this, affinity);
     }
 
+    @SuppressWarnings("unchecked")
+    public <S> EJBHomeLocator<? extends S> narrowTo(final Class<S> type) {
+        return (EJBHomeLocator<? extends S>) super.narrowTo(type);
+    }
+
+    @SuppressWarnings("unchecked")
+    public <S extends EJBHome> EJBHomeLocator<? extends S> narrowAsHome(final Class<S> type) {
+        if (type.isAssignableFrom(getViewType())) {
+            return (EJBHomeLocator<? extends S>) this;
+        }
+        throw new ClassCastException(type.toString());
+    }
+
     /**
      * Get the hash code for this instance.
      *
@@ -116,19 +129,6 @@ public final class EJBHomeLocator<T extends EJBHome> extends EJBLocator<T> {
      */
     public boolean equals(final Object other) {
         return other instanceof EJBHomeLocator && equals((EJBHomeLocator<?>) other);
-    }
-
-    @SuppressWarnings("unchecked")
-    public <S> EJBHomeLocator<? extends S> narrowTo(final Class<S> type) {
-        return (EJBHomeLocator<? extends S>) super.narrowTo(type);
-    }
-
-    @SuppressWarnings("unchecked")
-    public <S extends EJBHome> EJBHomeLocator<? extends S> narrowAsHome(final Class<S> type) {
-        if (type.isAssignableFrom(getViewType())) {
-            return (EJBHomeLocator<? extends S>) this;
-        }
-        throw new ClassCastException(type.toString());
     }
 
     /**

@@ -1,6 +1,6 @@
 /*
  * JBoss, Home of Professional Open Source.
- * Copyright 2011, Red Hat, Inc., and individual contributors
+ * Copyright 2014, Red Hat, Inc., and individual contributors
  * as indicated by the @author tags. See the copyright.txt file in the
  * distribution for a full listing of individual contributors.
  *
@@ -22,19 +22,28 @@
 
 package org.jboss.ejb.client;
 
+import javax.ejb.EJBHome;
+import javax.ejb.EJBObject;
+
 /**
- * The client interceptor which associates the current transaction ID with the invocation.
+ * EJB metadata for stateful EJBs.
+ *
+ * @param <T> the remote interface type
+ * @param <H> the home interface type
  *
  * @author <a href="mailto:david.lloyd@redhat.com">David M. Lloyd</a>
  */
-public final class TransactionInterceptor implements EJBClientInterceptor {
+public final class StatefulEJBMetaData<T extends EJBObject, H extends EJBHome> extends AbstractEJBMetaData<T, H> {
 
-    public void handleInvocation(final EJBClientInvocationContext context) throws Exception {
-        // TODO: use transaction client API to acquire transaction ID to attach
-        context.sendRequest();
-    }
+    private static final long serialVersionUID = 8596216068022888027L;
 
-    public Object handleInvocationResult(final EJBClientInvocationContext context) throws Exception {
-        return context.getResult();
+    /**
+     * Construct a new instance.
+     *
+     * @param remoteInterfaceClass the remote interface class
+     * @param homeLocator the EJB home locator
+     */
+    StatefulEJBMetaData(final Class<T> remoteInterfaceClass, final EJBHomeLocator<H> homeLocator) {
+        super(remoteInterfaceClass, homeLocator);
     }
 }

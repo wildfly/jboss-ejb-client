@@ -24,10 +24,10 @@ package org.jboss.ejb.client;
 
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Proxy;
-import java.util.Collection;
-import java.util.HashSet;
+import java.net.URI;
 import java.util.concurrent.Future;
 
+import javax.ejb.CreateException;
 import javax.transaction.UserTransaction;
 
 /**
@@ -131,23 +131,10 @@ public final class EJBClient {
      * @throws IllegalArgumentException if the locator parameter is {@code null} or is invalid
      */
     public static <T> T createProxy(final EJBLocator<T> locator) throws IllegalArgumentException {
-        return createProxy(locator, null);
-    }
-
-    /**
-     * Creates a new proxy for the remote object identified by the given <code>locator</code> and
-     * associates that proxy with the passed {@link EJBClientContextIdentifier identifier}
-     *
-     * @param locator    The locator
-     * @param identifier The EJB client context identifier to associate this proxy with. Can be null.
-     * @param <T>        The proxy type
-     * @return IllegalArgumentException if the locator {@code null}
-     */
-    public static <T> T createProxy(final EJBLocator<T> locator, final EJBClientContextIdentifier identifier) {
         if (locator == null) {
             throw Logs.MAIN.paramCannotBeNull("EJB locator");
         }
-        return locator.createProxyInstance(new EJBInvocationHandler(identifier, locator));
+        return locator.createProxyInstance(new EJBInvocationHandler<T>(locator));
     }
 
     /**
@@ -163,72 +150,113 @@ public final class EJBClient {
     /**
      * Create a new EJB session.
      *
-     * @param viewType     the view type
+     * @param viewType     the view type class
      * @param appName      the application name
      * @param moduleName   the module name
      * @param beanName     the EJB name
      * @param distinctName the module distinct name
-     * @return the new session ID
-     * @throws Exception if an error occurs
+     * @param <T> the view type
+     * @return the new EJB locator
+     * @throws CreateException if an error occurs
      */
-    // TODO: narrow exception type(s)
-    public static <T> StatefulEJBLocator<T> createSession(final Class<T> viewType, final String appName, final String moduleName, final String beanName, final String distinctName) throws Exception {
-        return createSession(null, viewType, appName, moduleName, beanName, distinctName);
+    public static <T> StatefulEJBLocator<T> createSession(final Class<T> viewType, final String appName, final String moduleName, final String beanName, final String distinctName) throws CreateException {
+        return createSession(new StatelessEJBLocator<T>(viewType, appName, moduleName, beanName, distinctName, Affinity.NONE));
     }
 
     /**
      * Create a new EJB session.
      *
-     * @param ejbClientContextIdentifier The EJB client context identifier. Can be null in which case the session will
-     *                                   be created using the {@link org.jboss.ejb.client.EJBClientContext#requireCurrent() current active EJB client context}
-     * @param viewType                   the view type
-     * @param appName                    the application name
-     * @param moduleName                 the module name
-     * @param beanName                   the EJB name
-     * @param distinctName               the module distinct name
-     * @return the new session ID
-     * @throws Exception if an error occurs
+     * @param affinity     the affinity specification for the session
+     * @param viewType     the view type class
+     * @param appName      the application name
+     * @param moduleName   the module name
+     * @param beanName     the EJB name
+     * @param distinctName the module distinct name
+     * @param <T> the view type
+     * @return the new EJB locator
+     * @throws CreateException if an error occurs
      */
-    // TODO: narrow exception type(s)
-    public static <T> StatefulEJBLocator<T> createSession(final EJBClientContextIdentifier ejbClientContextIdentifier, final Class<T> viewType, final String appName, final String moduleName, final String beanName, final String distinctName) throws Exception {
-        final EJBClientContext clientContext;
-        if (ejbClientContextIdentifier != null) {
-            // find the appropriate EJB client context
-            clientContext = EJBClientContext.require(ejbClientContextIdentifier);
-        } else {
-            // use the "current" EJB client context
-            clientContext = EJBClientContext.requireCurrent();
-        }
-        return createSessionWithPossibleRetries(clientContext, new HashSet<String>(), viewType, appName, moduleName, beanName, distinctName);
+    public static <T> StatefulEJBLocator<T> createSession(final Affinity affinity, final Class<T> viewType, final String appName, final String moduleName, final String beanName, final String distinctName) throws CreateException {
+        return createSession(new StatelessEJBLocator<T>(viewType, appName, moduleName, beanName, distinctName, affinity == null ? Affinity.NONE : affinity));
     }
 
     /**
-     * Create a new EJB session with possible retries to different eligible node(s) if the session creation failed on some node(s)
+     * Create a new EJB session.
      *
-     * @param clientContext The EJB client context
-     * @param excludedNodeNames The node names of EJB receivers which have to be ignored while selecting a EJB receiver for handling the session creation
-     * @param viewType The view type
-     * @param appName The app name
-     * @param moduleName Module name
-     * @param beanName bean name
-     * @param distinctName Distinct name
-     * @param <T>
-     * @return
-     * @throws Exception
+     * @param uri          a URI at which EJBs may be obtained
+     * @param viewType     the view type class
+     * @param appName      the application name
+     * @param moduleName   the module name
+     * @param beanName     the EJB name
+     * @param distinctName the module distinct name
+     * @param <T> the view type
+     * @return the new EJB locator
+     * @throws CreateException if an error occurs
      */
-    private static <T> StatefulEJBLocator<T> createSessionWithPossibleRetries(final EJBClientContext clientContext, final Collection<String> excludedNodeNames, final Class<T> viewType, final String appName,
-                                                                              final String moduleName, final String beanName, final String distinctName) throws Exception {
-        // find a receiver
-        final EJBReceiver ejbReceiver = clientContext.requireEJBReceiver(excludedNodeNames, appName, moduleName, distinctName);
-        final EJBReceiverContext receiverContext = clientContext.requireEJBReceiverContext(ejbReceiver);
-        try {
-            return ejbReceiver.openSession(receiverContext, viewType, appName, moduleName, distinctName, beanName);
-        } catch (Exception e) {
-            Logs.MAIN.debugf(e, "Retrying session creation which failed on node %s due to:", ejbReceiver.getNodeName());
-            // retry ignoring the current failed node
-            excludedNodeNames.add(ejbReceiver.getNodeName());
-            return createSessionWithPossibleRetries(clientContext, excludedNodeNames, viewType, appName, moduleName, beanName, distinctName);
-        }
+    public static <T> StatefulEJBLocator<T> createSession(final URI uri, final Class<T> viewType, final String appName, final String moduleName, final String beanName, final String distinctName) throws CreateException {
+        final Affinity affinity = uri == null ? Affinity.NONE : Affinity.forUri(uri);
+        return createSession(new StatelessEJBLocator<T>(viewType, appName, moduleName, beanName, distinctName, affinity));
+    }
+
+    /**
+     * Create a new EJB session.
+     *
+     * @param viewType     the view type class
+     * @param appName      the application name
+     * @param moduleName   the module name
+     * @param beanName     the EJB name
+     * @param <T> the view type
+     * @return the new EJB locator
+     * @throws CreateException if an error occurs
+     */
+    public static <T> StatefulEJBLocator<T> createSession(final Class<T> viewType, final String appName, final String moduleName, final String beanName) throws CreateException {
+        return createSession(new StatelessEJBLocator<T>(viewType, appName, moduleName, beanName, Affinity.NONE));
+    }
+
+    /**
+     * Create a new EJB session.
+     *
+     * @param affinity     the affinity specification for the session
+     * @param viewType     the view type class
+     * @param appName      the application name
+     * @param moduleName   the module name
+     * @param beanName     the EJB name
+     * @param <T> the view type
+     * @return the new EJB locator
+     * @throws CreateException if an error occurs
+     */
+    public static <T> StatefulEJBLocator<T> createSession(final Affinity affinity, final Class<T> viewType, final String appName, final String moduleName, final String beanName) throws CreateException {
+        return createSession(new StatelessEJBLocator<T>(viewType, appName, moduleName, beanName, affinity == null ? Affinity.NONE : affinity));
+    }
+
+    /**
+     * Create a new EJB session.
+     *
+     * @param uri          a URI at which EJBs may be obtained
+     * @param viewType     the view type class
+     * @param appName      the application name
+     * @param moduleName   the module name
+     * @param beanName     the EJB name
+     * @param <T> the view type
+     * @return the new EJB locator
+     * @throws CreateException if an error occurs
+     */
+    public static <T> StatefulEJBLocator<T> createSession(final URI uri, final Class<T> viewType, final String appName, final String moduleName, final String beanName) throws CreateException {
+        final Affinity affinity = uri == null ? Affinity.NONE : Affinity.forUri(uri);
+        return createSession(new StatelessEJBLocator<T>(viewType, appName, moduleName, beanName, affinity));
+    }
+
+    /**
+     * Create a new EJB session.
+     *
+     * @param statelessLocator the stateless locator identifying the stateful EJB
+     * @param <T> the view type
+     * @return the new EJB locator
+     * @throws CreateException if an error occurs
+     */
+    public static <T> StatefulEJBLocator<T> createSession(StatelessEJBLocator<T> statelessLocator) throws CreateException {
+        final EJBReceiver ejbReceiver = EJBClientContext.getCurrent().getEJBReceiver(statelessLocator);
+        return ejbReceiver.openSession(statelessLocator);
     }
 
     /**
@@ -243,25 +271,16 @@ public final class EJBClient {
     }
 
     /**
-     * Get the {@link EJBClientContextIdentifier} associated with the passed EJB proxy. If no {@link EJBClientContextIdentifier}
-     * is associated with the proxy then this method returns null.
-     *
-     * @param proxy The EJB proxy
-     * @return
-     * @throws IllegalArgumentException If the passed proxy is not a valid EJB proxy
-     */
-    public static EJBClientContextIdentifier getEJBClientContextIdentifierFor(Object proxy) throws IllegalArgumentException {
-        return EJBInvocationHandler.forProxy(proxy).getEjbClientContextIdentifier();
-    }
-
-    /**
      * Get a {@code UserTransaction} object instance which can be used to control transactions on a specific node.
      *
      * @param targetNodeName the node name
      * @return the {@code UserTransaction} instance
      * @throws IllegalStateException if the transaction context isn't set or cannot provide a {@code UserTransaction} instance
      */
+    @Deprecated
+    @SuppressWarnings("unused")
     public static UserTransaction getUserTransaction(String targetNodeName) {
-        return EJBClientTransactionContext.requireCurrent().getUserTransaction(targetNodeName);
+        // TODO: use tx API with a specific URI
+        throw new UnsupportedOperationException("Not re-implemented until txn client API is settled");
     }
 }

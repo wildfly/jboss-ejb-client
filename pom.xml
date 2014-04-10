@@ -32,7 +32,7 @@
     </parent>
 
     <artifactId>jboss-ejb-client</artifactId>
-    <version>2.1.0.Beta1-SNAPSHOT</version>
+    <version>3.0.0.Beta1-SNAPSHOT</version>
 
     <name>JBoss EJB client</name>
     <description>Client library for EJB applications working against Wildfly</description>
@@ -48,13 +48,22 @@
         <version.org.jboss.spec.javax.ejb>1.0.1.Final</version.org.jboss.spec.javax.ejb>
         <version.org.jboss.spec.javax.transaction>1.0.0.Final</version.org.jboss.spec.javax.transaction>
         <version.org.jboss.xnio>3.2.0.Final</version.org.jboss.xnio>
+        <version.org.kohsuke.metainf-services>1.5-jboss-1</version.org.kohsuke.metainf-services>
+        <version.org.wildfly.common>1.0.0.Beta1-SNAPSHOT</version.org.wildfly.common>
 
-        <maven.compiler.source>1.6</maven.compiler.source>
-        <maven.compiler.target>1.6</maven.compiler.target>
+        <maven.compiler.source>1.7</maven.compiler.source>
+        <maven.compiler.target>1.7</maven.compiler.target>
     </properties>
 
     <build>
         <resources>
+            <resource>
+                <directory>src/main/java</directory>
+                <includes>
+                    <include>**/Version.properties</include>
+                </includes>
+                <filtering>true</filtering>
+            </resource>
             <resource>
                 <directory>src/main/resources</directory>
                 <filtering>true</filtering>
@@ -74,10 +83,6 @@
                             <value>org.jboss.logmanager.LogManager</value>
                         </property>
                     </systemProperties>
-                    <!-- Jaikiran: Do not change this since we intentionally want the tests to run in an isolated JVM so as to facilitate
-                        certain tests (like ClasspathConfigBasedSelectorTestCase) to not be impacted by system properties potentially
-                        set by some other tests -->
-                    <forkMode>always</forkMode>
                 </configuration>
             </plugin>
             <!-- Checkstyle -->
@@ -180,6 +185,19 @@
             <artifactId>jboss-transaction-api_1.1_spec</artifactId>
             <version>${version.org.jboss.spec.javax.transaction}</version>
             <scope>provided</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>org.kohsuke.metainf-services</groupId>
+            <artifactId>metainf-services</artifactId>
+            <version>${version.org.kohsuke.metainf-services}</version>
+            <scope>provided</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>org.wildfly.common</groupId>
+            <artifactId>wildfly-common</artifactId>
+            <version>${version.org.wildfly.common}</version>
         </dependency>
 
         <!-- JUnit -->

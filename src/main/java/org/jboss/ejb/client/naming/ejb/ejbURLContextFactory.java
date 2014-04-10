@@ -25,7 +25,11 @@ package org.jboss.ejb.client.naming.ejb;
 import javax.naming.Context;
 import javax.naming.Name;
 import javax.naming.spi.ObjectFactory;
+
+import java.net.URI;
 import java.util.Hashtable;
+
+import org.jboss.ejb.client.Affinity;
 
 /**
  * {@code ObjectFactory} for the {@code ejb:} namespace.  Note that this class must retain its odd capitalization due to the way that
@@ -36,6 +40,11 @@ import java.util.Hashtable;
 public class ejbURLContextFactory implements ObjectFactory {
 
     public Object getObjectInstance(final Object obj, final Name name, final Context nameCtx, final Hashtable<?, ?> environment) throws Exception {
-        return EjbNamingContext.ROOT;
+        final Object providerUrl = environment.get(Context.PROVIDER_URL);
+        if (providerUrl instanceof String) {
+            return new EjbNamingContext(Affinity.forUri(new URI((String) providerUrl)));
+        } else {
+            return EjbNamingContext.NONE_ROOT;
+        }
     }
 }

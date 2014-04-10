@@ -25,20 +25,25 @@ import java.io.Serializable;
 
 import javax.ejb.EJBHome;
 import javax.ejb.EJBMetaData;
+import javax.ejb.EJBObject;
 
 /**
  * An implementation of the EJBMetaData interface which allows a
  * client to obtain the enterprise Bean's meta-data information.
  *
  * @author Stuart Douglas
+ *
+ * @deprecated Retained for compatibility with older protocol versions; use the {@link AbstractEJBMetaData} hierarchy
+ * instead.
  */
+@Deprecated
 public final class EJBMetaDataImpl implements EJBMetaData, Serializable {
 
     private static final long serialVersionUID = 100581743643837404L;
 
     private final Class<?> remoteClass;
 
-    private final Class<?> homeClass;
+    private final Class<? extends EJBHome> homeClass;
 
     private final Class<?> pkClass;
 
@@ -48,7 +53,7 @@ public final class EJBMetaDataImpl implements EJBMetaData, Serializable {
 
     private final EJBHome home;
 
-    public EJBMetaDataImpl(final Class<?> remoteClass, final Class<?> homeClass, final Class<?> pkClass, final boolean session,
+    public EJBMetaDataImpl(final Class<?> remoteClass, final Class<? extends EJBHome> homeClass, final Class<?> pkClass, final boolean session,
                            final boolean statelessSession, final EJBHome home) {
         this.remoteClass = remoteClass;
         this.homeClass = homeClass;
@@ -58,6 +63,37 @@ public final class EJBMetaDataImpl implements EJBMetaData, Serializable {
         this.home = home;
     }
 
+    public EJBMetaDataImpl(AbstractEJBMetaData<?, ?> ejbMetaData) {
+        this.remoteClass = ejbMetaData.getRemoteInterfaceClass();
+        this.homeClass = ejbMetaData.getHomeInterfaceClass();
+        this.session = ejbMetaData.isSession();
+        this.statelessSession = ejbMetaData.isStatelessSession();
+        this.pkClass = session || statelessSession ? null : ejbMetaData.getPrimaryKeyClass();
+        this.home = ejbMetaData.getEJBHome();
+    }
+
+    public AbstractEJBMetaData<?, ?> toAbstractEJBMetaData() {
+        if (session || statelessSession) {
+            if (statelessSession) {
+                return createStatelessMetaData(remoteClass.asSubclass(EJBObject.class), homeClass, home);
+            }
+            return createStatefulMetaData(remoteClass.asSubclass(EJBObject.class), homeClass, home);
+        } else {
+            return createEntityMetaData(remoteClass.asSubclass(EJBObject.class), homeClass, home, pkClass);
+        }
+    }
+
+    private static <T extends EJBObject, H extends EJBHome> StatelessEJBMetaData<T, ? extends H> createStatelessMetaData(Class<T> remoteClass, Class<H> homeClass, EJBHome home) {
+        return new StatelessEJBMetaData<>(remoteClass, EJBClient.getLocatorFor(home).narrowAsHome(homeClass));
+    }
+
+    private static <T extends EJBObject, H extends EJBHome> StatefulEJBMetaData<T, ? extends H> createStatefulMetaData(Class<T> remoteClass, Class<H> homeClass, EJBHome home) {
+        return new StatefulEJBMetaData<>(remoteClass, EJBClient.getLocatorFor(home).narrowAsHome(homeClass));
+    }
+
+    private static <T extends EJBObject, H extends EJBHome> EntityEJBMetaData<T, ? extends H> createEntityMetaData(Class<T> remoteClass, Class<H> homeClass, EJBHome home, Class<?> pkClass) {
+        return new EntityEJBMetaData<>(remoteClass, EJBClient.getLocatorFor(home).narrowAsHome(homeClass), pkClass);
+    }
 
     /**
      * Obtains the home interface of the enterprise Bean.
@@ -70,7 +106,7 @@ public final class EJBMetaDataImpl implements EJBMetaData, Serializable {
      * Obtains the <code>Class</code> object for the enterprise Bean's home
      * interface.
      */
-    public Class<?> getHomeInterfaceClass() {
+    public Class<? extends EJBHome> getHomeInterfaceClass() {
         return homeClass;
     }
 

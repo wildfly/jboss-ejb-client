@@ -1,6 +1,6 @@
 /*
  * JBoss, Home of Professional Open Source.
- * Copyright 2011, Red Hat, Inc., and individual contributors
+ * Copyright 2014, Red Hat, Inc., and individual contributors
  * as indicated by the @author tags. See the copyright.txt file in the
  * distribution for a full listing of individual contributors.
  *
@@ -23,18 +23,26 @@
 package org.jboss.ejb.client;
 
 /**
- * The client interceptor which associates the current transaction ID with the invocation.
+ * An EJB transport provider.
  *
  * @author <a href="mailto:david.lloyd@redhat.com">David M. Lloyd</a>
  */
-public final class TransactionInterceptor implements EJBClientInterceptor {
+public interface EJBTransportProvider {
 
-    public void handleInvocation(final EJBClientInvocationContext context) throws Exception {
-        // TODO: use transaction client API to acquire transaction ID to attach
-        context.sendRequest();
-    }
+    /**
+     * Determine whether this transport provider supports the protocol identified by the given URI scheme.
+     *
+     * @param uriScheme the URI scheme
+     * @return {@code true} if this provider supports the protocol, {@code false} otherwise
+     */
+    boolean supportsProtocol(String uriScheme);
 
-    public Object handleInvocationResult(final EJBClientInvocationContext context) throws Exception {
-        return context.getResult();
-    }
+    /**
+     * Get an EJB receiver for the protocol identified by the given URI scheme.
+     *
+     * @param uriScheme the URI scheme
+     * @return the non-{@code null} EJB receiver
+     * @throws IllegalArgumentException if the protocol is not supported
+     */
+    EJBReceiver getReceiver(String uriScheme) throws IllegalArgumentException;
 }

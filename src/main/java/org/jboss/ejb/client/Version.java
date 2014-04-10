@@ -25,22 +25,18 @@ package org.jboss.ejb.client;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.nio.charset.StandardCharsets;
 import java.util.Properties;
 
 /**
  * @author <a href="mailto:david.lloyd@redhat.com">David M. Lloyd</a>
  */
-@SuppressWarnings("deprecation")
 public final class Version {
     private Version() {
     }
 
-    /**
-     * @deprecated Use {@link #getVersionString()} instead.
-     */
-    public static final String VERSION;
-
     private static final String JAR_NAME;
+    private static final String VERSION;
 
     static {
         Properties versionProps = new Properties();
@@ -49,7 +45,7 @@ public final class Version {
         try {
             final InputStream stream = Version.class.getResourceAsStream("Version.properties");
             try {
-                final InputStreamReader reader = new InputStreamReader(stream, "UTF-8");
+                final InputStreamReader reader = new InputStreamReader(stream, StandardCharsets.UTF_8);
                 try {
                     versionProps.load(reader);
                     jarName = versionProps.getProperty("jarName", jarName);

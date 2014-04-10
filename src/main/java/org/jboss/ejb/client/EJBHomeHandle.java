@@ -51,6 +51,10 @@ public final class EJBHomeHandle<T extends EJBHome> implements HomeHandle {
         this.locator = locator;
     }
 
+    static <T extends EJBHome> EJBHomeHandle<T> handleFor(EJBHomeLocator<T> locator) {
+        return new EJBHomeHandle<>(locator);
+    }
+
     /**
      * {@inheritDoc}
      */
@@ -88,7 +92,9 @@ public final class EJBHomeHandle<T extends EJBHome> implements HomeHandle {
     }
 
     /**
-     * @return The EJB locator for this home handle
+     * Get the locator for this handle.
+     *
+     * @return the locator for this handle
      */
     public EJBHomeLocator<T> getLocator() {
         return locator;

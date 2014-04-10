@@ -24,14 +24,8 @@ package org.jboss.ejb.client;
 
 import java.io.Serializable;
 import java.lang.reflect.Method;
-import java.security.AccessController;
-import java.security.PrivilegedActionException;
-import java.security.PrivilegedExceptionAction;
-import java.util.Collections;
-import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.Map;
-import java.util.Set;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
@@ -57,41 +51,38 @@ public final class EJBClientInvocationContext extends Attachable {
 
     // Invocation data
     private final Object invokedProxy;
-    private final Method invokedMethod;
     private final Object[] parameters;
+    private final EJBReceiver receiver;
+    private final EJBProxyInformation.ProxyMethodInfo methodInfo;
+    private final EJBReceiverInvocationContext receiverInvocationContext = new EJBReceiverInvocationContext(this);
 
     // Invocation state
     private final Object lock = new Object();
     private EJBReceiverInvocationContext.ResultProducer resultProducer;
+
+    // selected target receiver
     private State state = State.WAITING;
     private AsyncState asyncState = AsyncState.SYNCHRONOUS;
     private Object cachedResult;
     private Map<String, Object> contextData;
-    private EJBReceiverInvocationContext receiverInvocationContext;
-    // nodes to which invocation shouldn't be forwarded to. This is typically for cases
-    // where a invocation failed on a specific node, for this invocation context, due to the deployment
-    // being undeployed after the node was selected for handling this invocation but before the client
-    // could get a undeploy notification for it
-    private Set<String> excludedNodes = new HashSet<String>();
 
-    // Interceptor state
-    private final EJBClientInterceptor[] interceptorChain;
     private int interceptorChainIndex;
     private boolean resultDone;
 
-    EJBClientInvocationContext(final EJBInvocationHandler<?> invocationHandler, final EJBClientContext ejbClientContext, final Object invokedProxy, final Method invokedMethod, final Object[] parameters) {
+    EJBClientInvocationContext(final EJBInvocationHandler<?> invocationHandler, final EJBClientContext ejbClientContext, final Object invokedProxy, final Object[] parameters, final EJBReceiver receiver, final EJBProxyInformation.ProxyMethodInfo methodInfo) {
         this.invocationHandler = invocationHandler;
-        this.ejbClientContext = ejbClientContext;
         this.invokedProxy = invokedProxy;
-        this.invokedMethod = invokedMethod;
         this.parameters = parameters;
-        interceptorChain = (EJBClientInterceptor[]) ejbClientContext.getInterceptorChain();
+        this.ejbClientContext = ejbClientContext;
+        this.receiver = receiver;
+        this.methodInfo = methodInfo;
     }
 
     enum AsyncState {
         SYNCHRONOUS,
         ASYNCHRONOUS,
-        ONE_WAY;
+        ONE_WAY,
+        ;
     }
 
     enum State {
@@ -102,7 +93,8 @@ public final class EJBClientInvocationContext extends Attachable {
         CONSUMING,
         FAILED,
         DONE,
-        DISCARDED;
+        DISCARDED,
+        ;
     }
 
     /**
@@ -141,6 +133,35 @@ public final class EJBClientInvocationContext extends Attachable {
     }
 
     /**
+     * Determine whether the method is marked client-asynchronous, meaning that invocation should be asynchronous regardless
+     * of whether the server-side method is asynchronous.
+     *
+     * @return {@code true} if the method is marked client-asynchronous, {@code false} otherwise
+     */
+    public boolean isClientAsync() {
+        return invocationHandler.isAsyncHandler() || methodInfo.isClientAsync();
+    }
+
+    /**
+     * Determine whether the method is marked idempotent, meaning that the method may be invoked more than one time with
+     * no additional effect.
+     *
+     * @return {@code true} if the method is marked idempotent, {@code false} otherwise
+     */
+    public boolean isIdempotent() {
+        return methodInfo.isIdempotent();
+    }
+
+    /**
+     * Get the compression hint level.  If no compression hint is given, -1 is returned.
+     *
+     * @return the compression hint level, or -1 for no compression
+     */
+    public int getCompressionLevel() {
+        return methodInfo.getCompressionLevel();
+    }
+
+    /**
      * Get the context data.  This same data will be made available verbatim to
      * server-side interceptors via the {@code InvocationContext.getContextData()} method, and thus
      * can be used to pass data from the client to the server (as long as all map values are
@@ -171,78 +192,20 @@ public final class EJBClientInvocationContext extends Attachable {
      * @throws Exception if the request was not successfully sent
      */
     public void sendRequest() throws Exception {
-        final int idx = this.interceptorChainIndex++;
-        final EJBClientInterceptor[] chain = interceptorChain;
-        if (idx > chain.length) {
-            throw Logs.MAIN.sendRequestCalledDuringWrongPhase();
-        }
-        if (chain.length == idx) {
-            final EJBReceiverInvocationContext context = receiverInvocationContext;
-            if (context == null) {
-                throw Logs.MAIN.noReceiverAssociatedWithInvocation();
+        final int idx = interceptorChainIndex++;
+        try {
+            final EJBClientInterceptor[] chain = this.ejbClientContext.getInterceptors();
+            if (idx > chain.length) {
+                throw Logs.MAIN.sendRequestCalledDuringWrongPhase();
             }
-            context.getEjbReceiverContext().getReceiver().processInvocation(this, context);
-        } else {
-            chain[idx].handleInvocation(this);
+            if (chain.length == idx) {
+                receiver.processInvocation(this, new EJBReceiverInvocationContext(this));
+            } else {
+                chain[idx].handleInvocation(this);
+            }
+        } finally {
+            interceptorChainIndex --;
         }
-    }
-
-    /**
-     * Retry a request which was previously sent but probably failed with a error response.
-     * Note that this method will throw an {@link IllegalStateException} if a previous request wasn't completed
-     * for this invocation context
-     *
-     * @throws Exception if the retry request was not successfully sent
-     */
-    void retryRequest() throws Exception {
-        // if a previous request wasn't yet done, then this isn't really a "retry",
-        // so we error out
-        final int idx = this.interceptorChainIndex;
-        final EJBClientInterceptor[] chain = interceptorChain;
-        if (idx <= chain.length) {
-            throw Logs.MAIN.cannotRetryRequest();
-        }
-        // reset the interceptor index to the beginning of the chain
-        this.interceptorChainIndex = 0;
-        // reset the previously set receiver invocation context, since a possibly new receiver
-        // will be selected during this retry
-        this.receiverInvocationContext = null;
-        // send request
-        this.sendRequest();
-    }
-
-    /**
-     * Returns a set of nodes which shouldn't be used for handling the invocation represented by this
-     * invocation context. If there are no such nodes, then this method returns an empty set.
-     * <p/>
-     * Typically a node is marked as excluded for a {@link EJBClientInvocationContext invocation context}
-     * if it failed to handle that specific {@link EJBClientInvocationContext invocation}. This can happen,
-     * for example, if a node was selected for invocation handling and was later incapable of handling it
-     * due to the deployment being un-deployed. The invocation in such cases will typically be retried by
-     * marking that node as excluded and selecting a different node (if any) for the retried invocation.
-     *
-     * @return
-     */
-    Set<String> getExcludedNodes() {
-        return Collections.unmodifiableSet(this.excludedNodes);
-    }
-
-    /**
-     * Marks the passed <code>nodeName</code> as excluded so that the invocation represented by
-     * this {@link EJBClientInvocationContext invocation context} will leave it out while selecting a suitable node for
-     * handling the invocation
-     *
-     * @param nodeName The name of the node to be excluded
-     */
-    void markNodeAsExcluded(final String nodeName) {
-        if (nodeName == null || nodeName.trim().isEmpty()) {
-            return;
-        }
-        this.excludedNodes.add(nodeName);
-    }
-
-    void setReceiverInvocationContext(EJBReceiverInvocationContext context) {
-        receiverInvocationContext = context;
     }
 
     /**
@@ -260,7 +223,7 @@ public final class EJBClientInvocationContext extends Attachable {
         }
 
         final int idx = this.interceptorChainIndex++;
-        final EJBClientInterceptor[] chain = interceptorChain;
+        final EJBClientInterceptor[] chain = this.ejbClientContext.getInterceptors();
         if (idx == 0) try {
             return chain[idx].handleInvocationResult(this);
         } finally {
@@ -269,23 +232,9 @@ public final class EJBClientInvocationContext extends Attachable {
             if (weakAffinity != null) {
                 invocationHandler.setWeakAffinity(weakAffinity);
             }
-        }
-        else try {
+        } else try {
             if (chain.length == idx) {
-                if(System.getSecurityManager() == null) {
-                    return resultProducer.getResult();
-                } else {
-                    try {
-                        return AccessController.doPrivileged(new PrivilegedExceptionAction<Object>() {
-                            @Override
-                            public Object run() throws Exception {
-                                return resultProducer.getResult();
-                            }
-                        });
-                    } catch (PrivilegedActionException e) {
-                        throw e.getException();
-                    }
-                }
+                return resultProducer.getResult();
             } else {
                 return chain[idx].handleInvocationResult(this);
             }
@@ -333,11 +282,7 @@ public final class EJBClientInvocationContext extends Attachable {
      * @return the EJB receiver
      */
     protected EJBReceiver getReceiver() {
-        final EJBReceiverInvocationContext context = receiverInvocationContext;
-        if (context == null) {
-            throw Logs.MAIN.noReceiverAssociatedWithInvocation();
-        }
-        return context.getEjbReceiverContext().getReceiver();
+        return receiver;
     }
 
     /**
@@ -355,7 +300,7 @@ public final class EJBClientInvocationContext extends Attachable {
      * @return the invoked method
      */
     public Method getInvokedMethod() {
-        return invokedMethod;
+        return methodInfo.getMethod();
     }
 
     /**
@@ -395,8 +340,7 @@ public final class EJBClientInvocationContext extends Attachable {
     Object awaitResponse() throws Exception {
         assert !holdsLock(lock);
         boolean intr = false;
-        final EJBClientConfiguration ejbClientConfiguration = this.ejbClientContext.getEJBClientConfiguration();
-        final long invocationTimeout = ejbClientConfiguration == null ? 0 : ejbClientConfiguration.getInvocationTimeout();
+        final long invocationTimeout = ejbClientContext.getInvocationTimeout();
         try {
             synchronized (lock) {
                 if (asyncState == AsyncState.ASYNCHRONOUS) {
@@ -404,15 +348,15 @@ public final class EJBClientInvocationContext extends Attachable {
                 } else if (asyncState == AsyncState.ONE_WAY) {
                     throw log.oneWayInvocation();
                 }
-                long remainingWaitTimeout = invocationTimeout;
-                long waitStartTime = System.currentTimeMillis();
+                long remainingWaitTimeout = TimeUnit.MILLISECONDS.toNanos(invocationTimeout);
+                long waitStartTime = System.nanoTime();
                 while (state == State.WAITING) {
                     try {
                         // if no invocation timeout is configured, then we wait indefinitely
                         if (invocationTimeout <= 0) {
                             lock.wait();
                         } else {
-                            waitStartTime = System.currentTimeMillis();
+                            waitStartTime = System.nanoTime();
                             // we wait for a specific amount of time
                             lock.wait(remainingWaitTimeout);
                         }
@@ -422,7 +366,7 @@ public final class EJBClientInvocationContext extends Attachable {
                         // then figure out how long we waited and what remaining time we should wait for
                         // if the result hasn't yet arrived
                         if (invocationTimeout > 0) {
-                            final long timeWaitedFor = System.currentTimeMillis() - waitStartTime;
+                            final long timeWaitedFor = Math.max(0L, System.nanoTime() - waitStartTime);
                             // we already waited enough, so setup a result producer which will
                             // let the client know that the invocation timed out
                             if (timeWaitedFor >= remainingWaitTimeout) {
@@ -506,6 +450,9 @@ public final class EJBClientInvocationContext extends Attachable {
     }
 
     final class FutureResponse implements Future<Object> {
+
+        FutureResponse() {
+        }
 
         public boolean cancel(final boolean mayInterruptIfRunning) {
             assert !holdsLock(lock);
@@ -669,32 +616,6 @@ public final class EJBClientInvocationContext extends Attachable {
             }
             return result;
         }
-    }
-
-    protected void finalize() throws Throwable {
-        assert !holdsLock(lock);
-        final EJBReceiverInvocationContext.ResultProducer resultProducer;
-        synchronized (lock) {
-            switch (state) {
-                case WAITING:
-                case CANCEL_REQ: {
-                    // the receiver lost its reference to us AND no callers actually seem to care.
-                    // There's not a whole lot to do at this point.
-                    return;
-                }
-                case READY: {
-                    // there's a result waiting.  We shall simply discard it (outside of the lock though), to make
-                    // sure that the transport layer doesn't have resources (like sockets) which are held up.
-                    resultProducer = this.resultProducer;
-                    break;
-                }
-                default: {
-                    // situation normal, or close enough.
-                    return;
-                }
-            }
-        }
-        resultProducer.discardResult();
     }
 
     /**

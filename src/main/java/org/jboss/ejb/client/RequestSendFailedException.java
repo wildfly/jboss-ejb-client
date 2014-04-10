@@ -25,33 +25,46 @@ package org.jboss.ejb.client;
 /**
  * An exception (typically) thrown by {@link EJBReceiver}s if the receiver couldn't successfully handle a request.
  *
- * @author: Jaikiran Pai
+ * @author Jaikiran Pai
  */
 public class RequestSendFailedException extends RuntimeException {
 
     private static final long serialVersionUID = 4880994720537464175L;
 
     /**
-     * The node name of the EJB receiver which failed to handle the request
+     * Constructs a new {@code RequestSendFailedException} instance.  The message is left blank ({@code null}), and no
+     * cause is specified.
      */
-    private final String failedNodeName;
-
-    /**
-     * @param failedNodeName The node name of the EJB receiver which failed to handle the request
-     * @param failureMessage The exception message
-     * @param cause          The exception which caused this failure
-     */
-    public RequestSendFailedException(final String failedNodeName, final String failureMessage, final Throwable cause) {
-        super(failureMessage, cause);
-        this.failedNodeName = failedNodeName;
+    public RequestSendFailedException() {
     }
 
     /**
-     * Returns the node name of the EJB receiver which failed to handle the request
+     * Constructs a new {@code RequestSendFailedException} instance with an initial message.  No cause is specified.
      *
-     * @return
+     * @param msg the message
      */
-    String getFailedNodeName() {
-        return this.failedNodeName;
+    public RequestSendFailedException(final String msg) {
+        super(msg);
+    }
+
+    /**
+     * Constructs a new {@code RequestSendFailedException} instance with an initial cause.  If a non-{@code null} cause
+     * is specified, its message is used to initialize the message of this {@code RequestSendFailedException}; otherwise
+     * the message is left blank ({@code null}).
+     *
+     * @param cause the cause
+     */
+    public RequestSendFailedException(final Throwable cause) {
+        super(cause);
+    }
+
+    /**
+     * Constructs a new {@code RequestSendFailedException} instance with an initial message and cause.
+     *
+     * @param msg the message
+     * @param cause the cause
+     */
+    public RequestSendFailedException(final String msg, final Throwable cause) {
+        super(msg, cause);
     }
 }

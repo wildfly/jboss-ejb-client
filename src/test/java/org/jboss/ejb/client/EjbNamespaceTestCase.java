@@ -47,8 +47,8 @@ public class EjbNamespaceTestCase {
     public void testEjbNamespaceLookup() throws NamingException {
         Object result = new InitialContext().lookup("ejb:app/module/distinct/MyEjb!org.jboss.ejb.client.SimpleInterface");
         Assert.assertTrue(result instanceof SimpleInterface);
-        final EJBInvocationHandler handler = (EJBInvocationHandler) Proxy.getInvocationHandler(result);
-        final EJBLocator<SimpleInterface> locator = (EJBLocator<SimpleInterface>) handler.getLocator();
+        final EJBInvocationHandler<?> handler = (EJBInvocationHandler<?>) Proxy.getInvocationHandler(result);
+        final EJBLocator<? extends SimpleInterface> locator = handler.getLocator().narrowTo(SimpleInterface.class);
         Assert.assertEquals("app", locator.getAppName());
         Assert.assertEquals("module", locator.getModuleName());
         Assert.assertEquals("distinct", locator.getDistinctName());
@@ -63,8 +63,8 @@ public class EjbNamespaceTestCase {
         context = (Context) context.lookup("distinct");
         Object result = context.lookup("MyEjb!org.jboss.ejb.client.SimpleInterface");
         Assert.assertTrue(result instanceof SimpleInterface);
-        final EJBInvocationHandler handler = (EJBInvocationHandler) Proxy.getInvocationHandler(result);
-        final EJBLocator<SimpleInterface> locator = (EJBLocator<SimpleInterface>) handler.getLocator();
+        final EJBInvocationHandler<?> handler = (EJBInvocationHandler<?>) Proxy.getInvocationHandler(result);
+        final EJBLocator<? extends SimpleInterface> locator = handler.getLocator().narrowTo(SimpleInterface.class);
         Assert.assertEquals("app", locator.getAppName());
         Assert.assertEquals("module", locator.getModuleName());
         Assert.assertEquals("distinct", locator.getDistinctName());
@@ -75,8 +75,8 @@ public class EjbNamespaceTestCase {
     public void testEjbNamespaceLookupWithoutDistinct() throws NamingException {
         Object result = new InitialContext().lookup("ejb:app/module/MyEjb!org.jboss.ejb.client.SimpleInterface");
         Assert.assertTrue(result instanceof SimpleInterface);
-        final EJBInvocationHandler handler = (EJBInvocationHandler) Proxy.getInvocationHandler(result);
-        final EJBLocator<SimpleInterface> locator = (EJBLocator<SimpleInterface>) handler.getLocator();
+        final EJBInvocationHandler<?> handler = (EJBInvocationHandler<?>) Proxy.getInvocationHandler(result);
+        final EJBLocator<? extends SimpleInterface> locator = handler.getLocator().narrowTo(SimpleInterface.class);
         Assert.assertEquals("app", locator.getAppName());
         Assert.assertEquals("module", locator.getModuleName());
         Assert.assertEquals("", locator.getDistinctName());

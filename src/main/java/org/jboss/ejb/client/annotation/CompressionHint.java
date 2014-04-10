@@ -11,7 +11,7 @@ import java.util.zip.Deflater;
  * <p/>
  * This is just a hint and it's ultimately the EJB client API implementation and/or the EJBReceiver(s) which decide whether or not the data will be compressed.
  *
- * @author: Jaikiran Pai
+ * @author Jaikiran Pai
  */
 @Target({ElementType.METHOD, ElementType.TYPE})
 @Retention(RetentionPolicy.RUNTIME)

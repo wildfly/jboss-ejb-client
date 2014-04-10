@@ -28,30 +28,11 @@ package org.jboss.ejb.client;
  * @author <a href="mailto:david.lloyd@redhat.com">David M. Lloyd</a>
  */
 public final class EJBReceiverInvocationContext {
+
     private final EJBClientInvocationContext clientInvocationContext;
-    private final EJBReceiverContext ejbReceiverContext;
 
-    EJBReceiverInvocationContext(final EJBClientInvocationContext clientInvocationContext, final EJBReceiverContext ejbReceiverContext) {
+    EJBReceiverInvocationContext(final EJBClientInvocationContext clientInvocationContext) {
         this.clientInvocationContext = clientInvocationContext;
-        this.ejbReceiverContext = ejbReceiverContext;
-    }
-
-    /**
-     * Get the associated EJB receiver context.
-     *
-     * @return the EJB receiver context
-     */
-    public EJBReceiverContext getEjbReceiverContext() {
-        return ejbReceiverContext;
-    }
-
-    /**
-     * Returns the {@link EJBClientInvocationContext} associated with this EJB receiver invocation context
-     *
-     * @return
-     */
-    public EJBClientInvocationContext getClientInvocationContext() {
-        return this.clientInvocationContext;
     }
 
     /**
@@ -78,30 +59,6 @@ public final class EJBReceiverInvocationContext {
      */
     public void requestCancelled() {
         clientInvocationContext.cancelled();
-    }
-
-    /**
-     * Retry the current invocation
-     *
-     * @param excludeCurrentReceiver True if the {@link EJBReceiver} represented by this {@link EJBReceiverInvocationContext}
-     *                               has to be excluded from being chosen for handling the retried invocation. False otherwise.
-     * @throws Exception If the retried invocation runs into any exception
-     */
-    public void retryInvocation(final boolean excludeCurrentReceiver) throws Exception {
-        if (excludeCurrentReceiver) {
-            final EJBReceiver currentReceiver = this.ejbReceiverContext.getReceiver();
-            this.clientInvocationContext.markNodeAsExcluded(currentReceiver.getNodeName());
-        }
-        this.clientInvocationContext.retryRequest();
-    }
-
-    /**
-     * Returns the node name of the receiver represented by this {@link EJBReceiverInvocationContext}
-     *
-     * @return
-     */
-    public String getNodeName() {
-        return this.ejbReceiverContext.getReceiver().getNodeName();
     }
 
     /**

@@ -29,8 +29,11 @@ import java.util.Arrays;
  * A transaction ID for an invocation.  Transaction IDs can be stored in multiple formats with different
  * characteristics.
  *
+ * @deprecated Retained only for protocol compatibility.
+ *
  * @author <a href="mailto:david.lloyd@redhat.com">David M. Lloyd</a>
  */
+@Deprecated
 public abstract class TransactionID implements Serializable {
 
     private static final long serialVersionUID = 7711835471353644411L;

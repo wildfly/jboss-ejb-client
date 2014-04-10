@@ -33,12 +33,10 @@ import org.jboss.remoting3.Channel;
 import javax.naming.NamingException;
 import javax.transaction.NotSupportedException;
 
-import java.io.IOException;
 import java.util.Set;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeoutException;
-import java.rmi.UnmarshalException;
 
 import static org.jboss.logging.Logger.Level.INFO;
 import static org.jboss.logging.Logger.Level.WARN;
@@ -111,13 +109,8 @@ public interface Logs extends BasicLogger {
     @Message(id = 12, value = "Cannot create a EJB receiver for %s since there was no match for a target destination")
     void cannotCreateEJBReceiverDueToUnknownTarget(final String clusterNode);
 
-    @LogMessage(level = INFO)
-    @Message(id = 13, value = "Successful version handshake completed for receiver context %s on channel %s")
-    void successfulVersionHandshake(final EJBReceiverContext receiverContext, final Channel channel);
-
-    @LogMessage(level = INFO)
-    @Message(id = 14, value = "Version handshake not completed for receiver context %s. Closing receiver context")
-    void versionHandshakeNotCompleted(final EJBReceiverContext receiverContext);
+//    @Message(id = 13, value = "Successful version handshake completed for receiver context %s on channel %s")
+//    @Message(id = 14, value = "Version handshake not completed for receiver context %s. Closing receiver context")
 
     @LogMessage(level = INFO)
     @Message(id = 15, value = "Initial module availability report for %s wasn't received during the receiver context association")
@@ -134,29 +127,20 @@ public interface Logs extends BasicLogger {
     @Message(id = 18, value = "%s cannot be null")
     IllegalArgumentException paramCannotBeNull(final String paramName);
 
-    @Message(id = 19, value = "Node name cannot be null or empty string, while adding a node to cluster named %s")
-    IllegalArgumentException nodeNameCannotBeNullOrEmptyStringForCluster(final String clusterName);
-
-    @Message(id = 20, value = "%s cannot be null or empty string")
-    IllegalArgumentException paramCannotBeNullOrEmptyString(final String paramName);
-
-    @Message(id = 21, value = "EJB client context selector may not be changed")
-    SecurityException ejbClientContextSelectorMayNotBeChanged();
+    // @Message(id = 19, value = "Node name cannot be null or empty string, while adding a node to cluster named %s")
+    // @Message(id = 20, value = "%s cannot be null or empty string")
+    // @Message(id = 21, value = "EJB client context selector may not be changed")
 
     @Message(id = 22, value = "No EJB client context is available")
     IllegalStateException noEJBClientContextAvailable();
 
-    @Message(id = 23, value = "EJB client interceptor %s is already registered")
-    IllegalArgumentException ejbClientInterceptorAlreadyRegistered(final EJBClientInterceptor interceptor);
+    // @Message(id = 23, value = "EJB client interceptor %s is already registered")
 
-    @Message(id = 24, value = "No EJB receiver available for handling [appName:%s, moduleName:%s, distinctName:%s] combination")
-    IllegalStateException noEJBReceiverAvailableForDeployment(final String appName, final String moduleName, final String distinctName);
+    @Message(id = 24, value = "No EJB receiver available for handling affinity \"%s\"")
+    IllegalStateException noEJBReceiverAvailable(final Affinity locator);
 
-    @Message(id = 25, value = "No EJB receiver available for handling [appName:%s, moduleName:%s, distinctName:%s] combination for invocation context %s")
-    IllegalStateException noEJBReceiverAvailableForDeploymentDuringInvocation(final String appName, final String moduleName, final String distinctName, final EJBClientInvocationContext invocationContext);
-
-    @Message(id = 26, value = "%s has not been associated with %s")
-    IllegalStateException receiverNotAssociatedWithClientContext(final EJBReceiver receiver, final EJBClientContext clientContext);
+    // @Message(id = 25, value = "No EJB receiver available for handling %s")
+    // @Message(id = 26, value = "%s has not been associated with %s")
 
     @Message(id = 27, value = "No EJBReceiver available for node name %s")
     IllegalStateException noEJBReceiverForNode(final String nodeName);
@@ -197,8 +181,7 @@ public interface Logs extends BasicLogger {
     @Message(id = 39, value = "Cannot enlist transaction")
     IllegalStateException cannotEnlistTx();
 
-    @Message(id = 40, value = "EJB communication channel %s is not yet ready to receive invocations (perhaps version handshake hasn't been completed), for receiver context %s")
-    IllegalStateException channelNotReadyForCommunication(final String channelName, final EJBReceiverContext receiverContext);
+    // @Message(id = 40, value = "EJB communication channel %s is not yet ready to receive invocations (perhaps version handshake hasn't been completed), for receiver context %s")
 
     @Message(id = 41, value = "A session bean does not have a primary key class")
     RuntimeException primaryKeyNotRelevantForSessionBeans();
@@ -248,11 +231,8 @@ public interface Logs extends BasicLogger {
     @Message(id = 56, value = "Cannot specify both a plain text and base64 encoded password")
     IllegalStateException cannotSpecifyBothPlainTextAndEncodedPassword();
 
-    @Message(id = 57, value = "%s not of type org.jboss.ejb.client.DeploymentNodeSelector")
-    RuntimeException unexpectedDeploymentNodeSelectorClassType(Class<?> deploymentNodeSelector);
-
-    @Message(id = 58, value = "Could not create the deployment node selector")
-    RuntimeException couldNotCreateDeploymentNodeSelector(@Cause Exception e);
+    // @Message(id = 57, value = "%s not of type org.jboss.ejb.client.DeploymentNodeSelector")
+    // @Message(id = 58, value = "Could not create the deployment node selector")
 
     @LogMessage(level = WARN)
     @Message(id = 59, value = "Could not send a message over remoting channel, to cancel invocation for invocation id %s")
@@ -290,16 +270,8 @@ public interface Logs extends BasicLogger {
     @Message(id = 403, value = "Timed out")
     TimeoutException timedOut();
 
-    @Message(id = 404, value = "Operation not allowed since this EJB client context %s has been closed")
-    IllegalStateException ejbClientContextIsClosed(EJBClientContext ejbClientContext);
-
-    @Message(id = 405, value = "An EJB client context is already registered for EJB client context identifier %s")
-    IllegalStateException ejbClientContextAlreadyRegisteredForIdentifier(EJBClientContextIdentifier identifier);
-
-    @LogMessage(level = INFO)
-    @Message(id = 406, value = "Unexpected exception when discarding invocation result")
-    void exceptionOnDiscardResult(@Cause IOException exception);
-
-    @Message(id = 407, value = "Issue regarding unmarshalling of EJB parameters (possible Out of Memory issue).")
-    UnmarshalException ejbClientInvocationParamsException(@Cause Exception e);
+    // @Message(id = 404, value = "Operation not allowed since this EJB client context %s has been closed")
+    // @Message(id = 405, value = "An EJB client context is already registered for EJB client context identifier %s")
+    // @Message(id = 406, value = "Unexpected exception when discarding invocation result")
+    // @Message(id = 407, value = "Issue regarding unmarshalling of EJB parameters (possible Out of Memory issue).")
 }

@@ -1,6 +1,6 @@
 /*
  * JBoss, Home of Professional Open Source.
- * Copyright 2011, Red Hat, Inc., and individual contributors
+ * Copyright 2014, Red Hat, Inc., and individual contributors
  * as indicated by the @author tags. See the copyright.txt file in the
  * distribution for a full listing of individual contributors.
  *
@@ -20,21 +20,20 @@
  * 02110-1301 USA, or see the FSF site: http://www.fsf.org.
  */
 
-package org.jboss.ejb.client;
+package org.jboss.ejb.client.annotation;
+
+import java.lang.annotation.ElementType;
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
+import java.lang.annotation.Target;
 
 /**
- * The client interceptor which associates the current transaction ID with the invocation.
+ * Indicate that the interface or method annotated with this annotation is <em>idempotent</em>, meaning that invocations
+ * to the interface or method with the same input can be repeated any number of additional times without additional effect.
  *
  * @author <a href="mailto:david.lloyd@redhat.com">David M. Lloyd</a>
  */
-public final class TransactionInterceptor implements EJBClientInterceptor {
-
-    public void handleInvocation(final EJBClientInvocationContext context) throws Exception {
-        // TODO: use transaction client API to acquire transaction ID to attach
-        context.sendRequest();
-    }
-
-    public Object handleInvocationResult(final EJBClientInvocationContext context) throws Exception {
-        return context.getResult();
-    }
+@Target({ElementType.METHOD, ElementType.TYPE})
+@Retention(RetentionPolicy.RUNTIME)
+public @interface Idempotent {
 }

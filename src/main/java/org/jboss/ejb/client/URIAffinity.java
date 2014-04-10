@@ -1,6 +1,6 @@
 /*
  * JBoss, Home of Professional Open Source.
- * Copyright 2011, Red Hat, Inc., and individual contributors
+ * Copyright 2014, Red Hat, Inc., and individual contributors
  * as indicated by the @author tags. See the copyright.txt file in the
  * distribution for a full listing of individual contributors.
  *
@@ -23,62 +23,68 @@
 package org.jboss.ejb.client;
 
 import java.net.URI;
-import java.net.URISyntaxException;
 
 /**
- * A cluster affinity specification.
+ * A URI affinity specification.  Create instances using {@link Affinity#forUri(URI)}.
  *
  * @author <a href="mailto:david.lloyd@redhat.com">David M. Lloyd</a>
  */
-public final class ClusterAffinity extends Affinity {
+public final class URIAffinity extends Affinity {
 
-    private static final long serialVersionUID = -8078602613739377911L;
-
-    private final String clusterName;
+    private final URI uri;
 
     /**
      * Construct a new instance.
      *
-     * @param clusterName the associated cluster name
+     * @param uri the URI to bind to (must not be {@code null})
      */
-    public ClusterAffinity(final String clusterName) {
-        this.clusterName = clusterName;
+    URIAffinity(final URI uri) {
+        if (uri == null) {
+            throw new IllegalArgumentException("URI is null");
+        }
+        this.uri = uri;
     }
 
     /**
-     * Get the associated cluster name.
+     * Get the associated URI.
      *
-     * @return the associated cluster name
+     * @return the associated URI (not {@code null})
      */
-    public String getClusterName() {
-        return clusterName;
+    public URI getUri() {
+        return uri;
     }
 
-    Object readResolve() {
-        try {
-            return new URIAffinity(new URI("cluster", clusterName, ""));
-        } catch (URISyntaxException e) {
-            throw new IllegalArgumentException(e);
+    Object writeReplace() {
+        String s = uri.getScheme();
+        if (s.equals("node")) {
+            return new NodeAffinity(uri.getSchemeSpecificPart());
+        } else if (s.equals("cluster")) {
+            return new ClusterAffinity(uri.getSchemeSpecificPart());
+        } else if (s.equals("local")) {
+            return LOCAL;
+        } else {
+            // keep same object
+            return null;
         }
     }
 
     public String toString() {
-        return String.format("Cluster \"%s\"", clusterName);
+        return String.format("URI<%s>", uri);
     }
 
     public boolean equals(final Object other) {
-        return other instanceof ClusterAffinity && equals((ClusterAffinity) other);
+        return other instanceof URIAffinity && equals((URIAffinity) other);
     }
 
     public boolean equals(final Affinity other) {
-        return other instanceof ClusterAffinity && equals((ClusterAffinity) other);
+        return other instanceof URIAffinity && equals((URIAffinity) other);
     }
 
-    public boolean equals(final ClusterAffinity other) {
-        return other != null && clusterName.equals(other.clusterName);
+    public boolean equals(final URIAffinity other) {
+        return other != null && uri.equals(other.uri);
     }
 
     public int hashCode() {
-        return clusterName.hashCode() + 11;
+        return uri.hashCode();
     }
 }
