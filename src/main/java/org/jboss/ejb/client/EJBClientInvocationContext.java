@@ -24,6 +24,9 @@ package org.jboss.ejb.client;
 
 import java.io.Serializable;
 import java.lang.reflect.Method;
+import java.security.AccessController;
+import java.security.PrivilegedActionException;
+import java.security.PrivilegedExceptionAction;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
@@ -269,7 +272,20 @@ public final class EJBClientInvocationContext extends Attachable {
         }
         else try {
             if (chain.length == idx) {
-                return resultProducer.getResult();
+                if(System.getSecurityManager() == null) {
+                    return resultProducer.getResult();
+                } else {
+                    try {
+                        return AccessController.doPrivileged(new PrivilegedExceptionAction<Object>() {
+                            @Override
+                            public Object run() throws Exception {
+                                return resultProducer.getResult();
+                            }
+                        });
+                    } catch (PrivilegedActionException e) {
+                        throw e.getException();
+                    }
+                }
             } else {
                 return chain[idx].handleInvocationResult(this);
             }
