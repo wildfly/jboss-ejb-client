@@ -30,6 +30,8 @@ import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Proxy;
 import java.lang.reflect.UndeclaredThrowableException;
+import java.security.AccessController;
+import java.security.PrivilegedAction;
 
 import org.jboss.marshalling.FieldSetter;
 
@@ -77,11 +79,30 @@ public abstract class EJBLocator<T> implements Serializable {
         this.beanName = beanName;
         this.distinctName = distinctName;
         this.affinity = affinity == null ? Affinity.NONE : affinity;
-        proxyClass = Proxy.getProxyClass(viewType.getClassLoader(), viewType).asSubclass(viewType);
-        try {
-            proxyConstructor = proxyClass.getConstructor(InvocationHandler.class);
-        } catch (NoSuchMethodException e) {
-            throw new NoSuchMethodError("No valid constructor found on proxy class");
+        if(System.getSecurityManager() == null) {
+            proxyClass = Proxy.getProxyClass(viewType.getClassLoader(), viewType).asSubclass(viewType);
+            try {
+                proxyConstructor = proxyClass.getConstructor(InvocationHandler.class);
+            } catch (NoSuchMethodException e) {
+                throw new NoSuchMethodError("No valid constructor found on proxy class");
+            }
+        } else {
+            proxyClass = AccessController.doPrivileged(new PrivilegedAction<Class<? extends T>>() {
+                @Override
+                public Class<? extends T> run() {
+                    return Proxy.getProxyClass(viewType.getClassLoader(), viewType).asSubclass(viewType);
+                }
+            });
+            proxyConstructor = AccessController.doPrivileged(new PrivilegedAction<Constructor<? extends T>>() {
+                @Override
+                public Constructor<? extends T> run() {
+                    try {
+                        return proxyClass.getConstructor(InvocationHandler.class);
+                    } catch (NoSuchMethodException e) {
+                        throw new NoSuchMethodError("No valid constructor found on proxy class");
+                    }
+                }
+            });
         }
         hashCode = calcHashCode(viewType, appName, moduleName, beanName, distinctName);
     }
