@@ -28,6 +28,10 @@ import static org.xnio.IoUtils.safeClose;
 import java.io.DataOutputStream;
 import java.io.IOException;
 import java.lang.reflect.Method;
+import java.security.AccessController;
+import java.security.PrivilegedAction;
+import java.security.PrivilegedActionException;
+import java.security.PrivilegedExceptionAction;
 import java.util.IdentityHashMap;
 import java.util.Map;
 import java.util.concurrent.CountDownLatch;
@@ -247,6 +251,24 @@ public final class RemotingConnectionEJBReceiver extends EJBReceiver {
 
     @Override
     public void processInvocation(final EJBClientInvocationContext clientInvocationContext, final EJBReceiverInvocationContext ejbReceiverInvocationContext) throws Exception {
+        if(System.getSecurityManager() == null) {
+            processInvocationInternal(clientInvocationContext, ejbReceiverInvocationContext);
+        } else {
+            try {
+                AccessController.doPrivileged(new PrivilegedExceptionAction<Object>() {
+                    @Override
+                    public Object run() throws Exception {
+                        processInvocationInternal(clientInvocationContext, ejbReceiverInvocationContext);
+                        return null;
+                    }
+                });
+            } catch (PrivilegedActionException e) {
+                throw e.getException();
+            }
+        }
+    }
+
+    private void processInvocationInternal(EJBClientInvocationContext clientInvocationContext, EJBReceiverInvocationContext ejbReceiverInvocationContext) throws Exception {
         final ChannelAssociation channelAssociation = this.requireChannelAssociation(ejbReceiverInvocationContext.getEjbReceiverContext());
         try {
             final MessageOutputStream messageOutputStream = channelAssociation.acquireChannelMessageOutputStream();
