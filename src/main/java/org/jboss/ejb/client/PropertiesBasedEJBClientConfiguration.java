@@ -72,14 +72,21 @@ public class PropertiesBasedEJBClientConfiguration implements EJBClientConfigura
 
     // The default options that will be used (unless overridden by the config file) while adding a remote connection
     // provider to the endpoint
-    private static final OptionMap DEFAULT_CONNECTION_PROVIDER_CREATION_OPTIONS = OptionMap.EMPTY;
+    private static final OptionMap DEFAULT_CONNECTION_PROVIDER_CREATION_OPTIONS = OptionMap.builder()
+                .set(Options.TCP_NODELAY, true)
+                .set(Options.REUSE_ADDRESSES, true)
+                .getMap();
     private static final String REMOTE_CONNECTION_PROVIDER_CREATE_OPTIONS_PREFIX = "remote.connectionprovider.create.options.";
 
     private static final String PROPERTY_KEY_REMOTE_CONNECTIONS = "remote.connections";
     private static final String PROPERTY_KEY_REMOTE_CONNECTIONS_CONNECT_EAGER = "remote.connections.connect.eager";
 
     // The default options that will be used (unless overridden by the config file) while creating a connection
-    private static final OptionMap DEFAULT_CONNECTION_CREATION_OPTIONS = OptionMap.EMPTY;
+    //private static final OptionMap DEFAULT_CONNECTION_CREATION_OPTIONS = OptionMap.EMPTY;
+    private static final OptionMap DEFAULT_CONNECTION_CREATION_OPTIONS = OptionMap.builder()
+            .set(Options.TCP_NODELAY, true)
+            .set(Options.REUSE_ADDRESSES, true)
+            .getMap();
     private static final long DEFAULT_CONNECTION_TIMEOUT_IN_MILLIS = 5000;
 
     private static final String PROPERTY_KEY_USERNAME = "username";

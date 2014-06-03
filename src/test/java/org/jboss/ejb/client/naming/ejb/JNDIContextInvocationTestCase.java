@@ -22,7 +22,7 @@
 
 package org.jboss.ejb.client.naming.ejb;
 
-import junit.framework.Assert;
+import org.junit.Assert;
 import org.jboss.ejb.client.ContextSelector;
 import org.jboss.ejb.client.EJBClientContext;
 import org.jboss.ejb.client.EJBReceiver;
@@ -62,7 +62,7 @@ import static org.jboss.ejb.client.remoting.IoFutureHelper.get;
  * properties passed to the {@link InitialContext} constructor
  *
  * @author Jaikiran Pai
- * @see https://issues.jboss.org/browse/EJBCLIENT-34
+ * @see {https://issues.jboss.org/browse/EJBCLIENT-34}
  */
 public class JNDIContextInvocationTestCase {
 
@@ -140,6 +140,31 @@ public class JNDIContextInvocationTestCase {
             // close the context after we are done
             context.close();
         }
+    }
+
+    @Test
+    public void testMultipleInvocations() throws Exception {
+        // get the JNDI properties
+        final Properties jndiProps = this.getEJBClientConfigurationProperties();
+        // create the JNDI context using those properties
+        long start = System.currentTimeMillis();
+        final Context context = new InitialContext(jndiProps);
+        int numberOfInvocations = 1000;
+        try {
+            for (int i = 0; i < numberOfInvocations; i++) {
+                // lookup the EJB proxy
+                final EchoRemote echoBean = (EchoRemote) context.lookup("ejb:" + APP_NAME + "/" + MODULE_NAME + "/" + DISTINCT_NAME + "/" + EchoBean.class.getSimpleName() + "!" + EchoRemote.class.getName());
+                final String message = "Invocation";
+                // invoke on that proxy and expect it to use the EJB client context (and the receiver within it) for the invocation
+                final String echo = echoBean.echo(message);
+                Assert.assertEquals("Unexpected echo message received from bean", message, echo);
+            }
+        } finally {
+            // close the context after we are done
+            context.close();
+        }
+        long end = System.currentTimeMillis();
+        logger.infof("Invoked simple bean %s times, in %s ms", numberOfInvocations, end - start);
     }
 
     /**
