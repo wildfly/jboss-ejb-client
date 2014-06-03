@@ -22,6 +22,7 @@
 
 package org.jboss.ejb.client;
 
+import java.io.NotSerializableException;
 import java.io.Serializable;
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
@@ -256,6 +257,15 @@ final class EJBInvocationHandler<T> extends Attachable implements InvocationHand
                 clientInvocationContext.retryRequest();
             }
         } catch (RequestSendFailedException rsfe) {
+            // check whether the first attempt fails during serialization
+            if (firstAttempt) {
+                // EJBCLIENT-106 supress retry and throw the root cause
+                if (rsfe.getCause() instanceof RuntimeException) {
+                    throw (RuntimeException) rsfe.getCause();
+                }else if(rsfe.getCause() instanceof NotSerializableException) {
+                    throw (NotSerializableException)rsfe.getCause();
+                }
+            }
             final String failedNodeName = rsfe.getFailedNodeName();
             if (failedNodeName != null) {
                 Logs.MAIN.debug("Retrying invocation " + clientInvocationContext + " which failed on node: " + failedNodeName + " due to:", rsfe);
