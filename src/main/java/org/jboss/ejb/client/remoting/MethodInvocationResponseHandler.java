@@ -26,6 +26,7 @@ import org.jboss.ejb.client.Affinity;
 import org.jboss.ejb.client.AttachmentKeys;
 import org.jboss.ejb.client.EJBClientInvocationContext;
 import org.jboss.ejb.client.EJBReceiverInvocationContext;
+import org.jboss.ejb.client.Logs;
 import org.jboss.logging.Logger;
 import org.jboss.marshalling.MarshallerFactory;
 import org.jboss.marshalling.Unmarshaller;
@@ -125,6 +126,22 @@ class MethodInvocationResponseHandler extends ProtocolMessageHandler {
 
         @Override
         public void discardResult() {
+            try {
+                // skipping all bytes from input, until we read the end of the message,
+                // is going to trigger an acknowledgement of those received bytes to
+                // to the server, thus garanteeing the connection is kept consistent
+                while (input.read() != -1) {
+                    input.skip(input.available());
+                }
+            } catch (IOException e) {
+                Logs.REMOTING.exceptionOnDiscardResult(e);
+            } finally {
+                try {
+                    input.close();
+                } catch (IOException e) {
+                    Logs.REMOTING.exceptionOnDiscardResult(e);
+                }
+            }
         }
     }
 }
