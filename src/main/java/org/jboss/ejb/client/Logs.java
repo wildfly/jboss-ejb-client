@@ -33,6 +33,7 @@ import org.jboss.remoting3.Channel;
 import javax.naming.NamingException;
 import javax.transaction.NotSupportedException;
 
+import java.io.IOException;
 import java.util.Set;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.ExecutionException;
@@ -293,4 +294,8 @@ public interface Logs extends BasicLogger {
 
     @Message(id = 405, value = "An EJB client context is already registered for EJB client context identifier %s")
     IllegalStateException ejbClientContextAlreadyRegisteredForIdentifier(EJBClientContextIdentifier identifier);
+
+    @LogMessage(level = INFO)
+    @Message(id = 406, value = "Unexpected exception when discarding invocation result")
+    void exceptionOnDiscardResult(@Cause IOException exception);
 }
