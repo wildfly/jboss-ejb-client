@@ -249,6 +249,10 @@ public final class ClusterContext implements EJBClientContext.EJBReceiverContext
                 if (nodeName == null || nodeName.trim().isEmpty()) {
                     throw Logs.MAIN.nodeNameCannotBeNullOrEmptyStringForCluster(this.clusterName);
                 }
+                // don't add a ClusterNodeManager for a node which is already managed
+                if (this.nodeManagers.containsKey(nodeName)) {
+                    continue;
+                }
                 this.nodeManagers.put(nodeName, clusterNodeManager);
                 // If the connected nodes in this cluster context hasn't yet reached the max allowed limit, then create a new
                 // receiver and associate it with a receiver context (if the node isn't already connected to)
