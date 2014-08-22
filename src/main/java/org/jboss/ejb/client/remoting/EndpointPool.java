@@ -66,8 +66,10 @@ class EndpointPool {
 
     static final EndpointPool INSTANCE = new EndpointPool();
 
+    static final Thread SHUTDOWN_TASK = new Thread(new ShutdownTask(INSTANCE));
+
     static {
-        SecurityActions.addShutdownHook(new Thread(new ShutdownTask(INSTANCE)));
+        SecurityActions.addShutdownHook(SHUTDOWN_TASK);
     }
 
     private final ConcurrentMap<CacheKey, PooledEndpoint> cache = new ConcurrentHashMap<CacheKey, PooledEndpoint>();
@@ -116,6 +118,9 @@ class EndpointPool {
             safeClose(entry.getValue().underlyingEndpoint);
         }
         cache.clear();
+
+        if(Thread.currentThread().getId() != SHUTDOWN_TASK.getId())
+            SecurityActions.removeShutdownHook(SHUTDOWN_TASK);
     }
 
     /**

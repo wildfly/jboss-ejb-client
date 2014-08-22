@@ -59,6 +59,19 @@ final class SecurityActions {
         }
     }
 
+    static Boolean removeShutdownHook(final Thread shutdownHook) {
+        final SecurityManager sm = System.getSecurityManager();
+        if (sm == null) {
+            return Runtime.getRuntime().removeShutdownHook(shutdownHook);
+        } else {
+            return AccessController.doPrivileged(new PrivilegedAction<Boolean>() {
+                public Boolean run() {
+                    return Runtime.getRuntime().removeShutdownHook(shutdownHook);
+                }
+            });
+        }
+    }
+
     private SecurityActions() {
 
     }

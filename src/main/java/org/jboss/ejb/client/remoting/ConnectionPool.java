@@ -58,8 +58,10 @@ class ConnectionPool {
 
     static final ConnectionPool INSTANCE = new ConnectionPool();
 
+    static final Thread SHUTDOWN_TASK = new Thread(new ShutdownTask(INSTANCE));
+
     static {
-        SecurityActions.addShutdownHook(new Thread(new ShutdownTask(INSTANCE)));
+        SecurityActions.addShutdownHook(SHUTDOWN_TASK);
     }
 
     private final ConcurrentMap<CacheKey, PooledConnection> cache = new ConcurrentHashMap<CacheKey, PooledConnection>();
@@ -112,6 +114,9 @@ class ConnectionPool {
             safeClose(connection);
         }
         cache.clear();
+
+        if(Thread.currentThread().getId() != SHUTDOWN_TASK.getId())
+            SecurityActions.removeShutdownHook(SHUTDOWN_TASK);
     }
 
     /**
