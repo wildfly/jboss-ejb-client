@@ -30,6 +30,7 @@ import org.jboss.marshalling.MarshallerFactory;
 import java.io.DataOutput;
 import java.io.IOException;
 import java.lang.reflect.Method;
+import java.rmi.UnmarshalException;
 
 /**
  * Responsible for writing out a method invocation message, as per the EJB remoting client protocol specification to a stream.
@@ -98,7 +99,12 @@ class MethodInvocationMessageWriter extends AbstractMessageWriter {
         // and the parameters
         if (methodParams != null && methodParams.length > 0) {
             for (final Object methodParam : methodParams) {
-                marshaller.writeObject(methodParam);
+                try {
+                     marshaller.writeObject(methodParam);
+                 } catch (IOException e) {
+                     throw new UnmarshalException(e.getMessage() + ", issue regarding unmarshalling of EJB parameters (possible Out of Memory issue).", e);
+                 }
+
             }
         }
         // write out the attachments
