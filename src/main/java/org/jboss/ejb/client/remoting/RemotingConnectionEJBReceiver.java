@@ -84,6 +84,13 @@ public final class RemotingConnectionEJBReceiver extends EJBReceiver {
 
     private static final String EJB_CHANNEL_NAME = "jboss.ejb";
 
+    private static final MarshallerFactory DEFAULT_MARSHALLER_FACTORY = doPrivileged(new PrivilegedAction<MarshallerFactory>() {
+        @Override
+        public MarshallerFactory run() {
+            return Marshalling.getProvidedMarshallerFactory("river");
+        }
+    });
+
     private final Connection connection;
 
     private final Map<EJBReceiverContext, ChannelAssociation> channelAssociations = new IdentityHashMap<EJBReceiverContext, ChannelAssociation>();
@@ -150,12 +157,7 @@ public final class RemotingConnectionEJBReceiver extends EJBReceiver {
         this.remotingProtocol = remotingProtocol;
         this.channelCreationOptions = channelCreationOptions == null ? OptionMap.EMPTY : channelCreationOptions;
 
-        this.marshallerFactory = doPrivileged(new PrivilegedAction<MarshallerFactory>() {
-            @Override
-            public MarshallerFactory run() {
-                return Marshalling.getProvidedMarshallerFactory("river");
-            }
-        });
+        this.marshallerFactory = DEFAULT_MARSHALLER_FACTORY;
         if (this.marshallerFactory == null) {
             throw new RuntimeException("Could not find a marshaller factory for 'river' marshalling strategy");
         }
