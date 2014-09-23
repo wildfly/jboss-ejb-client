@@ -34,6 +34,7 @@ import javax.naming.NamingException;
 import javax.transaction.NotSupportedException;
 
 import java.io.IOException;
+import java.rmi.UnmarshalException;
 import java.util.Set;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.ExecutionException;
@@ -298,4 +299,7 @@ public interface Logs extends BasicLogger {
     @LogMessage(level = INFO)
     @Message(id = 406, value = "Unexpected exception when discarding invocation result")
     void exceptionOnDiscardResult(@Cause IOException exception);
+
+    @Message(id = 407, value = "Issue regarding unmarshalling of EJB parameters (possible Out of Memory issue).")
+    UnmarshalException ejbClientInvocationParamsException(@Cause Exception e);
 }

@@ -24,6 +24,7 @@ package org.jboss.ejb.client.remoting;
 
 import org.jboss.ejb.client.EJBClientInvocationContext;
 import org.jboss.ejb.client.EJBLocator;
+import org.jboss.ejb.client.Logs;
 import org.jboss.marshalling.Marshaller;
 import org.jboss.marshalling.MarshallerFactory;
 
@@ -44,6 +45,8 @@ class MethodInvocationMessageWriter extends AbstractMessageWriter {
     private static final char METHOD_PARAM_TYPE_SEPARATOR = ',';
 
     private final MarshallerFactory marshallerFactory;
+
+    private static final Logs log = Logs.MAIN;
 
     MethodInvocationMessageWriter(final MarshallerFactory marshallerFactory) {
         this.marshallerFactory = marshallerFactory;
@@ -102,7 +105,7 @@ class MethodInvocationMessageWriter extends AbstractMessageWriter {
                 try {
                      marshaller.writeObject(methodParam);
                  } catch (IOException e) {
-                     throw new UnmarshalException(e.getMessage() + ", issue regarding unmarshalling of EJB parameters (possible Out of Memory issue).", e);
+                     throw log.ejbClientInvocationParamsException(e);
                  }
 
             }
