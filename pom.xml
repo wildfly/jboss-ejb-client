@@ -51,7 +51,24 @@
 
         <maven.compiler.source>1.6</maven.compiler.source>
         <maven.compiler.target>1.6</maven.compiler.target>
+        <Xmx.default.arg.value></Xmx.default.arg.value>
     </properties>
+
+    <profiles>
+        <profile>
+            <id>tests.profile</id>
+            <activation>
+                <property>
+                    <name>env</name>
+                    <value>test</value>
+                </property>
+            </activation>
+            <properties>
+                 <Xmx.default.arg.value>-Xmx2048m</Xmx.default.arg.value>
+            </properties>
+        </profile>
+    </profiles>
+
 
     <build>
         <plugins>
@@ -67,6 +84,7 @@
                             <value>org.jboss.logmanager.LogManager</value>
                         </property>
                     </systemProperties>
+                    <argLine>${Xmx.default.arg.value}</argLine>
                     <!-- Jaikiran: Do not change this since we intentionally want the tests to run in an isolated JVM so as to facilitate
                         certain tests (like ClasspathConfigBasedSelectorTestCase) to not be impacted by system properties potentially
                         set by some other tests -->
