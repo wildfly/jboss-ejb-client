@@ -32,7 +32,7 @@ import java.util.Hashtable;
  *
  * @author Stuart Douglas
  */
-public class ejbURLContextFactory implements ObjectFactory {
+public class EjbURLContextFactory implements ObjectFactory {
 
     public Object getObjectInstance(final Object obj, final Name name, final Context nameCtx, final Hashtable<?, ?> environment) throws Exception {
         return new EjbNamingContext(environment);
