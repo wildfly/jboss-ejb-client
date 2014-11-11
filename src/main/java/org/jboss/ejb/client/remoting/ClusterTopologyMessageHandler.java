@@ -124,11 +124,8 @@ class ClusterTopologyMessageHandler extends ProtocolMessageHandler {
             final Collection<ClusterNode> nodes = entry.getValue();
             logger.debug("Received a cluster node(s) addition message, for cluster named " + clusterName + " with " + nodes.size() + " nodes " + Arrays.toString(nodes.toArray()));
             // create a cluster context and add the nodes to it
-            final ClusterContext clusterContext = clientContext.getOrCreateClusterContext(clusterName);
-            // if this is a complete topology message, then we'll first remove any existing nodes from the cluster context
-//            if (this.completeTopology) {
-//                clusterContext.removeAllClusterNodes();
-//            }
+            final ClusterContext clusterContext = clientContext.getClusterContextManager().getClusterContext(clusterName);
+
             this.addNodesToClusterContext(clusterContext, nodes);
         }
     }
