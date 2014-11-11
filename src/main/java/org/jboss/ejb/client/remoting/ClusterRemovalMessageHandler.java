@@ -73,7 +73,7 @@ class ClusterRemovalMessageHandler extends ProtocolMessageHandler {
         logger.debug("Received a cluster removal message for " + removedClusters.size() + " clusters " + Arrays.toString(removedClusters.toArray()));
         for (final String clusterName : removedClusters) {
             // remove the cluster from the client context
-            clientContext.removeCluster(clusterName);
+            clientContext.getClusterContextManager().removeClusterContext(clusterName);
         }
     }
 }

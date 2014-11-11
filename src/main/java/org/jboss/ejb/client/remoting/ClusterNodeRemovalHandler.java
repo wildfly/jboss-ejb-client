@@ -87,7 +87,7 @@ class ClusterNodeRemovalHandler extends ProtocolMessageHandler {
             final Collection<String> removedNodes = entry.getValue();
             logger.debug("Received a cluster node(s) removal message, for cluster named " + clusterName + " with " + removedNodes.size() + " removed nodes " + Arrays.toString(removedNodes.toArray()));
             // get a cluster context for the cluster name
-            final ClusterContext clusterContext = clientContext.getClusterContext(clusterName);
+            final ClusterContext clusterContext = clientContext.getClusterContextManager().getClusterContext(clusterName);
             // if there's no cluster context yet (which can happen if the cluster topology hasn't yet been received)
             // then there's no point in trying to remove the cluster node
             if (clusterContext != null) {
