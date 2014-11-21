@@ -29,33 +29,6 @@ import java.security.PrivilegedAction;
  */
 final class SecurityActions {
 
-    static String getSystemProperty(final String key) {
-        if (System.getSecurityManager() == null) {
-            return System.getProperty(key);
-        } else {
-            return AccessController.doPrivileged(new PrivilegedAction<String>() {
-                @Override
-                public String run() {
-                    return System.getProperty(key);
-                }
-            });
-        }
-    }
-
-    static void setSystemProperty(final String key, final String value) {
-        if (System.getSecurityManager() == null) {
-            System.setProperty(key, value);
-        } else {
-            AccessController.doPrivileged(new PrivilegedAction<String>() {
-                @Override
-                public String run() {
-                    System.setProperty(key, value);
-                    return null;
-                }
-            });
-        }
-    }
-
     static ClassLoader getContextClassLoader() {
         if (System.getSecurityManager() == null) {
             return Thread.currentThread().getContextClassLoader();
@@ -70,6 +43,5 @@ final class SecurityActions {
     }
 
     private SecurityActions() {
-
     }
 }

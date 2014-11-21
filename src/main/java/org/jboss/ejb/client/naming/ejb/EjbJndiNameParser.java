@@ -160,15 +160,4 @@ class EjbJndiNameParser {
         }
         return new EjbJndiIdentifier(applicationName, moduleName, distinctName, ejbName, viewName, viewOptions);
     }
-
-    /**
-     * Returns true if the passed <code>name</code> represents the JNDI name for EJBClientContext. Else
-     * returns false.
-     *
-     * @param name The name being checked
-     * @return
-     */
-    public static final boolean isEJBClientContextJNDIName(final String name) {
-        return "ejb:/EJBClientContext".equals(name);
-    }
 }

@@ -21,18 +21,12 @@
  */
 package org.jboss.ejb.client.naming.ejb;
 
-import org.jboss.ejb.client.ContextSelector;
+import org.jboss.ejb.client.Affinity;
 import org.jboss.ejb.client.EJBClient;
-import org.jboss.ejb.client.EJBClientContext;
-import org.jboss.ejb.client.EJBClientContextIdentifier;
 import org.jboss.ejb.client.EJBHomeLocator;
 import org.jboss.ejb.client.EJBLocator;
-import org.jboss.ejb.client.IdentityEJBClientContextSelector;
 import org.jboss.ejb.client.Logs;
-import org.jboss.ejb.client.NamedEJBClientContextIdentifier;
-import org.jboss.ejb.client.PropertiesBasedEJBClientConfiguration;
 import org.jboss.ejb.client.StatelessEJBLocator;
-import org.jboss.ejb.client.remoting.ConfigBasedEJBClientContextSelector;
 import org.jboss.logging.Logger;
 
 import javax.ejb.EJBHome;
@@ -41,15 +35,11 @@ import javax.naming.CompositeName;
 import javax.naming.Context;
 import javax.naming.Name;
 import javax.naming.NameClassPair;
-import javax.naming.NameNotFoundException;
 import javax.naming.NameParser;
 import javax.naming.NamingEnumeration;
 import javax.naming.NamingException;
-import java.io.IOException;
 import java.util.Hashtable;
 import java.util.Map;
-import java.util.Properties;
-import java.util.concurrent.atomic.AtomicLong;
 
 /**
  * @author Stuart Douglas
@@ -58,88 +48,28 @@ class EjbNamingContext implements Context {
 
     private static final Logger log = Logger.getLogger("org.jboss.ejb.client.naming");
 
-    private static final String SCOPED_EJB_CLIENT_CONTEXT_NAME_PREFIX = "EJBClientContext$";
-    private static final AtomicLong nextEJBClientContextNumber = new AtomicLong();
-
-    private static final String JNDI_PROPERTY_CREATE_SCOPED_EJB_CLIENT_CONTEXT = "org.jboss.ejb.client.scoped.context";
-    private static final String ENV_PROPERTY_SCOPED_EJB_CLIENT_CONTEXT_IDENTIFIER = "org.jboss.ejb.client.scoped.context.identifier";
+    public static final EjbNamingContext ROOT = new EjbNamingContext();
 
     /* The environment configuration */
-    private final Hashtable environment;
+    private final Hashtable<String, Object> environment = new Hashtable<String, Object>();
 
     private final boolean root;
     private final String application;
     private final String module;
     private final String distinct;
 
-    /**
-     * (Optional) EJB client context identifier
-     */
-    private final EJBClientContextIdentifier ejbClientContextIdentifier;
-
-    protected EjbNamingContext(final String application, final String module, final String distinct,
-                               final Hashtable<?, ?> env, final EJBClientContextIdentifier ejbClientContextIdentifier) {
+    protected EjbNamingContext(final String application, final String module, final String distinct) {
         this.application = application;
         this.module = module;
         this.distinct = distinct;
-        this.environment = env == null ? new Hashtable() : env;
-        this.ejbClientContextIdentifier = ejbClientContextIdentifier;
         root = false;
     }
 
-    protected EjbNamingContext(final Hashtable<?, ?> env) {
+    protected EjbNamingContext() {
         application = null;
         module = null;
         distinct = null;
-        environment = env == null ? new Hashtable() : env;
         root = true;
-
-        // setup a "identifiable" (a.k.a named) EJB client context if applicable
-        this.ejbClientContextIdentifier = setupScopedEjbClientContextIfNeeded();
-    }
-
-    private synchronized EJBClientContextIdentifier setupScopedEjbClientContextIfNeeded() {
-        // A scoped EJB client context has already been created for this context. No need to create one more
-        final EJBClientContextIdentifier alreadyCreatedContextIdentifier = (EJBClientContextIdentifier) this.environment.get(ENV_PROPERTY_SCOPED_EJB_CLIENT_CONTEXT_IDENTIFIER);
-        if (alreadyCreatedContextIdentifier != null) {
-            if (log.isTraceEnabled()) {
-                log.trace("Skipping creation of scoped EJB client context for EJB naming context " + this + " with environment " + this.environment
-                        + " since one has already been created with identifier: " + alreadyCreatedContextIdentifier);
-            }
-            return alreadyCreatedContextIdentifier;
-        }
-        // setup a "identifiable" (a.k.a named) EJB client context if applicable
-        if (!this.requiresScopedEJBClientContext(this.environment)) {
-            return null;
-        } else {
-            final ContextSelector<EJBClientContext> currentSelector = EJBClientContext.getSelector();
-            // if the selector isn't able to handle identity based EJB client contexts, then we don't create one.
-            if (!(currentSelector instanceof IdentityEJBClientContextSelector)) {
-                log.info("Cannot create a scoped EJB client context for JNDI naming context " + this + " since the current " +
-                        "EJB client context selector can't handle scoped contexts");
-                return null;
-            } else {
-                // create the EJB client context based on the JNDI environment properties
-                final EJBClientContext ejbClientContext = this.createIdentifiableEjbClientContext(this.environment);
-                final String ejbClientContextName = SCOPED_EJB_CLIENT_CONTEXT_NAME_PREFIX + nextEJBClientContextNumber.addAndGet(1);
-                final EJBClientContextIdentifier contextIdentifier = new NamedEJBClientContextIdentifier(ejbClientContextName);
-                // register it with the identity based EJB client context selector
-                ((IdentityEJBClientContextSelector) currentSelector).registerContext(contextIdentifier, ejbClientContext);
-                // add the identifier to our environment of this context, so that subsequent look ups using this naming context
-                // doesn't end up creating more unnecessary EJB client contexts. Adding this to our environment does *not*
-                // pollute the user application's properties/hashtable since the environment that's passed to us by the naming
-                // implementation is a cloned copy. So it is safe to add this property to our environment
-                try {
-                    addToEnvironment(ENV_PROPERTY_SCOPED_EJB_CLIENT_CONTEXT_IDENTIFIER, contextIdentifier);
-                } catch (NamingException ne) {
-                    throw Logs.MAIN.failedToCreateScopedEjbClientContext(ne);
-                }
-                if (log.isTraceEnabled()) {
-                    log.trace("Created scoped EJB client context with identifier: " + contextIdentifier + " for EJB naming context " + this + " with environment " + this.environment);
-                }
-                return contextIdentifier;
-            }
-        }
     }
 
     @Override
@@ -151,15 +81,6 @@ class EjbNamingContext implements Context {
     public Object lookup(final String name) throws NamingException {
         final EjbJndiIdentifier identifier;
         if (root) {
-            // check if it's a lookup for the scoped EJB client context (i.e. ejb:/EJBClientContext)
-            // created for this JNDI naming context
-            if (EjbJndiNameParser.isEJBClientContextJNDIName(name)) {
-                try {
-                    return EJBClientContext.require(this.ejbClientContextIdentifier);
-                } catch (IllegalStateException ise) {
-                    throw new NameNotFoundException(name + " not found within EJB naming context " + this);
-                }
-            }
             identifier = EjbJndiNameParser.parse(name);
         } else if (application == null || application.isEmpty()) {
             identifier = EjbJndiNameParser.parse("ejb:" + name);
@@ -171,13 +92,13 @@ class EjbNamingContext implements Context {
             identifier = EjbJndiNameParser.parse(application, module, distinct, name);
         }
         if (identifier.getEjbName() == null) {
-            return createEjbContext(identifier, this.environment);
+            return createEjbContext(identifier);
         }
         return createEjbProxy(identifier);
     }
 
-    private Object createEjbContext(final EjbJndiIdentifier identifier, final Hashtable<?, ?> env) {
-        return new EjbNamingContext(identifier.getApplication(), identifier.getModule(), identifier.getDistinctName(), env, this.ejbClientContextIdentifier);
+    private Object createEjbContext(final EjbJndiIdentifier identifier) {
+        return new EjbNamingContext(identifier.getApplication(), identifier.getModule(), identifier.getDistinctName());
     }
 
     protected Object createEjbProxy(final EjbJndiIdentifier identifier) throws NamingException {
@@ -204,8 +125,7 @@ class EjbNamingContext implements Context {
         final boolean stateful = options.containsKey("stateful") && !"false".equalsIgnoreCase(options.get("stateful"));
         if (stateful) log.warnf("Ignoring 'stateful' option on lookup of home %s", viewClass);
         locator = new EJBHomeLocator<T>(viewClass, identifier.getApplication(), identifier.getModule(), identifier.getEjbName(), identifier.getDistinctName());
-        // create a proxy appropriately with an optinal EJB client context identifier
-        return EJBClient.createProxy(locator, this.ejbClientContextIdentifier);
+        return EJBClient.createProxy(locator);
     }
 
     private <T> T doCreateProxy(Class<T> viewClass, EjbJndiIdentifier identifier) throws Exception {
@@ -213,49 +133,11 @@ class EjbNamingContext implements Context {
         final Map<String, String> options = identifier.getOptions();
         final boolean stateful = options.containsKey("stateful") && !"false".equalsIgnoreCase(options.get("stateful"));
         if (stateful) {
-            locator = EJBClient.createSession(this.ejbClientContextIdentifier, viewClass, identifier.getApplication(), identifier.getModule(), identifier.getEjbName(), identifier.getDistinctName());
+            locator = EJBClient.createSession(Affinity.NONE, viewClass, identifier.getApplication(), identifier.getModule(), identifier.getEjbName(), identifier.getDistinctName());
         } else {
-            locator = new StatelessEJBLocator<T>(viewClass, identifier.getApplication(), identifier.getModule(), identifier.getEjbName(), identifier.getDistinctName());
+            locator = new StatelessEJBLocator<T>(viewClass, identifier.getApplication(), identifier.getModule(), identifier.getEjbName(), identifier.getDistinctName(), Affinity.NONE);
         }
-        // create a proxy appropriately with an optinal EJB client context identifier
-        return EJBClient.createProxy(locator, this.ejbClientContextIdentifier);
-    }
-
-    /**
-     * Returns true if hte passed <code>jndiProps</code> includes the {@link #JNDI_PROPERTY_CREATE_SCOPED_EJB_CLIENT_CONTEXT}
-     * with a value of true. Else returns false.
-     *
-     * @param jndiProps The JNDI context properties
-     * @return
-     */
-    private boolean requiresScopedEJBClientContext(final Hashtable jndiProps) {
-        final Object createScopedContext = jndiProps.get(JNDI_PROPERTY_CREATE_SCOPED_EJB_CLIENT_CONTEXT);
-        if (createScopedContext == null) {
-            return false;
-        }
-        if (createScopedContext instanceof String) {
-            return Boolean.parseBoolean((String) createScopedContext);
-        } else if (createScopedContext instanceof Boolean) {
-            return (Boolean) createScopedContext;
-        }
-        return false;
-    }
-
-    /**
-     * Creates and returns a {@link EJBClientContext} which will be registered with {@link org.jboss.ejb.client.EJBReceiver}s
-     * created by parsing the properties contained in the <code>jndiProps</code>
-     *
-     * @param jndiProps The JNDI context properties
-     * @return
-     */
-    private EJBClientContext createIdentifiableEjbClientContext(final Hashtable jndiProps) {
-        // create the EJB client context
-        final Properties ejbClientContextConfigProps = new Properties();
-        ejbClientContextConfigProps.putAll(jndiProps);
-        final PropertiesBasedEJBClientConfiguration ejbClientConfiguration = new PropertiesBasedEJBClientConfiguration(ejbClientContextConfigProps);
-        final ConfigBasedEJBClientContextSelector configBasedEJBClientContextSelector = new ConfigBasedEJBClientContextSelector(ejbClientConfiguration);
-        // the newly created EJB client context
-        return configBasedEJBClientContextSelector.getCurrent();
+        return EJBClient.createProxy(locator);
     }
 
     @Override
@@ -409,28 +291,6 @@ class EjbNamingContext implements Context {
 
     @Override
     public void close() throws NamingException {
-        if (this.ejbClientContextIdentifier != null) {
-            // unregister the scoped EJB client context
-            final ContextSelector<EJBClientContext> currentSelector = EJBClientContext.getSelector();
-            if (!(currentSelector instanceof IdentityEJBClientContextSelector)) {
-                if (log.isDebugEnabled()) {
-                    log.debug("Cannot unregister a scoped EJB client context for JNDI naming context " + this
-                            + " since the current " + "EJB client context selector can't handle scoped contexts");
-                }
-                return;
-            }
-            final EJBClientContext previouslyRegisteredContext = ((IdentityEJBClientContextSelector) currentSelector).unRegisterContext(this.ejbClientContextIdentifier);
-            if (previouslyRegisteredContext != null) {
-                // close this scoped EJB client context
-                try {
-                    previouslyRegisteredContext.close();
-                } catch (IOException ioe) {
-                    final NamingException ne = new NamingException("Encountered an exception while closing the EJB naming context");
-                    ne.setRootCause(ioe);
-                    throw ne;
-                }
-            }
-        }
     }
 
     @Override

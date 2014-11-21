@@ -28,13 +28,14 @@ import javax.naming.spi.ObjectFactory;
 import java.util.Hashtable;
 
 /**
- * ObjectFactory for the ejb: namespace
+ * {@code ObjectFactory} for the {@code ejb:} namespace.  Note that this class must retain its odd capitalization due to the way that
+ * JNDI locates its object factories.
  *
  * @author Stuart Douglas
  */
 public class ejbURLContextFactory implements ObjectFactory {
 
     public Object getObjectInstance(final Object obj, final Name name, final Context nameCtx, final Hashtable<?, ?> environment) throws Exception {
-        return new EjbNamingContext(environment);
+        return EjbNamingContext.ROOT;
     }
 }
