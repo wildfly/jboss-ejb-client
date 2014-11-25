@@ -92,7 +92,7 @@ public final class EJBClientContext extends Attachable implements Closeable {
     /**
      * Cluster contexts mapped against their cluster name
      */
-    private final Map<String, ClusterContext> clusterContexts = Collections.synchronizedMap(new HashMap<String, ClusterContext>());
+    private final Map<String, ClusterContext> clusterContexts = new HashMap<String, ClusterContext>();
 
     private final EJBClientConfiguration ejbClientConfiguration;
 
@@ -908,7 +908,10 @@ public final class EJBClientContext extends Attachable implements Closeable {
             return false;
         }
 
-        final ClusterContext clusterContext = this.clusterContexts.get(clusterName);
+        final ClusterContext clusterContext;
+        synchronized (clusterContexts) {
+            clusterContext = this.clusterContexts.get(clusterName);
+        }
         if (clusterContext == null) {
             return false;
         }
@@ -935,7 +938,12 @@ public final class EJBClientContext extends Attachable implements Closeable {
             return null;
         }
 
-        final ClusterContext clusterContext = this.clusterContexts.get(clusterName);
+        final ClusterContext clusterContext;
+
+        synchronized (clusterContexts) {
+            clusterContext = this.clusterContexts.get(clusterName);
+        }
+
         if (clusterContext == null) {
             return null;
         }
@@ -976,7 +984,11 @@ public final class EJBClientContext extends Attachable implements Closeable {
         // make sure the EJB client context has not been closed
         this.assertNotClosed();
 
-        ClusterContext clusterContext = this.clusterContexts.get(clusterName);
+        ClusterContext clusterContext;
+        synchronized (clusterContexts) {
+            clusterContext = this.clusterContexts.get(clusterName);
+        }
+
         if (clusterContext == null) {
             // let's wait for some time to see if the asynchronous cluster topology becomes available.
             // Note that this isn't a great thing to do for clusters which might have been removed or for clusters
@@ -985,7 +997,9 @@ public final class EJBClientContext extends Attachable implements Closeable {
             logger.debug("Waiting for cluster topology information to be available for cluster named " + clusterName);
             this.waitForClusterTopology(clusterName);
             // see if the cluster context was created during this wait time
-            clusterContext = this.clusterContexts.get(clusterName);
+            synchronized (clusterContexts) {
+                clusterContext = this.clusterContexts.get(clusterName);
+            }
             if (clusterContext == null) {
                 throw Logs.MAIN.noClusterContextAvailable(clusterName);
             }
@@ -1033,16 +1047,18 @@ public final class EJBClientContext extends Attachable implements Closeable {
      * @return
      */
     @Deprecated // make non-public
-    public synchronized ClusterContext getOrCreateClusterContext(final String clusterName) {
+    public ClusterContext getOrCreateClusterContext(final String clusterName) {
         // make sure the EJB client context has not been closed
         this.assertNotClosed();
-
-        ClusterContext clusterContext = this.clusterContexts.get(clusterName);
-        if (clusterContext == null) {
-            clusterContext = new ClusterContext(clusterName, this, this.ejbClientConfiguration);
-            // register a listener which will trigger a notification when nodes are added to the cluster
-            clusterContext.registerListener(this.clusterFormationNotifier);
-            this.clusterContexts.put(clusterName, clusterContext);
+        ClusterContext clusterContext;
+        synchronized (clusterContexts) {
+            clusterContext = this.clusterContexts.get(clusterName);
+            if (clusterContext == null) {
+                clusterContext = new ClusterContext(clusterName, this, this.ejbClientConfiguration);
+                // register a listener which will trigger a notification when nodes are added to the cluster
+                clusterContext.registerListener(this.clusterFormationNotifier);
+                this.clusterContexts.put(clusterName, clusterContext);
+            }
         }
         return clusterContext;
     }
@@ -1055,7 +1071,7 @@ public final class EJBClientContext extends Attachable implements Closeable {
      * @return
      */
     @Deprecated // make non-public
-    public synchronized ClusterContext getClusterContext(final String clusterName) {
+    public ClusterContext getClusterContext(final String clusterName) {
         if (this.closed) {
             if (logger.isTraceEnabled()) {
                 logger.trace("EJB client context " + this + " has been closed, returning no cluster context for cluster named " + clusterName);
@@ -1063,7 +1079,12 @@ public final class EJBClientContext extends Attachable implements Closeable {
             return null;
         }
 
-        return this.clusterContexts.get(clusterName);
+        ClusterContext clusterContext = null;
+        synchronized (clusterContexts) {
+            clusterContext = this.clusterContexts.get(clusterName);
+        }
+        return clusterContext;
+
     }
 
     /**
@@ -1072,8 +1093,11 @@ public final class EJBClientContext extends Attachable implements Closeable {
      * @param clusterName The name of the cluster
      */
     @Deprecated // make non-public
-    public synchronized void removeCluster(final String clusterName) {
-        final ClusterContext clusterContext = this.clusterContexts.remove(clusterName);
+    public void removeCluster(final String clusterName) {
+        final ClusterContext clusterContext;
+        synchronized (clusterContexts) {
+            clusterContext = this.clusterContexts.remove(clusterName);
+        }
         if (clusterContext == null) {
             return;
         }
