@@ -47,6 +47,14 @@ public abstract class Affinity implements Serializable {
     Affinity() {
     }
 
+    public boolean equals(Object other) {
+        return other instanceof Affinity && equals((Affinity) other);
+    }
+
+    public abstract boolean equals(Affinity other);
+
+    public abstract int hashCode();
+
     abstract EJBReceiverContext requireReceiverContext(EJBClientContext clientContext);
 
     static class NoAffinity extends Affinity {
@@ -62,6 +70,10 @@ public abstract class Affinity implements Serializable {
         }
 
         public boolean equals(final Object obj) {
+            return obj == this;
+        }
+
+        public boolean equals(final Affinity obj) {
             return obj == this;
         }
 

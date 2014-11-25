@@ -54,4 +54,24 @@ public final class NodeAffinity extends Affinity {
     EJBReceiverContext requireReceiverContext(final EJBClientContext clientContext) {
         return clientContext.requireNodeEJBReceiverContext(nodeName);
     }
+
+    public String toString() {
+        return String.format("Node \"%s\"", nodeName);
+    }
+
+    public boolean equals(final Object other) {
+        return other instanceof NodeAffinity && equals((NodeAffinity) other);
+    }
+
+    public boolean equals(final Affinity other) {
+        return other instanceof NodeAffinity && equals((NodeAffinity) other);
+    }
+
+    public boolean equals(final NodeAffinity other) {
+        return other != null && nodeName.equals(other.nodeName);
+    }
+
+    public int hashCode() {
+        return nodeName.hashCode() + 53;
+    }
 }

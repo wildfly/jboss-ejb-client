@@ -54,4 +54,24 @@ public final class ClusterAffinity extends Affinity {
     EJBReceiverContext requireReceiverContext(final EJBClientContext clientContext) {
         return clientContext.requireClusterEJBReceiverContext(this.clusterName);
     }
+
+    public String toString() {
+        return String.format("Cluster \"%s\"", clusterName);
+    }
+
+    public boolean equals(final Object other) {
+        return other instanceof ClusterAffinity && equals((ClusterAffinity) other);
+    }
+
+    public boolean equals(final Affinity other) {
+        return other instanceof ClusterAffinity && equals((ClusterAffinity) other);
+    }
+
+    public boolean equals(final ClusterAffinity other) {
+        return other != null && clusterName.equals(other.clusterName);
+    }
+
+    public int hashCode() {
+        return clusterName.hashCode() + 11;
+    }
 }

@@ -107,11 +107,11 @@ public abstract class EJBLocator<T> implements Serializable {
                 }
             });
         }
-        hashCode = calcHashCode(viewType, appName, moduleName, beanName, distinctName);
+        hashCode = calcHashCode(viewType, appName, moduleName, beanName, distinctName, affinity);
     }
 
-    private static int calcHashCode(final Class<?> viewType, final String appName, final String moduleName, final String beanName, final String distinctName) {
-        return viewType.hashCode() * 13 + (appName.hashCode() * 13 + (moduleName.hashCode() * 13 + (beanName.hashCode() * 13 + (distinctName.hashCode()))));
+    private static int calcHashCode(final Class<?> viewType, final String appName, final String moduleName, final String beanName, final String distinctName, final Affinity affinity) {
+        return viewType.hashCode() * 13 + (appName.hashCode() * 13 + (moduleName.hashCode() * 13 + (beanName.hashCode() * 13 + (distinctName.hashCode() * 13 + (affinity.hashCode())))));
     }
 
     /**
@@ -302,7 +302,8 @@ public abstract class EJBLocator<T> implements Serializable {
                 && appName.equals(other.appName)
                 && moduleName.equals(other.moduleName)
                 && beanName.equals(other.beanName)
-                && distinctName.equals(other.distinctName);
+                && distinctName.equals(other.distinctName)
+                && affinity.equals(other.affinity);
     }
 
     private void readObject(ObjectInputStream ois) throws ClassNotFoundException, IOException {
@@ -316,6 +317,6 @@ public abstract class EJBLocator<T> implements Serializable {
         }
         proxyClassSetter.set(this, proxyType);
         proxyConstructorSetter.set(this, proxyConstructor);
-        hashCodeSetter.setInt(this, calcHashCode(viewType, appName, moduleName, beanName, distinctName));
+        hashCodeSetter.setInt(this, calcHashCode(viewType, appName, moduleName, beanName, distinctName, affinity));
     }
 }
