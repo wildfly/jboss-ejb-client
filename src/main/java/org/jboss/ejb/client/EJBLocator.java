@@ -107,7 +107,7 @@ public abstract class EJBLocator<T> implements Serializable {
                 }
             });
         }
-        hashCode = calcHashCode(viewType, appName, moduleName, beanName, distinctName, affinity);
+        hashCode = calcHashCode(viewType, appName, moduleName, beanName, distinctName, this.affinity);
     }
 
     private static int calcHashCode(final Class<?> viewType, final String appName, final String moduleName, final String beanName, final String distinctName, final Affinity affinity) {
