@@ -319,4 +319,14 @@ public abstract class EJBLocator<T> implements Serializable {
         proxyConstructorSetter.set(this, proxyConstructor);
         hashCodeSetter.setInt(this, calcHashCode(viewType, appName, moduleName, beanName, distinctName, affinity));
     }
+
+    @Override
+    public String toString() {
+        final String distinctName = getDistinctName();
+        if (distinctName == null || distinctName.isEmpty()) {
+            return String.format("%s for \"%s/%s/%s\", view is %s, affinity is %s", getClass().getSimpleName(), getAppName(), getModuleName(), getBeanName(), getViewType(), getAffinity());
+        } else {
+            return String.format("%s for \"%s/%s/%s/%s\", view is %s, affinity is %s", getClass().getSimpleName(), getAppName(), getModuleName(), getBeanName(), distinctName, getViewType(), getAffinity());
+        }
+    }
 }

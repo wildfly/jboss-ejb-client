@@ -93,6 +93,11 @@ public abstract class TransactionID implements Serializable {
         return hashCode;
     }
 
+    @Override
+    public String toString() {
+        return String.format("%s [%s]", getClass().getSimpleName(), ArrayUtil.bytesToString(encodedForm, 0, encodedForm.length));
+    }
+
     /**
      * Create a transaction ID object for the given encoded representation.
      *

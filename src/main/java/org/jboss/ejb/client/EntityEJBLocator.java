@@ -130,14 +130,6 @@ public final class EntityEJBLocator<T extends EJBObject> extends EJBLocator<T> {
 
     @Override
     public String toString() {
-        return "EntityEJBLocator{" +
-                "appName='" + getAppName() + '\'' +
-                ", moduleName='" + getModuleName() + '\'' +
-                ", distinctName='" + getDistinctName() + '\'' +
-                ", beanName='" + getBeanName() + '\'' +
-                ", view='" + getViewType() + '\'' +
-                ", primaryKey='" + getPrimaryKey() + '\'' +
-                '}';
+        return String.format("%s, primary key is %s", super.toString(), getPrimaryKey());
     }
-
 }

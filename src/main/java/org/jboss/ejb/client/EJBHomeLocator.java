@@ -47,6 +47,20 @@ public final class EJBHomeLocator<T extends EJBHome> extends EJBLocator<T> {
     }
 
     /**
+     * Construct a new instance.
+     *
+     * @param viewType     the view type
+     * @param appName      the application name
+     * @param moduleName   the module name
+     * @param beanName     the bean name
+     * @param distinctName the distinct name
+     * @param affinity     the affinity
+     */
+    public EJBHomeLocator(final Class<T> viewType, final String appName, final String moduleName, final String beanName, final String distinctName, final Affinity affinity) {
+        super(viewType, appName, moduleName, beanName, distinctName, affinity);
+    }
+
+    /**
      * Get the hash code for this instance.
      *
      * @return the hash code for this instance
@@ -96,16 +110,5 @@ public final class EJBHomeLocator<T extends EJBHome> extends EJBLocator<T> {
      */
     public boolean equals(final EJBHomeLocator<?> other) {
         return super.equals(other);
-    }
-
-    @Override
-    public String toString() {
-        return "EJBHomeLocator{" +
-                "appName='" + getAppName() + '\'' +
-                ", moduleName='" + getModuleName() + '\'' +
-                ", distinctName='" + getDistinctName() + '\'' +
-                ", beanName='" + getBeanName() + '\'' +
-                ", view='" + getViewType() + '\'' +
-                '}';
     }
 }

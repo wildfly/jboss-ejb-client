@@ -148,13 +148,6 @@ public final class StatefulEJBLocator<T> extends EJBLocator<T> {
 
     @Override
     public String toString() {
-        return "StatefulEJBLocator{" +
-                "appName='" + getAppName() + '\'' +
-                ", moduleName='" + getModuleName() + '\'' +
-                ", distinctName='" + getDistinctName() + '\'' +
-                ", beanName='" + getBeanName() + '\'' +
-                ", view='" + getViewType() + '\'' +
-                ", sessionId='" + getSessionId() + '\'' +
-                '}';
+        return String.format("%s, session ID is %s", super.toString(), getSessionId());
     }
 }

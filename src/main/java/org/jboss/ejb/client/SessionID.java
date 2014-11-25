@@ -142,6 +142,6 @@ public abstract class SessionID implements Serializable {
 
     @Override
     public String toString() {
-        return "{" + Arrays.toString(encodedForm) + '}';
+        return String.format("%s [%s]", getClass().getSimpleName(), ArrayUtil.bytesToString(encodedForm, 0, encodedForm.length));
     }
 }
