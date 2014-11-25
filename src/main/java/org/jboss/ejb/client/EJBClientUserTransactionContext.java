@@ -43,6 +43,9 @@ public final class EJBClientUserTransactionContext extends EJBClientTransactionC
 
     static final EJBClientUserTransactionContext INSTANCE = new EJBClientUserTransactionContext();
 
+    private EJBClientUserTransactionContext() {
+    }
+
     /**
      * User transaction objects are bound to a single source thread; we do not support suspending or resuming
      * transactions in this simple mode.  Asynchronous invocations use the value from the source thread.
