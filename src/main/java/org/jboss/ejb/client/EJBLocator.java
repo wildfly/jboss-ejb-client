@@ -33,6 +33,9 @@ import java.lang.reflect.UndeclaredThrowableException;
 import java.security.AccessController;
 import java.security.PrivilegedAction;
 
+import javax.ejb.EJBHome;
+import javax.ejb.EJBObject;
+
 import org.jboss.marshalling.FieldSetter;
 
 /**
@@ -109,6 +112,70 @@ public abstract class EJBLocator<T> implements Serializable {
 
     private static int calcHashCode(final Class<?> viewType, final String appName, final String moduleName, final String beanName, final String distinctName) {
         return viewType.hashCode() * 13 + (appName.hashCode() * 13 + (moduleName.hashCode() * 13 + (beanName.hashCode() * 13 + (distinctName.hashCode()))));
+    }
+
+    /**
+     * Narrow this locator to the target type.
+     *
+     * @param type the target type class
+     * @param <S> the target type
+     * @return this instance, narrowed to the given type
+     * @throws ClassCastException if the view type cannot be cast to the given type
+     */
+    @SuppressWarnings("unchecked")
+    public <S> EJBLocator<? extends S> narrowTo(Class<S> type) {
+        if (type.isAssignableFrom(viewType)) {
+            return (EJBLocator<? extends S>) this;
+        }
+        throw new ClassCastException(type.toString());
+    }
+
+    /**
+     * Narrow this locator to the target type as a home locator.
+     *
+     * @param type the target type class
+     * @param <S> the target type
+     * @return this instance, narrowed to the given type and cast as a home locator
+     * @throws ClassCastException if the view type cannot be cast to the given type or if this locator is not a home locator
+     */
+    public <S extends EJBHome> EJBHomeLocator<? extends S> narrowAsHome(Class<S> type) {
+        throw new ClassCastException(EJBHomeLocator.class.toString());
+    }
+
+    /**
+     * Narrow this locator to the target type as a entity locator.
+     *
+     * @param type the target type class
+     * @param <S> the target type
+     * @return this instance, narrowed to the given type and cast as a entity locator
+     * @throws ClassCastException if the view type cannot be cast to the given type or if this locator is not a entity locator
+     */
+    public <S extends EJBObject> EntityEJBLocator<? extends S> narrowAsEntity(Class<S> type) {
+        throw new ClassCastException(EntityEJBLocator.class.toString());
+    }
+
+    /**
+     * Narrow this locator to the target type as a stateful locator.
+     *
+     * @param type the target type class
+     * @param <S> the target type
+     * @return this instance, narrowed to the given type and cast as a stateful locator
+     * @throws ClassCastException if the view type cannot be cast to the given type or if this locator is not a stateful locator
+     */
+    public <S> StatefulEJBLocator<? extends S> narrowAsStateful(Class<S> type) {
+        throw new ClassCastException(StatefulEJBLocator.class.toString());
+    }
+
+    /**
+     * Narrow this locator to the target type as a stateless locator.
+     *
+     * @param type the target type class
+     * @param <S> the target type
+     * @return this instance, narrowed to the given type and cast as a stateless locator
+     * @throws ClassCastException if the view type cannot be cast to the given type or if this locator is not a stateless locator
+     */
+    public <S> StatelessEJBLocator<? extends S> narrowAsStateless(Class<S> type) {
+        throw new ClassCastException(StatelessEJBLocator.class.toString());
     }
 
     /**

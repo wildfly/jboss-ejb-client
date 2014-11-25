@@ -62,6 +62,19 @@ public final class EntityEJBLocator<T extends EJBObject> extends EJBLocator<T> {
         hashCode = primaryKey.hashCode() * 13 + super.hashCode();
     }
 
+    @SuppressWarnings("unchecked")
+    public <S> EntityEJBLocator<? extends S> narrowTo(final Class<S> type) {
+        return (EntityEJBLocator<? extends S>) super.narrowTo(type);
+    }
+
+    @SuppressWarnings("unchecked")
+    public <S extends EJBObject> EntityEJBLocator<? extends S> narrowAsEntity(final Class<S> type) {
+        if (type.isAssignableFrom(getViewType())) {
+            return (EntityEJBLocator<? extends S>) this;
+        }
+        throw new ClassCastException(type.toString());
+    }
+
     /**
      * Get the primary key for the referenced entity.
      *

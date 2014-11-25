@@ -69,6 +69,19 @@ public final class StatefulEJBLocator<T> extends EJBLocator<T> {
         hashCode = sessionId.hashCode() * 13 + super.hashCode();
     }
 
+    @SuppressWarnings("unchecked")
+    public <S> StatefulEJBLocator<? extends S> narrowTo(final Class<S> type) {
+        return (StatefulEJBLocator<? extends S>) super.narrowTo(type);
+    }
+
+    @SuppressWarnings("unchecked")
+    public <S> StatefulEJBLocator<? extends S> narrowAsStateful(final Class<S> type) {
+        if (type.isAssignableFrom(getViewType())) {
+            return (StatefulEJBLocator<? extends S>) this;
+        }
+        throw new ClassCastException(type.toString());
+    }
+
     /**
      * Get the session ID associated with this locator.
      *

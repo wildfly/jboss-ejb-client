@@ -44,6 +44,19 @@ public final class StatelessEJBLocator<T> extends EJBLocator<T> {
         super(viewType, appName, moduleName, beanName, distinctName, Affinity.NONE);
     }
 
+    @SuppressWarnings("unchecked")
+    public <S> StatelessEJBLocator<? extends S> narrowTo(final Class<S> type) {
+        return (StatelessEJBLocator<? extends S>) super.narrowTo(type);
+    }
+
+    @SuppressWarnings("unchecked")
+    public <S> StatelessEJBLocator<? extends S> narrowAsStateless(final Class<S> type) {
+        if (type.isAssignableFrom(getViewType())) {
+            return (StatelessEJBLocator<? extends S>) this;
+        }
+        throw new ClassCastException(type.toString());
+    }
+
     /**
      * Get the hash code for this instance.
      *
