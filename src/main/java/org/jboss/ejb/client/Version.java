@@ -49,7 +49,7 @@ public final class Version {
         try {
             final InputStream stream = Version.class.getResourceAsStream("Version.properties");
             try {
-                final InputStreamReader reader = new InputStreamReader(stream);
+                final InputStreamReader reader = new InputStreamReader(stream, "UTF-8");
                 try {
                     versionProps.load(reader);
                     jarName = versionProps.getProperty("jarName", jarName);
