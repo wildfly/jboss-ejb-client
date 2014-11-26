@@ -80,5 +80,9 @@ public abstract class Affinity implements Serializable {
         protected Object readResolve() {
             return NONE;
         }
+
+        public String toString() {
+            return "None";
+        }
     }
 }
