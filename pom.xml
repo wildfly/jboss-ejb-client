@@ -54,6 +54,16 @@
     </properties>
 
     <build>
+        <resources>
+            <resource>
+                <directory>${project.build.sourceDirectory}</directory>
+                <includes>
+                    <include>**/Version.properties</include>
+                </includes>
+                <filtering>true</filtering>
+            </resource>
+        </resources>
+
         <plugins>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
@@ -97,32 +107,6 @@
             </plugin>
             <plugin>
                 <artifactId>maven-compiler-plugin</artifactId>
-            </plugin>
-            <plugin>
-                <groupId>org.jboss.maven.plugins</groupId>
-                <artifactId>maven-injection-plugin</artifactId>
-                <version>1.0.2</version>
-                <executions>
-                    <execution>
-                        <phase>compile</phase>
-                        <goals>
-                            <goal>bytecode</goal>
-                        </goals>
-                    </execution>
-                </executions>
-                <configuration>
-                    <bytecodeInjections>
-                        <bytecodeInjection>
-                            <expression>${project.version}</expression>
-                            <targetMembers>
-                                <methodBodyReturn>
-                                    <className>org.jboss.ejb.client.Version</className>
-                                    <methodName>getVersionString</methodName>
-                                </methodBodyReturn>
-                            </targetMembers>
-                        </bytecodeInjection>
-                    </bytecodeInjections>
-                </configuration>
             </plugin>
         </plugins>
     </build>

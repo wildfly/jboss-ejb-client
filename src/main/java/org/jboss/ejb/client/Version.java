@@ -22,17 +22,64 @@
 
 package org.jboss.ejb.client;
 
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.util.Properties;
+
 /**
  * @author <a href="mailto:david.lloyd@redhat.com">David M. Lloyd</a>
  */
+@SuppressWarnings("deprecation")
 public final class Version {
     private Version() {
     }
 
     /**
-     * The current version.
+     * @deprecated Use {@link #getVersionString()} instead.
      */
-    public static final String VERSION = getVersionString();
+    public static final String VERSION;
+
+    private static final String JAR_NAME;
+
+    static {
+        Properties versionProps = new Properties();
+        String jarName = "(unknown)";
+        String versionString = "(unknown)";
+        try {
+            final InputStream stream = Version.class.getResourceAsStream("Version.properties");
+            try {
+                final InputStreamReader reader = new InputStreamReader(stream);
+                try {
+                    versionProps.load(reader);
+                    jarName = versionProps.getProperty("jarName", jarName);
+                    versionString = versionProps.getProperty("version", versionString);
+                } finally {
+                    try {
+                        reader.close();
+                    } catch (Throwable ignored) {
+                    }
+                }
+            } finally {
+                try {
+                    stream.close();
+                } catch (Throwable ignored) {
+                }
+            }
+        } catch (IOException ignored) {
+        }
+        JAR_NAME = jarName;
+        VERSION = versionString;
+    }
+
+    /**
+     * Get the name of the program JAR.
+     *
+     * @return the name
+     */
+    public static String getJarName() {
+        return JAR_NAME;
+    }
 
     /**
      * Get the version string.
@@ -40,7 +87,7 @@ public final class Version {
      * @return the version string
      */
     public static String getVersionString() {
-        return "TRUNK SNAPSHOT";
+        return VERSION;
     }
 
     /**
