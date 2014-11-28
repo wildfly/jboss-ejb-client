@@ -69,6 +69,20 @@ public final class StatefulEJBLocator<T> extends EJBLocator<T> {
         hashCode = sessionId.hashCode() * 13 + super.hashCode();
     }
 
+    /**
+     * Construct a new instance.  This constructor creates a copy of the original locator, but with a new affinity.
+     *
+     * @param original the original locator
+     * @param newAffinity the new affinity
+     */
+    public StatefulEJBLocator(final StatefulEJBLocator<T> original, final Affinity newAffinity) {
+        this(original.getViewType(), original.getAppName(), original.getModuleName(), original.getBeanName(), original.getDistinctName(), original.sessionId, newAffinity, original.sessionOwnerNode);
+    }
+
+    public EJBLocator<T> withNewAffinity(final Affinity affinity) {
+        return new StatefulEJBLocator<T>(this, affinity);
+    }
+
     @SuppressWarnings("unchecked")
     public <S> StatefulEJBLocator<? extends S> narrowTo(final Class<S> type) {
         return (StatefulEJBLocator<? extends S>) super.narrowTo(type);

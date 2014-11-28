@@ -50,16 +50,74 @@ public final class EntityEJBLocator<T extends EJBObject> extends EJBLocator<T> {
      * @param appName      the application name
      * @param moduleName   the module name
      * @param beanName     the bean name
+     * @param primaryKey   the entity primary key
+     */
+    public EntityEJBLocator(final Class<T> viewType, final String appName, final String moduleName, final String beanName, final Object primaryKey) {
+        this(viewType, appName, moduleName, beanName, null, primaryKey, Affinity.NONE);
+    }
+
+    /**
+     * Construct a new instance.
+     *
+     * @param viewType     the view type
+     * @param appName      the application name
+     * @param moduleName   the module name
+     * @param beanName     the bean name
+     * @param primaryKey   the entity primary key
+     * @param affinity     the affinity
+     */
+    public EntityEJBLocator(final Class<T> viewType, final String appName, final String moduleName, final String beanName, final Object primaryKey, final Affinity affinity) {
+        this(viewType, appName, moduleName, beanName, null, primaryKey, affinity);
+    }
+
+    /**
+     * Construct a new instance.
+     *
+     * @param viewType     the view type
+     * @param appName      the application name
+     * @param moduleName   the module name
+     * @param beanName     the bean name
      * @param distinctName the distinct name
      * @param primaryKey   the entity primary key
      */
     public EntityEJBLocator(final Class<T> viewType, final String appName, final String moduleName, final String beanName, final String distinctName, final Object primaryKey) {
-        super(viewType, appName, moduleName, beanName, distinctName, Affinity.NONE);
+        this(viewType, appName, moduleName, beanName, distinctName, primaryKey, Affinity.NONE);
+    }
+
+    /**
+     * Construct a new instance.
+     *
+     * @param viewType     the view type
+     * @param appName      the application name
+     * @param moduleName   the module name
+     * @param beanName     the bean name
+     * @param distinctName the distinct name
+     * @param primaryKey   the entity primary key
+     * @param affinity     the affinity
+     */
+    public EntityEJBLocator(final Class<T> viewType, final String appName, final String moduleName, final String beanName, final String distinctName, final Object primaryKey, final Affinity affinity) {
+        super(viewType, appName, moduleName, beanName, distinctName, affinity);
         if (primaryKey == null) {
             throw Logs.MAIN.paramCannotBeNull("primary key");
         }
         this.primaryKey = primaryKey;
         hashCode = primaryKey.hashCode() * 13 + super.hashCode();
+    }
+
+    /**
+     * Construct a new instance.  This constructor creates a copy of the original locator, but with a new affinity.
+     *
+     * @param original the original locator
+     * @param newAffinity the new affinity
+     */
+    public EntityEJBLocator(final EntityEJBLocator<T> original, final Affinity newAffinity) {
+        super(original, newAffinity);
+        this.primaryKey = original.primaryKey;
+        hashCode = primaryKey.hashCode() * 13 + super.hashCode();
+    }
+
+    public EJBLocator<T> withNewAffinity(final Affinity affinity) {
+        return new EntityEJBLocator<T>(this, affinity);
     }
 
     @SuppressWarnings("unchecked")

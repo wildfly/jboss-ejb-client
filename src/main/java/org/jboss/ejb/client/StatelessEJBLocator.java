@@ -38,10 +38,63 @@ public final class StatelessEJBLocator<T> extends EJBLocator<T> {
      * @param appName      the application name
      * @param moduleName   the module name
      * @param beanName     the bean name
+     */
+    public StatelessEJBLocator(final Class<T> viewType, final String appName, final String moduleName, final String beanName) {
+        super(viewType, appName, moduleName, beanName, null, Affinity.NONE);
+    }
+
+    /**
+     * Construct a new instance.
+     *
+     * @param viewType     the view type
+     * @param appName      the application name
+     * @param moduleName   the module name
+     * @param beanName     the bean name
+     * @param affinity     the affinity
+     */
+    public StatelessEJBLocator(final Class<T> viewType, final String appName, final String moduleName, final String beanName, final Affinity affinity) {
+        super(viewType, appName, moduleName, beanName, null, affinity);
+    }
+
+    /**
+     * Construct a new instance.
+     *
+     * @param viewType     the view type
+     * @param appName      the application name
+     * @param moduleName   the module name
+     * @param beanName     the bean name
      * @param distinctName the distinct name
      */
     public StatelessEJBLocator(final Class<T> viewType, final String appName, final String moduleName, final String beanName, final String distinctName) {
         super(viewType, appName, moduleName, beanName, distinctName, Affinity.NONE);
+    }
+
+    /**
+     * Construct a new instance.
+     *
+     * @param viewType     the view type
+     * @param appName      the application name
+     * @param moduleName   the module name
+     * @param beanName     the bean name
+     * @param distinctName the distinct name
+     * @param affinity     the affinity
+     */
+    public StatelessEJBLocator(final Class<T> viewType, final String appName, final String moduleName, final String beanName, final String distinctName, final Affinity affinity) {
+        super(viewType, appName, moduleName, beanName, distinctName, affinity);
+    }
+
+    /**
+     * Construct a new instance.  This constructor creates a copy of the original locator, but with a new affinity.
+     *
+     * @param original the original locator
+     * @param newAffinity the new affinity
+     */
+    public StatelessEJBLocator(final StatelessEJBLocator<T> original, final Affinity newAffinity) {
+        super(original, newAffinity);
+    }
+
+    public EJBLocator<T> withNewAffinity(final Affinity affinity) {
+        return new StatelessEJBLocator<T>(this, affinity);
     }
 
     @SuppressWarnings("unchecked")

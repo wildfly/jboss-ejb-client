@@ -110,9 +110,21 @@ public abstract class EJBLocator<T> implements Serializable {
         hashCode = calcHashCode(viewType, appName, moduleName, beanName, distinctName, this.affinity);
     }
 
+    EJBLocator(final EJBLocator<T> original, final Affinity newAffinity) {
+        this(original.viewType, original.appName, original.moduleName, original.beanName, original.distinctName, newAffinity);
+    }
+
     private static int calcHashCode(final Class<?> viewType, final String appName, final String moduleName, final String beanName, final String distinctName, final Affinity affinity) {
         return viewType.hashCode() * 13 + (appName.hashCode() * 13 + (moduleName.hashCode() * 13 + (beanName.hashCode() * 13 + (distinctName.hashCode() * 13 + (affinity.hashCode())))));
     }
+
+    /**
+     * Create a copy of this locator, but with the new given affinity.
+     *
+     * @param affinity the new affinity
+     * @return the new locator
+     */
+    public abstract EJBLocator<T> withNewAffinity(Affinity affinity);
 
     /**
      * Narrow this locator to the target type.
