@@ -56,10 +56,7 @@
     <build>
         <resources>
             <resource>
-                <directory>${project.build.sourceDirectory}</directory>
-                <includes>
-                    <include>**/Version.properties</include>
-                </includes>
+                <directory>src/main/resources</directory>
                 <filtering>true</filtering>
             </resource>
         </resources>
