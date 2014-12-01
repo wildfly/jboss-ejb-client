@@ -52,6 +52,7 @@ import org.jboss.ejb.client.EJBReceiverContext;
 import org.jboss.ejb.client.EJBReceiverInvocationContext;
 import org.jboss.ejb.client.Logs;
 import org.jboss.ejb.client.RequestSendFailedException;
+import java.rmi.UnmarshalException;
 import org.jboss.ejb.client.StatefulEJBLocator;
 import org.jboss.ejb.client.TransactionID;
 import org.jboss.ejb.client.annotation.CompressionHint;
@@ -99,6 +100,8 @@ public final class RemotingConnectionEJBReceiver extends EJBReceiver {
     private final OptionMap channelCreationOptions;
 
     private final String remotingProtocol;
+
+    private static final Logs log = Logs.MAIN;
 
     /**
      * Construct a new instance.
@@ -326,7 +329,11 @@ public final class RemotingConnectionEJBReceiver extends EJBReceiver {
                     // and the parameters
                     if (methodParams != null && methodParams.length > 0) {
                         for (final Object methodParam : methodParams) {
-                            marshaller.writeObject(methodParam);
+                            try {
+                                marshaller.writeObject(methodParam);
+                            } catch (IOException e) {
+                                throw log.ejbClientInvocationParamsException(e);
+                            }
                         }
                     }
                     // write out the attachments
