@@ -24,12 +24,14 @@ package org.jboss.ejb.client.remoting;
 
 import org.jboss.ejb.client.EJBClientInvocationContext;
 import org.jboss.ejb.client.EJBLocator;
+import org.jboss.ejb.client.Logs;
 import org.jboss.marshalling.Marshaller;
 import org.jboss.marshalling.MarshallerFactory;
 
 import java.io.DataOutput;
 import java.io.IOException;
 import java.lang.reflect.Method;
+import java.rmi.UnmarshalException;
 
 /**
  * Responsible for writing out a method invocation message, as per the EJB remoting client protocol specification to a stream.
@@ -43,6 +45,8 @@ class MethodInvocationMessageWriter extends AbstractMessageWriter {
     private static final char METHOD_PARAM_TYPE_SEPARATOR = ',';
 
     private final MarshallerFactory marshallerFactory;
+
+    private static final Logs log = Logs.MAIN;
 
     MethodInvocationMessageWriter(final MarshallerFactory marshallerFactory) {
         this.marshallerFactory = marshallerFactory;
@@ -98,7 +102,12 @@ class MethodInvocationMessageWriter extends AbstractMessageWriter {
         // and the parameters
         if (methodParams != null && methodParams.length > 0) {
             for (final Object methodParam : methodParams) {
-                marshaller.writeObject(methodParam);
+                try {
+                     marshaller.writeObject(methodParam);
+                 } catch (IOException e) {
+                     throw log.ejbClientInvocationParamsException(e);
+                 }
+
             }
         }
         // write out the attachments
