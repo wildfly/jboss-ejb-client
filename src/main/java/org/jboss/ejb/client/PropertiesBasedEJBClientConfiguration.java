@@ -239,7 +239,7 @@ public class PropertiesBasedEJBClientConfiguration implements EJBClientConfigura
     private OptionMap getOptionMapFromProperties(final Properties properties, final String propertyPrefix, final ClassLoader classLoader) {
         final OptionMap.Builder optionMapBuilder = OptionMap.builder().parseAll(properties, propertyPrefix, classLoader);
         final OptionMap optionMap = optionMapBuilder.getMap();
-        logger.debug(propertyPrefix + " has the following options " + optionMap);
+        logger.debugf("%s has the following options %s", propertyPrefix, optionMap);
         return optionMap;
     }
 
@@ -311,7 +311,7 @@ public class PropertiesBasedEJBClientConfiguration implements EJBClientConfigura
             if (clusterConfiguration == null) {
                 continue;
             }
-            logger.debug("Cluster configuration for cluster " + clusterName + " successfully created");
+            logger.debugf("Cluster configuration for cluster %s successfully created", clusterName);
             // add it to the cluster configuration map
             this.clusterConfigurations.put(clusterName, clusterConfiguration);
         }
@@ -487,7 +487,7 @@ public class PropertiesBasedEJBClientConfiguration implements EJBClientConfigura
             if (connectionConfiguration == null) {
                 continue;
             }
-            logger.debug("Connection " + connectionConfiguration + " successfully created for connection named " + connectionName);
+            logger.debugf("Connection %s successfully created for connection named %s", connectionConfiguration, connectionName);
             // add it to the collection of connection configurations
             this.remotingConnectionConfigurations.add(connectionConfiguration);
         }

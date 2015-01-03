@@ -146,7 +146,10 @@ public class ConfigBasedEJBClientContextSelector implements IdentityEJBClientCon
             // can attempt the connection whenever it's required to do so.
             if (!connectionConfiguration.isConnectEagerly()) {
                 this.ejbClientContext.registerReconnectHandler(reconnectHandler);
-                logger.debug("Connection to host: " + host + " and port: " + port + ", in EJB client context: " + this.ejbClientContext + ", is configured to be attempted lazily. Skipping connection creation for now");
+                if (logger.isDebugEnabled()) {
+                    logger.debug("Connection to host: " + host + " and port: " + port + ", in EJB client context: "
+                            + this.ejbClientContext + ", is configured to be attempted lazily. Skipping connection creation for now");
+                }
 
             } else {
                 // attempt to connect eagerly
@@ -164,11 +167,11 @@ public class ConfigBasedEJBClientContextSelector implements IdentityEJBClientCon
                     logger.warn("Could not register a EJB receiver for connection to " + host + ":" + port, e);
                     // add a reconnect handler for this connection
                     this.ejbClientContext.registerReconnectHandler(reconnectHandler);
-                    logger.debug("Registered a reconnect handler in EJB client context " + this.ejbClientContext + " for remote://" + host + ":" + port);
+                    logger.debugf("Registered a reconnect handler in EJB client context %s for remote://%s:%d", this.ejbClientContext,  host, port);
                 }
             }
         }
-        logger.debug("Registered " + successfulEJBReceiverRegistrations + " remoting EJB receivers for EJB client context " + this.ejbClientContext);
+        logger.debugf("Registered %s remoting EJB receivers for EJB client context %s", successfulEJBReceiverRegistrations, this.ejbClientContext);
     }
 
     @Override

@@ -172,7 +172,7 @@ public final class RemotingConnectionEJBReceiver extends EJBReceiver {
         final IoFuture<Channel> futureChannel = connection.openChannel(EJB_CHANNEL_NAME, this.channelCreationOptions);
         futureChannel.addNotifier(new IoFuture.HandlingNotifier<Channel, EJBReceiverContext>() {
             public void handleCancelled(final EJBReceiverContext context) {
-                logger.debug("Channel open requested cancelled for context " + context);
+                logger.debugf("Channel open requested cancelled for context %s", context);
                 context.close();
             }
 
@@ -184,11 +184,11 @@ public final class RemotingConnectionEJBReceiver extends EJBReceiver {
             public void handleDone(final Channel channel, final EJBReceiverContext context) {
                 channel.addCloseHandler(new CloseHandler<Channel>() {
                     public void handleClose(final Channel closed, final IOException exception) {
-                        logger.debug("Closing channel" + closed, exception);
+                        logger.debugf(exception, "Closing channel%s", closed);
                         context.close();
                     }
                 });
-                logger.debug("Channel " + channel + " opened for context " + context + " Waiting for version handshake message from server");
+                logger.debugf("Channel %s opened for context %s Waiting for version handshake message from server", channel, context);
                 // receive version message from server
                 channel.receiveMessage(versionReceiver);
             }
@@ -225,7 +225,7 @@ public final class RemotingConnectionEJBReceiver extends EJBReceiver {
                     //only add the reconnect handler if the version handshake did not fail due to an incompatibility
                     // (latch is not being counted down on failure)
                     if (!versionReceiver.failedCompatibility()) {
-                        logger.debug("Adding reconnect handler to client context " + context.getClientContext());
+                        logger.debugf("Adding reconnect handler to client context %s", context.getClientContext());
                         context.getClientContext().registerReconnectHandler(this.reconnectHandler);
                     }
                 }
@@ -247,7 +247,7 @@ public final class RemotingConnectionEJBReceiver extends EJBReceiver {
                     Logs.REMOTING.initialModuleAvailabilityReportNotReceived(this);
                 }
             } catch (InterruptedException e) {
-                logger.debug("Caught InterruptedException while waiting for initial module availability report for " + this, e);
+                logger.debugf(e, "Caught InterruptedException while waiting for initial module availability report for %s", this);
             }
         }
     }
@@ -743,9 +743,9 @@ public final class RemotingConnectionEJBReceiver extends EJBReceiver {
     }
 
     void modulesAvailable(final EJBReceiverContext receiverContext, final ModuleAvailabilityMessageHandler.EJBModuleIdentifier[] ejbModules) {
-        logger.debug("Received module availability report for " + ejbModules.length + " modules");
+        logger.debugf("Received module availability report for %d modules", ejbModules.length);
         for (final ModuleAvailabilityMessageHandler.EJBModuleIdentifier moduleIdentifier : ejbModules) {
-            logger.debug("Registering module " + moduleIdentifier + " availability for receiver context " + receiverContext);
+            logger.debugf("Registering module %s availability for receiver context %s", moduleIdentifier, receiverContext);
             this.registerModule(moduleIdentifier.appName, moduleIdentifier.moduleName, moduleIdentifier.distinctName);
         }
         // notify of module availability report if anyone's waiting on the latch
@@ -759,9 +759,9 @@ public final class RemotingConnectionEJBReceiver extends EJBReceiver {
     }
 
     void modulesUnavailable(final EJBReceiverContext receiverContext, final ModuleAvailabilityMessageHandler.EJBModuleIdentifier[] ejbModules) {
-        logger.debug("Received module un-availability report for " + ejbModules.length + " modules");
+        logger.debugf("Received module un-availability report for %d modules", ejbModules.length);
         for (final ModuleAvailabilityMessageHandler.EJBModuleIdentifier moduleIdentifier : ejbModules) {
-            logger.debug("Un-registering module " + moduleIdentifier + " from receiver context " + receiverContext);
+            logger.debugf("Un-registering module %s from receiver context %s", moduleIdentifier, receiverContext);
             this.deregisterModule(moduleIdentifier.appName, moduleIdentifier.moduleName, moduleIdentifier.distinctName);
         }
     }

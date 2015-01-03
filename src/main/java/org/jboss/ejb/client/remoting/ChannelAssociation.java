@@ -115,7 +115,7 @@ class ChannelAssociation {
         this.channel.addCloseHandler(new CloseHandler<Channel>() {
             @Override
             public void handleClose(Channel closed, IOException exception) {
-                logger.debug("Closing channel " + closed, exception);
+                logger.debugf(exception, "Closing channel %s", closed);
                 // notify about the broken channel and do the necessary cleanups
                 if (exception != null) {
                     ChannelAssociation.this.notifyBrokenChannel(exception);
@@ -232,7 +232,7 @@ class ChannelAssociation {
     void handleAsyncMethodNotification(final short invocationId) {
         final EJBReceiverInvocationContext receiverInvocationContext = this.waitingMethodInvocations.get(invocationId);
         if (receiverInvocationContext == null) {
-            logger.debug("No waiting context found for async method invocation with id " + invocationId);
+            logger.debugf("No waiting context found for async method invocation with id %s", invocationId);
             return;
         }
         receiverInvocationContext.proceedAsynchronously();
@@ -358,7 +358,9 @@ class ChannelAssociation {
         // get the protocol message handler for the header
         final ProtocolMessageHandler messageHandler = getProtocolMessageHandler((byte) header);
         if (messageHandler == null) {
-            logger.debug("Unsupported message received with header 0x" + Integer.toHexString(header));
+            if (logger.isDebugEnabled()) {
+                logger.debug("Unsupported message received with header 0x" + Integer.toHexString(header));
+            }
             return;
         }
         // let the protocol handler process the stream
@@ -421,7 +423,10 @@ class ChannelAssociation {
             // register a re-connect handler (if available) to the EJB client context
             if (this.reconnectHandler != null) {
                 final EJBClientContext ejbClientContext = this.ejbReceiverContext.getClientContext();
-                logger.debug("Registering a re-connect handler " + this.reconnectHandler + " for broken channel " + this.channel + " in EJB client context " + ejbClientContext);
+                if (logger.isDebugEnabled()) {
+                    logger.debug("Registering a re-connect handler " + this.reconnectHandler + " for broken channel "
+                            + this.channel + " in EJB client context " + ejbClientContext);
+                }
                 ejbClientContext.registerReconnectHandler(this.reconnectHandler);
             }
         }

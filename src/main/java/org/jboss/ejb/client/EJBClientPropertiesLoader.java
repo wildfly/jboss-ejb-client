@@ -93,16 +93,15 @@ class EJBClientPropertiesLoader {
         // if classpath scan is disabled then skip looking for jboss-ejb-client.properties file in the classpath
         final String skipClasspathScan = SecurityActions.getSystemProperty(EJB_CLIENT_PROPS_SKIP_CLASSLOADER_SCAN_SYS_PROPERTY);
         if (skipClasspathScan != null && Boolean.valueOf(skipClasspathScan.trim())) {
-            logger.debug(EJB_CLIENT_PROPS_SKIP_CLASSLOADER_SCAN_SYS_PROPERTY + " system property is set. " +
-                    "Skipping classloader search for " + EJB_CLIENT_PROPS_FILE_NAME);
+            logger.debugf("%s system property is set. Skipping classloader search for %s", EJB_CLIENT_PROPS_SKIP_CLASSLOADER_SCAN_SYS_PROPERTY, EJB_CLIENT_PROPS_FILE_NAME);
             return null;
         }
         final ClassLoader classLoader = getClientClassLoader();
-        logger.debug("Looking for " + EJB_CLIENT_PROPS_FILE_NAME + " using classloader " + classLoader);
+        logger.debugf("Looking for %s using classloader %s", EJB_CLIENT_PROPS_FILE_NAME, classLoader);
         // find from classloader
         final InputStream clientPropsInputStream = classLoader.getResourceAsStream(EJB_CLIENT_PROPS_FILE_NAME);
         if (clientPropsInputStream != null) {
-            logger.debug("Found " + EJB_CLIENT_PROPS_FILE_NAME + " using classloader " + classLoader);
+            logger.debugf("Found %s using classloader %s", EJB_CLIENT_PROPS_FILE_NAME, classLoader);
             final Properties clientProps = new Properties();
             try {
                 clientProps.load(clientPropsInputStream);
