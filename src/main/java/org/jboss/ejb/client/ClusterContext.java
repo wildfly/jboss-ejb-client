@@ -105,7 +105,7 @@ public final class ClusterContext implements EJBClientContext.EJBReceiverContext
      * @return
      */
     private EJBReceiverContext getEJBReceiverContext(final EJBClientInvocationContext invocationContext, final Set<String> excludedNodes) {
-        final EJBLocator ejbLocator = invocationContext.getLocator();
+        final EJBLocator<?> ejbLocator = invocationContext.getLocator();
         if (nodeManagers.isEmpty()) {
             return null;
         }
@@ -239,7 +239,7 @@ public final class ClusterContext implements EJBClientContext.EJBReceiverContext
             return;
         }
         try {
-            final Set<Future> futureAssociationResults = new HashSet<Future>();
+            final Set<Future<Void>> futureAssociationResults = new HashSet<Future<Void>>();
             for (int i = 0; i < clusterNodeManagers.length; i++) {
                 final ClusterNodeManager clusterNodeManager = clusterNodeManagers[i];
                 if (clusterNodeManager == null) {
@@ -263,7 +263,7 @@ public final class ClusterContext implements EJBClientContext.EJBReceiverContext
             }
             // wait for the associations to be completed so that the other threads which are expecting
             // some associated nodes in this cluster context, don't run into a race condition
-            for (final Future futureAssociationResult : futureAssociationResults) {
+            for (final Future<Void> futureAssociationResult : futureAssociationResults) {
                 try {
                     futureAssociationResult.get(5, TimeUnit.SECONDS);
                 } catch (Exception e) {

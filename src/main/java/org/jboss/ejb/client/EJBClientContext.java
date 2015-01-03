@@ -700,7 +700,7 @@ public final class EJBClientContext extends Attachable implements Closeable {
         if (!iterator.hasNext()) {
             return null;
         }
-        final Set<String> excludedNodes = invocationContext == null ? Collections.EMPTY_SET : invocationContext.getExcludedNodes();
+        final Set<String> excludedNodes = invocationContext == null ? Collections.<String>emptySet() : invocationContext.getExcludedNodes();
         final Map<String, EJBReceiver> eligibleReceivers = new HashMap<String, EJBReceiver>();
         while (iterator.hasNext()) {
             final EJBReceiver receiver = iterator.next();

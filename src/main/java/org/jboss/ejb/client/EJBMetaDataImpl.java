@@ -36,11 +36,11 @@ public final class EJBMetaDataImpl implements EJBMetaData, Serializable {
 
     private static final long serialVersionUID = 100581743643837404L;
 
-    private final Class remoteClass;
+    private final Class<?> remoteClass;
 
-    private final Class homeClass;
+    private final Class<?> homeClass;
 
-    private final Class pkClass;
+    private final Class<?> pkClass;
 
     private final boolean session;
 
@@ -48,7 +48,7 @@ public final class EJBMetaDataImpl implements EJBMetaData, Serializable {
 
     private final EJBHome home;
 
-    public EJBMetaDataImpl(final Class remoteClass, final Class homeClass, final Class pkClass, final boolean session,
+    public EJBMetaDataImpl(final Class<?> remoteClass, final Class<?> homeClass, final Class<?> pkClass, final boolean session,
                            final boolean statelessSession, final EJBHome home) {
         this.remoteClass = remoteClass;
         this.homeClass = homeClass;
@@ -70,7 +70,7 @@ public final class EJBMetaDataImpl implements EJBMetaData, Serializable {
      * Obtains the <code>Class</code> object for the enterprise Bean's home
      * interface.
      */
-    public Class getHomeInterfaceClass() {
+    public Class<?> getHomeInterfaceClass() {
         return homeClass;
     }
 
@@ -78,7 +78,7 @@ public final class EJBMetaDataImpl implements EJBMetaData, Serializable {
      * Obtains the <code>Class</code> object for the enterprise Bean's remote
      * interface.
      */
-    public Class getRemoteInterfaceClass() {
+    public Class<?> getRemoteInterfaceClass() {
         return remoteClass;
     }
 
@@ -86,7 +86,7 @@ public final class EJBMetaDataImpl implements EJBMetaData, Serializable {
      * Obtains the <code>Class</code> object for the enterprise Bean's primary
      * key class.
      */
-    public Class getPrimaryKeyClass() {
+    public Class<?> getPrimaryKeyClass() {
         if (session)
             throw Logs.MAIN.primaryKeyNotRelevantForSessionBeans();
         return pkClass;

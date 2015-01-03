@@ -21,10 +21,8 @@
  */
 package org.jboss.ejb.client.remoting;
 
-import java.io.ByteArrayOutputStream;
 import java.io.DataInput;
 import java.io.DataOutput;
-import java.io.DataOutputStream;
 import java.io.IOException;
 
 /**
