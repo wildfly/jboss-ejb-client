@@ -228,13 +228,13 @@ public interface Logs extends BasicLogger {
     IllegalStateException txNodeIsExcludedForInvocation(String nodeName, EJBClientInvocationContext invocationContext);
 
     @Message(id = 50, value = "Node of the current transaction %s does not accept %s")
-    IllegalStateException nodeDoesNotAcceptLocator(String nodeName, EJBLocator locator);
+    IllegalStateException nodeDoesNotAcceptLocator(String nodeName, EJBLocator<?> locator);
 
     @Message(id = 51, value = "Cannot proceed with invocation since the locator %s has an affinity on node %s which has been excluded from current invocation context %s")
-    IllegalStateException requiredNodeExcludedFromInvocation(EJBLocator locator, String nodeName, EJBClientInvocationContext invocationContext);
+    IllegalStateException requiredNodeExcludedFromInvocation(EJBLocator<?> locator, String nodeName, EJBClientInvocationContext invocationContext);
 
     @Message(id = 52, value = "%s for cluster %s is not of type org.jboss.ejb.client.ClusterNodeSelector")
-    RuntimeException unexpectedClusterNodeSelectorClassType(Class nodeSelectorClass, String clusterName);
+    RuntimeException unexpectedClusterNodeSelectorClassType(Class<?> nodeSelectorClass, String clusterName);
 
     @Message(id = 53, value = "Could not create the cluster node selector for cluster %s")
     RuntimeException couldNotCreateClusterNodeSelector(@Cause Exception e, String clusterName);
@@ -249,7 +249,7 @@ public interface Logs extends BasicLogger {
     IllegalStateException cannotSpecifyBothPlainTextAndEncodedPassword();
 
     @Message(id = 57, value = "%s not of type org.jboss.ejb.client.DeploymentNodeSelector")
-    RuntimeException unexpectedDeploymentNodeSelectorClassType(Class deploymentNodeSelector);
+    RuntimeException unexpectedDeploymentNodeSelectorClassType(Class<?> deploymentNodeSelector);
 
     @Message(id = 58, value = "Could not create the deployment node selector")
     RuntimeException couldNotCreateDeploymentNodeSelector(@Cause Exception e);

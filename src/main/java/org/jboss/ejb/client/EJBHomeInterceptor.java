@@ -115,7 +115,7 @@ final class EJBHomeInterceptor implements EJBClientInterceptor {
             if (originalResult instanceof Collection) {
                 // we have identified this to be a finder method returning a Collection. Now ensure that the Collection contains
                 // all EJB proxies. If it doesn't, then just return back the original result
-                for (Object finderResult : (Collection) originalResult) {
+                for (Object finderResult : (Collection<?>) originalResult) {
                     if (finderResult != null && !EJBClient.isEJBProxy(finderResult)) {
                         return originalResult;
                     }
@@ -128,8 +128,8 @@ final class EJBHomeInterceptor implements EJBClientInterceptor {
         // home view and the return object being a EJB proxy or a Collection of EJB proxies. So we now update that proxy/proxies to use
         // the EJB client context identifier that's applicable for the EJB home proxy on which this invocation was done
         if (finderReturnTypeCollection) {
-            final Collection ejbProxies = (Collection) originalResult;
-            final List recreatedEJBProxies = new ArrayList();
+            final Collection<?> ejbProxies = (Collection<?>) originalResult;
+            final List<Object> recreatedEJBProxies = new ArrayList<Object>();
             // recreate each proxy in the Collection, to use the context identifier
             for (final Object ejbProxy : ejbProxies) {
                 if (ejbProxy == null) {
@@ -138,7 +138,7 @@ final class EJBHomeInterceptor implements EJBClientInterceptor {
                     continue;
                 }
                 // we *don't* change the locator of the original proxy
-                final EJBLocator ejbLocator = EJBClient.getLocatorFor(ejbProxy);
+                final EJBLocator<?> ejbLocator = EJBClient.getLocatorFor(ejbProxy);
                 // get the EJB client context identifier (if any) that's applicable for the home view on which this
                 // invocation happened
                 final EJBClientContextIdentifier ejbClientContextIdentifier = invocationContext.getInvocationHandler().getEjbClientContextIdentifier();
@@ -152,7 +152,7 @@ final class EJBHomeInterceptor implements EJBClientInterceptor {
         } else {
             final Object ejbProxy = originalResult;
             // we *don't* change the locator of the original proxy
-            final EJBLocator ejbLocator = EJBClient.getLocatorFor(ejbProxy);
+            final EJBLocator<?> ejbLocator = EJBClient.getLocatorFor(ejbProxy);
             // get the EJB client context identifier (if any) that's applicable for the home view on which this
             // invocation happened
             final EJBClientContextIdentifier ejbClientContextIdentifier = invocationContext.getInvocationHandler().getEjbClientContextIdentifier();
@@ -168,7 +168,7 @@ final class EJBHomeInterceptor implements EJBClientInterceptor {
      * @return
      */
     private boolean isEJBHomeInvocation(final EJBClientInvocationContext invocationContext) {
-        final EJBLocator locator = invocationContext.getLocator();
+        final EJBLocator<?> locator = invocationContext.getLocator();
         return locator instanceof EJBHomeLocator;
     }
 

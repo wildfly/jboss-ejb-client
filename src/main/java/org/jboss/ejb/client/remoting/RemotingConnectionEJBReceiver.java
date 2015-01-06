@@ -29,7 +29,6 @@ import java.io.DataOutputStream;
 import java.io.IOException;
 import java.lang.reflect.Method;
 import java.security.AccessController;
-import java.security.PrivilegedAction;
 import java.security.PrivilegedActionException;
 import java.security.PrivilegedExceptionAction;
 import java.util.IdentityHashMap;
@@ -52,7 +51,6 @@ import org.jboss.ejb.client.EJBReceiverContext;
 import org.jboss.ejb.client.EJBReceiverInvocationContext;
 import org.jboss.ejb.client.Logs;
 import org.jboss.ejb.client.RequestSendFailedException;
-import java.rmi.UnmarshalException;
 import org.jboss.ejb.client.StatefulEJBLocator;
 import org.jboss.ejb.client.TransactionID;
 import org.jboss.ejb.client.annotation.CompressionHint;
@@ -315,7 +313,7 @@ public final class RemotingConnectionEJBReceiver extends EJBReceiver {
                     // start the marshaller
                     marshaller.start(byteOutput);
 
-                    final EJBLocator locator = clientInvocationContext.getLocator();
+                    final EJBLocator<?> locator = clientInvocationContext.getLocator();
                     // Write out the app/module/distinctname/bean name combination using the writeObject method
                     // *and* using the objects returned by a call to the locator.getXXX() methods,
                     // so that later when the locator is written out later, the marshalling impl uses back-references
@@ -339,7 +337,7 @@ public final class RemotingConnectionEJBReceiver extends EJBReceiver {
                     // write out the attachments
                     // we write out the private (a.k.a JBoss specific) attachments as well as public invocation context data
                     // (a.k.a user application specific data)
-                    final Map<Object, Object> privateAttachments = clientInvocationContext.getAttachments();
+                    final Map<?, ?> privateAttachments = clientInvocationContext.getAttachments();
                     final Map<String, Object> contextData = clientInvocationContext.getContextData();
                     // no private or public data to write out
                     if (contextData == null && privateAttachments.isEmpty()) {

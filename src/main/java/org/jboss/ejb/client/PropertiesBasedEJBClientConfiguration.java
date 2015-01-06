@@ -211,9 +211,9 @@ public class PropertiesBasedEJBClientConfiguration implements EJBClientConfigura
         // deployment node selector
         final String deploymentNodeSelectorClassName = this.ejbReceiversConfigurationProperties.getProperty(PROPERTY_KEY_DEPLOYMENT_NODE_SELECTOR);
         if (deploymentNodeSelectorClassName != null) {
-            final ClassLoader classLoader = this.getClientClassLoader();
+            final ClassLoader classLoader = getClientClassLoader();
             try {
-                final Class deploymentNodeSelectorClass = Class.forName(deploymentNodeSelectorClassName.trim(), true, classLoader);
+                final Class<?> deploymentNodeSelectorClass = Class.forName(deploymentNodeSelectorClassName.trim(), true, classLoader);
                 if (!DeploymentNodeSelector.class.isAssignableFrom(deploymentNodeSelectorClass)) {
                     throw Logs.MAIN.unexpectedDeploymentNodeSelectorClassType(deploymentNodeSelectorClass);
                 }
@@ -355,9 +355,9 @@ public class PropertiesBasedEJBClientConfiguration implements EJBClientConfigura
         final String clusterNodeSelectorClassName = clusterSpecificProperties.get("clusternode.selector");
         final ClusterNodeSelector clusterNodeSelector;
         if (clusterNodeSelectorClassName != null) {
-            final ClassLoader classLoader = this.getClientClassLoader();
+            final ClassLoader classLoader = getClientClassLoader();
             try {
-                final Class clusterNodeSelectorClass = Class.forName(clusterNodeSelectorClassName.trim(), true, classLoader);
+                final Class<?> clusterNodeSelectorClass = Class.forName(clusterNodeSelectorClassName.trim(), true, classLoader);
                 if (!ClusterNodeSelector.class.isAssignableFrom(clusterNodeSelectorClass)) {
                     throw Logs.MAIN.unexpectedClusterNodeSelectorClassType(clusterNodeSelectorClass, clusterName);
                 }
