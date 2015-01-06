@@ -132,10 +132,10 @@ final class ClusterNode {
             final InetAddress sourceNetworkAddress = clientMapping.getSourceNetworkAddress();
             final int netMask = clientMapping.getSourceNetworkMaskBits();
             for (final InetAddress address : ALL_INET_ADDRESSES) {
-                logger.debug("Checking for a match of client address " + address + " with client mapping " + clientMapping);
+                logger.debugf("Checking for a match of client address %s with client mapping %s", address, clientMapping);
                 final boolean match = NetworkUtil.belongsToNetwork(address, sourceNetworkAddress, netMask & 0xff);
                 if (match) {
-                    logger.debug("Client mapping " + clientMapping + " matches client address " + address);
+                    logger.debugf("Client mapping %s matches client address %s", clientMapping, address);
                     this.resolvedDestination = new ResolvedDestination(clientMapping.getDestinationAddress(), clientMapping.getDestinationPort());
                     return;
                 }

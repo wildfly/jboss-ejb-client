@@ -123,7 +123,7 @@ public final class EJBClientContext extends Attachable implements Closeable {
             try {
                 contextInitializer.initialize(this);
             } catch (Throwable ignored) {
-                logger.debug("EJB client context initializer " + contextInitializer + " failed to initialize context " + this, ignored);
+                logger.debugf(ignored, "EJB client context initializer %s failed to initialize context %s", contextInitializer, this);
             }
         }
         // TODO: Perhaps have system property which disables scanning the classpath for client interceptors?
@@ -138,7 +138,7 @@ public final class EJBClientContext extends Attachable implements Closeable {
             }
         } catch (Throwable t) {
             // just log a message and don't cause the application to fail, perhaps due to a rogue library in the classpath
-            logger.debug("Failed to load EJB client interceptor(s) from the classpath via classloader " + classLoader + " for EJB client context " + this, t);
+            logger.debugf(t, "Failed to load EJB client interceptor(s) from the classpath via classloader %s for EJB client context %s", classLoader, this);
         }
 
     }
@@ -351,7 +351,7 @@ public final class EJBClientContext extends Attachable implements Closeable {
         final ReceiverAssociation association;
         synchronized (this.ejbReceiverAssociations) {
             if (this.ejbReceiverAssociations.containsKey(receiver)) {
-                logger.debug("Skipping registration of receiver " + receiver + " since the same instance already exists in this client context " + this);
+                logger.debugf("Skipping registration of receiver %s since the same instance already exists in this client context %s", receiver, this);
                 // nothing to do
                 return false;
             }
@@ -359,8 +359,10 @@ public final class EJBClientContext extends Attachable implements Closeable {
             // being registered
             final EJBReceiver existingReceiverForNode = this.getNodeEJBReceiver(receiver.getNodeName(), false);
             if (existingReceiverForNode != null) {
-                logger.debug("Skipping registration of receiver " + receiver + " since an EJB receiver already exists for " +
-                        "node name " + receiver.getNodeName() + " in client context " + this);
+                if (logger.isDebugEnabled()) {
+                    logger.debug("Skipping registration of receiver " + receiver + " since an EJB receiver already exists for "
+                            + "node name " + receiver.getNodeName() + " in client context " + this);
+                }
                 return false;
             }
 
@@ -399,8 +401,11 @@ public final class EJBClientContext extends Attachable implements Closeable {
                             try {
                                 listener.receiverRegistered(ejbReceiverContext);
                             } catch (Throwable t) {
-                                // log and ignore
-                                logger.debug("Exception trying to invoke EJBClientContextListener " + listener + " for EJB client context " + EJBClientContext.this + " on registertation of EJBReceiver " + receiver, t);
+                                if (logger.isDebugEnabled()) {
+                                    // log and ignore
+                                    logger.debug("Exception trying to invoke EJBClientContextListener " + listener
+                                            + " for EJB client context " + EJBClientContext.this + " on registertation of EJBReceiver " + receiver, t);
+                                }
                             }
                         }
                     });
@@ -444,8 +449,11 @@ public final class EJBClientContext extends Attachable implements Closeable {
                             try {
                                 listener.receiverUnRegistered(receiverContext);
                             } catch (Throwable t) {
-                                // log and ignore
-                                logger.debug("Exception trying to invoke EJBClientContextListener " + listener + " for EJB client context " + EJBClientContext.this + " on un-registertation of EJBReceiver " + receiver, t);
+                                if (logger.isDebugEnabled()) {
+                                    // log and ignore
+                                    logger.debug("Exception trying to invoke EJBClientContextListener " + listener
+                                            + " for EJB client context " + EJBClientContext.this + " on un-registertation of EJBReceiver " + receiver, t);
+                                }
                             }
                         }
                     });
@@ -708,8 +716,10 @@ public final class EJBClientContext extends Attachable implements Closeable {
             // The receiver is not eligible if the invocation context has marked that
             // node as excluded
             if (excludedNodes.contains(nodeName)) {
-                logger.debug(nodeName + " is excluded from handling appname=" + appName + ",modulename=" + moduleName +
-                        ",distinctname=" + distinctName + " in invocation context " + invocationContext);
+                if (logger.isDebugEnabled()) {
+                    logger.debug(nodeName + " is excluded from handling appname=" + appName + ",modulename=" + moduleName
+                            + ",distinctname=" + distinctName + " in invocation context " + invocationContext);
+                }
                 continue;
             }
             // make a note that the receiver is eligible
@@ -720,11 +730,14 @@ public final class EJBClientContext extends Attachable implements Closeable {
         }
         // let the deployment node selector, select a node
         final String selectedNode = this.deploymentNodeSelector.selectNode(eligibleReceivers.keySet().toArray(new String[eligibleReceivers.size()]), appName, moduleName, distinctName);
-        logger.debug(this.deploymentNodeSelector + " deployment node selector selected " + selectedNode + " node for appname=" + appName + ",modulename=" + moduleName + ",distinctname=" + distinctName);
+        if (logger.isDebugEnabled()) {
+            logger.debug(this.deploymentNodeSelector + " deployment node selector selected " + selectedNode
+                    + " node for appname=" + appName + ",modulename=" + moduleName + ",distinctname=" + distinctName);
+        }
         // if the deployment node selector picked a node which didn't belong to the eligible receivers
         // then let's just return (a random) eligible node from the iterator
         if (selectedNode == null || selectedNode.trim().isEmpty() || !eligibleReceivers.containsKey(selectedNode)) {
-            logger.debug("Selected node " + selectedNode + " doesn't belong to eligible receivers. Continuing with a random eligible receiver");
+            logger.debugf("Selected node %s doesn't belong to eligible receivers. Continuing with a random eligible receiver", selectedNode);
             return iterator.next();
         }
         return eligibleReceivers.get(selectedNode);
@@ -994,7 +1007,7 @@ public final class EJBClientContext extends Attachable implements Closeable {
             // Note that this isn't a great thing to do for clusters which might have been removed or for clusters
             // which will never be formed, since this wait results in a 5 second delay in the invocation. But ideally
             // such cases should be pretty low.
-            logger.debug("Waiting for cluster topology information to be available for cluster named " + clusterName);
+            logger.debugf("Waiting for cluster topology information to be available for cluster named %s", clusterName);
             this.waitForClusterTopology(clusterName);
             // see if the cluster context was created during this wait time
             synchronized (clusterContexts) {
@@ -1106,7 +1119,7 @@ public final class EJBClientContext extends Attachable implements Closeable {
             clusterContext.close();
         } catch (Throwable t) {
             // ignore
-            logger.debug("Ignoring an error that occured while closing a cluster context for cluster named " + clusterName, t);
+            logger.debugf(t, "Ignoring an error that occured while closing a cluster context for cluster named %s", clusterName);
         }
     }
 
@@ -1123,7 +1136,7 @@ public final class EJBClientContext extends Attachable implements Closeable {
         try {
             final boolean receivedClusterTopology = clusterFormationLatch.await(5, TimeUnit.SECONDS);
             if (receivedClusterTopology) {
-                logger.debug("Received the cluster topology for cluster named " + clusterName + " during the wait time");
+                logger.debugf("Received the cluster topology for cluster named %s during the wait time", clusterName);
             }
         } catch (InterruptedException e) {
             // ignore
@@ -1209,7 +1222,7 @@ public final class EJBClientContext extends Attachable implements Closeable {
             try {
                 listener.contextClosed(this);
             } catch (Throwable t) {
-                logger.debug("Ignoring the exception thrown by an EJB client context listener while closing the context " + this, t);
+                logger.debugf(t, "Ignoring the exception thrown by an EJB client context listener while closing the context %s", this);
             }
         }
     }
@@ -1351,7 +1364,7 @@ public final class EJBClientContext extends Attachable implements Closeable {
                 }
                 this.reconnectHandler.reconnect();
             } catch (Exception e) {
-                logger.debug("Exception trying to re-establish a connection from EJB client context " + EJBClientContext.this, e);
+                logger.debugf(e, "Exception trying to re-establish a connection from EJB client context %s", EJBClientContext.this);
             } finally {
                 this.taskCompletionNotifierLatch.countDown();
             }

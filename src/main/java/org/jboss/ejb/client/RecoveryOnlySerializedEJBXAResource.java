@@ -49,13 +49,13 @@ class RecoveryOnlySerializedEJBXAResource implements XAResource, Serializable {
     public void commit(Xid xid, boolean onePhase) throws XAException {
         final List<EJBReceiverContext> receiverContexts = ReceiverRegistrationListener.INSTANCE.getRelevantReceiverContexts(this.ejbReceiverNodeName);
         if (receiverContexts.isEmpty()) {
-            Logs.TXN.debug("No EJB receiver contexts available for committing EJB XA resource for Xid " + xid + " during transaction recovery. Returning XAException.XA_RETRY");
+            Logs.TXN.debugf("No EJB receiver contexts available for committing EJB XA resource for Xid %s during transaction recovery. Returning XAException.XA_RETRY", xid);
             throw new XAException(XAException.XA_RETRY);
         }
         final XidTransactionID transactionID = new XidTransactionID(xid);
         for (final EJBReceiverContext receiverContext : receiverContexts) {
             final EJBReceiver receiver = receiverContext.getReceiver();
-            Logs.TXN.debug(this + " sending commit request for Xid " + xid + " to EJB receiver with node name " + receiver.getNodeName() + " during recovery. One phase? " + onePhase);
+            Logs.TXN.debugf("%s sending commit request for Xid %s to EJB receiver with node name %s during recovery. One phase? %s", this, xid, receiver.getNodeName(), onePhase);
             receiver.sendCommit(receiverContext, transactionID, onePhase);
         }
     }
@@ -64,14 +64,14 @@ class RecoveryOnlySerializedEJBXAResource implements XAResource, Serializable {
     public void rollback(Xid xid) throws XAException {
         final List<EJBReceiverContext> receiverContexts = ReceiverRegistrationListener.INSTANCE.getRelevantReceiverContexts(this.ejbReceiverNodeName);
         if (receiverContexts.isEmpty()) {
-            Logs.TXN.debug("No EJB receiver contexts available for rolling back EJB XA resource for Xid " + xid + " during transaction recovery. Returning XAException.XA_RETRY");
+            Logs.TXN.debugf("No EJB receiver contexts available for rolling back EJB XA resource for Xid %s during transaction recovery. Returning XAException.XA_RETRY", xid);
             throw new XAException(XAException.XA_RETRY);
         }
 
         final XidTransactionID transactionID = new XidTransactionID(xid);
         for (final EJBReceiverContext receiverContext : receiverContexts) {
             final EJBReceiver receiver = receiverContext.getReceiver();
-            Logs.TXN.debug(this + " sending rollback request for Xid " + xid + " to EJB receiver with node name " + receiver.getNodeName() + " during recovery");
+            Logs.TXN.debugf("%s sending rollback request for Xid %s to EJB receiver with node name %s during recovery", this, xid, receiver.getNodeName());
             receiver.sendRollback(receiverContext, transactionID);
         }
     }
@@ -80,20 +80,20 @@ class RecoveryOnlySerializedEJBXAResource implements XAResource, Serializable {
     public void forget(Xid xid) throws XAException {
         final List<EJBReceiverContext> receiverContexts = ReceiverRegistrationListener.INSTANCE.getRelevantReceiverContexts(this.ejbReceiverNodeName);
         if (receiverContexts.isEmpty()) {
-            Logs.TXN.debug("No EJB receiver contexts available for forgetting EJB XA resource for Xid " + xid + " during transaction recovery. Returning XAException.XA_RETRY");
+            Logs.TXN.debugf("No EJB receiver contexts available for forgetting EJB XA resource for Xid %s during transaction recovery. Returning XAException.XA_RETRY", xid);
             throw new XAException(XAException.XA_RETRY);
         }
         final XidTransactionID transactionID = new XidTransactionID(xid);
         for (final EJBReceiverContext receiverContext : receiverContexts) {
             final EJBReceiver receiver = receiverContext.getReceiver();
-            Logs.TXN.debug(this + " sending forget request for Xid " + xid + " to EJB receiver with node name " + receiver.getNodeName() + " during recovery");
+            Logs.TXN.debugf("%s sending forget request for Xid %s to EJB receiver with node name %s during recovery", this, xid, receiver.getNodeName());
             receiver.sendForget(receiverContext, transactionID);
         }
     }
 
     @Override
     public void end(Xid xid, int i) throws XAException {
-        Logs.TXN.debug("Ignoring end request on XAResource " + this + " since this XAResource is only meant for transaction recovery");
+        Logs.TXN.debugf("Ignoring end request on XAResource %s since this XAResource is only meant for transaction recovery", this);
     }
 
     @Override
@@ -108,8 +108,10 @@ class RecoveryOnlySerializedEJBXAResource implements XAResource, Serializable {
 
     @Override
     public int prepare(Xid xid) throws XAException {
-        Logs.TXN.debug("Prepare wasn't supposed to be called on " + this + " since this XAResource is only meant for transaction recovery. " +
-                "Ignoring the prepare request for xid " + xid);
+        if (Logs.TXN.isDebugEnabled()) {
+            Logs.TXN.debug("Prepare wasn't supposed to be called on " + this + " since this XAResource is only meant for transaction recovery. "
+                    + "Ignoring the prepare request for xid " + xid);
+        }
         return XA_OK;
     }
 
@@ -126,7 +128,7 @@ class RecoveryOnlySerializedEJBXAResource implements XAResource, Serializable {
 
     @Override
     public void start(Xid xid, int i) throws XAException {
-        Logs.TXN.debug("Ignoring start request on XAResource " + this + " since this XAResource is only meant for transaction recovery");
+        Logs.TXN.debugf("Ignoring start request on XAResource %s since this XAResource is only meant for transaction recovery", this);
     }
 
 

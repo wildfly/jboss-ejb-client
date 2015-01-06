@@ -175,7 +175,7 @@ class ConnectionPool {
         try {
             closable.close();
         } catch (Throwable t) {
-            logger.debug("Failed to close " + closable, t);
+            logger.debugf(t, "Failed to close %s", closable);
         }
     }
 

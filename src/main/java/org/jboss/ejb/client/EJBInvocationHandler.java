@@ -271,7 +271,7 @@ final class EJBInvocationHandler<T> extends Attachable implements InvocationHand
             }
             final String failedNodeName = rsfe.getFailedNodeName();
             if (failedNodeName != null) {
-                Logs.MAIN.debug("Retrying invocation " + clientInvocationContext + " which failed on node: " + failedNodeName + " due to:", rsfe);
+                Logs.MAIN.debugf(rsfe, "Retrying invocation %s which failed on node: %s due to:", clientInvocationContext, failedNodeName);
                 // exclude this failed node, during the retry
                 clientInvocationContext.markNodeAsExcluded(failedNodeName);
                 // retry

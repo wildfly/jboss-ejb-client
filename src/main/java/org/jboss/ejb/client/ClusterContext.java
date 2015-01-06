@@ -113,7 +113,7 @@ public final class ClusterContext implements EJBClientContext.EJBReceiverContext
         // remove the excluded nodes
         availableNodes.removeAll(excludedNodes);
         if (availableNodes.isEmpty()) {
-            logger.debug("No nodes available in cluster " + this.clusterName + " for selecting a receiver context");
+            logger.debugf("No nodes available in cluster %s for selecting a receiver context", this.clusterName);
             return null;
         }
         final Set<String> alreadyConnectedNodes = this.connectedNodes;
@@ -128,14 +128,14 @@ public final class ClusterContext implements EJBClientContext.EJBReceiverContext
                     + clusterName + ". No EJB receiver context can be selected");
             return null;
         }
-        logger.debug(this.clusterNodeSelector + " has selected node " + selectedNodeName + ", in cluster " + this.clusterName);
+        logger.debugf("%s has selected node %s, in cluster %s", this.clusterNodeSelector, selectedNodeName, this.clusterName);
         // add this selected node name to excluded set, so that we don't try fetching a receiver for it
         // again
         excludedNodes.add(selectedNodeName);
 
         final ClusterNodeManager clusterNodeManager = this.nodeManagers.get(selectedNodeName);
         if (clusterNodeManager == null) {
-            logger.debug("No node manager available for node: " + selectedNodeName + " in cluster: " + clusterName);
+            logger.debugf("No node manager available for node: %s in cluster: %s", selectedNodeName, clusterName);
             // See if the selector selected a node which got removed while the selection was happening.
             // If so, then try some other node (if any) in the cluster
             if (availableNodes.contains(selectedNodeName) || alreadyConnectedNodes.contains(selectedNodeName)) {
@@ -145,7 +145,7 @@ public final class ClusterContext implements EJBClientContext.EJBReceiverContext
                 final Set<String> nodesInThisCluster = this.nodeManagers.keySet();
                 // if all nodes have been excluded/tried, just return null indicating no receiver is available
                 if (excludedNodes.containsAll(nodesInThisCluster)) {
-                    logger.debug("All nodes have been tried for a receiver, in cluster " + clusterName + ". No suitable receiver found");
+                    logger.debugf("All nodes have been tried for a receiver, in cluster %s. No suitable receiver found", clusterName);
                     return null;
                 } else {
                     // explicit isDebugEnabled() check to prevent the Arrays conversion in the log message, when
@@ -157,7 +157,7 @@ public final class ClusterContext implements EJBClientContext.EJBReceiverContext
                     return this.getEJBReceiverContext(invocationContext, excludedNodes);
                 }
             }
-            logger.debug("Node selector returned a non-existent " + selectedNodeName + " for cluster: " + clusterName + ". No EJB receiver context can be selected");
+            logger.debugf("Node selector returned a non-existent %s for cluster: %s. No EJB receiver context can be selected", selectedNodeName, clusterName);
             return null;
         }
         final EJBReceiverContext selectedNodeReceiverContext = this.clientContext.getNodeEJBReceiverContext(selectedNodeName);
@@ -166,7 +166,10 @@ public final class ClusterContext implements EJBClientContext.EJBReceiverContext
             if (selectedNodeReceiverContext.getReceiver().acceptsModule(ejbLocator.getAppName(), ejbLocator.getModuleName(), ejbLocator.getDistinctName())) {
                 return selectedNodeReceiverContext;
             } else {
-                logger.debug("Ignoring node " + selectedNodeName + " since it cannot handle appName=" + ejbLocator.getAppName() + ",moduleName=" + ejbLocator.getModuleName() + ",distinct-name=" + ejbLocator.getDistinctName());
+                if (logger.isDebugEnabled()) {
+                    logger.debug("Ignoring node " + selectedNodeName + " since it cannot handle appName=" + ejbLocator.getAppName()
+                            + ",moduleName=" + ejbLocator.getModuleName() + ",distinct-name=" + ejbLocator.getDistinctName());
+                }
             }
         }
         // get the receiver from the node manager
@@ -182,7 +185,10 @@ public final class ClusterContext implements EJBClientContext.EJBReceiverContext
                 if (ejbReceiverContext.getReceiver().acceptsModule(ejbLocator.getAppName(), ejbLocator.getModuleName(), ejbLocator.getDistinctName())) {
                     return ejbReceiverContext;
                 } else {
-                    logger.debug("Ignoring node " + selectedNodeName + " since it cannot handle appName=" + ejbLocator.getAppName() + ",moduleName=" + ejbLocator.getModuleName() + ",distinct-name=" + ejbLocator.getDistinctName());
+                    if (logger.isDebugEnabled()) {
+                        logger.debug("Ignoring node " + selectedNodeName + " since it cannot handle appName=" + ejbLocator.getAppName()
+                                + ",moduleName=" + ejbLocator.getModuleName() + ",distinct-name=" + ejbLocator.getDistinctName());
+                    }
                 }
             }
         }
@@ -191,7 +197,7 @@ public final class ClusterContext implements EJBClientContext.EJBReceiverContext
         final Set<String> nodesInThisCluster = this.nodeManagers.keySet();
         // if all nodes have been excluded/tried, just return null indicating no receiver is available
         if (excludedNodes.containsAll(nodesInThisCluster)) {
-            logger.debug("All nodes have been tried for a receiver, in cluster " + clusterName + ". No suitable receiver found");
+            logger.debugf("All nodes have been tried for a receiver, in cluster %s. No suitable receiver found", clusterName);
             return null;
         } else {
             // explicit isDebugEnabled() check to prevent the Arrays conversion in the log message, when
@@ -276,7 +282,7 @@ public final class ClusterContext implements EJBClientContext.EJBReceiverContext
                     listener.clusterNodesAdded(this.clusterName, clusterNodeManagers);
                 } catch (Throwable t) {
                     // ignore any errors thrown by the listeners
-                    logger.debug("Ignoring the exception thrown by listener " + listener, t);
+                    logger.debugf(t, "Ignoring the exception thrown by listener %s", listener);
                 }
             }
         }
@@ -340,7 +346,10 @@ public final class ClusterContext implements EJBClientContext.EJBReceiverContext
         if (ejbReceiverContext != null) {
             // add it to our connected nodes
             this.connectedNodes.add(nodeName);
-            logger.debug(this + " Added a new EJB receiver in cluster context " + clusterName + " for node " + nodeName + ". Total nodes in cluster context = " + this.connectedNodes.size());
+            if (logger.isDebugEnabled()) {
+                logger.debug(this + " Added a new EJB receiver in cluster context " + clusterName + " for node " + nodeName
+                        + ". Total nodes in cluster context = " + this.connectedNodes.size());
+            }
         }
     }
 
@@ -361,7 +370,7 @@ public final class ClusterContext implements EJBClientContext.EJBReceiverContext
     public void receiverContextClosed(EJBReceiverContext receiverContext) {
         final String nodeName = receiverContext.getReceiver().getNodeName();
         this.connectedNodes.remove(nodeName);
-        logger.debug("Node " + nodeName + " removed from cluster context " + this + " for cluster " + this.clusterName);
+        logger.debugf("Node %s removed from cluster context %s for cluster %s", nodeName, this, this.clusterName);
     }
 
     /**

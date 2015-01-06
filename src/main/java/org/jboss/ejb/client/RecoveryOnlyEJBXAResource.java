@@ -51,20 +51,20 @@ class RecoveryOnlyEJBXAResource implements XAResource {
     public void commit(Xid xid, boolean onePhase) throws XAException {
         final XidTransactionID transactionID = new XidTransactionID(xid);
         final EJBReceiver receiver = receiverContext.getReceiver();
-        Logs.TXN.debug("Sending commit request for Xid " + xid + " to EJB receiver with node name " + receiver.getNodeName() + " during recovery. One phase? " + onePhase);
+        Logs.TXN.debugf("Sending commit request for Xid %s to EJB receiver with node name %s during recovery. One phase? %s", xid, receiver.getNodeName(), onePhase);
         receiver.sendCommit(receiverContext, transactionID, onePhase);
     }
 
     @Override
     public void end(Xid xid, int i) throws XAException {
-        Logs.TXN.debug("Ignoring end request on XAResource " + this + " since this XAResource is only meant for transaction recovery");
+        Logs.TXN.debugf("Ignoring end request on XAResource %s since this XAResource is only meant for transaction recovery", this);
     }
 
     @Override
     public void forget(Xid xid) throws XAException {
         final XidTransactionID transactionID = new XidTransactionID(xid);
         final EJBReceiver receiver = receiverContext.getReceiver();
-        Logs.TXN.debug("Sending forget request for Xid " + xid + " to EJB receiver with node name " + receiver.getNodeName() + " during recovery");
+        Logs.TXN.debugf("Sending forget request for Xid %s to EJB receiver with node name %s during recovery", xid, receiver.getNodeName());
         receiver.sendForget(receiverContext, transactionID);
     }
 
@@ -94,15 +94,14 @@ class RecoveryOnlyEJBXAResource implements XAResource {
 
     @Override
     public int prepare(Xid xid) throws XAException {
-        Logs.TXN.debug("Prepare wasn't supposed to be called on " + this + " since this XAResource is only meant for transaction recovery. " +
-                "Ignoring the prepare request for xid " + xid);
+        Logs.TXN.debugf("Prepare wasn't supposed to be called on %s since this XAResource is only meant for transaction recovery. Ignoring the prepare request for xid %s", this, xid);
         return XA_OK;
     }
 
     @Override
     public Xid[] recover(final int flags) throws XAException {
         final EJBReceiver receiver = receiverContext.getReceiver();
-        Logs.TXN.debug("Send recover request for transaction origin node identifier " + transactionOriginNodeIdentifier + " to EJB receiver with node name " + receiver.getNodeName());
+        Logs.TXN.debugf("Send recover request for transaction origin node identifier %s to EJB receiver with node name %s", transactionOriginNodeIdentifier, receiver.getNodeName());
         return receiver.sendRecover(receiverContext, transactionOriginNodeIdentifier, flags);
     }
 
@@ -110,7 +109,7 @@ class RecoveryOnlyEJBXAResource implements XAResource {
     public void rollback(Xid xid) throws XAException {
         final XidTransactionID transactionID = new XidTransactionID(xid);
         final EJBReceiver receiver = receiverContext.getReceiver();
-        Logs.TXN.debug("Sending rollback request for Xid " + xid + " to EJB receiver with node name " + receiver.getNodeName() + " during recovery");
+        Logs.TXN.debugf("Sending rollback request for Xid %s to EJB receiver with node name %s during recovery", xid, receiver.getNodeName());
         receiver.sendRollback(receiverContext, transactionID);
     }
 
@@ -121,7 +120,7 @@ class RecoveryOnlyEJBXAResource implements XAResource {
 
     @Override
     public void start(Xid xid, int i) throws XAException {
-        Logs.TXN.debug("Ignoring start request on XAResource " + this + " since this XAResource is only meant for transaction recovery");
+        Logs.TXN.debugf("Ignoring start request on XAResource %s since this XAResource is only meant for transaction recovery", this);
     }
 
     @Override
