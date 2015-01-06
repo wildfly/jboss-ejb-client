@@ -32,6 +32,7 @@ import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import javax.net.ssl.SSLSession;
 import javax.security.auth.callback.CallbackHandler;
 
 import org.jboss.ejb.client.EJBClientConfiguration;
@@ -245,6 +246,11 @@ class ConnectionPool {
         @Override
         public Attachments getAttachments() {
             return this.underlyingConnection.getAttachments();
+        }
+
+        @Override
+        public SSLSession getSslSession() {
+            return this.underlyingConnection.getSslSession();
         }
     }
 
