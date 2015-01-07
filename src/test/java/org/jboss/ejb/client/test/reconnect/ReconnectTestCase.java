@@ -37,6 +37,10 @@ import org.junit.Test;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.Properties;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 
 /**
  * Tests various reconnect scenarios for remote connections registered in a EJB client context
@@ -256,29 +260,31 @@ public class ReconnectTestCase {
 
             // now invoke on the proxy. This should succeed since the reconnect logic should now reconnect to the
             // restarted server
-            Thread[] threads = new Thread[NUM_CONCURRENT_REQUESTS];
+            final ExecutorService executorService = Executors.newFixedThreadPool(NUM_CONCURRENT_REQUESTS);
+            final Future[] results = new Future[NUM_CONCURRENT_REQUESTS];
             for (int i = 0; i < NUM_CONCURRENT_REQUESTS; i++) {
                 final int requestId = i + 1;
                 final String requestIdString = requestId + " / " + NUM_CONCURRENT_REQUESTS;
-                threads[i] = new Thread() {
-                    public void run() {
-                        try {
-                            logger.info("Sending invocation: " + requestIdString);
-                            final String echo = proxy.echo(message);
-                            Assert.assertEquals("Got an unexpected echo", echo, message);
-                            logger.info("Got expected invocation result: " + requestIdString);
-                        } catch (Exception e) {
-                            logger.info("Got exception from request " + requestIdString + ": " + e.getMessage());
+                results[i] = executorService.submit(new Runnable() {
+                        @Override
+                        public void run() {
+                            try {
+                                logger.info("Sending invocation: " + requestIdString);
+                                final String echo = proxy.echo(message);
+                                Assert.assertEquals("Got an unexpected echo", echo, message);
+                                logger.info("Got expected invocation result: " + requestIdString);
+                            } catch (RuntimeException e) {
+                                logger.info("Got exception from request " + requestIdString + ": " + e.getMessage());
+                                throw e;
+                            }
                         }
-                    }
-                };
-                threads[i].start();
+                    });
             }
             // wait for the threads to complete
             for (int i = 0; i < NUM_CONCURRENT_REQUESTS;i++) {
-                threads[i].join();
+                results[i].get(10, TimeUnit.SECONDS);
             }
-
+            executorService.shutdown();
         } finally {
             if (server != null) {
                 try {
