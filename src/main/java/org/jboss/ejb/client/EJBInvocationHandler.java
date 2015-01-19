@@ -28,6 +28,7 @@ import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
 import java.rmi.RemoteException;
+import java.rmi.UnmarshalException;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
@@ -264,6 +265,8 @@ final class EJBInvocationHandler<T> extends Attachable implements InvocationHand
                     throw (RuntimeException) rsfe.getCause();
                 }else if(rsfe.getCause() instanceof NotSerializableException) {
                     throw (NotSerializableException)rsfe.getCause();
+                }else if (rsfe.getCause() instanceof UnmarshalException) {
+                    throw (UnmarshalException) rsfe.getCause();
                 }
             }
             final String failedNodeName = rsfe.getFailedNodeName();

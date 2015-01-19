@@ -38,6 +38,7 @@ import java.util.Set;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeoutException;
+import java.rmi.UnmarshalException;
 
 import static org.jboss.logging.Logger.Level.INFO;
 import static org.jboss.logging.Logger.Level.WARN;
@@ -298,4 +299,7 @@ public interface Logs extends BasicLogger {
     @LogMessage(level = INFO)
     @Message(id = 406, value = "Unexpected exception when discarding invocation result")
     void exceptionOnDiscardResult(@Cause IOException exception);
+
+    @Message(id = 407, value = "Issue regarding unmarshalling of EJB parameters (possible Out of Memory issue).")
+    UnmarshalException ejbClientInvocationParamsException(@Cause Exception e);
 }
