@@ -23,16 +23,15 @@
 package org.jboss.ejb.client;
 
 import java.net.URI;
-import java.net.URISyntaxException;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.LinkedBlockingQueue;
-import java.util.concurrent.atomic.AtomicBoolean;
-
-import javax.ejb.CreateException;
 
 import org.wildfly.common.selector.Selector;
+import org.wildfly.discovery.Discovery;
+import org.wildfly.discovery.FilterSpec;
+import org.wildfly.discovery.ServiceType;
+import org.wildfly.discovery.ServicesQueue;
+import org.wildfly.discovery.spi.DiscoveryProvider;
 
 /**
  * The public API for an EJB client context.  An EJB client context may be associated with (and used by) one or more threads concurrently.
@@ -43,15 +42,14 @@ public final class EJBClientContext extends Attachable {
 
     private static final EJBClientInterceptor[] NO_INTERCEPTORS = new EJBClientInterceptor[0];
     private static final EJBTransportProvider[] NO_TRANSPORT_PROVIDERS = new EJBTransportProvider[0];
-    private static final EJBDiscoveryProvider[] NO_DISCOVERY_PROVIDERS = new EJBDiscoveryProvider[0];
 
     private static final Selector.Getter<EJBClientContext> SELECTOR_GETTER = Selector.selectorGetterFor(EJBClientContext.class);
+    private static final ServiceType EJB_SERVICE_TYPE = ServiceType.of("ejb", "jboss");
 
     private final EJBClientInterceptor[] interceptors;
     private final EJBTransportProvider[] transportProviders;
-    private final EJBDiscoveryProvider[] discoveryProviders;
-    private final EJBReceiver noAffinityReceiver;
     private final long invocationTimeout;
+    private final Discovery discovery;
 
     EJBClientContext(Builder builder) {
         final List<EJBClientInterceptor> builderInterceptors = builder.interceptors;
@@ -66,22 +64,7 @@ public final class EJBClientContext extends Attachable {
         } else {
             transportProviders = builderTransportProviders.toArray(new EJBTransportProvider[builderTransportProviders.size()]);
         }
-        final List<EJBDiscoveryProvider> builderDiscoveryProviders = builder.discoveryProviders;
-        if (builderDiscoveryProviders == null || builderDiscoveryProviders.isEmpty()) {
-            discoveryProviders = NO_DISCOVERY_PROVIDERS;
-        } else {
-            discoveryProviders = builderDiscoveryProviders.toArray(new EJBDiscoveryProvider[builderDiscoveryProviders.size()]);
-        }
-        // todo: use a discovery-aware receiver here
-        noAffinityReceiver = new EJBReceiver() {
-            protected void processInvocation(final EJBClientInvocationContext clientInvocationContext, final EJBReceiverInvocationContext receiverContext) throws Exception {
-
-            }
-
-            protected <T> StatefulEJBLocator<T> openSession(final StatelessEJBLocator<T> statelessLocator) throws IllegalArgumentException, CreateException {
-                return null;
-            }
-        };
+        discovery = Discovery.create(builder.discoveryProviders.toArray(new DiscoveryProvider[builder.discoveryProviders.size()]));
         invocationTimeout = 0;
     }
 
@@ -95,8 +78,8 @@ public final class EJBClientContext extends Attachable {
     public static final class Builder {
 
         List<EJBClientInterceptor> interceptors;
-        List<EJBDiscoveryProvider> discoveryProviders;
         List<EJBTransportProvider> transportProviders;
+        List<DiscoveryProvider> discoveryProviders;
 
         /**
          * Construct a new instance.
@@ -121,7 +104,7 @@ public final class EJBClientContext extends Attachable {
             transportProviders.add(provider);
         }
 
-        public void addDiscoveryProvider(EJBDiscoveryProvider provider) {
+        public void addDiscoveryProvider(DiscoveryProvider provider) {
             if (provider == null) {
                 throw new IllegalArgumentException("provider is null");
             }
@@ -163,28 +146,19 @@ public final class EJBClientContext extends Attachable {
      * @return the first EJB receiver to match, or {@code null} if none match
      */
     EJBReceiver getEJBReceiver(final EJBLocator<?> locator) {
-        return getEJBReceiver(locator.getAffinity());
-    }
-
-    /**
-     * Get the first EJB receiver which matches the given affinity.
-     *
-     * @param affinity the affinity of the invocation target
-     * @return the first EJB receiver to match, or {@code null} if none match
-     */
-    EJBReceiver getEJBReceiver(final Affinity affinity) {
+        final Affinity affinity = locator.getAffinity();
         final String scheme;
         if (affinity instanceof NodeAffinity) {
-            scheme = "node";
+            return discoverFirst(locator);
         } else if (affinity instanceof ClusterAffinity) {
-            scheme = "cluster";
-        } else if (affinity instanceof URIAffinity) {
-            scheme = ((URIAffinity) affinity).getUri().getScheme();
+            return discoverFirst(locator);
         } else if (affinity == Affinity.LOCAL) {
             scheme = "local";
+        } else if (affinity instanceof URIAffinity) {
+            scheme = ((URIAffinity) affinity).getUri().getScheme();
         } else {
             assert affinity == Affinity.NONE;
-            return noAffinityReceiver;
+            return discoverFirst(locator);
         }
         for (EJBTransportProvider transportProvider : transportProviders) {
             if (transportProvider.supportsProtocol(scheme)) {
@@ -203,24 +177,11 @@ public final class EJBClientContext extends Attachable {
      * @throws IllegalStateException if there's no {@link EJBReceiver} that matches
      */
     EJBReceiver requireEJBReceiver(final EJBLocator<?> locator) throws IllegalStateException {
-        return requireEJBReceiver(locator.getAffinity());
-    }
-
-    /**
-     * Get the first EJB receiver which matches the given affinity. If there's
-     * no such EJB receiver, then this method throws a {@link IllegalStateException}.
-     *
-     * @param affinity the affinity of the invocation target
-     * @return the first EJB receiver to match
-     * @throws IllegalStateException if there's no {@link EJBReceiver} that matches
-     */
-    EJBReceiver requireEJBReceiver(final Affinity affinity) throws IllegalStateException {
-        // try and find a receiver which can handle this combination
-        final EJBReceiver ejbReceiver = this.getEJBReceiver(affinity);
-        if (ejbReceiver == null) {
-            throw Logs.MAIN.noEJBReceiverAvailable(affinity);
+        final EJBReceiver receiver = getEJBReceiver(locator);
+        if (receiver == null) {
+            throw Logs.MAIN.noEJBReceiverAvailable(locator.getAffinity());
         }
-        return ejbReceiver;
+        return receiver;
     }
 
     EJBClientInterceptor[] getInterceptors() {
@@ -228,61 +189,46 @@ public final class EJBClientContext extends Attachable {
     }
 
     EJBReceiver discoverFirst(EJBLocator<?> locator) {
-        final LinkedBlockingQueue<URI> queue = new LinkedBlockingQueue<>();
-        final ListDiscoveryResult discoveryResult = new ListDiscoveryResult(queue);
-        int count = discoveryProviders.length;
-        for (EJBDiscoveryProvider discoveryProvider : discoveryProviders) {
-            discoveryProvider.discover(locator, discoveryResult);
-        }
-        while (count > 0) {
-            final URI uri;
-            try {
-                uri = queue.take();
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-                // cancel operation cleanly
-                return null;
-            }
-            if (uri == DISCOVERY_DONE_MARKER) {
-                count--;
+        final Discovery discovery = this.discovery;
+        final FilterSpec filterSpec;
+        if (locator.getAffinity() == Affinity.NONE) {
+            String primary = locator.getAppName() + '/' + locator.getModuleName();
+            String secondary;
+            if (locator.getDistinctName() != null) {
+                secondary = locator.getBeanName() + '/' + locator.getDistinctName();
             } else {
-                final EJBReceiver receiver = getEJBReceiver(URIAffinity.forUri(uri));
-                if (receiver != null) {
-                    return receiver;
+                secondary = locator.getBeanName();
+            }
+            filterSpec = FilterSpec.any(
+                FilterSpec.equal("module", primary),
+                FilterSpec.equal("bean", primary + '/' + secondary)
+            );
+        } else if (locator.getAffinity() instanceof NodeAffinity) {
+            filterSpec = FilterSpec.equal("node", ((NodeAffinity) locator.getAffinity()).getNodeName());
+        } else if (locator.getAffinity() instanceof ClusterAffinity) {
+            filterSpec = FilterSpec.equal("cluster", ((ClusterAffinity) locator.getAffinity()).getClusterName());
+        } else {
+            return requireEJBReceiver(locator);
+        }
+
+        try (final ServicesQueue servicesQueue = discovery.discover(EJB_SERVICE_TYPE, filterSpec)) {
+            for (;;) {
+                final URI uri;
+                try {
+                    uri = servicesQueue.take();
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    return null;
                 }
-            }
-        }
-        return null;
-    }
-
-    private static final URI DISCOVERY_DONE_MARKER;
-
-    static {
-        try {
-            DISCOVERY_DONE_MARKER = new URI("done:done");
-        } catch (URISyntaxException e) {
-            throw new ExceptionInInitializerError(e);
-        }
-    }
-
-    static final class ListDiscoveryResult implements EJBDiscoveryProvider.DiscoveryResult {
-        private final AtomicBoolean done = new AtomicBoolean(false);
-        private final BlockingQueue<URI> queue;
-
-        ListDiscoveryResult(final BlockingQueue<URI> queue) {
-            this.queue = queue;
-        }
-
-        public void complete() {
-            if (done.compareAndSet(false, true)) {
-                queue.add(DISCOVERY_DONE_MARKER);
-            }
-        }
-
-        public void addMatch(final URI uri) {
-            if (uri != null && ! done.get()) {
-                // if the queue is full, drop
-                queue.offer(uri);
+                if (uri == null) {
+                    return null;
+                }
+                String scheme = uri.getScheme();
+                for (EJBTransportProvider transportProvider : transportProviders) {
+                    if (transportProvider.supportsProtocol(scheme)) {
+                        return transportProvider.getReceiver(scheme);
+                    }
+                }
             }
         }
     }

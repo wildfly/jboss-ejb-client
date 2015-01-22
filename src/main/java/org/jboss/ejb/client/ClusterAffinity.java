@@ -22,9 +22,6 @@
 
 package org.jboss.ejb.client;
 
-import java.net.URI;
-import java.net.URISyntaxException;
-
 /**
  * A cluster affinity specification.
  *
@@ -52,14 +49,6 @@ public final class ClusterAffinity extends Affinity {
      */
     public String getClusterName() {
         return clusterName;
-    }
-
-    Object readResolve() {
-        try {
-            return new URIAffinity(new URI("cluster", clusterName, ""));
-        } catch (URISyntaxException e) {
-            throw new IllegalArgumentException(e);
-        }
     }
 
     public String toString() {

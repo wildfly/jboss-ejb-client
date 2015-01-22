@@ -50,6 +50,7 @@
         <version.org.jboss.xnio>3.2.0.Final</version.org.jboss.xnio>
         <version.org.kohsuke.metainf-services>1.5-jboss-1</version.org.kohsuke.metainf-services>
         <version.org.wildfly.common>1.0.0.Beta1-SNAPSHOT</version.org.wildfly.common>
+        <version.org.wildfly.discovery>1.0.0.Beta1-SNAPSHOT</version.org.wildfly.discovery>
 
         <maven.compiler.source>1.7</maven.compiler.source>
         <maven.compiler.target>1.7</maven.compiler.target>
@@ -198,6 +199,12 @@
             <groupId>org.wildfly.common</groupId>
             <artifactId>wildfly-common</artifactId>
             <version>${version.org.wildfly.common}</version>
+        </dependency>
+
+        <dependency>
+            <groupId>org.wildfly.discovery</groupId>
+            <artifactId>wildfly-discovery-client</artifactId>
+            <version>${version.org.wildfly.discovery}</version>
         </dependency>
 
         <!-- JUnit -->
