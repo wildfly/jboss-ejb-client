@@ -434,6 +434,10 @@ public final class EJBClientContext extends Attachable implements Closeable {
             final ReceiverAssociation association = this.ejbReceiverAssociations.remove(receiver);
             if (association != null) {
                 final EJBReceiverContext receiverContext = association.context;
+
+                // EJBCLIENT-119 - disassociate to ensure clean up & not leaking classloaders
+                receiver.disassociate(receiverContext);
+
                 final EJBReceiverContextCloseHandler receiverContextCloseHandler = this.receiverContextCloseHandlers.remove(receiverContext);
                 if (receiverContextCloseHandler != null) {
                     receiverContextCloseHandler.receiverContextClosed(receiverContext);
@@ -810,7 +814,7 @@ public final class EJBClientContext extends Attachable implements Closeable {
     }
 
     /**
-     * Returns a {@link EJBReceiverContext} for the passed <code>receiver</code>. If the <code>receiver</code>
+     * Returns a {@link eJBReceiverContext} for the passed <code>receiver</code>. If the <code>receiver</code>
      * hasn't been registered with this {@link EJBClientContext}, either through a call to {@link #registerConnection(org.jboss.remoting3.Connection)}
      * or to {@link #requireEJBReceiver(String, String, String)}, then this method throws an {@link IllegalStateException}
      * <p/>
@@ -1228,6 +1232,15 @@ public final class EJBClientContext extends Attachable implements Closeable {
         // *isn't* the responsibility of the EJB client context. We'll just let our EJBClientContextListeners
         // (if any) know about the context being closed and let them handle closing the receivers if they want to
         this.closed = true;
+
+        // WFLY-4016 - call unregisterEJBReceiver so that listener.receiverUnRegistered(...) is called to prevent memory leak
+        EJBReceiver[] ejbReceivers;
+        synchronized (this.ejbReceiverAssociations) {
+            ejbReceivers = this.ejbReceiverAssociations.keySet().toArray(new EJBReceiver[this.ejbReceiverAssociations.size()]);
+        }
+        for(final EJBReceiver receiver : ejbReceivers) {
+            unregisterEJBReceiver(receiver);
+        }
 
         // use a new array to iterate on to avoid ConcurrentModificationException EJBCLIENT-92
         EJBClientContextListener[] listeners;
