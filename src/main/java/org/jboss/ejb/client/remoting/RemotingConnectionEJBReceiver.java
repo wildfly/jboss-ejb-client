@@ -265,11 +265,6 @@ public final class RemotingConnectionEJBReceiver extends EJBReceiver {
                 logger.warn("Caught IOException when trying to close channel: " + channelAssociation.getChannel(), e);
             }
         }
-
-        // unregister reconnect handler
-        if (this.reconnectHandler != null) {
-            context.getClientContext().unregisterReconnectHandler(this.reconnectHandler);
-        }
     }
 
     @Override
