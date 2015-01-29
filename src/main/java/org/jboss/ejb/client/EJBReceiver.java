@@ -85,6 +85,13 @@ public abstract class EJBReceiver extends Attachable {
     protected abstract void associate(EJBReceiverContext context);
 
     /**
+     * Remove an association of this EJB receiver with the EJB client context.
+     *
+     * @param context the receiver context
+     */
+    protected abstract void disassociate(EJBReceiverContext context);
+
+    /**
      * Process the invocation.  Implementations of this method should always execute the operation asynchronously.  The
      * operation result should be passed in to the receiver invocation context.  To ensure ideal GC behavior, the
      * receiver should discard any reference to the invocation context(s) once the result producer has been set.
