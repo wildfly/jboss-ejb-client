@@ -75,6 +75,9 @@ class NoSuchEJBExceptionResponseHandler extends ProtocolMessageHandler {
         // retry the invocation on a different node
         try {
             logger.info("Retrying invocation which failed on node " + receiverInvocationContext.getNodeName() + " with exception:", noSuchEJBException);
+            // EJBCLIENT-130: remove any stale invocationID associated with the failed invocation from
+            // the ChannelAssociation map of waiting method invocations
+            this.channelAssociation.cleanupStaleResponse(invocationId);
             receiverInvocationContext.retryInvocation(true);
         } catch (Exception e) {
             // retry failed, let the waiting client know of this failure

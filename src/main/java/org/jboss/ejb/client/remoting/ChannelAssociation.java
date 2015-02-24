@@ -181,6 +181,25 @@ class ChannelAssociation {
     }
 
     /**
+     * De-enroll a {@link EJBReceiverInvocationContext} from receiving (an inherently asynchronous) response for a
+     * invocation corresponding to the passed <code>invocationId</code>.
+     * This action is required when an invocation is retried on another node as a result of a NoSuchEJBException
+     * and effectively cleans up the stale invocationID and EJBClientReceiverContext of the previous attempt.
+     * .
+     * @param invocationId
+     */
+    void cleanupStaleResponse(final short invocationId) {
+        if (this.waitingMethodInvocations.containsKey(invocationId)) {
+            final EJBReceiverInvocationContext ejbReceiverInvocationContext = this.waitingMethodInvocations.remove(invocationId);
+            if (ejbReceiverInvocationContext != null) {
+                // we no longer need to keep track of the invocation id that was used for
+                // this EJB receiver invocation context, so remove it
+                this.invocationIdsPerReceiverInvocationCtx.remove(ejbReceiverInvocationContext);
+            }
+        }
+    }
+
+    /**
      * Returns a {@link Future} {@link EJBReceiverInvocationContext.ResultProducer result producer} for the
      * passed <code>invocationId</code>. This method does <b>not</b> block. The caller can use the returned
      * {@link Future} to {@link java.util.concurrent.Future#get() wait} for a {@link org.jboss.ejb.client.EJBReceiverInvocationContext.ResultProducer}
