@@ -64,6 +64,8 @@ public class PropertiesBasedEJBClientConfiguration implements EJBClientConfigura
 
     private static final String PROPERTY_KEY_INVOCATION_TIMEOUT = "invocation.timeout";
     private static final String PROPERTY_KEY_RECONNECT_TASKS_TIMEOUT = "reconnect.tasks.timeout";
+    private static final String PROPERTY_KEY_RECONNECT_TASKS_INTERVAL = "reconnect.tasks.interval";
+
     private static final String PROPERTY_KEY_DEPLOYMENT_NODE_SELECTOR = "deployment.node.selector";
 
     private static final String ENDPOINT_CREATION_OPTIONS_PREFIX = "endpoint.create.options.";
@@ -102,6 +104,7 @@ public class PropertiesBasedEJBClientConfiguration implements EJBClientConfigura
     private Map<String, ClusterConfiguration> clusterConfigurations = new HashMap<String, ClusterConfiguration>();
     private long invocationTimeout = 0;
     private long reconnectTasksTimeout = 0;
+    private long reconnectTasksInterval = 0;
     private DeploymentNodeSelector deploymentNodeSelector = new RandomDeploymentNodeSelector();
 
     private static final boolean expandPasswords = Boolean.valueOf(
@@ -170,6 +173,11 @@ public class PropertiesBasedEJBClientConfiguration implements EJBClientConfigura
     }
 
     @Override
+    public long getReconnectTasksInterval() {
+        return this.reconnectTasksInterval;
+    }
+
+    @Override
     public DeploymentNodeSelector getDeploymentNodeSelector() {
         return this.deploymentNodeSelector;
     }
@@ -205,6 +213,17 @@ public class PropertiesBasedEJBClientConfiguration implements EJBClientConfigura
                 this.reconnectTasksTimeout = Long.parseLong(reconnectTasksTimeoutValue.trim());
             } catch (NumberFormatException nfe) {
                 Logs.MAIN.incorrectReconnectTasksTimeoutValue(reconnectTasksTimeoutValue, String.valueOf(this.reconnectTasksTimeout));
+            }
+        }
+
+        // get "reconnectTaskInterval" for the connection
+        final String reconnectTaskIntervalStringVal = this.ejbReceiversConfigurationProperties.getProperty(PROPERTY_KEY_RECONNECT_TASKS_INTERVAL);
+        this.reconnectTasksInterval = 5000L; // default value 5 seconds
+        if (reconnectTaskIntervalStringVal != null && !reconnectTaskIntervalStringVal.trim().isEmpty()) {
+            try {
+               this.reconnectTasksInterval = Long.parseLong(reconnectTaskIntervalStringVal);
+            } catch (NumberFormatException nfe) {
+                Logs.MAIN.incorrectConnectionCreationDueToInvalidReconnectIntervalNumber(reconnectTaskIntervalStringVal, String.valueOf(this.reconnectTasksInterval));
             }
         }
 

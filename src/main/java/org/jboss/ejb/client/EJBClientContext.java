@@ -39,16 +39,21 @@ import java.util.Properties;
 import java.util.ServiceLoader;
 import java.util.Set;
 import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.ScheduledThreadPoolExecutor;
+import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
+import java.util.concurrent.locks.AbstractQueuedSynchronizer;
 
 import org.jboss.ejb.client.remoting.ConfigBasedEJBClientContextSelector;
 import org.jboss.ejb.client.remoting.ReconnectHandler;
 import org.jboss.ejb.client.remoting.RemotingConnectionEJBReceiver;
 import org.jboss.logging.Logger;
+import org.jboss.remoting3.CloseHandler;
 import org.jboss.remoting3.Connection;
+import org.jboss.remoting3.HandleableCloseable;
 
 /**
  * The public API for an EJB client context.  An EJB client context may be associated with (and used by) one or more threads concurrently.
@@ -99,12 +104,13 @@ public final class EJBClientContext extends Attachable implements Closeable {
     private final ClusterFormationNotifier clusterFormationNotifier = new ClusterFormationNotifier();
     private final DeploymentNodeSelector deploymentNodeSelector;
 
-    private final ExecutorService ejbClientContextTasksExecutorService = Executors.newCachedThreadPool(new DaemonThreadFactory("ejb-client-context-tasks"));
-    private final List<ReconnectHandler> reconnectHandlers = new ArrayList<ReconnectHandler>();
+    private final ScheduledExecutorService ejbClientContextTasksExecutorService;
+    private volatile int numberOfReconnectTaskAlive = 0;
+    private final Map<ReconnectHandler, ScheduledFuture<?>> reconnectTasks = new HashMap<ReconnectHandler, ScheduledFuture<?>>();
 
     private final Collection<EJBClientContextListener> ejbClientContextListeners = Collections.synchronizedSet(new HashSet<EJBClientContextListener>());
     private volatile boolean closed;
-    private volatile boolean attemptingReconnect;
+
 
     private EJBClientContext(final EJBClientConfiguration ejbClientConfiguration) {
         this.ejbClientConfiguration = ejbClientConfiguration;
@@ -113,6 +119,10 @@ public final class EJBClientContext extends Attachable implements Closeable {
         } else {
             this.deploymentNodeSelector = new RandomDeploymentNodeSelector();
         }
+
+        ejbClientContextTasksExecutorService = new ScheduledThreadPoolExecutor(
+            0, new DaemonThreadFactory("ejb-client-context-tasks"), new ThreadPoolExecutor.DiscardPolicy()
+        );
     }
 
     private void init(ClassLoader classLoader) {
@@ -562,8 +572,17 @@ public final class EJBClientContext extends Attachable implements Closeable {
         if (reconnectHandler == null) {
             throw Logs.MAIN.paramCannotBeNull("Reconnect handler");
         }
-        synchronized (this.reconnectHandlers) {
-            this.reconnectHandlers.add(reconnectHandler);
+        synchronized (reconnectTasks) {
+            // avoid duplication not sure if this can guarantee anything
+            if(!this.reconnectTasks.containsKey(reconnectHandler)) {
+               long delayIntervalTryReconnect = (this.ejbClientConfiguration != null) ? this.ejbClientConfiguration.getReconnectTasksInterval() : 5000L;
+               ReconnectAttempt reconnectAttempt = new ReconnectAttempt(reconnectHandler, this);
+               ScheduledFuture<?>  currentTask = ejbClientContextTasksExecutorService.scheduleWithFixedDelay(
+                      reconnectAttempt, delayIntervalTryReconnect, delayIntervalTryReconnect, TimeUnit.MILLISECONDS
+               );
+               this.reconnectTasks.put(reconnectHandler, currentTask);
+               numberOfReconnectTaskAlive++;
+            }
         }
     }
 
@@ -573,8 +592,15 @@ public final class EJBClientContext extends Attachable implements Closeable {
      * @param reconnectHandler The reconnect handler to unregister
      */
     public void unregisterReconnectHandler(final ReconnectHandler reconnectHandler) {
-        synchronized (this.reconnectHandlers) {
-            this.reconnectHandlers.remove(reconnectHandler);
+        synchronized (reconnectTasks) {
+            ScheduledFuture<?>  currentTask = this.reconnectTasks.remove(reconnectHandler);
+            if(currentTask != null) {
+               currentTask.cancel(false);
+            }
+            numberOfReconnectTaskAlive--;
+            if(numberOfReconnectTaskAlive == 0) {
+               reconnectTasks.notifyAll();
+            }
         }
     }
 
@@ -652,7 +678,7 @@ public final class EJBClientContext extends Attachable implements Closeable {
         if (eligibleEJBReceivers.isEmpty() && attemptReconnect) {
             // we found no receivers, so see if we there are re-connect handlers which can create possible
             // receivers
-            this.attemptReconnections();
+            this.waitTimeoutForReconnections();
             // now that the re-connect handlers have run, let's fetch the receivers (if any) for this app/module/distinct-name
             // combination. We won't attempt any reconnections now.
             eligibleEJBReceivers.addAll(this.getEJBReceivers(appName, moduleName, distinctName, false));
@@ -663,7 +689,7 @@ public final class EJBClientContext extends Attachable implements Closeable {
     /**
      * Get the first EJB receiver which matches the given combination of app, module and distinct name.
      *
-     * @param appName      the application name, or {@code null} for a top-level module
+     * @param appName      the application name, or {@code null} for a top-level moduler
      * @param moduleName   the module name
      * @param distinctName the distinct name, or {@code null} for none
      * @return the first EJB receiver to match, or {@code null} if none match
@@ -886,7 +912,7 @@ public final class EJBClientContext extends Attachable implements Closeable {
         // no EJB receiver found for the node name, so let's see if there are re-connect handlers which can
         // create the EJB receivers
         if (attemptReconnect) {
-            this.attemptReconnections();
+            this.waitTimeoutForReconnections();
             // now that re-connections have been attempted, let's fetch any EJB receiver for this node name.
             // we won't try reconnecting again now
             return this.getNodeEJBReceiver(nodeName, false);
@@ -964,7 +990,7 @@ public final class EJBClientContext extends Attachable implements Closeable {
         if (ejbReceiverContext == null && attemptReconnect) {
             // no receiver context was found for the cluster. So let's see if there are any re-connect handlers
             // which can generate the EJB receivers
-            this.attemptReconnections();
+            this.waitTimeoutForReconnections();
             // now that we have attempted the re-connections, let's fetch any EJB receiver context for the cluster.
             // we won't try re-connecting again now
             return this.getClusterEJBReceiverContext(invocationContext, clusterName, false);
@@ -1146,8 +1172,12 @@ public final class EJBClientContext extends Attachable implements Closeable {
         }
     }
 
-    private void attemptReconnections() {
-        final CountDownLatch reconnectTasksCompletionNotifierLatch;
+    /**
+     * The function can either finish because all the live tasks have been finished or the timeout has expired
+     * It waits for the reconnection tasks alive to end (successfully or not) at least one time.
+     * The method expires after <b>reconnect.tasks.timeout</b> (in milliseconds).
+     */
+    private void waitTimeoutForReconnections() {
         synchronized(this) {
             if (this.closed) {
                 if (logger.isTraceEnabled()) {
@@ -1155,46 +1185,24 @@ public final class EJBClientContext extends Attachable implements Closeable {
                 }
                 return;
             }
-            if(this.attemptingReconnect) {
-                if (logger.isTraceEnabled()) {
-                    logger.trace("EJB client context " + this + " is already attempting to reconnect");
-                }
-                return;
-            }
-
-            final List<ReconnectHandler> reconnectHandlersToAttempt;
-            synchronized( this.reconnectHandlers ) {
-                reconnectHandlersToAttempt =  new ArrayList<ReconnectHandler>(this.reconnectHandlers);
-            }
-
-            if (reconnectHandlersToAttempt.isEmpty()) {
-                // no re-connections to attempt, just return
-                return;
-            }
-
-            reconnectTasksCompletionNotifierLatch = new CountDownLatch(reconnectHandlersToAttempt.size());
-            for (final ReconnectHandler reconnectHandler : reconnectHandlersToAttempt) {
-                // submit each of the re-connection tasks
-                this.ejbClientContextTasksExecutorService.submit(new ReconnectAttempt(reconnectHandler, reconnectTasksCompletionNotifierLatch, this));
-            }
-
-            // Set this flag, but only if everything else succeeded and reconnection has likely been started.
-            this.attemptingReconnect = true;
         }
-        // wait for all tasks to complete (with a upper bound on time limit)
+
+        long reconnectWaitTimeout = 10000; // default 10 seconds
+        if (this.ejbClientConfiguration != null && this.ejbClientConfiguration.getReconnectTasksTimeout() > 0) {
+            reconnectWaitTimeout = this.ejbClientConfiguration.getReconnectTasksTimeout();
+        }
+
+        // waiting as long as there are task alive or timeout expires
         try {
-            long reconnectWaitTimeout = 10000; // default 10 seconds
-            if (this.ejbClientConfiguration != null && this.ejbClientConfiguration.getReconnectTasksTimeout() > 0) {
-                reconnectWaitTimeout = this.ejbClientConfiguration.getReconnectTasksTimeout();
+            synchronized (reconnectTasks) {
+                if(numberOfReconnectTaskAlive != 0) {
+                   reconnectTasks.wait(reconnectWaitTimeout);
+                }
             }
-            reconnectTasksCompletionNotifierLatch.await(reconnectWaitTimeout, TimeUnit.MILLISECONDS);
         } catch (InterruptedException e) {
-            // ignore
-        } finally {
-            synchronized(this) {
-                this.attemptingReconnect = false;
-            }
+            logger.error("waitTimeoutForReconnections has been interrupted", e);
         }
+
     }
 
     /**
@@ -1345,12 +1353,10 @@ public final class EJBClientContext extends Attachable implements Closeable {
     private class ReconnectAttempt implements Runnable {
 
         private final ReconnectHandler reconnectHandler;
-        private final CountDownLatch taskCompletionNotifierLatch;
         private final EJBClientContext parent;
 
-        ReconnectAttempt(final ReconnectHandler reconnectHandler, final CountDownLatch taskCompletionNotifierLatch, final EJBClientContext parent) {
+        ReconnectAttempt(final ReconnectHandler reconnectHandler, final EJBClientContext parent) {
             this.reconnectHandler = reconnectHandler;
-            this.taskCompletionNotifierLatch = taskCompletionNotifierLatch;
             this.parent = parent;
         }
 
@@ -1364,10 +1370,9 @@ public final class EJBClientContext extends Attachable implements Closeable {
                 }
                 this.reconnectHandler.reconnect();
             } catch (Exception e) {
-                logger.debugf(e, "Exception trying to re-establish a connection from EJB client context %s", EJBClientContext.this);
-            } finally {
-                this.taskCompletionNotifierLatch.countDown();
+                logger.infof(e, "Exception trying to re-establish a connection from EJB client context %s", EJBClientContext.this);
             }
         }
     }
+
 }
