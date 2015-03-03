@@ -109,18 +109,14 @@ public final class ClusterContext implements EJBClientContext.EJBReceiverContext
         if (nodeManagers.isEmpty()) {
             return null;
         }
-        // BZ1192471: don't modify the original sets on invocation (these are updated only by server topology and module availability updates)
-        final Set<String> availableNodes = new HashSet<String>(this.nodeManagers.keySet());
-
+        final Set<String> availableNodes = this.nodeManagers.keySet();
         // remove the excluded nodes
         availableNodes.removeAll(excludedNodes);
         if (availableNodes.isEmpty()) {
             logger.debug("No nodes available in cluster " + this.clusterName + " for selecting a receiver context");
             return null;
         }
-        // BZ1192471: don't modify the original sets on invocation (these are updated only by server topology and module availability updates)
-        final Set<String> alreadyConnectedNodes = new HashSet<String>(this.connectedNodes);
-
+        final Set<String> alreadyConnectedNodes = this.connectedNodes;
         // remove the excluded nodes
         alreadyConnectedNodes.removeAll(excludedNodes);
 
@@ -133,7 +129,8 @@ public final class ClusterContext implements EJBClientContext.EJBReceiverContext
             return null;
         }
         logger.debug(this.clusterNodeSelector + " has selected node " + selectedNodeName + ", in cluster " + this.clusterName);
-        // add this selected node name to excluded set, so that we don't try fetching a receiver for it again
+        // add this selected node name to excluded set, so that we don't try fetching a receiver for it
+        // again
         excludedNodes.add(selectedNodeName);
 
         final ClusterNodeManager clusterNodeManager = this.nodeManagers.get(selectedNodeName);
@@ -145,10 +142,7 @@ public final class ClusterContext implements EJBClientContext.EJBReceiverContext
                 // this means that the node was valid when the selection was happening, but was probably
                 // removed from the cluster before we could fetch a node manager for it
                 // let's try a different node, this current one will be excluded
-
-                // BZ1192471: don't modify the original sets on invocation (these are updated only by server topology and module availability updates)
-                final Set<String> nodesInThisCluster = new HashSet<String>(this.nodeManagers.keySet());
-
+                final Set<String> nodesInThisCluster = this.nodeManagers.keySet();
                 // if all nodes have been excluded/tried, just return null indicating no receiver is available
                 if (excludedNodes.containsAll(nodesInThisCluster)) {
                     logger.debug("All nodes have been tried for a receiver, in cluster " + clusterName + ". No suitable receiver found");
@@ -194,9 +188,7 @@ public final class ClusterContext implements EJBClientContext.EJBReceiverContext
         }
         // try some other node (if any) in this cluster. The currently selected node is
         // excluded from this next attempt
-        // BZ1192471: don't modify the original sets on invocation (these are updated only by server topology and module availability updates)
-        final Set<String> nodesInThisCluster = new HashSet<String>(this.nodeManagers.keySet());
-
+        final Set<String> nodesInThisCluster = this.nodeManagers.keySet();
         // if all nodes have been excluded/tried, just return null indicating no receiver is available
         if (excludedNodes.containsAll(nodesInThisCluster)) {
             logger.debug("All nodes have been tried for a receiver, in cluster " + clusterName + ". No suitable receiver found");
