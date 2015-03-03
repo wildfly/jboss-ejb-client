@@ -410,8 +410,8 @@ public final class ClusterContext implements EJBClientContext.EJBReceiverContext
             if (clusterNodeManager == null) {
                 // we don't have a cluster node manager which could create the EJB receiver, for this
                 // node name
-                logger.debug("Cannot create EJBReceiver since no cluster node manager found for node "
-                        + nodeName + " in cluster context for cluster " + clusterName);
+                logger.debugf("Cannot create EJBReceiver since no cluster node manager found for node %s in cluster context for cluster %s",
+                        nodeName, clusterName);
                 return null;
             }
             // get the EJB receiver from the node manager
