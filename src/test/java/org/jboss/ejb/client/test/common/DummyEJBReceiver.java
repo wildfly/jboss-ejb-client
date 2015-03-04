@@ -45,11 +45,6 @@ public class DummyEJBReceiver extends EJBReceiver {
     }
 
     @Override
-    protected void disassociate(EJBReceiverContext context) {
-    }
-
-
-    @Override
     protected void processInvocation(EJBClientInvocationContext mapEJBClientInvocationContext, EJBReceiverInvocationContext receiverContext) throws Exception {
     }
 

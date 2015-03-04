@@ -58,7 +58,6 @@ import org.jboss.remoting3.CloseHandler;
 import org.jboss.remoting3.Connection;
 import org.jboss.remoting3.MessageOutputStream;
 import org.xnio.IoFuture;
-import org.xnio.IoUtils;
 import org.xnio.OptionMap;
 
 /**
@@ -207,28 +206,6 @@ public final class RemotingConnectionEJBReceiver extends EJBReceiver {
             } catch (InterruptedException e) {
                 logger.debug("Caught InterruptedException while waiting for initial module availability report for " + this, e);
             }
-        }
-    }
-
-    @Override
-    public void disassociate(final EJBReceiverContext context) {
-        ChannelAssociation channelAssociation = null;
-        synchronized (this.channelAssociations) {
-            channelAssociation = this.channelAssociations.remove(context);
-        }
-
-        // close the channel that is associated
-        if(channelAssociation != null) {
-            try {
-                channelAssociation.getChannel().close();
-            } catch(IOException e) {
-                logger.warn("Caught IOException when trying to close channel: " + channelAssociation.getChannel(), e);
-            }
-        }
-
-        // unregister reconnect handler
-        if (this.reconnectHandler != null) {
-            context.getClientContext().unregisterReconnectHandler(this.reconnectHandler);
         }
     }
 
