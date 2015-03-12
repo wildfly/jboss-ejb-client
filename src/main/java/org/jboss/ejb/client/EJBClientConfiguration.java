@@ -113,6 +113,16 @@ public interface EJBClientConfiguration {
     long getReconnectTasksTimeout();
 
     /**
+     * Returns the wait timeout, in milliseconds, that will be used between the reconnect tasks retries.
+     * Once a connection is lost, the ejbclient submit a new scheduled a new reconnect task till the connection is reestablished.
+     * If one task fails to reconnect the ejb client will wait this interval till next retry.
+     * If this method returns zero or a negative value, then a default of 5 second timeout will be used.
+     *
+     * @return
+     */
+    long getReconnectTasksInterval();
+
+    /**
      * Returns the {@link DeploymentNodeSelector} to be used for the {@link EJBClientContext} created
      * out of this {@link EJBClientConfiguration}. If this method returns null, then it's upto the implementation
      * to use some default {@link DeploymentNodeSelector}

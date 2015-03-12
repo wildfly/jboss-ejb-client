@@ -265,6 +265,10 @@ public interface Logs extends BasicLogger {
     @Message(id = 61, value = "Cannot send a transaction recovery message to the server since the protocol version of EJBReceiver %s doesn't support it")
     void transactionRecoveryMessageNotSupported(EJBReceiver receiver);
 
+    @LogMessage(level = INFO)
+    @Message(id = 62, value = "Incorrect Reconnection interval value %s specified. Defaulting to %s")
+    void incorrectConnectionCreationDueToInvalidReconnectIntervalNumber(final String taskInterval, final String defaultTaskInterval);
+
     // Proxy API errors
 
     @Message(id = 100, value = "Object '%s' is not a valid proxy object")
