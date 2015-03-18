@@ -619,4 +619,8 @@ public class DummyServer {
             return result;
         }
     }
+
+    public int getNumberChannelsOpened() {
+        return openChannels.size();	
+    }
 }

@@ -1220,7 +1220,14 @@ public final class EJBClientContext extends Attachable implements Closeable {
         // *isn't* the responsibility of the EJB client context. We'll just let our EJBClientContextListeners
         // (if any) know about the context being closed and let them handle closing the receivers if they want to
         this.closed = true;
-
+        // tasks reconnection cleanup. control when these tasks are cancelled.
+        synchronized (reconnectTasks) {
+            Iterator<ScheduledFuture<?>> iterator = reconnectTasks.values().iterator();
+            while(iterator.hasNext()) {
+                iterator.next().cancel(false);
+                iterator.remove();
+            }
+        }
         // use a new array to iterate on to avoid ConcurrentModificationException EJBCLIENT-92
         EJBClientContextListener[] listeners;
         synchronized (this.ejbClientContextListeners) {
