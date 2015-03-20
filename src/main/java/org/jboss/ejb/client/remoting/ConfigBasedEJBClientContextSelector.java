@@ -57,6 +57,9 @@ public class ConfigBasedEJBClientContextSelector implements IdentityEJBClientCon
 
     private volatile boolean receiversSetup;
 
+    private static final boolean reconnectOnAuthenticationFailures = Boolean.valueOf(
+            System.getProperty("jboss-ejb-client.reconnectOnAuthenticationFailures", "true")).booleanValue();
+
 
     /**
      * Creates a {@link ConfigBasedEJBClientContextSelector} using the passed <code>ejbClientConfiguration</code>.
@@ -162,16 +165,32 @@ public class ConfigBasedEJBClientContextSelector implements IdentityEJBClientCon
                     this.ejbClientContext.registerEJBReceiver(remotingEJBReceiver);
                     // keep track of successful registrations for logging purposes
                     successfulEJBReceiverRegistrations++;
+                } catch (javax.security.sasl.SaslException e) {
+                    // just log the warn but don't throw an exception. Move onto the next connection configuration (if any)
+                    logger.warn("Could not register a EJB receiver for connection to " + host + ":" + port, e);
+
+                    if( reconnectOnAuthenticationFailures ) {
+                        registerReconnectHandler(reconnectHandler, host, port);
+                    }
+                    else {
+                        logger.debug("Skipped registering a reconnect handler due to an authentication error!");
+                    }
                 } catch (Exception e) {
                     // just log the warn but don't throw an exception. Move onto the next connection configuration (if any)
                     logger.warn("Could not register a EJB receiver for connection to " + host + ":" + port, e);
-                    // add a reconnect handler for this connection
-                    this.ejbClientContext.registerReconnectHandler(reconnectHandler);
-                    logger.debugf("Registered a reconnect handler in EJB client context %s for remote://%s:%d", this.ejbClientContext,  host, port);
+                    registerReconnectHandler(reconnectHandler, host, port);
                 }
             }
         }
         logger.debugf("Registered %s remoting EJB receivers for EJB client context %s", successfulEJBReceiverRegistrations, this.ejbClientContext);
+    }
+
+    private void registerReconnectHandler(final ReconnectHandler reconnectHandler, String host, int port) {
+        // add a reconnect handler for this connection
+        if (reconnectHandler != null) {
+            this.ejbClientContext.registerReconnectHandler(reconnectHandler);
+            logger.debug("Registered a reconnect handler in EJB client context " + this.ejbClientContext + " for remote://" + host + ":" + port);
+        }
     }
 
     @Override
