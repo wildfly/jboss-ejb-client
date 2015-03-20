@@ -37,10 +37,12 @@ import org.jboss.ejb.client.EJBClientContext;
 import org.jboss.ejb.client.EJBReceiverContext;
 import org.jboss.ejb.client.EJBReceiverInvocationContext;
 import org.jboss.ejb.client.Logs;
+import org.jboss.ejb.client.remoting.ConnectionPool.ConnectionPoolListener;
 import org.jboss.logging.Logger;
 import org.jboss.marshalling.MarshallerFactory;
 import org.jboss.remoting3.Channel;
 import org.jboss.remoting3.CloseHandler;
+import org.jboss.remoting3.Connection;
 import org.jboss.remoting3.MessageInputStream;
 import org.jboss.remoting3.MessageOutputStream;
 import org.jboss.remoting3.RemotingOptions;
@@ -408,8 +410,19 @@ class ChannelAssociation {
             // register a re-connect handler (if available) to the EJB client context
             if (this.reconnectHandler != null) {
                 final EJBClientContext ejbClientContext = this.ejbReceiverContext.getClientContext();
-                logger.debug("Registering a re-connect handler " + this.reconnectHandler + " for broken channel " + this.channel + " in EJB client context " + ejbClientContext);
-                ejbClientContext.registerReconnectHandler(this.reconnectHandler);
+                if (logger.isDebugEnabled()) {
+                    logger.debug("Registering a re-connect handler " + this.reconnectHandler + " for broken channel "
+                            + this.channel + " in EJB client context " + ejbClientContext);
+                }
+                // we wait till the connection is removed from the pool to register the reconnect handler
+                Connection connection = ChannelAssociation.this.channel.getConnection();
+                ConnectionPool.INSTANCE.addConnectionPoolListener(
+                        new ConnectionPool.ConnectionPoolListenerAdapter(connection) {
+                            public void removed() {
+                                ejbClientContext.registerReconnectHandler(ChannelAssociation.this.reconnectHandler);
+                            }
+                        }
+                );
             }
         }
 
