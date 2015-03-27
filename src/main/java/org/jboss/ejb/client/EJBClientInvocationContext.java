@@ -207,6 +207,8 @@ public final class EJBClientInvocationContext extends Attachable {
         // reset the previously set receiver invocation context, since a possibly new receiver
         // will be selected during this retry
         this.receiverInvocationContext = null;
+        // make sure to clear the weak affinity now that ClusterContext keeps the node available
+        invocationHandler.setWeakAffinity(Affinity.NONE);
         // send request
         this.sendRequest();
     }

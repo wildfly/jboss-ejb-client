@@ -227,7 +227,7 @@ public class DummyServer {
                             }
                             return;
                         }
-                        logger.info("Method invocation result on server " + methodInvocationResult);
+                        logger.info("Method invocation result on server " + endpointName + ": " + methodInvocationResult);
                         // write the method invocation result
                         final DataOutputStream dataOutputStream = wrapMessgeOutputStream(channel.writeMessage(), methodInvocationRequest);
                         try {
