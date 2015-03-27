@@ -82,13 +82,9 @@ public final class ReceiverInterceptor implements EJBClientInterceptor {
                         receiverContext = clientContext.requireEJBReceiverContext(nodeReceiver);
                     } else {
                         receiverContext = clientContext.requireClusterEJBReceiverContext(invocationContext, ((ClusterAffinity) affinity).getClusterName());
-                        // if it works we want to stay here
-                        invocationContext.getInvocationHandler().setWeakAffinity(new NodeAffinity(receiverContext.getReceiver().getNodeName()));
                     }
                 } else {
                     receiverContext = clientContext.requireClusterEJBReceiverContext(invocationContext, ((ClusterAffinity) affinity).getClusterName());
-                    // if it works we want to stay here
-                    invocationContext.getInvocationHandler().setWeakAffinity(new NodeAffinity(receiverContext.getReceiver().getNodeName()));
                 }
             } else if (affinity == Affinity.NONE) {
                 final Affinity weakAffinity = invocationContext.getInvocationHandler().getWeakAffinity();
