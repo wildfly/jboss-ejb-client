@@ -231,6 +231,98 @@ public class StatefulClusteredApplicationUndeploymentFailoverTestCase {
 
     }
 
+    /**
+     * Starts off with 2 servers having different implementations of the same bean and invokes on the bean interface.
+     * Then un-deploys the deployment from a server which previously handled a invocation request. The un-deployment
+     * process on the server does *not* notify the client of the un-deployment and let's the client think that the
+     * deployment is still available on the server. The test continues to invoke on the proxy and the EJB client API
+     * implementation is expected to be smart enough to retry the invocation(s) on a different node after it receives
+     * a {@link javax.ejb.NoSuchEJBException} from the server which no longer has the deployment
+     * It'll then switch the registered EJBs on both servers. This to guard https://issues.jboss.org/browse/EJBCLIENT-132
+     *
+     * @throws Exception
+     * @author <a href="mailto:cdewolf@redhat.com">Carlo de Wolf</a>
+     */
+    @Test
+    public void testStatefulInvocationFailoverDueToUndeployment2() throws Exception {
+        // first try some invocations which should succeed
+        // create a proxy for invocation
+        final StatefulEJBLocator<Echo> statefulEJBLocator = EJBClient.createSession(Echo.class, APP_NAME, MODULE_NAME, EchoBean.class.getSimpleName(), DISTINCT_NAME);
+        final Echo proxy = EJBClient.createProxy(statefulEJBLocator);
+        Assert.assertNotNull("Received a null proxy", proxy);
+
+        // invoke
+        final String msg = "foo!";
+        for (int i = 0; i < 5; i++) {
+            final String echo = proxy.echo(msg);
+            Assert.assertEquals("Unexpected echo", msg, echo);
+        }
+
+        final String serverNameBeforeUndeployment = proxy.getServerName();
+        Assert.assertNotNull("Server name returned was null", serverNameBeforeUndeployment);
+        Assert.assertTrue("Unexpected server name returned", SERVER_ONE_NAME.equals(serverNameBeforeUndeployment) || SERVER_TWO_NAME.equals(serverNameBeforeUndeployment));
+
+        // now undeploy the deployment from the server on which this previous invocation happened.
+        // Note that we don't intentionally send a undeploy notification to the client and let it think that
+        // the server still has the deployment
+        final String expectedServerNameAfterUndeployment;
+        if (SERVER_ONE_NAME.equals(serverNameBeforeUndeployment)) {
+            this.serverOne.unregister(APP_NAME, MODULE_NAME, DISTINCT_NAME, EchoBean.class.getSimpleName(), false);
+            expectedServerNameAfterUndeployment = SERVER_TWO_NAME;
+        } else {
+            this.serverTwo.unregister(APP_NAME, MODULE_NAME, DISTINCT_NAME, EchoBean.class.getSimpleName(), false);
+            expectedServerNameAfterUndeployment = SERVER_ONE_NAME;
+        }
+
+        // now invoke
+        final String serverNameAfterUndeployment = proxy.getServerName();
+        Assert.assertNotNull("Server name was null after undeployment", serverNameAfterUndeployment);
+        Assert.assertFalse("Server on which deployment was undeployed was chosen", serverNameAfterUndeployment.equals(serverNameBeforeUndeployment));
+        Assert.assertEquals("Unexpected server name after undeployment", expectedServerNameAfterUndeployment, serverNameAfterUndeployment);
+
+        // do a few more invocations
+        for (int i = 0; i < 5; i++) {
+            final String echo = proxy.echo(msg);
+            Assert.assertEquals("Unexpected echo after undeployment", msg, echo);
+            final String serverName = proxy.getServerName();
+            Assert.assertEquals("Unexpected server name after undeployment", expectedServerNameAfterUndeployment, serverName);
+        }
+
+        // now switch
+        if (SERVER_ONE_NAME.equals(serverNameBeforeUndeployment)) {
+            serverOne.register(APP_NAME, MODULE_NAME, DISTINCT_NAME, EchoBean.class.getSimpleName(), new EchoBean(SERVER_ONE_NAME));
+            this.serverTwo.unregister(APP_NAME, MODULE_NAME, DISTINCT_NAME, EchoBean.class.getSimpleName(), false);
+        } else {
+            serverTwo.register(APP_NAME, MODULE_NAME, DISTINCT_NAME, EchoBean.class.getSimpleName(), new EchoBean(SERVER_TWO_NAME));
+            this.serverOne.unregister(APP_NAME, MODULE_NAME, DISTINCT_NAME, EchoBean.class.getSimpleName(), false);
+        }
+
+        // do a few more invocations
+        for (int i = 0; i < 5; i++) {
+            final String echo = proxy.echo(msg);
+            Assert.assertEquals("Unexpected echo after undeployment", msg, echo);
+            final String serverName = proxy.getServerName();
+            Assert.assertEquals("Unexpected server name after undeployment", serverNameBeforeUndeployment, serverName);
+        }
+
+        // now let the server send a undeploy notification to the client so that it actually knows that the deployment
+        // is no longer present on that server
+        if (SERVER_ONE_NAME.equals(serverNameBeforeUndeployment)) {
+            this.serverTwo.unregister(APP_NAME, MODULE_NAME, DISTINCT_NAME, EchoBean.class.getSimpleName(), true);
+        } else {
+            this.serverOne.unregister(APP_NAME, MODULE_NAME, DISTINCT_NAME, EchoBean.class.getSimpleName(), true);
+        }
+
+        // do a few more invocations
+        for (int i = 0; i < 5; i++) {
+            final String echo = proxy.echo(msg);
+            Assert.assertEquals("Unexpected echo after undeployment", msg, echo);
+            final String serverName = proxy.getServerName();
+            Assert.assertEquals("Unexpected server name after undeployment", serverNameBeforeUndeployment, serverName);
+        }
+
+    }
+
     private EJBReceiver getServerOneReceiver() throws IOException, URISyntaxException {
         final Endpoint endpoint = Remoting.createEndpoint("endpoint", OptionMap.EMPTY);
         endpoint.addConnectionProvider("remote", new RemoteConnectionProviderFactory(), OptionMap.create(Options.SSL_ENABLED, Boolean.FALSE));
