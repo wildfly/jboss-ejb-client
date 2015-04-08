@@ -25,7 +25,9 @@ package org.jboss.ejb.client.remoting;
 import java.io.Closeable;
 import java.io.IOException;
 import java.security.Principal;
+import java.util.ArrayList;
 import java.util.Collection;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
@@ -36,6 +38,7 @@ import javax.net.ssl.SSLSession;
 import javax.security.auth.callback.CallbackHandler;
 
 import org.jboss.ejb.client.EJBClientConfiguration;
+import org.jboss.ejb.client.remoting.ConnectionPool.ConnectionPoolListener;
 import org.jboss.logging.Logger;
 import org.jboss.remoting3.Attachments;
 import org.jboss.remoting3.Channel;
@@ -66,6 +69,8 @@ class ConnectionPool {
     }
 
     private final ConcurrentMap<CacheKey, PooledConnection> cache = new ConcurrentHashMap<CacheKey, PooledConnection>();
+
+    private final List<ConnectionPoolListener> connectionPoolListeners = new ArrayList<ConnectionPoolListener>();
 
     private ConnectionPool() {
 
@@ -104,7 +109,7 @@ class ConnectionPool {
                     safeClose(connection);
                 }
             } finally {
-                cache.remove(connectionHash);
+                fireConnectionPoolListener(cache.remove(connectionHash));
             }
         }
     }
@@ -286,7 +291,53 @@ class ConnectionPool {
 
         @Override
         public void handleClose(HandleableCloseable closable, IOException e) {
-            cache.remove(this.key);
+            fireConnectionPoolListener(cache.remove(this.key));
+        }
+    }
+
+    public interface ConnectionPoolListener {
+        void removed(Connection connection);
+    }
+
+    public static class ConnectionPoolListenerAdapter implements ConnectionPoolListener {
+
+        public void removed(Connection connection) {}
+
+        protected void consume() {
+            INSTANCE.removeConnectionPoolListener(this);
+        }
+
+        protected Connection unwrap(Connection connection) {
+           if(connection instanceof PooledConnection) {
+               return ((PooledConnection) connection).underlyingConnection;
+           } else {
+               return connection;
+           }
+        }
+    }
+
+    public void addConnectionPoolListener(ConnectionPoolListener listener) {
+       synchronized (connectionPoolListeners) {
+           connectionPoolListeners.add(listener);
+       }
+    }
+
+    public void removeConnectionPoolListener(ConnectionPoolListener listener) {
+        synchronized (connectionPoolListeners) {
+           connectionPoolListeners.remove(listener);
+        }
+    }
+
+    private void fireConnectionPoolListener(PooledConnection connection) {
+        if(connection == null) {
+           return;
+        }
+        List<ConnectionPoolListener> listeners = null;
+        synchronized (connectionPoolListeners) {
+            listeners = new ArrayList<ConnectionPoolListener>(connectionPoolListeners);
+        }
+        for(ConnectionPoolListener listener : listeners) {
+            listener.removed(connection.underlyingConnection);
         }
     }
 
