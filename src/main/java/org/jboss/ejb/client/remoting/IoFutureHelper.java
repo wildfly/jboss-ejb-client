@@ -89,7 +89,7 @@ public class IoFutureHelper {
             case DONE:
                 return ioFuture.get();
             case FAILED:
-                throw new RuntimeException(ioFuture.getException());
+                throw ioFuture.getException();
         }
         throw new RuntimeException("Operation failed with status " + status);
     }
