@@ -106,49 +106,4 @@ class NetworkUtil {
         }
         return "[" + address + "]";
     }
-
-    /**
-     * Returns a {@link IoFuture} to a {@link Connection} which is established to the destination host.
-     * <p/>
-     * This method takes care of any necessary formatting of the passed <code>destinationHost</code> in case
-     * it's a IPv6 address.
-     *
-     * @param endpoint                  The {@link Endpoint} that will be used to establish the connection
-     * @param protocol                  The protocol to use
-     * @param destinationHost           The destination host to connect to. This can either be a host name or a IP address
-     * @param destinationPort           The destination port to connect to.
-     * @param sourceBindAddress         An optional source bind address to be used while connecting.
-     * @param connectionCreationOptions The connection creations options to use while connecting
-     * @param callbackHandler           The {@link CallbackHandler} to use for authenticating the connection creation
-     * @param sslContext                The SSL context to use for SSL connections. Can be null.
-     * @return
-     * @throws IOException
-     */
-    public static IoFuture<Connection> connect(final Endpoint endpoint, final String protocol, final String destinationHost, final int destinationPort,
-                                               final InetSocketAddress sourceBindAddress, final OptionMap connectionCreationOptions,
-                                               final CallbackHandler callbackHandler, final SSLContext sslContext) throws IOException {
-
-        InetSocketAddress destinationSocketAddress = new InetSocketAddress(formatPossibleIpv6Address(destinationHost), destinationPort);
-        return connect(endpoint, protocol, destinationSocketAddress, sourceBindAddress, connectionCreationOptions, callbackHandler, sslContext);
-    }
-
-    /**
-     * Returns a {@link IoFuture} to a {@link Connection} which is established to the destination host.
-     * <p/>
-     *
-     * @param endpoint                  The {@link Endpoint} that will be used to establish the connection
-     * @param protocol                  The protocol to use
-     * @param destination               The {@link InetSocketAddress} destination to connect to
-     * @param sourceBindAddress         An optional source bind address to be used while connecting.
-     * @param connectionCreationOptions The connection creations options to use while connecting
-     * @param callbackHandler           The {@link CallbackHandler} to use for authenticating the connection creation
-     * @param sslContext                The SSL context to use for SSL connections. Can be null.
-     * @return
-     * @throws IOException
-     */
-    public static IoFuture<Connection> connect(final Endpoint endpoint, final String protocol, final InetSocketAddress destination,
-                                               final InetSocketAddress sourceBindAddress, final OptionMap connectionCreationOptions,
-                                               final CallbackHandler callbackHandler, final SSLContext sslContext) throws IOException {
-        return endpoint.connect(protocol, sourceBindAddress, destination, connectionCreationOptions, callbackHandler, sslContext);
-    }
 }

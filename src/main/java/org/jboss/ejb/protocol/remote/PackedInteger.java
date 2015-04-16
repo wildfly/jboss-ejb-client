@@ -35,8 +35,7 @@ import java.io.IOException;
  *
  * @author <a href="mailto:cdewolf@redhat.com">Carlo de Wolf</a>
  */
-@Deprecated // protocol internals, make non-public
-public class PackedInteger {
+class PackedInteger {
 
 
     /**
