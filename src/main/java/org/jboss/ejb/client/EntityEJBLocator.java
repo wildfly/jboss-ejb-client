@@ -28,6 +28,7 @@ import java.io.ObjectInputStream;
 import javax.ejb.EJBObject;
 
 import org.jboss.marshalling.FieldSetter;
+import org.wildfly.common.Assert;
 
 /**
  * A locator for an entity EJB.
@@ -97,9 +98,7 @@ public final class EntityEJBLocator<T extends EJBObject> extends EJBLocator<T> {
      */
     public EntityEJBLocator(final Class<T> viewType, final String appName, final String moduleName, final String beanName, final String distinctName, final Object primaryKey, final Affinity affinity) {
         super(viewType, appName, moduleName, beanName, distinctName, affinity);
-        if (primaryKey == null) {
-            throw Logs.MAIN.paramCannotBeNull("primary key");
-        }
+        Assert.checkNotNullParam("primaryKey", primaryKey);
         this.primaryKey = primaryKey;
         hashCode = primaryKey.hashCode() * 13 + super.hashCode();
     }
@@ -116,7 +115,7 @@ public final class EntityEJBLocator<T extends EJBObject> extends EJBLocator<T> {
         hashCode = primaryKey.hashCode() * 13 + super.hashCode();
     }
 
-    public EJBLocator<T> withNewAffinity(final Affinity affinity) {
+    public EntityEJBLocator<T> withNewAffinity(final Affinity affinity) {
         return new EntityEJBLocator<T>(this, affinity);
     }
 

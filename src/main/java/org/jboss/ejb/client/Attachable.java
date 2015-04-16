@@ -22,8 +22,11 @@
 
 package org.jboss.ejb.client;
 
+import java.util.Collections;
 import java.util.IdentityHashMap;
 import java.util.Map;
+
+import org.wildfly.common.Assert;
 
 /**
  * An object which may have attachments.  Even if the object is serializable, its
@@ -32,14 +35,14 @@ import java.util.Map;
  * @author <a href="mailto:david.lloyd@redhat.com">David M. Lloyd</a>
  */
 public abstract class Attachable {
-    private final Map<Object, Object> attachments;
+    private final Map<AttachmentKey<?>, Object> attachments;
 
-    private Attachable(Map<Object, Object> attachments) {
+    private Attachable(Map<AttachmentKey<?>, Object> attachments) {
         this.attachments = attachments;
     }
 
     Attachable() {
-        this(new IdentityHashMap<Object, Object>());
+        this(new IdentityHashMap<AttachmentKey<?>, Object>());
     }
 
     /**
@@ -61,10 +64,25 @@ public abstract class Attachable {
     @SuppressWarnings("unchecked")
     public <T> T getAttachment(AttachmentKey<T> key) {
         if (key == null) return null;
-        final Map<Object, Object> attachments = this.attachments;
+        final Map<AttachmentKey<?>, Object> attachments = this.attachments;
         synchronized (attachments) {
             return (T) attachments.get(key);
         }
+    }
+
+    /**
+     * Returns the attachments applicable for this {@link Attachable}. The returned {@link Map}
+     * is an unmodifiable {@link Map}. If there are no attachments for this {@link Attachable}
+     * then this method returns an empty {@link Map}
+     *
+     * @return a read-only copy of the attachments map
+     */
+    @SuppressWarnings({ "unchecked", "rawtypes" })
+    public Map<AttachmentKey<?>, ?> getAttachments() {
+        if (this.attachments == null) {
+            return Collections.emptyMap();
+        }
+        return Collections.unmodifiableMap((Map) this.attachments);
     }
 
     /**
@@ -77,13 +95,9 @@ public abstract class Attachable {
      */
     @SuppressWarnings("unchecked")
     public <T> T putAttachment(AttachmentKey<T> key, T value) {
-        if (key == null) {
-            throw Logs.MAIN.paramCannotBeNull("key");
-        }
-        if (value == null) {
-            throw Logs.MAIN.paramCannotBeNull("value");
-        }
-        final Map<Object, Object> attachments = this.attachments;
+        Assert.checkNotNullParam("key", key);
+        Assert.checkNotNullParam("value", value);
+        final Map<AttachmentKey<?>, Object> attachments = this.attachments;
         synchronized (attachments) {
             return (T) attachments.put(key, value);
         }
@@ -99,13 +113,9 @@ public abstract class Attachable {
      */
     @SuppressWarnings("unchecked")
     public <T> T putAttachmentIfAbsent(AttachmentKey<T> key, T value) {
-        if (key == null) {
-            throw Logs.MAIN.paramCannotBeNull("key");
-        }
-        if (value == null) {
-            throw Logs.MAIN.paramCannotBeNull("value");
-        }
-        final Map<Object, Object> attachments = this.attachments;
+        Assert.checkNotNullParam("key", key);
+        Assert.checkNotNullParam("value", value);
+        final Map<AttachmentKey<?>, Object> attachments = this.attachments;
         synchronized (attachments) {
             return (T) (attachments.containsKey(key) ? attachments.get(key) : attachments.put(key, value));
         }
@@ -122,10 +132,8 @@ public abstract class Attachable {
     @SuppressWarnings("unchecked")
     public <T> T replaceAttachment(AttachmentKey<T> key, T value) {
         if (key == null) return null;
-        if (value == null) {
-            throw Logs.MAIN.paramCannotBeNull("value");
-        }
-        final Map<Object, Object> attachments = this.attachments;
+        Assert.checkNotNullParam("value", value);
+        final Map<AttachmentKey<?>, Object> attachments = this.attachments;
         synchronized (attachments) {
             return (T) (attachments.containsKey(key) ? attachments.put(key, value) : null);
         }
@@ -144,10 +152,8 @@ public abstract class Attachable {
     public <T> boolean replaceAttachment(AttachmentKey<T> key, T oldValue, T newValue) {
         if (key == null) return false;
         if (oldValue == null) return false;
-        if (newValue == null) {
-            throw Logs.MAIN.paramCannotBeNull("newValue");
-        }
-        final Map<Object, Object> attachments = this.attachments;
+        Assert.checkNotNullParam("newValue", newValue);
+        final Map<AttachmentKey<?>, Object> attachments = this.attachments;
         synchronized (attachments) {
             Object lhs = attachments.get(key);
             return attachments.containsKey(key) && oldValue.equals(lhs) && attachments.put(key, newValue) != null;
@@ -164,7 +170,7 @@ public abstract class Attachable {
     @SuppressWarnings("unchecked")
     public <T> T removeAttachment(AttachmentKey<T> key) {
         if (key == null) return null;
-        final Map<Object, Object> attachments = this.attachments;
+        final Map<AttachmentKey<?>, Object> attachments = this.attachments;
         synchronized (attachments) {
             return (T) attachments.remove(key);
         }
@@ -182,7 +188,7 @@ public abstract class Attachable {
     public <T> boolean removeAttachment(AttachmentKey<T> key, T value) {
         if (key == null) return false;
         if (value == null) return false;
-        final Map<Object, Object> attachments = this.attachments;
+        final Map<AttachmentKey<?>, Object> attachments = this.attachments;
         synchronized (attachments) {
             Object lhs = attachments.get(key);
             return attachments.containsKey(key) && value.equals(lhs) && attachments.remove(key) != null;

@@ -23,6 +23,7 @@
 package org.jboss.ejb.client;
 
 import org.jboss.marshalling.FieldSetter;
+import org.wildfly.common.Assert;
 
 import java.io.IOException;
 import java.io.ObjectInputStream;
@@ -94,9 +95,7 @@ public final class StatefulEJBLocator<T> extends EJBLocator<T> {
      */
     public StatefulEJBLocator(final Class<T> viewType, final String appName, final String moduleName, final String beanName, final String distinctName, final SessionID sessionId, final Affinity affinity) {
         super(viewType, appName, moduleName, beanName, distinctName, affinity);
-        if (sessionId == null) {
-            throw new IllegalArgumentException("sessionId is null");
-        }
+        Assert.checkNotNullParam("sessionId", sessionId);
         this.sessionId = sessionId;
         hashCode = sessionId.hashCode() * 13 + super.hashCode();
     }
@@ -113,7 +112,36 @@ public final class StatefulEJBLocator<T> extends EJBLocator<T> {
         hashCode = sessionId.hashCode() * 13 + super.hashCode();
     }
 
-    public EJBLocator<T> withNewAffinity(final Affinity affinity) {
+    /**
+     * Construct a new instance.  This constructor uses the location from the original locator, but with the given
+     * session ID.
+     *
+     * @param original the original locator
+     * @param sessionId the session ID
+     */
+    public StatefulEJBLocator(final EJBLocator<T> original, final SessionID sessionId) {
+        super(original, original.getAffinity());
+        Assert.checkNotNullParam("sessionId", sessionId);
+        this.sessionId = sessionId;
+        hashCode = sessionId.hashCode() * 13 + super.hashCode();
+    }
+
+    /**
+     * Construct a new instance.  This constructor uses the location from the original locator, but with the given
+     * session ID and affinity.
+     *
+     * @param original the original locator
+     * @param sessionId the session ID
+     * @param newAffinity the new affinity
+     */
+    public StatefulEJBLocator(final EJBLocator<T> original, final SessionID sessionId, final Affinity newAffinity) {
+        super(original, newAffinity);
+        Assert.checkNotNullParam("sessionId", sessionId);
+        this.sessionId = sessionId;
+        hashCode = sessionId.hashCode() * 13 + super.hashCode();
+    }
+
+    public StatefulEJBLocator<T> withNewAffinity(final Affinity affinity) {
         return new StatefulEJBLocator<T>(this, affinity);
     }
 

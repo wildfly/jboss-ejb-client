@@ -162,6 +162,24 @@ public final class EJBClientInvocationContext extends Attachable {
     }
 
     /**
+     * Get the method type signature string, used to identify the method.
+     *
+     * @return the method signature string
+     */
+    public String getMethodSignatureString() {
+        return methodInfo.getSignature();
+    }
+
+    /**
+     * Get the EJB method locator.
+     *
+     * @return the EJB method locator
+     */
+    public EJBMethodLocator<?> getMethodLocator() {
+        return methodInfo.getMethodLocator();
+    }
+
+    /**
      * Get the context data.  This same data will be made available verbatim to
      * server-side interceptors via the {@code InvocationContext.getContextData()} method, and thus
      * can be used to pass data from the client to the server (as long as all map values are
@@ -170,8 +188,9 @@ public final class EJBClientInvocationContext extends Attachable {
      * @return the context data
      */
     public Map<String, Object> getContextData() {
+        final Map<String, Object> contextData = this.contextData;
         if (contextData == null) {
-            return contextData = new LinkedHashMap<String, Object>();
+            return this.contextData = new LinkedHashMap<String, Object>();
         } else {
             return contextData;
         }
@@ -199,7 +218,7 @@ public final class EJBClientInvocationContext extends Attachable {
                 throw Logs.MAIN.sendRequestCalledDuringWrongPhase();
             }
             if (chain.length == idx) {
-                receiver.processInvocation(this, new EJBReceiverInvocationContext(this));
+                receiver.processInvocation(new EJBReceiverInvocationContext(this));
             } else {
                 chain[idx].handleInvocation(this);
             }

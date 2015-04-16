@@ -43,11 +43,10 @@ public abstract class EJBReceiver extends Attachable {
      * operation result should be passed in to the receiver invocation context.  To ensure ideal GC behavior, the
      * receiver should discard any reference to the invocation context(s) once the result producer has been set.
      *
-     * @param clientInvocationContext the interceptor clientInvocationContext
      * @param receiverContext         The EJB receiver invocation context
      * @throws Exception if the operation throws an exception
      */
-    protected abstract void processInvocation(EJBClientInvocationContext clientInvocationContext, EJBReceiverInvocationContext receiverContext) throws Exception;
+    protected abstract void processInvocation(EJBReceiverInvocationContext receiverContext) throws Exception;
 
     /**
      * Attempt to cancel an invocation.  Implementations should make a reasonable effort to determine whether
@@ -73,5 +72,5 @@ public abstract class EJBReceiver extends Attachable {
      * @throws IllegalArgumentException if the session creation request is made for a bean which is <i>not</i> a stateful
      *                                  session bean
      */
-    protected abstract <T> StatefulEJBLocator<T> openSession(final StatelessEJBLocator<T> statelessLocator) throws IllegalArgumentException, CreateException;
+    protected abstract <T> StatefulEJBLocator<T> openSession(final StatelessEJBLocator<T> statelessLocator) throws Exception;
 }

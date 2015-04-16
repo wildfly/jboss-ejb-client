@@ -38,6 +38,7 @@ public final class EJBHandle<T extends EJBObject> implements Handle {
     private static final long serialVersionUID = -4870688692508067759L;
 
     private final EJBLocator<T> locator;
+    private transient T proxy;
 
     /**
      * Construct a new instance.
@@ -59,7 +60,8 @@ public final class EJBHandle<T extends EJBObject> implements Handle {
      * {@inheritDoc}
      */
     public T getEJBObject() throws RemoteException {
-        return EJBClient.createProxy(locator);
+        final T proxy = this.proxy;
+        return proxy != null ? proxy : (this.proxy = EJBClient.createProxy(locator));
     }
 
     /**

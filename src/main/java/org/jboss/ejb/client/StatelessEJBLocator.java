@@ -93,7 +93,7 @@ public final class StatelessEJBLocator<T> extends EJBLocator<T> {
         super(original, newAffinity);
     }
 
-    public EJBLocator<T> withNewAffinity(final Affinity affinity) {
+    public StatelessEJBLocator<T> withNewAffinity(final Affinity affinity) {
         return new StatelessEJBLocator<T>(this, affinity);
     }
 

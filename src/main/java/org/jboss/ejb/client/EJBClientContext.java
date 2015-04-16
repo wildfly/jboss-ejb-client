@@ -40,11 +40,15 @@ import org.wildfly.discovery.spi.DiscoveryProvider;
  */
 public final class EJBClientContext extends Attachable {
 
+    /**
+     * The service type to use for EJB discovery.
+     */
+    public static final ServiceType EJB_SERVICE_TYPE = ServiceType.of("ejb", "jboss");
+
     private static final EJBClientInterceptor[] NO_INTERCEPTORS = new EJBClientInterceptor[0];
     private static final EJBTransportProvider[] NO_TRANSPORT_PROVIDERS = new EJBTransportProvider[0];
 
     private static final Selector.Getter<EJBClientContext> SELECTOR_GETTER = Selector.selectorGetterFor(EJBClientContext.class);
-    private static final ServiceType EJB_SERVICE_TYPE = ServiceType.of("ejb", "jboss");
 
     private final EJBClientInterceptor[] interceptors;
     private final EJBTransportProvider[] transportProviders;
@@ -64,7 +68,15 @@ public final class EJBClientContext extends Attachable {
         } else {
             transportProviders = builderTransportProviders.toArray(new EJBTransportProvider[builderTransportProviders.size()]);
         }
-        discovery = Discovery.create(builder.discoveryProviders.toArray(new DiscoveryProvider[builder.discoveryProviders.size()]));
+        final ArrayList<DiscoveryProvider> discoveryProviders = new ArrayList<>();
+        for (EJBTransportProvider transportProvider : transportProviders) {
+            final DiscoveryProvider discoveryProvider = transportProvider.getDiscoveryProvider();
+            if (discoveryProvider != null) {
+                discoveryProviders.add(discoveryProvider);
+            }
+        }
+        discoveryProviders.addAll(builder.discoveryProviders);
+        discovery = Discovery.create(discoveryProviders.toArray(new DiscoveryProvider[discoveryProviders.size()]));
         invocationTimeout = 0;
     }
 

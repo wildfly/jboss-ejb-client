@@ -34,6 +34,7 @@ import javax.ejb.EJBHome;
 import javax.ejb.EJBObject;
 
 import org.jboss.marshalling.FieldSetter;
+import org.wildfly.common.Assert;
 
 /**
  * An identifier for an EJB proxy invocation target instance, suitable for use as a hash key or a serialized token.
@@ -55,21 +56,11 @@ public abstract class EJBLocator<T> implements Serializable {
     private static final FieldSetter hashCodeSetter = FieldSetter.get(EJBLocator.class, "hashCode");
 
     EJBLocator(final Class<T> viewType, final String appName, final String moduleName, final String beanName, final String distinctName, final Affinity affinity) {
-        if (viewType == null) {
-            throw Logs.MAIN.paramCannotBeNull("viewType");
-        }
-        if (appName == null) {
-            throw Logs.MAIN.paramCannotBeNull("appName");
-        }
-        if (moduleName == null) {
-            throw Logs.MAIN.paramCannotBeNull("moduleName");
-        }
-        if (beanName == null) {
-            throw Logs.MAIN.paramCannotBeNull("beanName");
-        }
-        if (distinctName == null) {
-            throw Logs.MAIN.paramCannotBeNull("distinctName");
-        }
+        Assert.checkNotNullParam("viewType", viewType);
+        Assert.checkNotNullParam("appName", appName);
+        Assert.checkNotNullParam("moduleName", moduleName);
+        Assert.checkNotNullParam("beanName", beanName);
+        Assert.checkNotNullParam("distinctName", distinctName);
         this.viewType = viewType;
         this.appName = appName;
         this.moduleName = moduleName;
@@ -80,9 +71,7 @@ public abstract class EJBLocator<T> implements Serializable {
     }
 
     EJBLocator(final EJBLocator<T> original, final Affinity newAffinity) {
-        if (original == null) {
-            throw new IllegalArgumentException("original is null");
-        }
+        Assert.checkNotNullParam("original", original);
         this.viewType = original.viewType;
         this.appName = original.appName;
         this.moduleName = original.moduleName;

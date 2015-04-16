@@ -95,7 +95,7 @@ public final class EJBHomeLocator<T extends EJBHome> extends EJBLocator<T> {
         super(original, newAffinity);
     }
 
-    public EJBLocator<T> withNewAffinity(final Affinity affinity) {
+    public EJBHomeLocator<T> withNewAffinity(final Affinity affinity) {
         return new EJBHomeLocator<T>(this, affinity);
     }
 

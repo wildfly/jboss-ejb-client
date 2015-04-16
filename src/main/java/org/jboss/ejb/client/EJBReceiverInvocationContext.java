@@ -62,6 +62,15 @@ public final class EJBReceiverInvocationContext {
     }
 
     /**
+     * Get the client invocation context associated with this receiver invocation context.
+     *
+     * @return the client invocation context
+     */
+    public EJBClientInvocationContext getClientInvocationContext() {
+        return clientInvocationContext;
+    }
+
+    /**
      * A result producer for invocation.
      */
     public interface ResultProducer {
@@ -78,6 +87,44 @@ public final class EJBReceiverInvocationContext {
          * Discard the result, indicating that it will not be used.
          */
         void discardResult();
+
+        /**
+         * A result producer for failure cases.
+         */
+        class Failed implements ResultProducer {
+            private final Exception cause;
+
+            /**
+             * Construct a new instance.
+             *
+             * @param cause the failure cause
+             */
+            public Failed(final Exception cause) {
+                this.cause = cause;
+            }
+
+            public Object getResult() throws Exception {
+                throw cause;
+            }
+
+            public void discardResult() {
+            }
+        }
+
+        class Immediate implements ResultProducer {
+            private final Object result;
+
+            public Immediate(final Object result) {
+                this.result = result;
+            }
+
+            public Object getResult() throws Exception {
+                return result;
+            }
+
+            public void discardResult() {
+            }
+        }
     }
 
 }

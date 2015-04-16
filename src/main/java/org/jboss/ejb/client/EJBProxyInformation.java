@@ -77,7 +77,17 @@ final class EJBProxyInformation<T> {
             final Class<? extends P> proxyClass = Proxy.getProxyClass(type.getClassLoader(), type).asSubclass(type);
             final IdentityHashMap<Method, ProxyMethodInfo> methodInfoMap = new IdentityHashMap<Method, ProxyMethodInfo>();
             final CompressionHint classCompressionHint = type.getAnnotation(CompressionHint.class);
-            final int classCompressionLevel = classCompressionHint == null ? -1 : classCompressionHint.compressionLevel() == -1 ? Deflater.DEFAULT_COMPRESSION : classCompressionHint.compressionLevel();
+            final int classCompressionLevel;
+            final boolean classCompressRequest;
+            final boolean classCompressResponse;
+            if (classCompressionHint == null) {
+                classCompressionLevel = -1;
+                classCompressRequest = classCompressResponse = false;
+            } else {
+                classCompressionLevel = classCompressionHint.compressionLevel() == -1 ? Deflater.DEFAULT_COMPRESSION : classCompressionHint.compressionLevel();
+                classCompressRequest = classCompressionHint.compressRequest();
+                classCompressResponse = classCompressionHint.compressResponse();
+            }
             final boolean classIdempotent = type.getAnnotation(Idempotent.class) != null;
             final boolean classAsync = type.getAnnotation(ClientAsynchronous.class) != null;
             final Field[] declaredFields = proxyClass.getDeclaredFields();
@@ -90,7 +100,18 @@ final class EJBProxyInformation<T> {
                         final boolean idempotent = classIdempotent || method.getAnnotation(Idempotent.class) != null;
                         final boolean clientAsync = classAsync || method.getAnnotation(ClientAsynchronous.class) != null;
                         final CompressionHint compressionHint = method.getAnnotation(CompressionHint.class);
-                        final int compressionLevel = compressionHint == null ? classCompressionLevel : compressionHint.compressionLevel() == -1 ? Deflater.DEFAULT_COMPRESSION : compressionHint.compressionLevel();
+                        final int compressionLevel;
+                        final boolean compressRequest;
+                        final boolean compressResponse;
+                        if (compressionHint == null) {
+                            compressionLevel = classCompressionLevel;
+                            compressRequest = classCompressRequest;
+                            compressResponse = classCompressResponse;
+                        } else {
+                            compressionLevel = compressionHint.compressionLevel() == -1 ? Deflater.DEFAULT_COMPRESSION : compressionHint.compressionLevel();
+                            compressRequest = compressionHint.compressRequest();
+                            compressResponse = compressionHint.compressResponse();
+                        }
                         // build the old signature format
                         final StringBuilder b = new StringBuilder();
                         final Class<?>[] methodParamTypes = method.getParameterTypes();
@@ -102,8 +123,10 @@ final class EJBProxyInformation<T> {
                                 b.append(parameterTypeNames[i] = methodParamTypes[i].getName());
                             }
                         }
-                        final int methodType = getMethodType(type, method.getName(), methodParamTypes);
-                        final ProxyMethodInfo proxyMethodInfo = new ProxyMethodInfo(methodType, compressionLevel, idempotent, method, b.toString(), parameterTypeNames, clientAsync);
+                        final String methodName = method.getName();
+                        final int methodType = getMethodType(type, methodName, methodParamTypes);
+                        final EJBMethodLocator<P> methodLocator = new EJBMethodLocator<>(type, methodName, parameterTypeNames);
+                        final ProxyMethodInfo proxyMethodInfo = new ProxyMethodInfo(methodType, compressionLevel, compressRequest, compressResponse, idempotent, method, methodLocator, b.toString(), clientAsync);
                         methodInfoMap.put(method, proxyMethodInfo);
                     } catch (IllegalAccessException e) {
                         throw new IllegalAccessError(e.getMessage());
@@ -227,19 +250,23 @@ final class EJBProxyInformation<T> {
 
         final int methodType;
         final int compressionLevel;
+        final boolean compressRequest;
+        final boolean compressResponse;
         final boolean idempotent;
         final Method method;
+        final EJBMethodLocator<?> methodLocator;
         final String signature;
-        final String[] parameterTypeNames;
         final boolean clientAsync;
 
-        ProxyMethodInfo(final int methodType, final int compressionLevel, final boolean idempotent, final Method method, final String signature, final String[] parameterTypeNames, final boolean clientAsync) {
+        ProxyMethodInfo(final int methodType, final int compressionLevel, final boolean compressRequest, final boolean compressResponse, final boolean idempotent, final Method method, final EJBMethodLocator<?> methodLocator, final String signature, final boolean clientAsync) {
             this.methodType = methodType;
             this.compressionLevel = compressionLevel;
+            this.compressRequest = compressRequest;
+            this.compressResponse = compressResponse;
             this.idempotent = idempotent;
             this.method = method;
+            this.methodLocator = methodLocator;
             this.signature = signature;
-            this.parameterTypeNames = parameterTypeNames;
             this.clientAsync = clientAsync;
         }
 
@@ -263,12 +290,20 @@ final class EJBProxyInformation<T> {
             return signature;
         }
 
-        String[] getParameterTypeNames() {
-            return parameterTypeNames;
-        }
-
         boolean isClientAsync() {
             return clientAsync;
+        }
+
+        boolean isCompressRequest() {
+            return compressRequest;
+        }
+
+        boolean isCompressResponse() {
+            return compressResponse;
+        }
+
+        EJBMethodLocator<?> getMethodLocator() {
+            return methodLocator;
         }
     }
 }

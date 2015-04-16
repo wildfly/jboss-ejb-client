@@ -22,6 +22,8 @@
 
 package org.jboss.ejb.client;
 
+import org.wildfly.discovery.spi.DiscoveryProvider;
+
 /**
  * An EJB transport provider.
  *
@@ -45,4 +47,13 @@ public interface EJBTransportProvider {
      * @throws IllegalArgumentException if the protocol is not supported
      */
     EJBReceiver getReceiver(String uriScheme) throws IllegalArgumentException;
+
+    /**
+     * Get the discovery provider for this transport provider.  If this transport provider does not provide any
+     * discovery mechanism, {@code null} is returned.
+     *
+     * @return the discovery provider for this transport provider, or {@code null} if there is no discovery method for
+     *     this provider
+     */
+    DiscoveryProvider getDiscoveryProvider();
 }

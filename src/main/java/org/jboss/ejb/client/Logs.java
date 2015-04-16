@@ -273,5 +273,5 @@ public interface Logs extends BasicLogger {
     // @Message(id = 404, value = "Operation not allowed since this EJB client context %s has been closed")
     // @Message(id = 405, value = "An EJB client context is already registered for EJB client context identifier %s")
     // @Message(id = 406, value = "Unexpected exception when discarding invocation result")
-    // @Message(id = 407, value = "Issue regarding unmarshalling of EJB parameters (possible Out of Memory issue).")
+    // @message(id = 407, value = "Issue regarding unmarshalling of EJB parameters (possible Out of Memory issue).")
 }

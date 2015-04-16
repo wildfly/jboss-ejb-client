@@ -113,7 +113,7 @@ final class EJBInvocationHandler<T> extends Attachable implements InvocationHand
             }
             case EJBProxyInformation.MT_GET_PRIMARY_KEY: {
                 if (locator instanceof EntityEJBLocator) {
-                    return ((EntityEJBLocator) locator).getPrimaryKey();
+                    return locator.narrowAsEntity(EJBObject.class).getPrimaryKey();
                 }
                 throw new RemoteException("Cannot invoke getPrimaryKey() on " + proxy);
             }
