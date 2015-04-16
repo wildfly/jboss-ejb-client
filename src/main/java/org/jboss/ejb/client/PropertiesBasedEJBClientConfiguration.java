@@ -211,9 +211,9 @@ public class PropertiesBasedEJBClientConfiguration implements EJBClientConfigura
         // deployment node selector
         final String deploymentNodeSelectorClassName = this.ejbReceiversConfigurationProperties.getProperty(PROPERTY_KEY_DEPLOYMENT_NODE_SELECTOR);
         if (deploymentNodeSelectorClassName != null) {
-            final ClassLoader classLoader = this.getClientClassLoader();
+            final ClassLoader classLoader = getClientClassLoader();
             try {
-                final Class deploymentNodeSelectorClass = Class.forName(deploymentNodeSelectorClassName.trim(), true, classLoader);
+                final Class<?> deploymentNodeSelectorClass = Class.forName(deploymentNodeSelectorClassName.trim(), true, classLoader);
                 if (!DeploymentNodeSelector.class.isAssignableFrom(deploymentNodeSelectorClass)) {
                     throw Logs.MAIN.unexpectedDeploymentNodeSelectorClassType(deploymentNodeSelectorClass);
                 }
@@ -239,7 +239,7 @@ public class PropertiesBasedEJBClientConfiguration implements EJBClientConfigura
     private OptionMap getOptionMapFromProperties(final Properties properties, final String propertyPrefix, final ClassLoader classLoader) {
         final OptionMap.Builder optionMapBuilder = OptionMap.builder().parseAll(properties, propertyPrefix, classLoader);
         final OptionMap optionMap = optionMapBuilder.getMap();
-        logger.debug(propertyPrefix + " has the following options " + optionMap);
+        logger.debugf("%s has the following options %s", propertyPrefix, optionMap);
         return optionMap;
     }
 
@@ -311,7 +311,7 @@ public class PropertiesBasedEJBClientConfiguration implements EJBClientConfigura
             if (clusterConfiguration == null) {
                 continue;
             }
-            logger.debug("Cluster configuration for cluster " + clusterName + " successfully created");
+            logger.debugf("Cluster configuration for cluster %s successfully created", clusterName);
             // add it to the cluster configuration map
             this.clusterConfigurations.put(clusterName, clusterConfiguration);
         }
@@ -355,9 +355,9 @@ public class PropertiesBasedEJBClientConfiguration implements EJBClientConfigura
         final String clusterNodeSelectorClassName = clusterSpecificProperties.get("clusternode.selector");
         final ClusterNodeSelector clusterNodeSelector;
         if (clusterNodeSelectorClassName != null) {
-            final ClassLoader classLoader = this.getClientClassLoader();
+            final ClassLoader classLoader = getClientClassLoader();
             try {
-                final Class clusterNodeSelectorClass = Class.forName(clusterNodeSelectorClassName.trim(), true, classLoader);
+                final Class<?> clusterNodeSelectorClass = Class.forName(clusterNodeSelectorClassName.trim(), true, classLoader);
                 if (!ClusterNodeSelector.class.isAssignableFrom(clusterNodeSelectorClass)) {
                     throw Logs.MAIN.unexpectedClusterNodeSelectorClassType(clusterNodeSelectorClass, clusterName);
                 }
@@ -487,7 +487,7 @@ public class PropertiesBasedEJBClientConfiguration implements EJBClientConfigura
             if (connectionConfiguration == null) {
                 continue;
             }
-            logger.debug("Connection " + connectionConfiguration + " successfully created for connection named " + connectionName);
+            logger.debugf("Connection %s successfully created for connection named %s", connectionConfiguration, connectionName);
             // add it to the collection of connection configurations
             this.remotingConnectionConfigurations.add(connectionConfiguration);
         }

@@ -44,6 +44,7 @@ import org.jboss.logging.Logger;
 import org.jboss.marshalling.MarshallerFactory;
 import org.jboss.remoting3.Channel;
 import org.jboss.remoting3.CloseHandler;
+import org.jboss.remoting3.Connection;
 import org.jboss.remoting3.MessageInputStream;
 import org.jboss.remoting3.MessageOutputStream;
 import org.jboss.remoting3.RemotingOptions;
@@ -115,7 +116,7 @@ class ChannelAssociation {
         this.channel.addCloseHandler(new CloseHandler<Channel>() {
             @Override
             public void handleClose(Channel closed, IOException exception) {
-                logger.debug("Closing channel " + closed, exception);
+                logger.debugf(exception, "Closing channel %s", closed);
                 // notify about the broken channel and do the necessary cleanups
                 if (exception != null) {
                     ChannelAssociation.this.notifyBrokenChannel(exception);
@@ -181,6 +182,25 @@ class ChannelAssociation {
     }
 
     /**
+     * De-enroll a {@link EJBReceiverInvocationContext} from receiving (an inherently asynchronous) response for a
+     * invocation corresponding to the passed <code>invocationId</code>.
+     * This action is required when an invocation is retried on another node as a result of a NoSuchEJBException
+     * and effectively cleans up the stale invocationID and EJBClientReceiverContext of the previous attempt.
+     * .
+     * @param invocationId
+     */
+    void cleanupStaleResponse(final short invocationId) {
+        if (this.waitingMethodInvocations.containsKey(invocationId)) {
+            final EJBReceiverInvocationContext ejbReceiverInvocationContext = this.waitingMethodInvocations.remove(invocationId);
+            if (ejbReceiverInvocationContext != null) {
+                // we no longer need to keep track of the invocation id that was used for
+                // this EJB receiver invocation context, so remove it
+                this.invocationIdsPerReceiverInvocationCtx.remove(ejbReceiverInvocationContext);
+            }
+        }
+    }
+
+    /**
      * Returns a {@link Future} {@link EJBReceiverInvocationContext.ResultProducer result producer} for the
      * passed <code>invocationId</code>. This method does <b>not</b> block. The caller can use the returned
      * {@link Future} to {@link java.util.concurrent.Future#get() wait} for a {@link org.jboss.ejb.client.EJBReceiverInvocationContext.ResultProducer}
@@ -232,7 +252,7 @@ class ChannelAssociation {
     void handleAsyncMethodNotification(final short invocationId) {
         final EJBReceiverInvocationContext receiverInvocationContext = this.waitingMethodInvocations.get(invocationId);
         if (receiverInvocationContext == null) {
-            logger.debug("No waiting context found for async method invocation with id " + invocationId);
+            logger.debugf("No waiting context found for async method invocation with id %s", invocationId);
             return;
         }
         receiverInvocationContext.proceedAsynchronously();
@@ -358,7 +378,9 @@ class ChannelAssociation {
         // get the protocol message handler for the header
         final ProtocolMessageHandler messageHandler = getProtocolMessageHandler((byte) header);
         if (messageHandler == null) {
-            logger.debug("Unsupported message received with header 0x" + Integer.toHexString(header));
+            if (logger.isDebugEnabled()) {
+                logger.debug("Unsupported message received with header 0x" + Integer.toHexString(header));
+            }
             return;
         }
         // let the protocol handler process the stream
@@ -421,8 +443,23 @@ class ChannelAssociation {
             // register a re-connect handler (if available) to the EJB client context
             if (this.reconnectHandler != null) {
                 final EJBClientContext ejbClientContext = this.ejbReceiverContext.getClientContext();
-                logger.debug("Registering a re-connect handler " + this.reconnectHandler + " for broken channel " + this.channel + " in EJB client context " + ejbClientContext);
-                ejbClientContext.registerReconnectHandler(this.reconnectHandler);
+                if (logger.isDebugEnabled()) {
+                    logger.debug("Registering a re-connect handler " + this.reconnectHandler + " for broken channel "
+                            + this.channel + " in EJB client context " + ejbClientContext);
+                }
+
+                // register a pool listener in order to register the reconnect handler *after* the connection is removed
+                // from the connection pool. This avoids the problem of trying to use a bad connection from the pool
+                ConnectionPool.INSTANCE.addConnectionPoolListener(new ConnectionPool.ConnectionPoolListenerAdapter() {
+                    @Override
+                    public void removed(Connection connectionEvicted) {
+                        Connection unwrappedConnection = unwrap(ChannelAssociation.this.channel.getConnection());
+                        if(unwrappedConnection.equals(connectionEvicted)) {
+                            ejbClientContext.registerReconnectHandler(ChannelAssociation.this.reconnectHandler);
+                            consume(); // don't trigger this listener again
+                        }
+                    }
+                });
             }
         }
 

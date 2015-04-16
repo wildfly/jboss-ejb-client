@@ -82,7 +82,7 @@ final class EJBObjectInterceptor implements EJBClientInterceptor {
         // EJBObject proxy on which this invocation was done
         final Object ejbProxy = originalResult;
         // we *don't* change the locator of the original proxy
-        final EJBLocator ejbLocator = EJBClient.getLocatorFor(ejbProxy);
+        final EJBLocator<?> ejbLocator = EJBClient.getLocatorFor(ejbProxy);
         // get the EJB client context identifier (if any) that's applicable for the EJBObject view on which this
         // invocation happened
         final EJBClientContextIdentifier ejbClientContextIdentifier = invocationContext.getInvocationHandler().getEjbClientContextIdentifier();

@@ -66,7 +66,7 @@ public final class EJBClient {
     public static <T> T asynchronous(final T proxy) throws IllegalArgumentException {
         final InvocationHandler invocationHandler = Proxy.getInvocationHandler(proxy);
         if (invocationHandler instanceof EJBInvocationHandler) {
-            final EJBInvocationHandler remoteInvocationHandler = (EJBInvocationHandler) invocationHandler;
+            final EJBInvocationHandler<?> remoteInvocationHandler = (EJBInvocationHandler<?>) invocationHandler;
             // determine proxy "type", return existing instance if it's already async
             if (remoteInvocationHandler.isAsyncHandler()) {
                 return proxy;
@@ -224,7 +224,7 @@ public final class EJBClient {
         try {
             return ejbReceiver.openSession(receiverContext, viewType, appName, moduleName, distinctName, beanName);
         } catch (Exception e) {
-            Logs.MAIN.debug("Retrying session creation which failed on node " + ejbReceiver.getNodeName() + " due to:", e);
+            Logs.MAIN.debugf(e, "Retrying session creation which failed on node %s due to:", ejbReceiver.getNodeName());
             // retry ignoring the current failed node
             excludedNodeNames.add(ejbReceiver.getNodeName());
             return createSessionWithPossibleRetries(clientContext, excludedNodeNames, viewType, appName, moduleName, beanName, distinctName);

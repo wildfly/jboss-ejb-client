@@ -64,7 +64,7 @@ class RemotingConnectionManager {
                 try {
                     connection.close();
                 } catch (Throwable t) {
-                    logger.debug("Failed to close " + connection, t);
+                    logger.debugf(t, "Failed to close %s", connection);
                 }
             }
         }

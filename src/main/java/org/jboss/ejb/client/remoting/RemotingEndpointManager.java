@@ -62,7 +62,7 @@ class RemotingEndpointManager {
                 try {
                     endpoint.close();
                 } catch (Throwable t) {
-                    logger.debug("Failed to close " + endpoint, t);
+                    logger.debugf(t, "Failed to close %s", endpoint);
                 }
             }
         }

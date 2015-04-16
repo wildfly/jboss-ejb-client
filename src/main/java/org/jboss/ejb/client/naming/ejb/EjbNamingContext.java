@@ -413,8 +413,10 @@ class EjbNamingContext implements Context {
             // unregister the scoped EJB client context
             final ContextSelector<EJBClientContext> currentSelector = EJBClientContext.getSelector();
             if (!(currentSelector instanceof IdentityEJBClientContextSelector)) {
-                log.debug("Cannot unregister a scoped EJB client context for JNDI naming context " + this + " since the current " +
-                        "EJB client context selector can't handle scoped contexts");
+                if (log.isDebugEnabled()) {
+                    log.debug("Cannot unregister a scoped EJB client context for JNDI naming context " + this
+                            + " since the current " + "EJB client context selector can't handle scoped contexts");
+                }
                 return;
             }
             final EJBClientContext previouslyRegisteredContext = ((IdentityEJBClientContextSelector) currentSelector).unRegisterContext(this.ejbClientContextIdentifier);

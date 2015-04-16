@@ -112,7 +112,7 @@ final class EJBInvocationHandler<T> extends Attachable implements InvocationHand
         async = false;
         if (locator instanceof StatefulEJBLocator) {
             // set the weak affinity to the node on which the session was created
-            final String sessionOwnerNode = ((StatefulEJBLocator) locator).getSessionOwnerNode();
+            final String sessionOwnerNode = ((StatefulEJBLocator<?>) locator).getSessionOwnerNode();
             if (sessionOwnerNode != null) {
                 this.setWeakAffinity(new NodeAffinity(sessionOwnerNode));
             }
@@ -135,7 +135,7 @@ final class EJBInvocationHandler<T> extends Attachable implements InvocationHand
         ejbClientContextIdentifier = other.ejbClientContextIdentifier;
         if (locator instanceof StatefulEJBLocator) {
             // set the weak affinity to the node on which the session was created
-            final String sessionOwnerNode = ((StatefulEJBLocator) locator).getSessionOwnerNode();
+            final String sessionOwnerNode = ((StatefulEJBLocator<?>) locator).getSessionOwnerNode();
             if (sessionOwnerNode != null) {
                 this.setWeakAffinity(new NodeAffinity(sessionOwnerNode));
             }
@@ -271,7 +271,7 @@ final class EJBInvocationHandler<T> extends Attachable implements InvocationHand
             }
             final String failedNodeName = rsfe.getFailedNodeName();
             if (failedNodeName != null) {
-                Logs.MAIN.debug("Retrying invocation " + clientInvocationContext + " which failed on node: " + failedNodeName + " due to:", rsfe);
+                Logs.MAIN.debugf(rsfe, "Retrying invocation %s which failed on node: %s due to:", clientInvocationContext, failedNodeName);
                 // exclude this failed node, during the retry
                 clientInvocationContext.markNodeAsExcluded(failedNodeName);
                 // retry
@@ -307,7 +307,7 @@ final class EJBInvocationHandler<T> extends Attachable implements InvocationHand
         if (annotationScanners == null || annotationScanners.length == 0) {
             return;
         }
-        final Class viewClass = this.locator.getViewType();
+        final Class<?> viewClass = this.locator.getViewType();
         final Method[] viewMethods = viewClass.getMethods();
         for (final AnnotationScanner annotationScanner : annotationScanners) {
             // scan class level annotations
@@ -322,10 +322,10 @@ final class EJBInvocationHandler<T> extends Attachable implements InvocationHand
     private static final class MethodKey {
 
         private final String name;
-        private final Class[] parameters;
+        private final Class<?>[] parameters;
 
 
-        public MethodKey(final String name, final Class... parameters) {
+        public MethodKey(final String name, final Class<?>... parameters) {
             this.name = name;
             this.parameters = parameters;
         }
@@ -360,20 +360,20 @@ final class EJBInvocationHandler<T> extends Attachable implements InvocationHand
 
     private interface MethodHandler {
 
-        boolean canHandleInvocation(final EJBInvocationHandler thisHandler, final Object proxy, final Method method, final Object[] args) throws Exception;
+        boolean canHandleInvocation(final EJBInvocationHandler<?> thisHandler, final Object proxy, final Method method, final Object[] args) throws Exception;
 
-        Object invoke(final EJBInvocationHandler thisHandler, final Object proxy, final Method method, final Object[] args) throws Exception;
+        Object invoke(final EJBInvocationHandler<?> thisHandler, final Object proxy, final Method method, final Object[] args) throws Exception;
     }
 
     private static final class EqualsMethodHandler implements MethodHandler {
 
         @Override
-        public boolean canHandleInvocation(final EJBInvocationHandler thisHandler, final Object proxy, final Method method, final Object[] args) {
+        public boolean canHandleInvocation(final EJBInvocationHandler<?> thisHandler, final Object proxy, final Method method, final Object[] args) {
             return true;
         }
 
         @Override
-        public Object invoke(final EJBInvocationHandler thisHandler, final Object proxy, final Method method, final Object[] args) {
+        public Object invoke(final EJBInvocationHandler<?> thisHandler, final Object proxy, final Method method, final Object[] args) {
             final Object other = args[0];
             if (other instanceof Proxy) {
                 final InvocationHandler handler = Proxy.getInvocationHandler(other);
@@ -389,12 +389,12 @@ final class EJBInvocationHandler<T> extends Attachable implements InvocationHand
     private static final class HashCodeMethodHandler implements MethodHandler {
 
         @Override
-        public boolean canHandleInvocation(final EJBInvocationHandler thisHandler, final Object proxy, final Method method, final Object[] args) {
+        public boolean canHandleInvocation(final EJBInvocationHandler<?> thisHandler, final Object proxy, final Method method, final Object[] args) {
             return true;
         }
 
         @Override
-        public Object invoke(final EJBInvocationHandler thisHandler, final Object proxy, final Method method, final Object[] args) {
+        public Object invoke(final EJBInvocationHandler<?> thisHandler, final Object proxy, final Method method, final Object[] args) {
             return thisHandler.locator.hashCode();
         }
     }
@@ -402,12 +402,12 @@ final class EJBInvocationHandler<T> extends Attachable implements InvocationHand
     private static final class ToStringMethodHandler implements MethodHandler {
 
         @Override
-        public boolean canHandleInvocation(final EJBInvocationHandler thisHandler, final Object proxy, final Method method, final Object[] args) {
+        public boolean canHandleInvocation(final EJBInvocationHandler<?> thisHandler, final Object proxy, final Method method, final Object[] args) {
             return true;
         }
 
         @Override
-        public Object invoke(final EJBInvocationHandler thisHandler, final Object proxy, final Method method, final Object[] args) {
+        public Object invoke(final EJBInvocationHandler<?> thisHandler, final Object proxy, final Method method, final Object[] args) {
             return String.format("Proxy for remote EJB %s", thisHandler.locator);
         }
     }
@@ -415,12 +415,12 @@ final class EJBInvocationHandler<T> extends Attachable implements InvocationHand
     private static final class GetPrimaryKeyHandler implements MethodHandler {
 
         @Override
-        public boolean canHandleInvocation(final EJBInvocationHandler thisHandler, final Object proxy, final Method method, final Object[] args) throws Exception {
+        public boolean canHandleInvocation(final EJBInvocationHandler<?> thisHandler, final Object proxy, final Method method, final Object[] args) throws Exception {
             return proxy instanceof EJBObject;
         }
 
         @Override
-        public Object invoke(final EJBInvocationHandler thisHandler, final Object proxy, final Method method, final Object[] args) throws Exception {
+        public Object invoke(final EJBInvocationHandler<?> thisHandler, final Object proxy, final Method method, final Object[] args) throws Exception {
             final EJBLocator<?> locator = thisHandler.locator;
             if (locator instanceof EntityEJBLocator) {
                 return ((EntityEJBLocator) locator).getPrimaryKey();
@@ -432,12 +432,12 @@ final class EJBInvocationHandler<T> extends Attachable implements InvocationHand
     private static final class GetHandleHandler implements MethodHandler {
 
         @Override
-        public boolean canHandleInvocation(final EJBInvocationHandler thisHandler, final Object proxy, final Method method, final Object[] args) throws Exception {
+        public boolean canHandleInvocation(final EJBInvocationHandler<?> thisHandler, final Object proxy, final Method method, final Object[] args) throws Exception {
             return proxy instanceof EJBObject && thisHandler.locator instanceof EJBLocator;
         }
 
         @Override
-        public Object invoke(final EJBInvocationHandler thisHandler, final Object proxy, final Method method, final Object[] args) throws Exception {
+        public Object invoke(final EJBInvocationHandler<?> thisHandler, final Object proxy, final Method method, final Object[] args) throws Exception {
             final EJBLocator locator = (EJBLocator) thisHandler.getLocator();
             return new EJBHandle(locator);
         }
@@ -446,18 +446,18 @@ final class EJBInvocationHandler<T> extends Attachable implements InvocationHand
     private static final class IsIdenticalHandler implements MethodHandler {
 
         @Override
-        public boolean canHandleInvocation(final EJBInvocationHandler thisHandler, final Object proxy, final Method method, final Object[] args) throws Exception {
+        public boolean canHandleInvocation(final EJBInvocationHandler<?> thisHandler, final Object proxy, final Method method, final Object[] args) throws Exception {
             return proxy instanceof EJBObject && thisHandler.locator instanceof EJBLocator;
         }
 
         @Override
-        public Object invoke(final EJBInvocationHandler thisHandler, final Object proxy, final Method method, final Object[] args) throws Exception {
+        public Object invoke(final EJBInvocationHandler<?> thisHandler, final Object proxy, final Method method, final Object[] args) throws Exception {
             final EJBLocator<?> locator = thisHandler.locator;
             final Object other = args[0];
             if (Proxy.isProxyClass(other.getClass())) {
                 final InvocationHandler handler = Proxy.getInvocationHandler(other);
                 if (handler instanceof EJBInvocationHandler) {
-                    return locator.equals(((EJBInvocationHandler) handler).getLocator());
+                    return locator.equals(((EJBInvocationHandler<?>) handler).getLocator());
                 }
             }
             return false;
@@ -467,12 +467,12 @@ final class EJBInvocationHandler<T> extends Attachable implements InvocationHand
     private static final class GetHomeHandleHandler implements MethodHandler {
 
         @Override
-        public boolean canHandleInvocation(final EJBInvocationHandler thisHandler, final Object proxy, final Method method, final Object[] args) throws Exception {
+        public boolean canHandleInvocation(final EJBInvocationHandler<?> thisHandler, final Object proxy, final Method method, final Object[] args) throws Exception {
             return proxy instanceof EJBHome;
         }
 
         @Override
-        public Object invoke(final EJBInvocationHandler thisHandler, final Object proxy, final Method method, final Object[] args) throws Exception {
+        public Object invoke(final EJBInvocationHandler<?> thisHandler, final Object proxy, final Method method, final Object[] args) throws Exception {
             final EJBLocator locator = (EJBLocator) thisHandler.getLocator();
             if (locator instanceof EJBHomeLocator) {
                 return new EJBHomeHandle((EJBHomeLocator) locator);
@@ -487,7 +487,7 @@ final class EJBInvocationHandler<T> extends Attachable implements InvocationHand
      * {@link EJBInvocationHandler} so that the annotation information is available for invocations, happening on this invocation handler, through the use of {@link EJBClientInvocationContext#getProxyAttachment(AttachmentKey)}
      */
     private interface AnnotationScanner {
-        void scanClass(final Class view);
+        void scanClass(final Class<?> view);
 
         void scanMethod(final Method method);
     }
@@ -501,7 +501,7 @@ final class EJBInvocationHandler<T> extends Attachable implements InvocationHand
     private final class CompressionHintAnnotationScanner implements AnnotationScanner {
 
         @Override
-        public void scanClass(Class view) {
+        public void scanClass(Class<?> view) {
             final CompressionHint compressionHint = (CompressionHint) view.getAnnotation(CompressionHint.class);
             // nothing to do
             if (compressionHint == null) {

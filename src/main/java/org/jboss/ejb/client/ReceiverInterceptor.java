@@ -73,7 +73,7 @@ public final class ReceiverInterceptor implements EJBClientInterceptor {
                     final EJBReceiver nodeReceiver;
                     // ignore the weak affinity if the node has been marked as excluded for this invocation context
                     if (excludedNodes.contains(nodeName)) {
-                        logger.debug("Ignoring weak affinity on node " + nodeName + " since that node has been marked as excluded for invocation context " + invocationContext);
+                        logger.debugf("Ignoring weak affinity on node %s since that node has been marked as excluded for invocation context %s", nodeName, invocationContext);
                         nodeReceiver = null;
                     } else {
                         nodeReceiver = clientContext.getNodeEJBReceiver(nodeName);
@@ -93,7 +93,7 @@ public final class ReceiverInterceptor implements EJBClientInterceptor {
                     final EJBReceiver nodeReceiver;
                     // ignore the weak affinity if the node has been marked as excluded for this invocation context
                     if (excludedNodes.contains(nodeName)) {
-                        logger.debug("Ignoring weak affinity on node " + nodeName + " since that node has been marked as excluded for invocation context " + invocationContext);
+                        logger.debugf("Ignoring weak affinity on node %s since that node has been marked as excluded for invocation context %s", nodeName, invocationContext);
                         nodeReceiver = null;
                     } else {
                         nodeReceiver = clientContext.getNodeEJBReceiver(nodeName);

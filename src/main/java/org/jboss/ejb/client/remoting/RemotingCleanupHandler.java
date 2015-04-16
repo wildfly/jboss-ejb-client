@@ -77,10 +77,10 @@ class RemotingCleanupHandler implements EJBClientContextListener {
 
     private void safeClose(Closeable closable) {
         try {
-            logger.debug("Closing " + closable);
+            logger.debugf("Closing %s", closable);
             closable.close();
         } catch (Throwable e) {
-            logger.debug("Exception closing " + closable, e);
+            logger.debugf(e, "Exception closing %s", closable);
         }
     }
 }
