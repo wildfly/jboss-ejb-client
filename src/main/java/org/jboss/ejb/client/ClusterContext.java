@@ -31,6 +31,8 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.Callable;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
@@ -51,7 +53,7 @@ public final class ClusterContext implements EJBClientContext.EJBReceiverContext
 
     private final String clusterName;
     private final EJBClientContext clientContext;
-    private final Map<String, ClusterNodeManager> nodeManagers = Collections.synchronizedMap(new HashMap<String, ClusterNodeManager>());
+    private final ConcurrentMap<String, ClusterNodeManager> nodeManagers = new ConcurrentHashMap<String, ClusterNodeManager>();
     // default to 10, will (optionally) be overridden by the ClusterConfiguration
     private long maxClusterNodeOpenConnections = 10;
     // default to RandomClusterNodeSelector
@@ -116,12 +118,14 @@ public final class ClusterContext implements EJBClientContext.EJBReceiverContext
             logger.debug("No nodes available in cluster " + this.clusterName + " for selecting a receiver context");
             return null;
         }
-        final Set<String> alreadyConnectedNodes = this.connectedNodes;
         // remove the excluded nodes
-        alreadyConnectedNodes.removeAll(excludedNodes);
+        connectedNodes.removeAll(excludedNodes);
+
+        // only propose connected nodes which also satisfy the locator
+        final Set<String> connectedDeployedNodes = getConnectedAndDeployedNodes(ejbLocator);
 
         // Let the cluster node selector decide which node to use from among the available nodes
-        final String selectedNodeName = this.clusterNodeSelector.selectNode(this.clusterName, alreadyConnectedNodes.toArray(new String[alreadyConnectedNodes.size()]), availableNodes.toArray(new String[availableNodes.size()]));
+        final String selectedNodeName = this.clusterNodeSelector.selectNode(this.clusterName, connectedDeployedNodes.toArray(new String[connectedDeployedNodes.size()]), availableNodes.toArray(new String[availableNodes.size()]));
         // only use the selected node name, if it's valid
         if (selectedNodeName == null || selectedNodeName.trim().isEmpty()) {
             logger.warn(clusterNodeSelector + " selected an invalid node name: " + selectedNodeName + " for cluster: "
@@ -138,7 +142,7 @@ public final class ClusterContext implements EJBClientContext.EJBReceiverContext
             logger.debug("No node manager available for node: " + selectedNodeName + " in cluster: " + clusterName);
             // See if the selector selected a node which got removed while the selection was happening.
             // If so, then try some other node (if any) in the cluster
-            if (availableNodes.contains(selectedNodeName) || alreadyConnectedNodes.contains(selectedNodeName)) {
+            if (availableNodes.contains(selectedNodeName) || connectedNodes.contains(selectedNodeName)) {
                 // this means that the node was valid when the selection was happening, but was probably
                 // removed from the cluster before we could fetch a node manager for it
                 // let's try a different node, this current one will be excluded
@@ -217,6 +221,55 @@ public final class ClusterContext implements EJBClientContext.EJBReceiverContext
         }
         return this.nodeManagers.containsKey(nodeName);
     }
+    /**
+     * Returns true if the cluster managed by this {@link ClusterContext} contains a node named <code>nodeName</code>
+     * which is already connected.
+     * Else returns false
+     *
+     * @param nodeName The node name
+     * @return
+     */
+    boolean isNodeConnected(final String nodeName) {
+        if (nodeName == null) {
+            return false;
+        }
+        return this.connectedNodes.contains(nodeName);
+    }
+
+    /**
+     * Returns true if the cluster managed by this {@link ClusterContext} contains a node named <code>nodeName</code>
+     * which is already connected and satisfies the locator.
+     * Else returns false
+     *
+     * @param nodeName The node name
+     * @return
+     */
+    boolean isNodeConnectedAndDeployed(final String nodeName, EJBLocator locator) {
+        if (nodeName == null) {
+            return false;
+        }
+        EJBReceiverContext receiverContext = clientContext.getNodeEJBReceiverContext(nodeName);
+        if (receiverContext == null) {
+            return false;
+        } else {
+            if (receiverContext.getReceiver().acceptsModule(locator.getAppName(), locator.getModuleName(), locator.getDistinctName())) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    public Set<String> getConnectedAndDeployedNodes(EJBLocator locator) {
+        Set<String> connectedAndDeployed = Collections.synchronizedSet(new HashSet<String>());
+        synchronized (this) {
+            for (String node : this.connectedNodes) {
+                if (isNodeConnectedAndDeployed(node, locator)) {
+                    connectedAndDeployed.add(node);
+                }
+            }
+        }
+        return connectedAndDeployed;
+    }
 
     /**
      * Adds a cluster node and the {@link ClusterNodeManager} associated with that node, to this cluster context
@@ -250,10 +303,8 @@ public final class ClusterContext implements EJBClientContext.EJBReceiverContext
                     throw Logs.MAIN.nodeNameCannotBeNullOrEmptyStringForCluster(this.clusterName);
                 }
                 // don't add a ClusterNodeManager for a node which is already managed
-                if (this.nodeManagers.containsKey(nodeName)) {
+                if (this.nodeManagers.putIfAbsent(nodeName, clusterNodeManager) != null)
                     continue;
-                }
-                this.nodeManagers.put(nodeName, clusterNodeManager);
                 // If the connected nodes in this cluster context hasn't yet reached the max allowed limit, then create a new
                 // receiver and associate it with a receiver context (if the node isn't already connected to)
                 if (!this.connectedNodes.contains(nodeName) && this.connectedNodes.size() < maxClusterNodeOpenConnections) {
