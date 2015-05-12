@@ -39,6 +39,7 @@ public final class SerializedEJBInvocationHandler implements Externalizable {
     private static final long serialVersionUID = -2370168183054746652L;
 
     private EJBLocator<?> locator;
+    private boolean async;
 
     /**
      * Construct a new instance.
@@ -53,6 +54,17 @@ public final class SerializedEJBInvocationHandler implements Externalizable {
      */
     public SerializedEJBInvocationHandler(final EJBLocator<?> locator) {
         this.locator = locator;
+        this.async = false;
+    }
+
+    /**
+     * Construct a new instance.
+     *
+     * @param locator the locator for this invocation handler
+     */
+    public SerializedEJBInvocationHandler(final EJBLocator<?> locator, final boolean async) {
+        this.locator = locator;
+        this.async = async;
     }
 
     /**
@@ -82,6 +94,7 @@ public final class SerializedEJBInvocationHandler implements Externalizable {
      */
     public void writeExternal(final ObjectOutput out) throws IOException {
         out.writeObject(locator);
+        out.writeBoolean(async);
     }
 
     /**
@@ -93,6 +106,11 @@ public final class SerializedEJBInvocationHandler implements Externalizable {
      */
     public void readExternal(final ObjectInput in) throws IOException, ClassNotFoundException {
         locator = (EJBLocator<?>) in.readObject();
+        // ignore EOF
+        int data = in.read();
+        if (data > 0) {
+            async = true;
+        }
     }
 
     /**

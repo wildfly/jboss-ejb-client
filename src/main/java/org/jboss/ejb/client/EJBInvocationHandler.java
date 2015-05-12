@@ -39,7 +39,6 @@ import org.wildfly.common.Assert;
  * @param <T> the proxy view type
  * @author <a href="mailto:david.lloyd@redhat.com">David M. Lloyd</a>
  */
-@SuppressWarnings({"SerializableClassWithUnconstructableAncestor"})
 final class EJBInvocationHandler<T> extends Attachable implements InvocationHandler, Serializable {
 
     private static final long serialVersionUID = 946555285095057230L;
@@ -199,7 +198,7 @@ final class EJBInvocationHandler<T> extends Attachable implements InvocationHand
 
     @SuppressWarnings("unused")
     protected Object writeReplace() {
-        return new SerializedEJBInvocationHandler(locator);
+        return new SerializedEJBInvocationHandler(locator, async);
     }
 
     EJBInvocationHandler<T> getAsyncHandler() {
