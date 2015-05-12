@@ -124,9 +124,7 @@ public interface Logs extends BasicLogger {
     @Message(id = 17, value = "Received server version %d and marshalling strategies %s")
     void receivedServerVersionAndMarshallingStrategies(final int version, final Set<String> marshallingStrategies);
 
-    @Message(id = 18, value = "%s cannot be null")
-    IllegalArgumentException paramCannotBeNull(final String paramName);
-
+    // @Message(id = 18, value = "%s cannot be null")
     // @Message(id = 19, value = "Node name cannot be null or empty string, while adding a node to cluster named %s")
     // @Message(id = 20, value = "%s cannot be null or empty string")
     // @Message(id = 21, value = "EJB client context selector may not be changed")

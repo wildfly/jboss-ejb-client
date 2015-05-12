@@ -27,6 +27,8 @@ import java.rmi.RemoteException;
 import javax.ejb.EJBHome;
 import javax.ejb.HomeHandle;
 
+import org.wildfly.common.Assert;
+
 /**
  * A handle for an EJB home interface.
  *
@@ -45,9 +47,7 @@ public final class EJBHomeHandle<T extends EJBHome> implements HomeHandle {
      * @param locator the locator for the home interface
      */
     public EJBHomeHandle(final EJBHomeLocator<T> locator) {
-        if (locator == null) {
-            throw Logs.MAIN.paramCannotBeNull("EJB locator");
-        }
+        Assert.checkNotNullParam("locator", locator);
         this.locator = locator;
     }
 

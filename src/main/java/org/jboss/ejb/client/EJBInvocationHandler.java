@@ -33,6 +33,8 @@ import javax.ejb.EJBException;
 import javax.ejb.EJBHome;
 import javax.ejb.EJBObject;
 
+import org.wildfly.common.Assert;
+
 /**
  * @param <T> the proxy view type
  * @author <a href="mailto:david.lloyd@redhat.com">David M. Lloyd</a>
@@ -62,9 +64,7 @@ final class EJBInvocationHandler<T> extends Attachable implements InvocationHand
      * @param locator the EJB locator (not {@code null})
      */
     EJBInvocationHandler(final EJBLocator<T> locator) {
-        if (locator == null) {
-            throw Logs.MAIN.paramCannotBeNull("EJB locator");
-        }
+        Assert.checkNotNullParam("locator", locator);
         this.locator = locator;
         async = false;
         if (locator instanceof StatefulEJBLocator) {
@@ -98,7 +98,7 @@ final class EJBInvocationHandler<T> extends Attachable implements InvocationHand
                 if (args[0] instanceof Proxy) {
                     final InvocationHandler handler = Proxy.getInvocationHandler(args[0]);
                     if (handler instanceof EJBInvocationHandler) {
-                        return Boolean.valueOf(locator.equals(((EJBInvocationHandler<?>) handler).getLocator()));
+                        return Boolean.valueOf(equals(((EJBInvocationHandler<?>) handler)));
                     }
                 }
                 return Boolean.FALSE;
@@ -212,6 +212,37 @@ final class EJBInvocationHandler<T> extends Attachable implements InvocationHand
 
     EJBLocator<T> getLocator() {
         return locator;
+    }
+
+    /**
+     * Determine whether this object is equal to another.
+     *
+     * @param other the other object
+     * @return {@code true} if they are equal, {@code false} otherwise
+     */
+    public boolean equals(Object other) {
+        return other instanceof EJBInvocationHandler && equals((EJBInvocationHandler<?>)other);
+    }
+
+    /**
+     * Determine whether this object is equal to another.
+     *
+     * @param other the other object
+     * @return {@code true} if they are equal, {@code false} otherwise
+     */
+    public boolean equals(EJBInvocationHandler<?> other) {
+        return this == other || other != null && locator.equals(other.locator) && async == other.async;
+    }
+
+    /**
+     * Get the hash code of this handler.
+     *
+     * @return the hash code of this handler
+     */
+    public int hashCode() {
+        int hc = locator.hashCode();
+        if (async) hc ++;
+        return hc;
     }
 
     public String toString() {

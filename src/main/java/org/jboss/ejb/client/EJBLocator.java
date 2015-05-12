@@ -261,9 +261,7 @@ public abstract class EJBLocator<T> implements Serializable {
      * @return the proxy instance
      */
     public T createProxyInstance(InvocationHandler invocationHandler) {
-        if (invocationHandler == null) {
-            throw Logs.MAIN.paramCannotBeNull("Invocation handler");
-        }
+        Assert.checkNotNullParam("invocationHandler", invocationHandler);
         try {
             return getProxyConstructor().newInstance(invocationHandler);
         } catch (InstantiationException e) {

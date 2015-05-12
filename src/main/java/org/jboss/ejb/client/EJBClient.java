@@ -30,6 +30,8 @@ import java.util.concurrent.Future;
 import javax.ejb.CreateException;
 import javax.transaction.UserTransaction;
 
+import org.wildfly.common.Assert;
+
 /**
  * The main EJB client API class.  This class contains helper methods which may be used to create proxies, open sessions,
  * and associate the current invocation context.
@@ -131,9 +133,7 @@ public final class EJBClient {
      * @throws IllegalArgumentException if the locator parameter is {@code null} or is invalid
      */
     public static <T> T createProxy(final EJBLocator<T> locator) throws IllegalArgumentException {
-        if (locator == null) {
-            throw Logs.MAIN.paramCannotBeNull("EJB locator");
-        }
+        Assert.checkNotNullParam("locator", locator);
         return locator.createProxyInstance(new EJBInvocationHandler<T>(locator));
     }
 

@@ -27,6 +27,8 @@ import java.io.IOException;
 import java.io.ObjectInput;
 import java.io.ObjectOutput;
 
+import org.wildfly.common.Assert;
+
 /**
  * A serialized EJB invocation handler.
  *
@@ -68,6 +70,7 @@ public final class SerializedEJBInvocationHandler implements Externalizable {
      * @param locator the invocation locator
      */
     public void setLocator(final EJBLocator<?> locator) {
+        Assert.checkNotNullParam("locator", locator);
         this.locator = locator;
     }
 
@@ -100,12 +103,17 @@ public final class SerializedEJBInvocationHandler implements Externalizable {
     @SuppressWarnings("unused")
     protected Object readResolve() {
         final EJBLocator<?> locator = this.locator;
-        if (locator == null) {
-            throw Logs.MAIN.paramCannotBeNull("EJB locator");
-        }
+        Assert.checkNotNullParam("locator", locator);
         return readResolve(locator);
     }
 
+    /**
+     * This method exists to create an invocation handler for a locator in a type-safe manner.
+     *
+     * @param locator the locator
+     * @param <T> the view type
+     * @return the invocation handler
+     */
     private static <T> EJBInvocationHandler<T> readResolve(EJBLocator<T> locator) {
         return new EJBInvocationHandler<T>(locator);
     }

@@ -27,6 +27,8 @@ import java.rmi.RemoteException;
 import javax.ejb.EJBObject;
 import javax.ejb.Handle;
 
+import org.wildfly.common.Assert;
+
 /**
  * A handle for an EJB interface.
  *
@@ -46,9 +48,7 @@ public final class EJBHandle<T extends EJBObject> implements Handle {
      * @param locator the locator for the EJB instance
      */
     public EJBHandle(final EJBLocator<T> locator) {
-        if (locator == null) {
-            throw Logs.MAIN.paramCannotBeNull("EJB locator");
-        }
+        Assert.checkNotNullParam("locator", locator);
         this.locator = locator;
     }
 
