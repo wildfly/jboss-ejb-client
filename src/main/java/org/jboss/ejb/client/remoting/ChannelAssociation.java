@@ -44,7 +44,6 @@ import org.jboss.logging.Logger;
 import org.jboss.marshalling.MarshallerFactory;
 import org.jboss.remoting3.Channel;
 import org.jboss.remoting3.CloseHandler;
-import org.jboss.remoting3.Connection;
 import org.jboss.remoting3.MessageInputStream;
 import org.jboss.remoting3.MessageOutputStream;
 import org.jboss.remoting3.RemotingOptions;
@@ -447,19 +446,7 @@ class ChannelAssociation {
                     logger.debug("Registering a re-connect handler " + this.reconnectHandler + " for broken channel "
                             + this.channel + " in EJB client context " + ejbClientContext);
                 }
-
-                // register a pool listener in order to register the reconnect handler *after* the connection is removed
-                // from the connection pool. This avoids the problem of trying to use a bad connection from the pool
-                ConnectionPool.INSTANCE.addConnectionPoolListener(new ConnectionPool.ConnectionPoolListenerAdapter() {
-                    @Override
-                    public void removed(Connection connectionEvicted) {
-                        Connection unwrappedConnection = unwrap(ChannelAssociation.this.channel.getConnection());
-                        if(unwrappedConnection.equals(connectionEvicted)) {
-                            ejbClientContext.registerReconnectHandler(ChannelAssociation.this.reconnectHandler);
-                            consume(); // don't trigger this listener again
-                        }
-                    }
-                });
+                ejbClientContext.registerReconnectHandler(this.reconnectHandler);
             }
         }
 
