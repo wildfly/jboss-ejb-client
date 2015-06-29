@@ -227,7 +227,12 @@ public final class EJBClient {
             Logs.MAIN.debugf(e, "Retrying session creation which failed on node %s due to:", ejbReceiver.getNodeName());
             // retry ignoring the current failed node
             excludedNodeNames.add(ejbReceiver.getNodeName());
-            return createSessionWithPossibleRetries(clientContext, excludedNodeNames, viewType, appName, moduleName, beanName, distinctName);
+            try {
+                return createSessionWithPossibleRetries(clientContext, excludedNodeNames, viewType, appName, moduleName, beanName, distinctName);
+            } catch (Exception e2) {
+                Logs.MAIN.debugf(e2, "Session creation retry failed");
+                throw e;
+            }
         }
     }
 
