@@ -72,5 +72,5 @@ public abstract class EJBReceiver extends Attachable {
      * @throws IllegalArgumentException if the session creation request is made for a bean which is <i>not</i> a stateful
      *                                  session bean
      */
-    protected abstract <T> StatefulEJBLocator<T> openSession(final StatelessEJBLocator<T> statelessLocator) throws Exception;
+    protected abstract <T> StatefulEJBLocator<T> createSession(final StatelessEJBLocator<T> statelessLocator) throws Exception;
 }

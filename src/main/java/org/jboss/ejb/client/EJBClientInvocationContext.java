@@ -78,6 +78,7 @@ public final class EJBClientInvocationContext extends Attachable {
         this.parameters = parameters;
         this.ejbClientContext = ejbClientContext;
         this.methodInfo = methodInfo;
+        this.locator = invocationHandler.getLocator();
     }
 
     enum AsyncState {
@@ -204,7 +205,16 @@ public final class EJBClientInvocationContext extends Attachable {
      * @return the locator
      */
     public EJBLocator<?> getLocator() {
-        return invocationHandler.getLocator();
+        return locator;
+    }
+
+    /**
+     * Set the locator for the invocation target.
+     *
+     * @param locator the locator for the invocation target
+     */
+    public <T> void setLocator(final EJBLocator<T> locator) {
+        this.locator = locator;
     }
 
     /**
@@ -222,15 +232,26 @@ public final class EJBClientInvocationContext extends Attachable {
             if (chain.length == idx) {
                 final EJBReceiver receiver = this.receiver;
                 if (receiver == null) {
-                    throw Logs.MAIN.noEJBReceiverAvailable(getLocator());
+                    performInvocation(getLocator());
+                } else {
+                    receiver.processInvocation(receiverInvocationContext);
                 }
-                receiver.processInvocation(receiverInvocationContext);
             } else {
                 chain[idx].handleInvocation(this);
             }
         } finally {
             interceptorChainIndex --;
         }
+    }
+
+    private <T> void performInvocation(EJBLocator<T> locator) throws Exception {
+        ejbClientContext.performLocatedAction(locator, (receiver, originalLocator, newAffinity) -> {
+            if (receiver == null) {
+                throw Logs.MAIN.noEJBReceiverAvailable(getLocator());
+            }
+            receiver.processInvocation(receiverInvocationContext);
+            return null;
+        });
     }
 
     /**

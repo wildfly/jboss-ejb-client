@@ -142,7 +142,8 @@ public final class StatefulEJBLocator<T> extends EJBLocator<T> {
     }
 
     public StatefulEJBLocator<T> withNewAffinity(final Affinity affinity) {
-        return new StatefulEJBLocator<T>(this, affinity);
+        Assert.checkNotNullParam("affinity", affinity);
+        return getAffinity().equals(affinity) ? this : new StatefulEJBLocator<T>(this, affinity);
     }
 
     @SuppressWarnings("unchecked")

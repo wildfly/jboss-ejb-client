@@ -24,6 +24,8 @@ package org.jboss.ejb.client;
 
 import javax.ejb.EJBHome;
 
+import org.wildfly.common.Assert;
+
 /**
  * A locator for an EJB's home interface.
  *
@@ -96,7 +98,8 @@ public final class EJBHomeLocator<T extends EJBHome> extends EJBLocator<T> {
     }
 
     public EJBHomeLocator<T> withNewAffinity(final Affinity affinity) {
-        return new EJBHomeLocator<T>(this, affinity);
+        Assert.checkNotNullParam("affinity", affinity);
+        return getAffinity().equals(affinity) ? this : new EJBHomeLocator<T>(this, affinity);
     }
 
     @SuppressWarnings("unchecked")

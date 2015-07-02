@@ -116,7 +116,8 @@ public final class EntityEJBLocator<T extends EJBObject> extends EJBLocator<T> {
     }
 
     public EntityEJBLocator<T> withNewAffinity(final Affinity affinity) {
-        return new EntityEJBLocator<T>(this, affinity);
+        Assert.checkNotNullParam("affinity", affinity);
+        return getAffinity().equals(affinity) ? this : new EntityEJBLocator<T>(this, affinity);
     }
 
     @SuppressWarnings("unchecked")

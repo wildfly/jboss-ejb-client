@@ -80,19 +80,26 @@ class RemoteEJBReceiver extends EJBReceiver implements DiscoveryProvider {
     protected void processInvocation(final EJBReceiverInvocationContext receiverContext) throws Exception {
         final EJBClientInvocationContext clientInvocationContext = receiverContext.getClientInvocationContext();
         final EJBLocator<?> locator = clientInvocationContext.getLocator();
-        final Affinity affinity = locator.getAffinity();
-        final URI target;
-        if (affinity instanceof URIAffinity) {
-            target = ((URIAffinity) affinity).getUri();
-        } else {
-            receiverContext.resultReady(new EJBReceiverInvocationContext.ResultProducer.Failed(new IllegalArgumentException("Invalid EJB affinity: " + affinity)));
-            return;
-        }
-        IoFuture<Connection> futureConnection = ENDPOINT_GETTER.getSelector().get().getConnection(target);
-        futureConnection.addNotifier(NOTIFIER, receiverContext);
+        final IoFuture<Connection> connection = getConnection(locator);
+        connection.addNotifier(NOTIFIER, receiverContext);
     }
 
-    protected <T> StatefulEJBLocator<T> openSession(final StatelessEJBLocator<T> statelessLocator) throws Exception {
+    protected <T> StatefulEJBLocator<T> createSession(final StatelessEJBLocator<T> statelessLocator) throws Exception {
+        IoFuture<Connection> futureConnection = getConnection(statelessLocator);
+        try {
+            final EJBClientChannel ejbClientChannel = EJBClientChannel.from(futureConnection.getInterruptibly());
+            return ejbClientChannel.openSession(statelessLocator);
+        } catch (IOException e) {
+            final CreateException createException = new CreateException("Failed to create stateful EJB: " + e.getMessage());
+            createException.initCause(e);
+            throw createException;
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new CreateException("Stateful EJB creation interrupted");
+        }
+    }
+
+    private <T> IoFuture<Connection> getConnection(final EJBLocator<T> statelessLocator) throws CreateException {
         final Affinity affinity = statelessLocator.getAffinity();
         final URI target;
         if (affinity instanceof URIAffinity) {
@@ -108,20 +115,11 @@ class RemoteEJBReceiver extends EJBReceiver implements DiscoveryProvider {
             createException.initCause(e);
             throw createException;
         }
-        try {
-            return EJBClientChannel.from(futureConnection.getInterruptibly()).openSession(statelessLocator);
-        } catch (IOException e) {
-            final CreateException createException = new CreateException("Failed to create stateful EJB: " + e.getMessage());
-            createException.initCause(e);
-            throw createException;
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new CreateException("Stateful EJB creation interrupted");
-        }
+        return futureConnection;
     }
 
     public DiscoveryRequest discover(final ServiceType serviceType, final FilterSpec filterSpec, final DiscoveryResult result) {
-        if (! EJBClientContext.EJB_SERVICE_TYPE.equals(serviceType)) {
+        if (! EJBClientContext.EJB_SERVICE_TYPE.implies(serviceType)) {
             // we can only discover EJBs
             result.complete();
             return DiscoveryRequest.NULL;

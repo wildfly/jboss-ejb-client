@@ -32,6 +32,7 @@ import java.util.List;
 import java.util.ServiceConfigurationError;
 import java.util.ServiceLoader;
 
+import org.jboss.ejb._private.Logs;
 import org.jboss.modules.Module;
 import org.jboss.modules.ModuleIdentifier;
 import org.jboss.modules.ModuleLoadException;
@@ -83,9 +84,7 @@ public final class ConfigurationBasedEJBClientContextSelector extends Selector<E
                 throw streamReader.unexpectedElement();
             }
             parseEJBClientType(streamReader, builder);
-            if (streamReader.nextTag() == END_ELEMENT) {
-                return;
-            }
+            return;
         }
         throw streamReader.unexpectedContent();
     }
@@ -429,7 +428,9 @@ public final class ConfigurationBasedEJBClientContextSelector extends Selector<E
             if (! iterator.hasNext()) break;
             final EJBTransportProvider transportProvider = iterator.next();
             builder.addTransportProvider(transportProvider);
-        } catch (ServiceConfigurationError ignored) {}
+        } catch (ServiceConfigurationError ignored) {
+            Logs.MAIN.error("Failed to load service", ignored);
+        }
     }
 
     public EJBClientContext get() {

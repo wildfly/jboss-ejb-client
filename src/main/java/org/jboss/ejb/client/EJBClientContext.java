@@ -27,7 +27,6 @@ import java.util.ArrayList;
 import java.util.List;
 
 import org.jboss.ejb._private.Logs;
-import org.jboss.marshalling.Pair;
 import org.wildfly.common.selector.DefaultSelector;
 import org.wildfly.common.selector.Selector;
 import org.wildfly.discovery.Discovery;
@@ -174,25 +173,40 @@ public final class EJBClientContext extends Attachable {
         return clientContext;
     }
 
-    Pair<EJBReceiver, EJBLocator<?>> findEJBReceiver(final EJBLocator<?> locator) {
+    <T> StatefulEJBLocator<T> createSession(final StatelessEJBLocator<T> statelessLocator) throws Exception {
+        final LocatedAction<StatefulEJBLocator<T>, StatelessEJBLocator<T>, T> action =
+            (receiver, originalLocator, newAffinity) -> receiver.createSession(originalLocator.withNewAffinity(newAffinity));
+        return performLocatedAction(statelessLocator, action);
+    }
+
+    interface LocatedAction<R, L extends EJBLocator<T>, T> {
+        R execute(EJBReceiver receiver, L originalLocator, Affinity newAffinity) throws Exception;
+    }
+
+    <R, L extends EJBLocator<T>, T> R performLocatedAction(final L locator, final LocatedAction<R, L, T> locatedAction) throws Exception {
         final Affinity affinity = locator.getAffinity();
         final String scheme;
         if (affinity instanceof NodeAffinity) {
-            return discoverFirst(locator);
+            return discoverFirst(locator, locatedAction);
         } else if (affinity instanceof ClusterAffinity) {
-            return discoverFirst(locator);
+            return discoverFirst(locator, locatedAction);
         } else if (affinity == Affinity.LOCAL) {
             scheme = "local";
         } else if (affinity instanceof URIAffinity) {
             scheme = ((URIAffinity) affinity).getUri().getScheme();
         } else {
             assert affinity == Affinity.NONE;
-            return discoverFirst(locator);
+            return discoverFirst(locator, locatedAction);
         }
-        return new Pair<>(getTransportProvider(scheme), locator);
+        final EJBReceiver transportProvider = getTransportProvider(scheme);
+        if (transportProvider == null) {
+            throw Logs.MAIN.noEJBReceiverAvailable(locator);
+        } else {
+            return locatedAction.execute(transportProvider, locator, locator.getAffinity());
+        }
     }
 
-    Pair<EJBReceiver, EJBLocator<?>> discoverFirst(EJBLocator<?> locator) {
+    <R, L extends EJBLocator<T>, T> R discoverFirst(L locator, final LocatedAction<R, L, T> locatedAction) throws Exception {
         final FilterSpec filterSpec;
         final Affinity affinity = locator.getAffinity();
         if (affinity == Affinity.NONE) {
@@ -222,11 +236,7 @@ public final class EJBClientContext extends Attachable {
         } else if (affinity instanceof ClusterAffinity) {
             filterSpec = FilterSpec.equal("cluster", ((ClusterAffinity) affinity).getClusterName());
         } else {
-            final Pair<EJBReceiver, EJBLocator<?>> info = findEJBReceiver(locator);
-            if (info == null) {
-                throw Logs.MAIN.noEJBReceiverAvailable(locator);
-            }
-            return info;
+            return performLocatedAction(locator, locatedAction);
         }
 
         try (final ServicesQueue servicesQueue = discover(filterSpec)) {
@@ -243,8 +253,7 @@ public final class EJBClientContext extends Attachable {
                 }
                 final EJBReceiver receiver = getTransportProvider(uri.getScheme());
                 if (receiver != null) {
-                    final EJBLocator<?> newLocator = locator.withNewAffinity(Affinity.forUri(uri));
-                    return new Pair<EJBReceiver, EJBLocator<?>>(receiver, newLocator);
+                    return locatedAction.execute(receiver, locator, Affinity.forUri(uri));
                 }
             }
         }

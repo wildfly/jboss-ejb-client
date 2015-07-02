@@ -257,8 +257,8 @@ public final class EJBClient {
      * @throws CreateException if an error occurs
      */
     public static <T> StatefulEJBLocator<T> createSession(StatelessEJBLocator<T> statelessLocator) throws Exception {
-        final Pair<EJBReceiver, EJBLocator<?>> info = EJBClientContext.getCurrent().findEJBReceiver(statelessLocator);
-        return info.getA().openSession(statelessLocator.withNewAffinity(info.getB().getAffinity()));
+        final EJBClientContext clientContext = EJBClientContext.getCurrent();
+        return clientContext.createSession(statelessLocator);
     }
 
     /**

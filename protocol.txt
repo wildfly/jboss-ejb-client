@@ -1,0 +1,524 @@
+JBoss EJB Remote Invocation Protocol Description, Version 1 and 2 corrected plus version 3 additions
+
+Old Location: http://etherpad.corp.redhat.com/KRxBLeXI7y
+
+1. Introduction
+
+This document describes a message-oriented protocol for performing invocations and operations on an application server's EJBs from a remote client.  The protocol is designed to be layered atop of JBoss Remoting (3.2 or higher) using its message stream hybrid transport mechanism.
+
+2. Protocol Description
+
+2.0. Packed integers
+
+This protocol employs "packed integers" which are variable-length integer values.  The most-significant bit of each byte of a packed integer value indicates whether that byte is the final (lowest-order) byte of the value.  If the bit is 0, then this is the last byte; if the bit is 1, then there is at least one more subsequent byte pending, and the current value should be shifted to the left by 7 bits to accommodate the next byte's data.
+
+2.1. Protocol Server Greeting (server → client)
+
+Sent on connect to inform the client of the available protocol version and marshalling strategies.  This message must be forwards-compatible for all versions.  No fields may be deleted.
+
+     7 6 5 4 3 2 1 0
+    ┌─┬─┬─┬─┬─┬─┬─┬─┐
+    │    Version    │  Fixed length, one byte
+    ├───────────────┤
+    │ Marshaller Ct │  Variable length packed integer
+    ├───────────────┤
+    │ Marshaller    │  Variable length, UTF-8, repeated for each of 1..Ct
+    │ type          │  (Note: only "river" is supported)
+    └───────────────┘
+
+2.1½. Protocol Client Greeting (client → server)
+
+Sent in response to the protocol server greeting.
+
+     7 6 5 4 3 2 1 0
+    ┌─┬─┬─┬─┬─┬─┬─┬─┐
+    │    Version    │  Fixed length, one byte, must be ≤ the server version
+    ├───────────────┤
+    │   Marshaller  │  Variable length, UTF-8
+    │      type     │  (Note: only "river" is supported)
+    └───────────────┘
+
+Version is 0x01 or 0x02 or 0x03. 0x00 is reserved for test purposes.
+
+2.2. Session Open Request
+
+     7 6 5 4 3 2 1 0
+    ┌─┬─┬─┬─┬─┬─┬─┬─┐
+    │      0x01     │  Command = Session Open Request
+    ├───────────────┤
+    │ Invocation ID │  Fixed length, two bytes
+    ├ ─ ─ ─ ─ ─ ─ ─ ┤
+    │               │
+    ├───────────────┤
+    │ EJBIdentifier │  Variable length UTF-8Z string
+    ├───────────────┤
+    │ Atch.Count    │  Fixed length, one byte
+    ├───────────────┤
+    │ Attachment    │  Variable length
+    ┊ Data          ┊
+    │               │
+    └───────────────┘
+
+     7 6 5 4 3 2 1 0
+    ┌─┬─┬─┬─┬─┬─┬─┬─┐
+    │      0x01     │  Command = Session Open Request
+    ├───────────────┤
+    │ Invocation ID │  Fixed length, two bytes
+    ├ ─ ─ ─ ─ ─ ─ ─ ┤
+    │               │
+    ├───────────────┤
+    │    AppName    │  Variable length UTF-8Z string
+    ├───────────────┤
+    │   ModuleName  │  Variable length UTF-8Z string
+    ├───────────────┤
+    │   Dist.Name   │  Variable length UTF-8Z string
+    ├───────────────┤
+    │   Bean Name   │  Variable length UTF-8Z string
+    └───────────────┘
+
+2.2½. Session Open Response
+
+     7 6 5 4 3 2 1 0
+    ┌─┬─┬─┬─┬─┬─┬─┬─┐
+    │      0x02     │  Command = Session Open Response
+    ├───────────────┤
+    │ Invocation ID │  Fixed length, two bytes
+    ├ ─ ─ ─ ─ ─ ─ ─ ┤
+    │               │
+    ├───────────────┤
+    │    ID Size    │  Variable length integer
+    ├───────────────┤
+    │   Session ID  │  Variable length bytes
+    ┊               ┊
+    │               │
+    ├───────────────┤
+    │   Atch.Cnt.   │  Fixed length, one byte
+    ├───────────────┤
+    │  Attachment   │  Variable length
+    ┊     Data      ┊
+    │               │
+    └───────────────┘
+
+     7 6 5 4 3 2 1 0
+    ┌─┬─┬─┬─┬─┬─┬─┬─┐
+    │      0x02     │  Command = Session Open Response
+    ├───────────────┤
+    │ Invocation ID │  Fixed length, two bytes
+    ├ ─ ─ ─ ─ ─ ─ ─ ┤
+    │               │
+    ├───────────────┤
+    │    ID Size    │  Variable length integer
+    ├───────────────┤
+    │   Session ID  │  Variable length bytes
+    ┊               ┊
+    │               │
+    ├───────────────┤
+    │   Affinity    │  Marshalled Affinity object
+    ┊               ┊
+    │               │
+    └───────────────┘
+
+2.2¾. EJB Verify Request
+
+     7 6 5 4 3 2 1 0
+    ┌─┬─┬─┬─┬─┬─┬─┬─┐
+    │      0x0?     │  Command = EJB Verify Request
+    ├───────────────┤
+    │ Invocation ID │  Fixed length, two bytes
+    ├ ─ ─ ─ ─ ─ ─ ─ ┤
+    │               │
+    ├───────────────┤
+    │ EJBIdentifier │  Variable length 4x UTF-8Z string
+    ├───────────────┤
+    │ InterfaceName │  Variable length UTF-8Z string
+    └───────────────┘
+
+2.2⅞. EJB Verify Response
+
+     7 6 5 4 3 2 1 0
+    ┌─┬─┬─┬─┬─┬─┬─┬─┐
+    │      0x0?     │  Command = EJB Verify Response
+    ├───────────────┤
+    │ Invocation ID │  Fixed length, two bytes
+    ├ ─ ─ ─ ─ ─ ─ ─ ┤
+    │               │
+    ├─────────────┬─┤
+    │░░░░░░░░░░░░░│R│  R = result; 1 = found, 0 = not found
+    └─────────────┴─┘
+
+2.3. Invocation Request (original spec)
+
+     7 6 5 4 3 2 1 0
+    ┌─┬─┬─┬─┬─┬─┬─┬─┐
+    │      0x03     │  Command = Invocation Request
+    ├───────────────┤
+    │ Invocation ID │  Fixed length, two bytes
+    ├ ─ ─ ─ ─ ─ ─ ─ ┤
+    │               │
+    ├───────────────┤
+    │ EJBIdentifier │  Variable length 4x UTF-8Z string
+    ├───────────────┤
+    │ InterfaceName │  Variable length UTF-8Z string
+    ├───────────────┤
+    │  Method Name  │  Variable length UTF-8Z string
+    ├───────────────┤
+    │   MethodSig   │  Variable length UTF-8Z string
+    ├───────────────┤
+    │   Atch.Cnt.   │  Fixed length, one byte
+    ├───────────────┤
+    │  Attachments: │
+    │┌─┬─┬─┬─┬─┬─┬─┬┴┐
+    ││ Attachment ID │  Fixed length, two bytes
+    │├ ─ ─ ─ ─ ─ ─ ─ ┤
+    ││               │
+    │├───────────────┤
+    ││    Length     │  Variable length packed integer
+    │├───────────────┤
+    ││               │  Variable length
+    │┊     Data      ┊
+    ││               │
+    │└──────────────┬┘
+    │        :      │
+    │        :      │
+    ├───────────────┤
+    │   Parameter   │  Variable length
+    ┊     Data      ┊
+    │               │
+    └───────────────┘
+
+Field description:
+CMD - the one-byte command; 0x03 for Invocation Request
+Invocation ID - the ID which the server will send to correlate the response with the request
+Method Name - the name of the method to invoke
+EJB Identifier - the four-part string (app, module, distinctName, beanName) representing the EJB identity
+Interface Name - the name of the EJB interface Java type to be invoked
+MethodSig - the signature of the method to be invoked (e.g. "(IILjava/lang/String;)V")
+Parameters - the marshalled method parameter values in declaration order
+Atch.Cnt. - the number of attachments (min 0, max 127)
+Attachments - the attachment data
+
+Attachment IDs 0xC000-0xFFFF are available for user use; IDs between 0x0000-0xBFFF are assigned by Red Hat.  Any attachment received with an unrecognized ID will be ignored.  Attachments are intended for the purpose of propagating contextual information such as transaction or security data, or session ID.
+
+2.3½. Invocation Request (real/final version)
+
+         7 6 5 4 3 2 1 0
+        ┌─┬─┬─┬─┬─┬─┬─┬─┐
+        │  0x03 or 0x1B │  Command = Invocation Request or Compressed Invocation Request (0x1B is also Compressed Invocation Response (V2+ only))
+        ├───────────────┤
+        │ Invocation ID │  Fixed length, two bytes
+        ├ ─ ─ ─ ─ ─ ─ ─ ┤
+ V1 & 2 │               │  V3
+┌───────┴───────┬───────┴───────┐
+│  Method Name  │ Method Locator│ V1,2: Variable length UTF-8Z string; V3: Marshalled EJBMethodLocator object
+├───────────────┼───────────────┘
+│   MethodSig   │          V1,2: Variable length UTF-8Z string
+├───────────────┤
+│   App. Name   │          V1,2: Marshalled String object
+├───────────────┤
+│   Mod. Name   │          V1,2: Marshalled String object
+├───────────────┤
+│  Dist. Name   │          V1,2: Marshalled String object
+├───────────────┤
+│   Bean Name   │          V1,2: Marshalled String object
+└───────┬───────┴───────┐
+        │  EJB Locator  │  Marshalled EJBLocator object
+        ├───────────────┤
+        │   Parameter   │  Variable length marshalled objects
+        ┊     Data      ┊
+        │               │
+        ├───────────────┤
+        │   Atch.Cnt.   │  Packed integer
+        ├───────────────┤
+        │  Attachments: │
+        │┌─┬─┬─┬─┬─┬─┬─┬┴┐
+        ││      Name     │ Attachment Name (Marshalled String object)
+        │├───────────────┤
+        ││      Data     │ Marshalled object
+        │└──────────────┬┘
+        │        :      │
+        └───────────────┘
+
+2.4. Invocation Cancel Request
+
+     7 6 5 4 3 2 1 0
+    ┌─┬─┬─┬─┬─┬─┬─┬─┐
+    │      0x04     │  Command = Invocation Cancel Request
+    ├───────────────┤
+    │ Invocation ID │  Fixed length, two bytes
+    ├ ─ ─ ─ ─ ─ ─ ─ ┤
+    │               │
+    └───────────────┘
+
+2.5. Module Availability Report (server → client)
+
+When the client connects to the server, and from then on, the server will provide the client with updated reports as to which EJB modules are available for invocation over this connection.  The format of such a report is as follows:
+
+     7 6 5 4 3 2 1 0
+    ┌─┬─┬─┬─┬─┬─┬─┬─┐
+    │ 0x08 or 0x09  │  Command = Module Availability (0x08) or Unavailability (0x09) Report
+    ├───────────────┤
+    │     Count     │  Variable length packed integer; number of applications described
+    ├───────────────┤ - For each count:
+    │┌─┬─┬─┬─┬─┬─┬─┬┴┐
+    ││     Type      │ Type - application or top-level module
+    │├───────────────┤
+    ││     Name      │ Variable length UTF8Z app or module name
+    │└──────────────┬┘
+    │        :      │
+    │        :      │
+    └───────────────┘
+
+
+3. Protocol Description - response messages
+
+3.0. Session Removal Notification (server → client)
+
+REMOVED: The removal of the session should be done via a client interceptor method which clears the session ID when the remove method returns.
+
+3.1. Invocation Async Notification (server → client)
+
+     7 6 5 4 3 2 1 0
+    ┌─┬─┬─┬─┬─┬─┬─┬─┐
+    │      0x07     │  Command = Async invocation notification
+    ├───────────────┤
+    │ Invocation ID │  Fixed length, two bytes
+    ├ ─ ─ ─ ─ ─ ─ ─ ┤
+    │               │
+    └───────────────┘
+
+     7 6 5 4 3 2 1 0
+    ┌─┬─┬─┬─┬─┬─┬─┬─┐
+    │      0x0E     │  Command = Async invocation notification
+    ├───────────────┤
+    │ Invocation ID │  Fixed length, two bytes
+    ├ ─ ─ ─ ─ ─ ─ ─ ┤
+    │               │
+    └───────────────┘
+
+This message is sent when the server notifies the client that a method invocation will proceed asynchronously.  After this message is received, if the invoking client thread is currently blocking, it may unblock and allow execution to complete in the background.
+
+Note.  The client may already be unblocked if it can determine that the method invocation must be asynchronous (because it returns a java.util.concurrent.Future) or if the user utilized some API-specific mechanism to deliberately force an asynchronous execution (in which case the method is most likely a void method).  There is no way for a client to know in advance if a method which returns void is asynchronous due to the generally stateless nature of this protocol.  The client will generally propagate transactional context regardless of the method; the server may opt to not use the transactional context in the event that the method is asynchronous.
+
+3.2. Invocation Response (server → client)
+
+     7 6 5 4 3 2 1 0
+    ┌─┬─┬─┬─┬─┬─┬─┬─┐
+    │      0x05     │  Command = Invocation Response
+    ├───────────────┤
+    │ Invocation ID │  Fixed length, two bytes
+    ├ ─ ─ ─ ─ ─ ─ ─ ┤
+    │               │
+    ├───────────────┤
+    │   Atch.Cnt.   │  Fixed length, one byte
+    ├───────────────┤
+    │  Attachments: │
+    │┌─┬─┬─┬─┬─┬─┬─┬┴┐
+    ││ Attachment ID │  Fixed length, two bytes
+    │├ ─ ─ ─ ─ ─ ─ ─ ┤
+    ││               │
+    │├───────────────┤
+    ││    Length     │  Variable length packed integer
+    │├───────────────┤
+    ││               │  Variable length
+    │┊     Data      ┊
+    ││               │
+    │└──────────────┬┘
+    │        :      │
+    │        :      │
+    ├───────────────┤
+    │    Result     │  Variable length
+    ┊     Data      ┊
+    │               │
+    └───────────────┘
+
+
+     7 6 5 4 3 2 1 0
+    ┌─┬─┬─┬─┬─┬─┬─┬─┐
+    │  0x05 or 0x1B │  Command = Invocation Response or Compressed Invocation Response (0x1B is also Compressed Invocation Request (V2+ only))
+    ├───────────────┤
+    │ Invocation ID │  Fixed length, two bytes
+    ├ ─ ─ ─ ─ ─ ─ ─ ┤
+    │               │
+    ├───────────────┤
+    │    Result     │  Variable length
+    ┊     Data      ┊
+    │               │
+    ├───────────────┤
+    │   Atch.Cnt.   │  Fixed length, one byte
+    ├───────────────┤
+    │  Attachments: │
+    │┌─┬─┬─┬─┬─┬─┬─┬┴┐
+    ││      Name     │ Attachment Name (Marshalled String object)
+    │├───────────────┤
+    ││      Data     │ Marshalled object
+    │└──────────────┬┘
+    │        :      │
+    │        :      │
+    └───────────────┘
+
+3.2½. Invocation Cancellation Response
+
+Sent to the client when an invocation is successfully cancelled.
+
+     7 6 5 4 3 2 1 0
+    ┌─┬─┬─┬─┬─┬─┬─┬─┐
+    │      0x0E     │  Command = Invocation Cancelled
+    ├───────────────┤
+    │ Invocation ID │  Fixed length, two bytes
+    ├ ─ ─ ─ ─ ─ ─ ─ ┤
+    │               │
+    └───────────────┘
+
+3.3. Invocation Failure
+
+Invocation failure messages follow various formats.
+
+3.3.0. (Application) Exception
+
+     7 6 5 4 3 2 1 0
+    ┌─┬─┬─┬─┬─┬─┬─┬─┐
+    │      0x06     │  Command code
+    ├───────────────┤
+    │ Invocation ID │  Fixed length, two bytes
+    ├ ─ ─ ─ ─ ─ ─ ─ ┤
+    │               │
+    ├───────────────┤
+    │    Result     │  Variable length marshalled Throwable
+    ┊     Data      ┊
+    │               │
+    ├───────────────┤
+    │   Atch.Cnt.   │  Fixed length, one byte (V1 & V2 only; attachments are ignored even if present)
+    ├───────────────┤
+    │  Attachments: │
+    │┌─┬─┬─┬─┬─┬─┬─┬┴┐
+    ││      Name     │ Attachment Name (Marshalled String object)
+    │├───────────────┤
+    ││      Data     │ Marshalled object
+    │└──────────────┬┘
+    │        :      │
+    │        :      │
+    └───────────────┘
+
+3.3.1. No such target EJB (Command code = 0x0A)
+
+     7 6 5 4 3 2 1 0
+    ┌─┬─┬─┬─┬─┬─┬─┬─┐
+    │      0x0A     │  Command code
+    ├───────────────┤
+    │ Invocation ID │  Fixed length, two bytes
+    ├ ─ ─ ─ ─ ─ ─ ─ ┤
+    │               │
+    ├───────────────┤
+    │    Message    │  Variable length Modified UTF8
+    └───────────────┘
+
+The EJB corresponding to the supplied EJB ID did not exist at the time the invocation was received.
+
+Note that the client may reinvoke the request if/when a deployment providing the target EJB becomes available.
+
+3.3.2. No such target method (Command code = 0x0B)
+
+     7 6 5 4 3 2 1 0
+    ┌─┬─┬─┬─┬─┬─┬─┬─┐
+    │      0x0B     │  Command code
+    ├───────────────┤
+    │ Invocation ID │  Fixed length, two bytes
+    ├ ─ ─ ─ ─ ─ ─ ─ ┤
+    │               │
+    ├───────────────┤
+    │    Message    │  Variable length Modified UTF8
+    └───────────────┘
+
+The method on the EJB wasn't found. This is a slight variant of 3.3.1. Typically, unlike 3.3.1, the client will not reinvoke the request for the same method,  but the protocol in itself does not restrict such behaviour
+
+3.3.3. Session not active (Command code = 0x0C)
+
+     7 6 5 4 3 2 1 0
+    ┌─┬─┬─┬─┬─┬─┬─┬─┐
+    │      0x0C     │  Command code
+    ├───────────────┤
+    │ Invocation ID │  Fixed length, two bytes
+    ├ ─ ─ ─ ─ ─ ─ ─ ┤
+    │               │
+    ├───────────────┤
+    │    Message    │  Variable length Modified UTF8
+    └───────────────┘
+
+If a stateful bean was invoked without a prior (successful) session open request for the bean.
+
+3.3.4. Session expired/EJB removed
+
+3.3.5 404 (This isn't finalized yet. I'm not sure why we need this since the previous error codes already cover this)
+
+The requested EJB / interface / method can not be located.
+
+3.3.6 The requested interface isn't a remote interface. Or is this accounted for in 3.3.5?
+
+3.3.7 EJB is not stateful (Command code = 0x0D)
+If a session open request is sent for a bean which is not a stateful bean, then the server responds with an invocation failure message with this header
+
+     7 6 5 4 3 2 1 0
+    ┌─┬─┬─┬─┬─┬─┬─┬─┐
+    │      0x0D     │  Command code
+    ├───────────────┤
+    │ Invocation ID │  Fixed length, two bytes
+    ├ ─ ─ ─ ─ ─ ─ ─ ┤
+    │               │
+    ├───────────────┤
+    │    Message    │  Variable length Modified UTF8
+    └───────────────┘
+
+4. Clustering messages
+
+4.1 (New) Cluster topology (command code = 0x15). Sent from server to client
+
+     7 6 5 4 3 2 1 0
+    ┌─┬─┬─┬─┬─┬─┬─┬─┐
+    │     0x15      │
+    ├───────────────┤
+    │     Cluster   │
+    │      count    │  Variable length packed integer; number of cluster topologies
+    ├───────────────┤ - For each count:
+    │┌─┬─┬─┬─┬─┬─┬─┬┴┐
+    ││     Name      │ Variable length UTF8Z cluster name
+    │├───────────────┤
+    ││     member    │
+    ││     count     │ Variable length packed integer; number of members in the cluster
+    │├───────────────┤  - for each count:
+    ││┌─┬─┬─┬─┬─┬─┬─┬┴┐
+    │││   Node Name   │ Variable length UTF8Z cluster node name
+    ││├───────────────┤
+    │││mapping count  │
+    ││├───────────────┤
+    │││┌──────────────┴─┐ - for each mapping count
+    ││││Client Source IP│ - ip6 bytes (ip4 = ffff ip6)
+    │││├────────────────┤
+    ││││Client Netmask  │ - single byte, number of bits
+    │││├────────────────┤
+    ││││Destination Addr│ - Variable length UTF8Z host/ip string
+    │││├────────────────┤
+    ││││                │
+    │││├ Dest Port      ┤ - short
+    ││││                │
+    │││└──────────────┬─┘
+    ││└──────────────┬┘
+    │└──────────────┬┘
+    │        :      │
+    │        :      │
+    └───────────────┘
+
+4.2 Cluster removal notification (command code = 0x16) sent from server to client
+
+     7 6 5 4 3 2 1 0
+    ┌─┬─┬─┬─┬─┬─┬─┬─┐
+    │     0x16      │
+    ├───────────────┤
+    │     Cluster   │
+    │      count    │  Variable length packed integer; number of clusters removed
+    ├───────────────┤ - For each count:
+    │┌─┬─┬─┬─┬─┬─┬─┬┴┐
+    ││     Name      │ Variable length UTF8Z cluster name
+    │├───────────────┤
+    ││      :        │
+    │└──────────────┬┘
+    └───────────────┘

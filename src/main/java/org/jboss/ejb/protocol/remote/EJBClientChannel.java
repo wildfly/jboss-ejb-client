@@ -30,9 +30,6 @@ import java.io.InputStream;
 import java.io.InterruptedIOException;
 import java.lang.reflect.Method;
 import java.util.Map;
-import java.util.concurrent.ThreadLocalRandom;
-import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.zip.InflaterInputStream;
 
@@ -51,7 +48,6 @@ import org.jboss.ejb.client.StatefulEJBLocator;
 import org.jboss.ejb.client.StatelessEJBLocator;
 import org.jboss.ejb.client.TransactionID;
 import org.jboss.marshalling.ByteInput;
-import org.jboss.marshalling.ByteOutput;
 import org.jboss.marshalling.Marshaller;
 import org.jboss.marshalling.MarshallerFactory;
 import org.jboss.marshalling.Marshalling;
@@ -62,9 +58,9 @@ import org.jboss.remoting3.Channel;
 import org.jboss.remoting3.Connection;
 import org.jboss.remoting3.MessageInputStream;
 import org.jboss.remoting3.MessageOutputStream;
-import org.jboss.remoting3._private.IntIndexHashMap;
-import org.jboss.remoting3._private.IntIndexMap;
+import org.jboss.remoting3.RemotingOptions;
 import org.jboss.remoting3.util.Invocation;
+import org.jboss.remoting3.util.InvocationTracker;
 import org.jboss.remoting3.util.StreamUtils;
 import org.xnio.FutureResult;
 import org.xnio.IoFuture;
@@ -81,11 +77,9 @@ class EJBClientChannel {
     private final Channel channel;
     private final int version;
 
-    private final IntIndexMap<Invocation> invocationMap = new IntIndexHashMap<>(Invocation.INDEXER);
+    private final InvocationTracker invocationTracker;
 
-    private final AtomicInteger messageCount = new AtomicInteger();
     private final MarshallingConfiguration configuration;
-    private volatile boolean closed;
 
     EJBClientChannel(final Channel channel, final int version) {
         this.channel = channel;
@@ -102,37 +96,41 @@ class EJBClientChannel {
             configuration.setVersion(4);
         }
         this.configuration = configuration;
+        invocationTracker = new InvocationTracker(this.channel, channel.getOption(RemotingOptions.MAX_OUTBOUND_MESSAGES).intValue(), EJBClientChannel::mask);
+    }
+
+    static int mask(int original) {
+        return original & 0xffff;
+    }
+
+    private void processMessage(final MessageInputStream message) {
+        boolean ok = false;
+        try {
+            final int msg = message.readUnsignedByte();
+            if (msg == Protocol.INVOCATION_RESPONSE) {
+                final int invId = message.readUnsignedShort();
+                ok = invocationTracker.signalResponse(invId, 0, message, true);
+            }
+        } catch (IOException e) {
+
+        } finally {
+            if (! ok) {
+                safeClose(message);
+            }
+        }
     }
 
     public void processInvocation(final EJBReceiverInvocationContext receiverContext) {
-        int id;
-        MethodInvocation invocation;
-        if (closed) {
-            receiverContext.requestCancelled();
-            return;
-        }
-        final IntIndexMap<Invocation> invocationMap = this.invocationMap;
-        final ThreadLocalRandom random = ThreadLocalRandom.current();
-        do {
-            do {
-                id = random.nextInt() & 0xffff;
-            } while (invocationMap.containsKey(id));
-            invocation = new MethodInvocation(id, receiverContext);
-        } while (invocationMap.putIfAbsent(invocation) != null);
-        if (closed) {
-            invocationMap.remove(invocation);
-            receiverContext.requestCancelled();
-            return;
-        }
+        MethodInvocation invocation = invocationTracker.addInvocation(id -> new MethodInvocation(id, receiverContext));
         final EJBClientInvocationContext invocationContext = receiverContext.getClientInvocationContext();
         final EJBLocator<?> locator = invocationContext.getLocator();
-        try (DelegatingMessageOutputStream out = getMessageBlocking()) {
+        try (MessageOutputStream out = invocationTracker.allocateMessage()) {
             try {
                 out.write(Protocol.INVOCATION_REQUEST);
-                out.writeShort(id);
+                out.writeShort(invocation.getIndex());
 
                 Marshaller marshaller = getMarshaller();
-                marshaller.start(out);
+                marshaller.start(Marshalling.createByteOutput(out));
 
                 final Method invokedMethod = invocationContext.getInvokedMethod();
                 final Object[] parameters = invocationContext.getParameters();
@@ -247,19 +245,10 @@ class EJBClientChannel {
     }
 
     public <T> StatefulEJBLocator<T> openSession(final StatelessEJBLocator<T> statelessLocator) throws Exception {
-        int id;
-        SessionOpenInvocation<T> invocation;
-        final IntIndexMap<Invocation> invocationMap = this.invocationMap;
-        final ThreadLocalRandom random = ThreadLocalRandom.current();
-        do {
-            do {
-                id = random.nextInt() & 0xffff;
-            } while (invocationMap.containsKey(id));
-            invocation = new SessionOpenInvocation<T>(id, statelessLocator);
-        } while (invocationMap.putIfAbsent(invocation) != null);
-        try (DelegatingMessageOutputStream out = getMessageBlocking()) {
+        SessionOpenInvocation<T> invocation = invocationTracker.addInvocation(id -> new SessionOpenInvocation<>(id, statelessLocator));
+        try (MessageOutputStream out = invocationTracker.allocateMessage()) {
             out.write(Protocol.OPEN_SESSION_REQUEST);
-            out.writeShort(id);
+            out.writeShort(invocation.id);
             writeRawIdentifier(statelessLocator, out);
         } catch (IOException e) {
             CreateException createException = new CreateException(e.getMessage());
@@ -270,7 +259,7 @@ class EJBClientChannel {
         return invocation.getResult();
     }
 
-    private static <T> void writeRawIdentifier(final EJBLocator<T> statelessLocator, final DelegatingMessageOutputStream out) throws IOException {
+    private static <T> void writeRawIdentifier(final EJBLocator<T> statelessLocator, final MessageOutputStream out) throws IOException {
         final String appName = statelessLocator.getAppName();
         out.writeUTF(appName == null ? "" : appName);
         out.writeUTF(statelessLocator.getModuleName());
@@ -301,45 +290,6 @@ class EJBClientChannel {
         }
     }
 
-    DelegatingMessageOutputStream getMessageBlocking() throws IOException {
-        int oldVal;
-        do {
-            oldVal = messageCount.get();
-            if (oldVal == 0) {
-                synchronized (messageCount) {
-                    do {
-                        try {
-                            messageCount.wait();
-                        } catch (InterruptedException e) {
-                            Thread.currentThread().interrupt();
-                            throw new InterruptedIOException();
-                        }
-                        oldVal = messageCount.get();
-                    } while (oldVal == 0);
-                }
-            }
-        } while (! messageCount.compareAndSet(oldVal, oldVal - 1));
-        return new DelegatingMessageOutputStream(channel.writeMessage());
-    }
-
-    static class CachedLocator {
-        private final EJBLocator<?> locator;
-        private final int locatorId;
-
-        CachedLocator(final EJBLocator<?> locator, final int locatorId) {
-            this.locator = locator;
-            this.locatorId = locatorId;
-        }
-
-        EJBLocator<?> getLocator() {
-            return locator;
-        }
-
-        int getLocatorId() {
-            return locatorId;
-        }
-    }
-
     final class SessionOpenInvocation<T> extends Invocation {
 
         private final StatelessEJBLocator<T> statelessLocator;
@@ -361,7 +311,7 @@ class EJBClientChannel {
 
         public void handleClosed() {
             synchronized (this) {
-                this.id = -1;
+                id = -1;
                 notifyAll();
             }
         }
@@ -382,8 +332,7 @@ class EJBClientChannel {
                             affinity = unmarshaller.readObject(Affinity.class);
                             unmarshaller.finish();
                         }
-                        response.close();
-                        return new StatefulEJBLocator<T>(statelessLocator, SessionID.createSessionID(bytes), affinity);
+                        return new StatefulEJBLocator<>(statelessLocator, SessionID.createSessionID(bytes), affinity);
                     }
                     case Protocol.APPLICATION_EXCEPTION: {
                         try (final Unmarshaller unmarshaller = createUnmarshaller()) {
@@ -441,8 +390,6 @@ class EJBClientChannel {
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
                 throw new EJBException("Session creation interrupted");
-            } finally {
-                invocationMap.remove(this);
             }
             return new ResponseMessageInputStream(mis, id);
         }
@@ -463,22 +410,18 @@ class EJBClientChannel {
         public void handleResponse(final int id, final MessageInputStream inputStream) {
             switch (id) {
                 case Protocol.COMPRESSED_INVOCATION_MESSAGE: {
-                    invocationMap.remove(this);
                     receiverInvocationContext.resultReady(new MethodCallResultProducer(new InflaterInputStream(inputStream), id));
                     break;
                 }
                 case Protocol.INVOCATION_RESPONSE: {
-                    invocationMap.remove(this);
                     receiverInvocationContext.resultReady(new MethodCallResultProducer(inputStream, id));
                     break;
                 }
                 case Protocol.APPLICATION_EXCEPTION: {
-                    invocationMap.remove(this);
                     receiverInvocationContext.resultReady(new ExceptionResultProducer(inputStream, id));
                     break;
                 }
                 case Protocol.NO_SUCH_EJB: {
-                    invocationMap.remove(this);
                     try {
                         final String message = inputStream.readUTF();
                         receiverInvocationContext.resultReady(new EJBReceiverInvocationContext.ResultProducer.Failed(new NoSuchEJBException(message)));
@@ -490,7 +433,6 @@ class EJBClientChannel {
                     break;
                 }
                 case Protocol.NO_SUCH_METHOD: {
-                    invocationMap.remove(this);
                     try {
                         final String message = inputStream.readUTF();
                         // todo: I don't think this is the best exception type for this case...
@@ -503,7 +445,6 @@ class EJBClientChannel {
                     break;
                 }
                 case Protocol.SESSION_NOT_ACTIVE: {
-                    invocationMap.remove(this);
                     try {
                         final String message = inputStream.readUTF();
                         receiverInvocationContext.resultReady(new EJBReceiverInvocationContext.ResultProducer.Failed(new EJBException(message)));
@@ -515,7 +456,6 @@ class EJBClientChannel {
                     break;
                 }
                 case Protocol.EJB_NOT_STATEFUL: {
-                    invocationMap.remove(this);
                     try {
                         final String message = inputStream.readUTF();
                         receiverInvocationContext.resultReady(new EJBReceiverInvocationContext.ResultProducer.Failed(new EJBException(message)));
@@ -532,7 +472,6 @@ class EJBClientChannel {
                     break;
                 }
                 default: {
-                    invocationMap.remove(this);
                     safeClose(inputStream);
                     receiverInvocationContext.resultReady(new EJBReceiverInvocationContext.ResultProducer.Failed(new EJBException("Unknown protocol response")));
                     break;
@@ -541,13 +480,9 @@ class EJBClientChannel {
         }
 
         public void handleClosed() {
-            closed = true;
-            for (Invocation invocation : invocationMap) {
-                invocation.handleClosed();
-            }
         }
 
-        private class MethodCallResultProducer implements EJBReceiverInvocationContext.ResultProducer {
+        class MethodCallResultProducer implements EJBReceiverInvocationContext.ResultProducer {
 
             private final InputStream inputStream;
             private final int id;
@@ -658,8 +593,26 @@ class EJBClientChannel {
                                 out.write(version);
                                 out.write(Protocol.RIVER_BYTES);
                             }
-                            futureResult.setResult(new EJBClientChannel(channel, version));
+                            final EJBClientChannel ejbClientChannel = new EJBClientChannel(channel, version);
+                            futureResult.setResult(ejbClientChannel);
                             // done!
+                            channel.receiveMessage(new Channel.Receiver() {
+                                public void handleError(final Channel channel, final IOException error) {
+                                    safeClose(channel);
+                                }
+
+                                public void handleEnd(final Channel channel) {
+                                    safeClose(channel);
+                                }
+
+                                public void handleMessage(final Channel channel, final MessageInputStream message) {
+                                    try {
+                                        ejbClientChannel.processMessage(message);
+                                    } finally {
+                                        channel.receiveMessage(this);
+                                    }
+                                }
+                            });
                         } catch (final IOException e) {
                             channel.closeAsync();
                             channel.addCloseHandler((closed, exception) -> futureResult.setException(e));
@@ -690,45 +643,6 @@ class EJBClientChannel {
     }
 
     static final Attachments.Key<Future> KEY = new Attachments.Key<>(Future.class);
-
-    class DelegatingMessageOutputStream extends MessageOutputStream implements ByteOutput {
-
-        private final AtomicBoolean closed;
-        private final MessageOutputStream delegate;
-
-        DelegatingMessageOutputStream(final MessageOutputStream delegate) {
-            this.delegate = delegate;
-            closed = new AtomicBoolean();
-        }
-
-        public void flush() throws IOException {
-            delegate.flush();
-        }
-
-        public void close() throws IOException {
-            if (closed.compareAndSet(false, true)) {
-                if (messageCount.getAndIncrement() == 0) {
-                    synchronized (messageCount) {
-                        messageCount.notifyAll();
-                    }
-                }
-            }
-            delegate.close();
-        }
-
-        public MessageOutputStream cancel() {
-            delegate.cancel();
-            return this;
-        }
-
-        public void write(final int b) throws IOException {
-            delegate.write(b);
-        }
-
-        public void write(final byte[] b, final int off, final int len) throws IOException {
-            delegate.write(b, off, len);
-        }
-    }
 
     static class ResponseMessageInputStream extends MessageInputStream implements ByteInput {
         private final InputStream delegate;

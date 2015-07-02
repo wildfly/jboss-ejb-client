@@ -132,48 +132,52 @@ final class EJBInvocationHandler<T> extends Attachable implements InvocationHand
         // otherwise it's a business method
         assert methodInfo.getMethodType() == EJBProxyInformation.MT_BUSINESS;
         final EJBClientContext clientContext = EJBClientContext.getCurrent();
-        final EJBClientInvocationContext invocationContext = new EJBClientInvocationContext(this, clientContext, proxy, args, methodInfo);
+        return clientContext.performLocatedAction(locator, (receiver, originalLocator, newAffinity) -> {
+            final EJBClientInvocationContext invocationContext = new EJBClientInvocationContext(this, clientContext, proxy, args, methodInfo);
+            invocationContext.setReceiver(receiver);
+            invocationContext.setLocator(locator.withNewAffinity(newAffinity));
 
-        try {
-            // send the request
-            invocationContext.sendRequest();
+            try {
+                // send the request
+                invocationContext.sendRequest();
 
-            if (!async && !methodInfo.isClientAsync()) {
-                // wait for invocation to complete
-                final Object value = invocationContext.awaitResponse();
-                if (value != EJBClientInvocationContext.PROCEED_ASYNC) {
-                    return value;
+                if (!async && !methodInfo.isClientAsync()) {
+                    // wait for invocation to complete
+                    final Object value = invocationContext.awaitResponse();
+                    if (value != EJBClientInvocationContext.PROCEED_ASYNC) {
+                        return value;
+                    }
+                    // proceed asynchronously
                 }
-                // proceed asynchronously
-            }
-            // force async...
-            if (method.getReturnType() == Future.class) {
-                return invocationContext.getFutureResponse();
-            } else if (method.getReturnType() == void.class) {
-                invocationContext.setDiscardResult();
-                // Void return
-                return null;
-            } else {
-                // wrap return always
-                EJBClient.setFutureResult(invocationContext.getFutureResponse());
-                return null;
-            }
-        } catch (RuntimeException e) {
-            throw e;
-        } catch (Exception e) {
-            boolean remoteException = false;
-            for (Class<?> exception : method.getExceptionTypes()) {
-                if (exception.isAssignableFrom(e.getClass())) {
-                    throw e;
-                } else if (RemoteException.class.equals(exception)) {
-                    remoteException = true;
+                // force async...
+                if (method.getReturnType() == Future.class) {
+                    return invocationContext.getFutureResponse();
+                } else if (method.getReturnType() == void.class) {
+                    invocationContext.setDiscardResult();
+                    // Void return
+                    return null;
+                } else {
+                    // wrap return always
+                    EJBClient.setFutureResult(invocationContext.getFutureResponse());
+                    return null;
                 }
+            } catch (RuntimeException e) {
+                throw e;
+            } catch (Exception e) {
+                boolean remoteException = false;
+                for (Class<?> exception : method.getExceptionTypes()) {
+                    if (exception.isAssignableFrom(e.getClass())) {
+                        throw e;
+                    } else if (RemoteException.class.equals(exception)) {
+                        remoteException = true;
+                    }
+                }
+                if (remoteException) {
+                    throw new RemoteException("Error", e);
+                }
+                throw new EJBException(e);
             }
-            if (remoteException) {
-                throw new RemoteException("Error", e);
-            }
-            throw new EJBException(e);
-        }
+        });
     }
 
     void setWeakAffinity(Affinity newWeakAffinity) {

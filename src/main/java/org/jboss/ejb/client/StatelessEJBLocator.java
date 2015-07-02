@@ -22,6 +22,8 @@
 
 package org.jboss.ejb.client;
 
+import org.wildfly.common.Assert;
+
 /**
  * A locator for a stateless session EJB.
  *
@@ -94,7 +96,8 @@ public final class StatelessEJBLocator<T> extends EJBLocator<T> {
     }
 
     public StatelessEJBLocator<T> withNewAffinity(final Affinity affinity) {
-        return new StatelessEJBLocator<T>(this, affinity);
+        Assert.checkNotNullParam("affinity", affinity);
+        return getAffinity().equals(affinity) ? this : new StatelessEJBLocator<T>(this, affinity);
     }
 
     @SuppressWarnings("unchecked")
