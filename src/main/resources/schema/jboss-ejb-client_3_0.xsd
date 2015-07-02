@@ -31,7 +31,7 @@
 
     <!-- Root elements -->
 
-    <xsd:element name="ejb-client" type="ejb-client-type"/>
+    <xsd:element name="jboss-ejb-client" type="ejb-client-type"/>
 
     <!-- Types -->
 
@@ -70,7 +70,7 @@
     </xsd:complexType>
 
     <xsd:complexType name="static-ejb-discovery-type">
-        <xsd:attribute name="app-name" type="xsd:string" use="required"/>
+        <xsd:attribute name="app-name" type="xsd:string" use="optional"/> <!-- defaults to equal module name -->
         <xsd:attribute name="module-name" type="xsd:string" use="required"/> <!-- may be * -->
         <xsd:attribute name="bean-name" type="xsd:string" use="required"/> <!-- may be * -->
         <xsd:attribute name="distinct-name" type="xsd:string" use="optional" default=""/> <!-- may be * -->

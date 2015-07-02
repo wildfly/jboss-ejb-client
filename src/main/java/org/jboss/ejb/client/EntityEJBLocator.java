@@ -54,7 +54,7 @@ public final class EntityEJBLocator<T extends EJBObject> extends EJBLocator<T> {
      * @param primaryKey   the entity primary key
      */
     public EntityEJBLocator(final Class<T> viewType, final String appName, final String moduleName, final String beanName, final Object primaryKey) {
-        this(viewType, appName, moduleName, beanName, null, primaryKey, Affinity.NONE);
+        this(viewType, appName, moduleName, beanName, "", primaryKey, Affinity.NONE);
     }
 
     /**
@@ -68,7 +68,7 @@ public final class EntityEJBLocator<T extends EJBObject> extends EJBLocator<T> {
      * @param affinity     the affinity
      */
     public EntityEJBLocator(final Class<T> viewType, final String appName, final String moduleName, final String beanName, final Object primaryKey, final Affinity affinity) {
-        this(viewType, appName, moduleName, beanName, null, primaryKey, affinity);
+        this(viewType, appName, moduleName, beanName, "", primaryKey, affinity);
     }
 
     /**

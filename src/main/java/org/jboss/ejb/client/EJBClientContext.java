@@ -26,6 +26,9 @@ import java.net.URI;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.jboss.ejb._private.Logs;
+import org.jboss.marshalling.Pair;
+import org.wildfly.common.selector.DefaultSelector;
 import org.wildfly.common.selector.Selector;
 import org.wildfly.discovery.Discovery;
 import org.wildfly.discovery.FilterSpec;
@@ -38,6 +41,7 @@ import org.wildfly.discovery.spi.DiscoveryProvider;
  *
  * @author <a href="mailto:david.lloyd@redhat.com">David M. Lloyd</a>
  */
+@DefaultSelector(ConfigurationBasedEJBClientContextSelector.class)
 public final class EJBClientContext extends Attachable {
 
     /**
@@ -75,13 +79,26 @@ public final class EJBClientContext extends Attachable {
                 discoveryProviders.add(discoveryProvider);
             }
         }
-        discoveryProviders.addAll(builder.discoveryProviders);
+        if (builder.discoveryProviders != null) discoveryProviders.addAll(builder.discoveryProviders);
         discovery = Discovery.create(discoveryProviders.toArray(new DiscoveryProvider[discoveryProviders.size()]));
         invocationTimeout = 0;
     }
 
     public long getInvocationTimeout() {
         return invocationTimeout;
+    }
+
+    EJBReceiver getTransportProvider(final String scheme) {
+        for (EJBTransportProvider transportProvider : transportProviders) {
+            if (transportProvider.supportsProtocol(scheme)) {
+                return transportProvider.getReceiver(scheme);
+            }
+        }
+        return null;
+    }
+
+    ServicesQueue discover(final FilterSpec filterSpec) {
+        return discovery.discover(EJB_SERVICE_TYPE, filterSpec);
     }
 
     /**
@@ -113,12 +130,18 @@ public final class EJBClientContext extends Attachable {
             if (provider == null) {
                 throw new IllegalArgumentException("provider is null");
             }
+            if (transportProviders == null) {
+                transportProviders = new ArrayList<>();
+            }
             transportProviders.add(provider);
         }
 
         public void addDiscoveryProvider(DiscoveryProvider provider) {
             if (provider == null) {
                 throw new IllegalArgumentException("provider is null");
+            }
+            if (discoveryProviders == null) {
+                discoveryProviders = new ArrayList<>();
             }
             discoveryProviders.add(provider);
         }
@@ -151,13 +174,7 @@ public final class EJBClientContext extends Attachable {
         return clientContext;
     }
 
-    /**
-     * Get the first EJB receiver which matches the given EJB locator.
-     *
-     * @param locator the locator of the invocation target
-     * @return the first EJB receiver to match, or {@code null} if none match
-     */
-    EJBReceiver getEJBReceiver(final EJBLocator<?> locator) {
+    Pair<EJBReceiver, EJBLocator<?>> findEJBReceiver(final EJBLocator<?> locator) {
         final Affinity affinity = locator.getAffinity();
         final String scheme;
         if (affinity instanceof NodeAffinity) {
@@ -172,58 +189,47 @@ public final class EJBClientContext extends Attachable {
             assert affinity == Affinity.NONE;
             return discoverFirst(locator);
         }
-        for (EJBTransportProvider transportProvider : transportProviders) {
-            if (transportProvider.supportsProtocol(scheme)) {
-                return transportProvider.getReceiver(scheme);
-            }
-        }
-        return null;
+        return new Pair<>(getTransportProvider(scheme), locator);
     }
 
-    /**
-     * Get the first EJB receiver which matches the given EJB locator. If there's
-     * no such EJB receiver, then this method throws a {@link IllegalStateException}.
-     *
-     * @param locator the locator of the invocation target
-     * @return the first EJB receiver to match
-     * @throws IllegalStateException if there's no {@link EJBReceiver} that matches
-     */
-    EJBReceiver requireEJBReceiver(final EJBLocator<?> locator) throws IllegalStateException {
-        final EJBReceiver receiver = getEJBReceiver(locator);
-        if (receiver == null) {
-            throw Logs.MAIN.noEJBReceiverAvailable(locator.getAffinity());
-        }
-        return receiver;
-    }
-
-    EJBClientInterceptor[] getInterceptors() {
-        return interceptors;
-    }
-
-    EJBReceiver discoverFirst(EJBLocator<?> locator) {
-        final Discovery discovery = this.discovery;
+    Pair<EJBReceiver, EJBLocator<?>> discoverFirst(EJBLocator<?> locator) {
         final FilterSpec filterSpec;
-        if (locator.getAffinity() == Affinity.NONE) {
-            String primary = locator.getAppName() + '/' + locator.getModuleName();
-            String secondary;
-            if (locator.getDistinctName() != null) {
-                secondary = locator.getBeanName() + '/' + locator.getDistinctName();
+        final Affinity affinity = locator.getAffinity();
+        if (affinity == Affinity.NONE) {
+            final String appName = locator.getAppName();
+            final String moduleName = locator.getModuleName();
+            final String beanName = locator.getBeanName();
+            final String distinctName = locator.getDistinctName();
+            if (distinctName != null && ! distinctName.isEmpty()) {
+                filterSpec = FilterSpec.any(
+                    FilterSpec.equal("ejb-app", appName),
+                    FilterSpec.equal("ejb-module", appName + '/' + moduleName),
+                    FilterSpec.equal("ejb-bean", appName + '/' + moduleName + '/' + beanName),
+                    FilterSpec.equal("ejb-distinct", distinctName),
+                    FilterSpec.equal("ejb-app-distinct", appName + '/' + distinctName),
+                    FilterSpec.equal("ejb-module-distinct", appName + '/' + moduleName + '/' + distinctName),
+                    FilterSpec.equal("ejb-bean-distinct", appName + '/' + moduleName + '/' + beanName + '/' + distinctName)
+                );
             } else {
-                secondary = locator.getBeanName();
+                filterSpec = FilterSpec.any(
+                    FilterSpec.equal("ejb-app", appName),
+                    FilterSpec.equal("ejb-module", appName + '/' + moduleName),
+                    FilterSpec.equal("ejb-bean", appName + '/' + moduleName + '/' + beanName)
+                );
             }
-            filterSpec = FilterSpec.any(
-                FilterSpec.equal("module", primary),
-                FilterSpec.equal("bean", primary + '/' + secondary)
-            );
-        } else if (locator.getAffinity() instanceof NodeAffinity) {
-            filterSpec = FilterSpec.equal("node", ((NodeAffinity) locator.getAffinity()).getNodeName());
-        } else if (locator.getAffinity() instanceof ClusterAffinity) {
-            filterSpec = FilterSpec.equal("cluster", ((ClusterAffinity) locator.getAffinity()).getClusterName());
+        } else if (affinity instanceof NodeAffinity) {
+            filterSpec = FilterSpec.equal("node", ((NodeAffinity) affinity).getNodeName());
+        } else if (affinity instanceof ClusterAffinity) {
+            filterSpec = FilterSpec.equal("cluster", ((ClusterAffinity) affinity).getClusterName());
         } else {
-            return requireEJBReceiver(locator);
+            final Pair<EJBReceiver, EJBLocator<?>> info = findEJBReceiver(locator);
+            if (info == null) {
+                throw Logs.MAIN.noEJBReceiverAvailable(locator);
+            }
+            return info;
         }
 
-        try (final ServicesQueue servicesQueue = discovery.discover(EJB_SERVICE_TYPE, filterSpec)) {
+        try (final ServicesQueue servicesQueue = discover(filterSpec)) {
             for (;;) {
                 final URI uri;
                 try {
@@ -235,13 +241,16 @@ public final class EJBClientContext extends Attachable {
                 if (uri == null) {
                     return null;
                 }
-                String scheme = uri.getScheme();
-                for (EJBTransportProvider transportProvider : transportProviders) {
-                    if (transportProvider.supportsProtocol(scheme)) {
-                        return transportProvider.getReceiver(scheme);
-                    }
+                final EJBReceiver receiver = getTransportProvider(uri.getScheme());
+                if (receiver != null) {
+                    final EJBLocator<?> newLocator = locator.withNewAffinity(Affinity.forUri(uri));
+                    return new Pair<EJBReceiver, EJBLocator<?>>(receiver, newLocator);
                 }
             }
         }
+    }
+
+    EJBClientInterceptor[] getInterceptors() {
+        return interceptors;
     }
 }

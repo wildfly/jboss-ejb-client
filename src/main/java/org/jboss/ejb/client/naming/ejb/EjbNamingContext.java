@@ -25,7 +25,7 @@ import org.jboss.ejb.client.Affinity;
 import org.jboss.ejb.client.EJBClient;
 import org.jboss.ejb.client.EJBHomeLocator;
 import org.jboss.ejb.client.EJBLocator;
-import org.jboss.ejb.client.Logs;
+import org.jboss.ejb._private.Logs;
 import org.jboss.ejb.client.StatelessEJBLocator;
 import org.jboss.logging.Logger;
 

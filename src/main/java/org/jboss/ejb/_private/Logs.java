@@ -20,8 +20,12 @@
  * 02110-1301 USA, or see the FSF site: http://www.fsf.org.
  */
 
-package org.jboss.ejb.client;
+package org.jboss.ejb._private;
 
+import org.jboss.ejb.client.Affinity;
+import org.jboss.ejb.client.EJBClientInvocationContext;
+import org.jboss.ejb.client.EJBLocator;
+import org.jboss.ejb.client.EJBReceiver;
 import org.jboss.logging.BasicLogger;
 import org.jboss.logging.annotations.Cause;
 import org.jboss.logging.annotations.LogMessage;
@@ -134,8 +138,8 @@ public interface Logs extends BasicLogger {
 
     // @Message(id = 23, value = "EJB client interceptor %s is already registered")
 
-    @Message(id = 24, value = "No EJB receiver available for handling affinity \"%s\"")
-    IllegalStateException noEJBReceiverAvailable(final Affinity locator);
+    @Message(id = 24, value = "No EJB receiver available for \"%s\"")
+    IllegalStateException noEJBReceiverAvailable(final EJBLocator<?> locator);
 
     // @Message(id = 25, value = "No EJB receiver available for handling %s")
     // @Message(id = 26, value = "%s has not been associated with %s")

@@ -33,6 +33,8 @@ import java.util.concurrent.TimeoutException;
 
 import static java.lang.Thread.holdsLock;
 
+import org.jboss.ejb._private.Logs;
+
 /**
  * An invocation context for EJB invocations from an EJB client
  *
@@ -52,7 +54,6 @@ public final class EJBClientInvocationContext extends Attachable {
     // Invocation data
     private final Object invokedProxy;
     private final Object[] parameters;
-    private final EJBReceiver receiver;
     private final EJBProxyInformation.ProxyMethodInfo methodInfo;
     private final EJBReceiverInvocationContext receiverInvocationContext = new EJBReceiverInvocationContext(this);
 
@@ -61,6 +62,8 @@ public final class EJBClientInvocationContext extends Attachable {
     private EJBReceiverInvocationContext.ResultProducer resultProducer;
 
     // selected target receiver
+    private EJBReceiver receiver;
+    private EJBLocator<?> locator;
     private State state = State.WAITING;
     private AsyncState asyncState = AsyncState.SYNCHRONOUS;
     private Object cachedResult;
@@ -69,12 +72,11 @@ public final class EJBClientInvocationContext extends Attachable {
     private int interceptorChainIndex;
     private boolean resultDone;
 
-    EJBClientInvocationContext(final EJBInvocationHandler<?> invocationHandler, final EJBClientContext ejbClientContext, final Object invokedProxy, final Object[] parameters, final EJBReceiver receiver, final EJBProxyInformation.ProxyMethodInfo methodInfo) {
+    EJBClientInvocationContext(final EJBInvocationHandler<?> invocationHandler, final EJBClientContext ejbClientContext, final Object invokedProxy, final Object[] parameters, final EJBProxyInformation.ProxyMethodInfo methodInfo) {
         this.invocationHandler = invocationHandler;
         this.invokedProxy = invokedProxy;
         this.parameters = parameters;
         this.ejbClientContext = ejbClientContext;
-        this.receiver = receiver;
         this.methodInfo = methodInfo;
     }
 
@@ -218,7 +220,11 @@ public final class EJBClientInvocationContext extends Attachable {
                 throw Logs.MAIN.sendRequestCalledDuringWrongPhase();
             }
             if (chain.length == idx) {
-                receiver.processInvocation(new EJBReceiverInvocationContext(this));
+                final EJBReceiver receiver = this.receiver;
+                if (receiver == null) {
+                    throw Logs.MAIN.noEJBReceiverAvailable(getLocator());
+                }
+                receiver.processInvocation(receiverInvocationContext);
             } else {
                 chain[idx].handleInvocation(this);
             }
@@ -242,23 +248,26 @@ public final class EJBClientInvocationContext extends Attachable {
         }
 
         final int idx = this.interceptorChainIndex++;
-        final EJBClientInterceptor[] chain = this.ejbClientContext.getInterceptors();
-        if (idx == 0) try {
-            return chain[idx].handleInvocationResult(this);
-        } finally {
-            resultDone = true;
-            final Affinity weakAffinity = getAttachment(AttachmentKeys.WEAK_AFFINITY);
-            if (weakAffinity != null) {
-                invocationHandler.setWeakAffinity(weakAffinity);
-            }
-        } else try {
+        try {
+            final EJBClientInterceptor[] chain = this.ejbClientContext.getInterceptors();
             if (chain.length == idx) {
                 return resultProducer.getResult();
-            } else {
+            }
+            if (idx == 0) try {
                 return chain[idx].handleInvocationResult(this);
+            } finally {
+                resultDone = true;
+                final Affinity weakAffinity = getAttachment(AttachmentKeys.WEAK_AFFINITY);
+                if (weakAffinity != null) {
+                    invocationHandler.setWeakAffinity(weakAffinity);
+                }
+            } else try {
+                return chain[idx].handleInvocationResult(this);
+            } finally {
+                resultDone = true;
             }
         } finally {
-            resultDone = true;
+            interceptorChainIndex--;
         }
     }
 
@@ -283,7 +292,6 @@ public final class EJBClientInvocationContext extends Attachable {
                 case WAITING:
                 case CANCEL_REQ: {
                     this.resultProducer = resultProducer;
-                    interceptorChainIndex = 0;
                     state = State.READY;
                     lock.notifyAll();
                     return;
@@ -302,6 +310,15 @@ public final class EJBClientInvocationContext extends Attachable {
      */
     protected EJBReceiver getReceiver() {
         return receiver;
+    }
+
+    /**
+     * Set the EJB receiver associated with this invocation.
+     *
+     * @param receiver the EJB receiver associated with this invocation
+     */
+    public void setReceiver(final EJBReceiver receiver) {
+        this.receiver = receiver;
     }
 
     /**

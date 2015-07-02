@@ -33,6 +33,7 @@ import javax.ejb.EJBException;
 import javax.ejb.EJBHome;
 import javax.ejb.EJBObject;
 
+import org.jboss.ejb._private.Logs;
 import org.wildfly.common.Assert;
 
 /**
@@ -97,7 +98,7 @@ final class EJBInvocationHandler<T> extends Attachable implements InvocationHand
                 if (args[0] instanceof Proxy) {
                     final InvocationHandler handler = Proxy.getInvocationHandler(args[0]);
                     if (handler instanceof EJBInvocationHandler) {
-                        return Boolean.valueOf(equals(((EJBInvocationHandler<?>) handler)));
+                        return Boolean.valueOf(equals(handler));
                     }
                 }
                 return Boolean.FALSE;
@@ -131,11 +132,7 @@ final class EJBInvocationHandler<T> extends Attachable implements InvocationHand
         // otherwise it's a business method
         assert methodInfo.getMethodType() == EJBProxyInformation.MT_BUSINESS;
         final EJBClientContext clientContext = EJBClientContext.getCurrent();
-        final EJBReceiver receiver = clientContext.getEJBReceiver(locator);
-        if (receiver == null) {
-            throw new RemoteException("Cannot locate destination for EJB identified by " + locator);
-        }
-        final EJBClientInvocationContext invocationContext = new EJBClientInvocationContext(this, clientContext, proxy, args, receiver, methodInfo);
+        final EJBClientInvocationContext invocationContext = new EJBClientInvocationContext(this, clientContext, proxy, args, methodInfo);
 
         try {
             // send the request
@@ -220,6 +217,16 @@ final class EJBInvocationHandler<T> extends Attachable implements InvocationHand
      * @return {@code true} if they are equal, {@code false} otherwise
      */
     public boolean equals(Object other) {
+        return other instanceof EJBInvocationHandler && equals((EJBInvocationHandler<?>)other);
+    }
+
+    /**
+     * Determine whether this object is equal to another.
+     *
+     * @param other the other object
+     * @return {@code true} if they are equal, {@code false} otherwise
+     */
+    public boolean equals(InvocationHandler other) {
         return other instanceof EJBInvocationHandler && equals((EJBInvocationHandler<?>)other);
     }
 

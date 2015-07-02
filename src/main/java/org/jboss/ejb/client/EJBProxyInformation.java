@@ -63,11 +63,7 @@ final class EJBProxyInformation<T> {
         protected EJBProxyInformation<?> computeValue(final Class<?> type) {
             final SecurityManager sm = System.getSecurityManager();
             if (sm != null) {
-                return doPrivileged(new PrivilegedAction<EJBProxyInformation<?>>() {
-                    public EJBProxyInformation<?> run() {
-                        return doCompute(type);
-                    }
-                });
+                return doPrivileged((PrivilegedAction<EJBProxyInformation<?>>) () -> doCompute(type));
             } else {
                 return doCompute(type);
             }

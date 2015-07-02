@@ -59,7 +59,6 @@ final class ProtocolV3ObjectTable implements ObjectTable {
             AttachmentKeys.COMPRESS_RESPONSE,
             AttachmentKeys.RESPONSE_COMPRESSION_LEVEL,
             AttachmentKeys.TRANSACTION_KEY,
-            AttachmentKeys.COMPRESS_RESPONSE,
             AttachmentKeys.HINTS_DISABLED,
             AttachmentKeys.VIEW_CLASS_DATA_COMPRESSION_HINT_ATTACHMENT_KEY,
             AttachmentKeys.VIEW_METHOD_DATA_COMPRESSION_HINT_ATTACHMENT_KEY,

@@ -59,13 +59,12 @@ import org.jboss.marshalling.MarshallingConfiguration;
 import org.jboss.marshalling.Unmarshaller;
 import org.jboss.remoting3.Attachments;
 import org.jboss.remoting3.Channel;
-import org.jboss.remoting3.CloseHandler;
 import org.jboss.remoting3.Connection;
 import org.jboss.remoting3.MessageInputStream;
 import org.jboss.remoting3.MessageOutputStream;
 import org.jboss.remoting3._private.IntIndexHashMap;
 import org.jboss.remoting3._private.IntIndexMap;
-import org.jboss.remoting3._private.IntIndexer;
+import org.jboss.remoting3.util.Invocation;
 import org.jboss.remoting3.util.StreamUtils;
 import org.xnio.FutureResult;
 import org.xnio.IoFuture;
@@ -77,16 +76,12 @@ import org.xnio.OptionMap;
 @SuppressWarnings("deprecation")
 class EJBClientChannel {
 
-    static final byte[] RIVER_BYTES = new byte[] {
-        5, (byte) 'r', (byte) 'i', (byte) 'v', (byte) 'e', (byte) 'r'
-    };
-
     private final MarshallerFactory marshallerFactory;
 
     private final Channel channel;
     private final int version;
 
-    private final IntIndexMap<Invocation> invocationMap = new IntIndexHashMap<Invocation>(Invocation.INDEXER);
+    private final IntIndexMap<Invocation> invocationMap = new IntIndexHashMap<>(Invocation.INDEXER);
 
     private final AtomicInteger messageCount = new AtomicInteger();
     private final MarshallingConfiguration configuration;
@@ -345,28 +340,6 @@ class EJBClientChannel {
         }
     }
 
-    abstract static class Invocation {
-        static final IntIndexer<Invocation> INDEXER = new IntIndexer<Invocation>() {
-            public int getKey(final Invocation argument) {
-                return argument.getIndex();
-            }
-        };
-
-        private final int index;
-
-        protected Invocation(final int index) {
-            this.index = index;
-        }
-
-        int getIndex() {
-            return index;
-        }
-
-        abstract void handleResponse(int id, MessageInputStream inputStream);
-
-        abstract void handleClosed();
-    }
-
     final class SessionOpenInvocation<T> extends Invocation {
 
         private final StatelessEJBLocator<T> statelessLocator;
@@ -378,7 +351,7 @@ class EJBClientChannel {
             this.statelessLocator = statelessLocator;
         }
 
-        void handleResponse(final int id, final MessageInputStream inputStream) {
+        public void handleResponse(final int id, final MessageInputStream inputStream) {
             synchronized (this) {
                 this.id = id;
                 this.inputStream = inputStream;
@@ -386,7 +359,7 @@ class EJBClientChannel {
             }
         }
 
-        void handleClosed() {
+        public void handleClosed() {
             synchronized (this) {
                 this.id = -1;
                 notifyAll();
@@ -487,7 +460,7 @@ class EJBClientChannel {
             this.receiverInvocationContext = receiverInvocationContext;
         }
 
-        void handleResponse(final int id, final MessageInputStream inputStream) {
+        public void handleResponse(final int id, final MessageInputStream inputStream) {
             switch (id) {
                 case Protocol.COMPRESSED_INVOCATION_MESSAGE: {
                     invocationMap.remove(this);
@@ -567,7 +540,7 @@ class EJBClientChannel {
             }
         }
 
-        void handleClosed() {
+        public void handleClosed() {
             closed = true;
             for (Invocation invocation : invocationMap) {
                 invocation.handleClosed();
@@ -683,17 +656,13 @@ class EJBClientChannel {
                             // send back result
                             try (MessageOutputStream out = channel.writeMessage()) {
                                 out.write(version);
-                                out.write(RIVER_BYTES);
+                                out.write(Protocol.RIVER_BYTES);
                             }
                             futureResult.setResult(new EJBClientChannel(channel, version));
                             // done!
                         } catch (final IOException e) {
                             channel.closeAsync();
-                            channel.addCloseHandler(new CloseHandler<Channel>() {
-                                public void handleClose(final Channel closed, final IOException exception) {
-                                    futureResult.setException(e);
-                                }
-                            });
+                            channel.addCloseHandler((closed, exception) -> futureResult.setException(e));
                         }
                     }
                 });

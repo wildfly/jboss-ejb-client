@@ -30,6 +30,8 @@ import java.util.concurrent.Future;
 import javax.ejb.CreateException;
 import javax.transaction.UserTransaction;
 
+import org.jboss.ejb._private.Logs;
+import org.jboss.marshalling.Pair;
 import org.wildfly.common.Assert;
 
 /**
@@ -255,8 +257,8 @@ public final class EJBClient {
      * @throws CreateException if an error occurs
      */
     public static <T> StatefulEJBLocator<T> createSession(StatelessEJBLocator<T> statelessLocator) throws Exception {
-        final EJBReceiver ejbReceiver = EJBClientContext.getCurrent().getEJBReceiver(statelessLocator);
-        return ejbReceiver.openSession(statelessLocator);
+        final Pair<EJBReceiver, EJBLocator<?>> info = EJBClientContext.getCurrent().findEJBReceiver(statelessLocator);
+        return info.getA().openSession(statelessLocator.withNewAffinity(info.getB().getAffinity()));
     }
 
     /**

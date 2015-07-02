@@ -27,6 +27,8 @@ import javax.ejb.EJBHome;
 import javax.ejb.EJBMetaData;
 import javax.ejb.EJBObject;
 
+import org.jboss.ejb._private.Logs;
+
 /**
  * An implementation of the EJBMetaData interface which allows a
  * client to obtain the enterprise Bean's meta-data information.

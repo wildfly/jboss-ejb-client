@@ -28,6 +28,8 @@ import javax.ejb.EJBHome;
 import javax.ejb.EJBMetaData;
 import javax.ejb.EJBObject;
 
+import org.jboss.ejb._private.Logs;
+
 /**
  * Abstract base class for all EJB metadata.
  *

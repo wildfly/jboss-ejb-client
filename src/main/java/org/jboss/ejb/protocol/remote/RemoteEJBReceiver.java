@@ -85,7 +85,7 @@ class RemoteEJBReceiver extends EJBReceiver implements DiscoveryProvider {
         if (affinity instanceof URIAffinity) {
             target = ((URIAffinity) affinity).getUri();
         } else {
-            receiverContext.resultReady(new EJBReceiverInvocationContext.ResultProducer.Failed(new IllegalArgumentException("Invalid EJB affinity")));
+            receiverContext.resultReady(new EJBReceiverInvocationContext.ResultProducer.Failed(new IllegalArgumentException("Invalid EJB affinity: " + affinity)));
             return;
         }
         IoFuture<Connection> futureConnection = ENDPOINT_GETTER.getSelector().get().getConnection(target);

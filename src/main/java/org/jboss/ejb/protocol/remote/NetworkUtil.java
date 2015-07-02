@@ -22,18 +22,9 @@
 
 package org.jboss.ejb.protocol.remote;
 
-import org.jboss.remoting3.Connection;
-import org.jboss.remoting3.Endpoint;
-import org.xnio.IoFuture;
-import org.xnio.OptionMap;
-
-import javax.net.ssl.SSLContext;
-import javax.security.auth.callback.CallbackHandler;
-import java.io.IOException;
 import java.net.Inet4Address;
 import java.net.Inet6Address;
 import java.net.InetAddress;
-import java.net.InetSocketAddress;
 
 /**
  * @author Jaikiran Pai

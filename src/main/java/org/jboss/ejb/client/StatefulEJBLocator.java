@@ -65,7 +65,7 @@ public final class StatefulEJBLocator<T> extends EJBLocator<T> {
      * @param affinity     The {@link Affinity} for this stateful bean locator
      */
     public StatefulEJBLocator(final Class<T> viewType, final String appName, final String moduleName, final String beanName, final SessionID sessionId, final Affinity affinity) {
-        this(viewType, appName, moduleName, beanName, null, sessionId, affinity);
+        this(viewType, appName, moduleName, beanName, "", sessionId, affinity);
     }
 
     /**

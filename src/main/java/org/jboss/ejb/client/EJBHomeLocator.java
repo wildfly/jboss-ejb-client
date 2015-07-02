@@ -70,7 +70,7 @@ public final class EJBHomeLocator<T extends EJBHome> extends EJBLocator<T> {
      * @param affinity     the affinity
      */
     public EJBHomeLocator(final Class<T> viewType, final String appName, final String moduleName, final String beanName, final Affinity affinity) {
-        this(viewType, appName, moduleName, beanName, null, affinity);
+        this(viewType, appName, moduleName, beanName, "", affinity);
     }
 
     /**
@@ -82,7 +82,7 @@ public final class EJBHomeLocator<T extends EJBHome> extends EJBLocator<T> {
      * @param beanName     the bean name
      */
     public EJBHomeLocator(final Class<T> viewType, final String appName, final String moduleName, final String beanName) {
-        this(viewType, appName, moduleName, beanName, null, Affinity.NONE);
+        this(viewType, appName, moduleName, beanName, "", Affinity.NONE);
     }
 
     /**

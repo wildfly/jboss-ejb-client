@@ -27,6 +27,12 @@ package org.jboss.ejb.protocol.remote;
  */
 final class Protocol {
 
+    public static final int LATEST_VERSION = 3;
+
+    static final byte[] RIVER_BYTES = new byte[] {
+        0, 5, (byte) 'r', (byte) 'i', (byte) 'v', (byte) 'e', (byte) 'r'
+    };
+
     private Protocol() {
     }
 

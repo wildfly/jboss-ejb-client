@@ -40,7 +40,7 @@ public final class StatelessEJBLocator<T> extends EJBLocator<T> {
      * @param beanName     the bean name
      */
     public StatelessEJBLocator(final Class<T> viewType, final String appName, final String moduleName, final String beanName) {
-        super(viewType, appName, moduleName, beanName, null, Affinity.NONE);
+        super(viewType, appName, moduleName, beanName, "", Affinity.NONE);
     }
 
     /**
@@ -53,7 +53,7 @@ public final class StatelessEJBLocator<T> extends EJBLocator<T> {
      * @param affinity     the affinity
      */
     public StatelessEJBLocator(final Class<T> viewType, final String appName, final String moduleName, final String beanName, final Affinity affinity) {
-        super(viewType, appName, moduleName, beanName, null, affinity);
+        super(viewType, appName, moduleName, beanName, "", affinity);
     }
 
     /**
