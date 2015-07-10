@@ -22,6 +22,8 @@
 
 package org.jboss.ejb.client.test.invocation.retry;
 
+import org.jboss.byteman.contrib.bmunit.BMScript;
+import org.jboss.byteman.contrib.bmunit.BMUnitConfig;
 import org.jboss.ejb.client.ClusterContext;
 import org.jboss.ejb.client.ClusterNodeManager;
 import org.jboss.ejb.client.ConstantContextSelector;
@@ -42,6 +44,7 @@ import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
+import org.junit.runner.RunWith;
 import org.xnio.IoFuture;
 import org.xnio.OptionMap;
 import org.xnio.Options;
@@ -59,8 +62,10 @@ import static org.jboss.ejb.client.remoting.IoFutureHelper.*;
  * undeployment notification
  *
  * @author Jaikiran Pai
- * @see https://issues.jboss.org/browse/EJBCLIENT-32
+ * @see <a href="http://issues.jboss.org/browse/EJBCLIENT-32/">ttp://issues.jboss.org/browse/EJBCLIENT-32</a>
  */
+@RunWith(org.jboss.byteman.contrib.bmunit.BMUnitRunner.class)
+@BMUnitConfig(loadDirectory = "target/test-classes")
 public class StatefulClusteredApplicationUndeploymentFailoverTestCase {
     private static final Logger logger = Logger.getLogger(StatefulClusteredApplicationUndeploymentFailoverTestCase.class);
 
@@ -228,7 +233,61 @@ public class StatefulClusteredApplicationUndeploymentFailoverTestCase {
             final String serverName = proxy.getServerName();
             Assert.assertEquals("Unexpected server name after undeployment", expectedServerNameAfterUndeployment, serverName);
         }
+    }
 
+    /**
+     * Starts off with 2 servers having different implementations of the same bean and invokes on the bean interface.
+     * Then un-deploys the deployment from a server which previously handled a invocation request. The un-deployment
+     * process on the server notifies the client of the un-deployment. The test continues to invoke on the proxy and
+     * the EJB client API implementation is expected to be smart enough to retry the invocation(s) on a different node
+     * without sending an initial invocation which will return a {@link javax.ejb.NoSuchEJBException} from the server.
+     * In other words, the weak affinity should be updated without the need for an additional invocation attempt.
+     * <p/>
+     * NOTE: We use a Byteman rule to check if retry has occurred during an invocation.
+     *
+     * @throws Exception
+     */
+    @BMScript(value = "check-for-retry.btm")
+    @Test
+    public void testNoStaleAffinityDueToUndeployment() throws Exception {
+        // first try some invocations which should succeed
+        // create a proxy for invocation
+        final StatefulEJBLocator<Echo> statefulEJBLocator = EJBClient.createSession(Echo.class, APP_NAME, MODULE_NAME, EchoBean.class.getSimpleName(), DISTINCT_NAME);
+        final Echo proxy = EJBClient.createProxy(statefulEJBLocator);
+        Assert.assertNotNull("Received a null proxy", proxy);
+
+        // invoke
+        final String msg = "foo!";
+        String echo = proxy.echo(msg);
+        Assert.assertEquals("Unexpected echo", msg, echo);
+
+        final String serverNameBeforeUndeployment = proxy.getServerName();
+        Assert.assertNotNull("Server name returned was null", serverNameBeforeUndeployment);
+        Assert.assertTrue("Unexpected server name returned", SERVER_ONE_NAME.equals(serverNameBeforeUndeployment) || SERVER_TWO_NAME.equals(serverNameBeforeUndeployment));
+
+        // now undeploy the deployment from the server on which this previous invocation happened.
+        if (SERVER_ONE_NAME.equals(serverNameBeforeUndeployment)) {
+            this.serverOne.unregister(APP_NAME, MODULE_NAME, DISTINCT_NAME, EchoBean.class.getSimpleName(), true);
+        } else {
+            this.serverTwo.unregister(APP_NAME, MODULE_NAME, DISTINCT_NAME, EchoBean.class.getSimpleName(), true);
+        }
+
+        // give the module unavailable messages time to arrive
+        try {
+            Thread.sleep(1000);
+        } catch (InterruptedException e) {
+            // ignore
+        }
+
+        // do a new invocation and check that retry was not called
+        try {
+            echo = proxy.echo(msg);
+            Assert.assertEquals("Unexpected echo after un-deployment", msg, echo);
+        } catch (RuntimeException e) {
+            if (e.getMessage().equals("Retry was called")) {
+                Assert.fail("Retry was called when it was not expected");
+            }
+        }
     }
 
     private EJBReceiver getServerOneReceiver() throws IOException, URISyntaxException {

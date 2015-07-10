@@ -1,0 +1,24 @@
+RULE check for retry
+CLASS  org.jboss.ejb.client.remoting.NoSuchEJBExceptionResponseHandler
+METHOD processMessage
+AT EXIT
+# get the invocation id which triggered the retry
+BIND id = $invocationId ;
+# any action we perform will be performed here and now - in other words, at exit of this method
+IF true
+  DO debug("retry called for invocation");
+  traceln("id = "+ id);
+  # set a flag to indicate that retry was called
+  flag("retry called")
+ENDRULE
+
+RULE stop test if retry occurs
+CLASS  org.jboss.ejb.client.EJBInvocationHandler
+METHOD invoke
+AT EXIT
+IF flagged("retry called")
+  DO debug("retry was called for invocation - raising exception");
+  # fail the test case now .
+  THROW new RuntimeException("Retry was called");
+ENDRULE
+
