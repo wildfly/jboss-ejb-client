@@ -22,7 +22,8 @@
   ~ 02110-1301 USA, or see the FSF site: http://www.fsf.org.
   -->
 
-<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
     <parent>
@@ -39,6 +40,7 @@
 
     <properties>
         <version.checkstyle.plugin>2.9.1</version.checkstyle.plugin>
+        <version.org.jboss.byteman>3.0.1</version.org.jboss.byteman>
         <version.org.jboss.logging.jboss-logging>3.1.4.GA</version.org.jboss.logging.jboss-logging>
         <version.org.jboss.logging.jboss-logging-processor>1.1.0.Final</version.org.jboss.logging.jboss-logging-processor>
         <version.org.jboss.logmanager>1.5.2.Final</version.org.jboss.logmanager>
@@ -180,6 +182,32 @@
             <artifactId>jboss-transaction-api_1.1_spec</artifactId>
             <version>${version.org.jboss.spec.javax.transaction}</version>
             <scope>provided</scope>
+        </dependency>
+
+        <!-- byteman -->
+        <dependency>
+            <groupId>org.jboss.byteman</groupId>
+            <artifactId>byteman</artifactId>
+            <scope>test</scope>
+            <version>${version.org.jboss.byteman}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.jboss.byteman</groupId>
+            <artifactId>byteman-submit</artifactId>
+            <scope>test</scope>
+            <version>${version.org.jboss.byteman}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.jboss.byteman</groupId>
+            <artifactId>byteman-install</artifactId>
+            <scope>test</scope>
+            <version>${version.org.jboss.byteman}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.jboss.byteman</groupId>
+            <artifactId>byteman-bmunit</artifactId>
+            <scope>test</scope>
+            <version>${version.org.jboss.byteman}</version>
         </dependency>
 
         <!-- JUnit -->
