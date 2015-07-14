@@ -32,8 +32,11 @@ import org.jboss.logging.annotations.LogMessage;
 import org.jboss.logging.Logger;
 import org.jboss.logging.annotations.Message;
 import org.jboss.logging.annotations.MessageLogger;
+import org.jboss.logging.annotations.Property;
 import org.jboss.remoting3.Channel;
 
+import javax.naming.CommunicationException;
+import javax.naming.Name;
 import javax.naming.NamingException;
 import javax.transaction.NotSupportedException;
 
@@ -246,6 +249,9 @@ public interface Logs extends BasicLogger {
     @LogMessage(level = WARN)
     @Message(id = 61, value = "Cannot send a transaction recovery message to the server since the protocol version of EJBReceiver %s doesn't support it")
     void transactionRecoveryMessageNotSupported(EJBReceiver receiver);
+
+    @Message(id = 62, value = "Failed to look up \"%s\"")
+    CommunicationException lookupFailed(@Property Name resolvedName, Name name, @Cause Exception e);
 
     // Proxy API errors
 
