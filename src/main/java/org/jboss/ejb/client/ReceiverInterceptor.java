@@ -70,13 +70,19 @@ public final class ReceiverInterceptor implements EJBClientInterceptor {
                 final Affinity weakAffinity = invocationContext.getInvocationHandler().getWeakAffinity();
                 if (weakAffinity instanceof NodeAffinity) {
                     final String nodeName = ((NodeAffinity) weakAffinity).getNodeName();
-                    final EJBReceiver nodeReceiver;
+                    EJBReceiver nodeReceiver;
                     // ignore the weak affinity if the node has been marked as excluded for this invocation context
                     if (excludedNodes.contains(nodeName)) {
                         logger.debugf("Ignoring weak affinity on node %s since that node has been marked as excluded for invocation context %s", nodeName, invocationContext);
                         nodeReceiver = null;
                     } else {
                         nodeReceiver = clientContext.getNodeEJBReceiver(nodeName);
+                        // ignore the weak affinity if it no longer supports the locator
+                        if (nodeReceiver != null && !nodeReceiver.acceptsModule(locator.getAppName(),locator.getModuleName(),locator.getDistinctName())) {
+                            logger.debugf("Ignoring weak affinity on node %s since that node does not currently accept %s", nodeName, locator);
+                            invocationContext.markNodeAsExcluded(nodeName);
+                            nodeReceiver = null;
+                        }
                     }
                     if (nodeReceiver != null && clientContext.clusterContains(((ClusterAffinity) affinity).getClusterName(), nodeReceiver.getNodeName())) {
                         receiverContext = clientContext.requireEJBReceiverContext(nodeReceiver);
@@ -90,13 +96,19 @@ public final class ReceiverInterceptor implements EJBClientInterceptor {
                 final Affinity weakAffinity = invocationContext.getInvocationHandler().getWeakAffinity();
                 if (weakAffinity instanceof NodeAffinity) {
                     final String nodeName = ((NodeAffinity) weakAffinity).getNodeName();
-                    final EJBReceiver nodeReceiver;
+                    EJBReceiver nodeReceiver;
                     // ignore the weak affinity if the node has been marked as excluded for this invocation context
                     if (excludedNodes.contains(nodeName)) {
                         logger.debugf("Ignoring weak affinity on node %s since that node has been marked as excluded for invocation context %s", nodeName, invocationContext);
                         nodeReceiver = null;
                     } else {
                         nodeReceiver = clientContext.getNodeEJBReceiver(nodeName);
+                        // ignore the weak affinity if it no longer supports the locator
+                        if (nodeReceiver != null && !nodeReceiver.acceptsModule(locator.getAppName(),locator.getModuleName(),locator.getDistinctName())) {
+                            logger.debugf("Ignoring weak affinity on node %s since that node does not currently accept %s", nodeName, locator);
+                            invocationContext.markNodeAsExcluded(nodeName);
+                            nodeReceiver = null;
+                        }
                     }
                     if (nodeReceiver != null) {
                         receiverContext = clientContext.requireEJBReceiverContext(nodeReceiver);
@@ -121,6 +133,7 @@ public final class ReceiverInterceptor implements EJBClientInterceptor {
                 throw new IllegalStateException("Unknown affinity type");
             }
         }
+        logger.debug("Sending invocation to node " + receiverContext.getReceiver().getNodeName());
         invocationContext.setReceiverInvocationContext(new EJBReceiverInvocationContext(invocationContext, receiverContext));
         invocationContext.sendRequest();
     }
