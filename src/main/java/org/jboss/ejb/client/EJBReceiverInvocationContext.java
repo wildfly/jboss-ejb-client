@@ -22,6 +22,8 @@
 
 package org.jboss.ejb.client;
 
+import java.util.Arrays;
+
 /**
  * The context used for an EJB receiver to return the result of an invocation.
  *
@@ -104,6 +106,9 @@ public final class EJBReceiverInvocationContext {
             }
 
             public Object getResult() throws Exception {
+                final Exception cause = this.cause;
+                final StackTraceElement[] stackTrace = new Throwable().getStackTrace();
+                cause.setStackTrace(Arrays.copyOfRange(stackTrace, 1, stackTrace.length));
                 throw cause;
             }
 
