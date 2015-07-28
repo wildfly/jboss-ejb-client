@@ -635,7 +635,7 @@ class EJBClientChannel {
                 if (! compareAndSet(null, result)) {
                     return get();
                 }
-                final IoFuture<Channel> channel = connection.openChannel("ejb", OptionMap.EMPTY);
+                final IoFuture<Channel> channel = connection.openChannel("jboss.ejb", OptionMap.EMPTY);
                 channel.addNotifier(NOTIFIER, result);
             }
             return result;
