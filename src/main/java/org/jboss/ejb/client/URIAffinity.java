@@ -31,6 +31,8 @@ import java.net.URI;
  */
 public final class URIAffinity extends Affinity {
 
+    private static final long serialVersionUID = -8437624625197058354L;
+
     private final URI uri;
 
     /**
@@ -64,7 +66,7 @@ public final class URIAffinity extends Affinity {
             return LOCAL;
         } else {
             // keep same object
-            return null;
+            return this;
         }
     }
 
