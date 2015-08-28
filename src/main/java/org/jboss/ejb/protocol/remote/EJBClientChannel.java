@@ -109,7 +109,7 @@ class EJBClientChannel {
             final int msg = message.readUnsignedByte();
             if (msg == Protocol.INVOCATION_RESPONSE) {
                 final int invId = message.readUnsignedShort();
-                ok = invocationTracker.signalResponse(invId, 0, message, true);
+                ok = invocationTracker.signalResponse(invId, msg, message, true);
             }
         } catch (IOException e) {
 
