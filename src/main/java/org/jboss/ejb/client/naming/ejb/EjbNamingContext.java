@@ -253,7 +253,7 @@ class EjbNamingContext implements Context {
         final Properties ejbClientContextConfigProps = new Properties();
         ejbClientContextConfigProps.putAll(jndiProps);
         final PropertiesBasedEJBClientConfiguration ejbClientConfiguration = new PropertiesBasedEJBClientConfiguration(ejbClientContextConfigProps);
-        final ConfigBasedEJBClientContextSelector configBasedEJBClientContextSelector = new ConfigBasedEJBClientContextSelector(ejbClientConfiguration);
+        final ConfigBasedEJBClientContextSelector configBasedEJBClientContextSelector = new ConfigBasedEJBClientContextSelector(ejbClientConfiguration, SecurityActions.getContextClassLoader());
         // the newly created EJB client context
         return configBasedEJBClientContextSelector.getCurrent();
     }
