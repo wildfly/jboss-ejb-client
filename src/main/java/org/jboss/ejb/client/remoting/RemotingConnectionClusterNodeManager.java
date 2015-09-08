@@ -22,6 +22,8 @@
 
 package org.jboss.ejb.client.remoting;
 
+import javax.security.auth.callback.CallbackHandler;
+
 import org.jboss.ejb.client.ClusterContext;
 import org.jboss.ejb.client.ClusterNodeManager;
 import org.jboss.ejb.client.DefaultCallbackHandler;
@@ -32,8 +34,6 @@ import org.jboss.logging.Logger;
 import org.jboss.remoting3.Connection;
 import org.jboss.remoting3.Endpoint;
 import org.xnio.OptionMap;
-
-import javax.security.auth.callback.CallbackHandler;
 
 /**
  * A {@link RemotingConnectionClusterNodeManager} uses JBoss Remoting to create a {@link EJBReceiver}
@@ -148,6 +148,12 @@ class RemotingConnectionClusterNodeManager implements ClusterNodeManager {
         @Override
         public OptionMap getChannelCreationOptions() {
             return this.channelCreationOptions;
+        }
+
+        @Override
+        public boolean isConnectEagerly() {
+            // connecting to cluster node is always on-demand and not eager. So return false.
+            return false;
         }
     }
 }

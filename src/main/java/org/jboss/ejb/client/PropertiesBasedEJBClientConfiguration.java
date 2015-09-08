@@ -76,6 +76,8 @@ public class PropertiesBasedEJBClientConfiguration implements EJBClientConfigura
     private static final String REMOTE_CONNECTION_PROVIDER_CREATE_OPTIONS_PREFIX = "remote.connectionprovider.create.options.";
 
     private static final String PROPERTY_KEY_REMOTE_CONNECTIONS = "remote.connections";
+    private static final String PROPERTY_KEY_REMOTE_CONNECTIONS_CONNECT_EAGER = "remote.connections.connect.eager";
+
     // The default options that will be used (unless overridden by the config file) while creating a connection
     private static final OptionMap DEFAULT_CONNECTION_CREATION_OPTIONS = OptionMap.EMPTY;
     private static final long DEFAULT_CONNECTION_TIMEOUT_IN_MILLIS = 5000;
@@ -459,6 +461,20 @@ public class PropertiesBasedEJBClientConfiguration implements EJBClientConfigura
             logger.debug("No remoting connections configured in properties");
             return;
         }
+        // make note of whether the connection attempts are to be eager or lazy for all listed connections (unless overridden at the specific connection configuration)
+        final Object connectEagerValue = ejbReceiversConfigurationProperties.get(PROPERTY_KEY_REMOTE_CONNECTIONS_CONNECT_EAGER);
+        final boolean connectEager;
+        if (connectEagerValue == null) {
+            // by default we connect eagerly
+            connectEager = true;
+        } else {
+            if (connectEagerValue instanceof String) {
+                connectEager = Boolean.valueOf(((String) connectEagerValue).trim());
+            } else {
+                // default to true
+                connectEager = true;
+            }
+        }
         // parse the comma separated string of connection names
         final StringTokenizer tokenizer = new StringTokenizer(remoteConnectionNames, ",");
         while (tokenizer.hasMoreTokens()) {
@@ -468,7 +484,7 @@ public class PropertiesBasedEJBClientConfiguration implements EJBClientConfigura
             }
             RemotingConnectionConfiguration connectionConfiguration = null;
             try {
-                connectionConfiguration = this.createConnectionConfiguration(connectionName);
+                connectionConfiguration = this.createConnectionConfiguration(connectionName, connectEager);
             } catch (Exception e) {
                 logger.warn("Could not create connection for connection named " + connectionName, e);
             }
@@ -481,7 +497,7 @@ public class PropertiesBasedEJBClientConfiguration implements EJBClientConfigura
         }
     }
 
-    private RemotingConnectionConfiguration createConnectionConfiguration(final String connectionName) throws IOException, URISyntaxException {
+    private RemotingConnectionConfiguration createConnectionConfiguration(final String connectionName, final boolean defaultConnectEager) throws IOException, URISyntaxException {
         final String connectionSpecificPrefix = this.getConnectionSpecificPrefix(connectionName);
         final Map<String, String> connectionSpecificProps = this.getPropertiesWithPrefix(connectionSpecificPrefix);
         if (connectionSpecificProps.isEmpty()) {
@@ -521,6 +537,15 @@ public class PropertiesBasedEJBClientConfiguration implements EJBClientConfigura
                 Logs.MAIN.incorrectConnectionTimeoutValueForConnection(connectionTimeoutValue, connectionName, String.valueOf(DEFAULT_CONNECTION_TIMEOUT_IN_MILLIS));
             }
         }
+        // connect eagerly or lazily
+        final String connectEagerValue = connectionSpecificProps.get("connect.eager");
+        final boolean connectEagerly;
+        if (connectEagerValue == null || connectEagerValue.trim().isEmpty()) {
+            // default to the value that may have been set for all connections
+            connectEagerly = defaultConnectEager;
+        } else {
+            connectEagerly = Boolean.valueOf(connectEagerValue.trim());
+        }
         // create the CallbackHandler for this connection configuration
         final CallbackHandler callbackHandler = createCallbackHandler(connectionSpecificProps, this.getDefaultCallbackHandler());
         connectOptions = RemotingConnectionUtil.addSilentLocalAuthOptionsIfApplicable(callbackHandler, connectOptions);
@@ -528,7 +553,8 @@ public class PropertiesBasedEJBClientConfiguration implements EJBClientConfigura
         // Channel creation options for this connection
         final String channelOptionsPrefix = this.getConnectionSpecificChannelOptionsPrefix(connectionName);
         final OptionMap channelOptions = getOptionMapFromProperties(ejbReceiversConfigurationProperties, channelOptionsPrefix, getClientClassLoader());
-        return new RemotingConnectionConfigurationImpl(host, port, connectOptions, connectionTimeout, callbackHandler, channelOptions);
+
+        return new RemotingConnectionConfigurationImpl(host, port, connectOptions, connectionTimeout, callbackHandler, channelOptions, connectEagerly);
 
     }
 
@@ -717,15 +743,20 @@ public class PropertiesBasedEJBClientConfiguration implements EJBClientConfigura
         final long connectionTimeout;
         final CallbackHandler callbackHandler;
         final OptionMap channelCreationOptions;
+        final boolean connectEagerly;
+
 
         RemotingConnectionConfigurationImpl(final String host, final int port, final OptionMap connectionCreationOptions,
-                                            final long connectionTimeout, final CallbackHandler callbackHandler, final OptionMap channelCreationOptions) {
+                                            final long connectionTimeout, final CallbackHandler callbackHandler, final OptionMap channelCreationOptions,
+                                            final boolean connectEagerly) {
+
             this.host = host;
             this.port = port;
             this.connectionCreationOptions = connectionCreationOptions;
             this.connectionTimeout = connectionTimeout;
             this.callbackHandler = callbackHandler;
             this.channelCreationOptions = channelCreationOptions == null ? OptionMap.EMPTY : channelCreationOptions;
+            this.connectEagerly = connectEagerly;
         }
 
         @Override
@@ -757,6 +788,12 @@ public class PropertiesBasedEJBClientConfiguration implements EJBClientConfigura
         public OptionMap getChannelCreationOptions() {
             return this.channelCreationOptions;
         }
+
+        @Override
+        public boolean isConnectEagerly() {
+            return connectEagerly;
+        }
+
     }
 
     private class ClusterConfigurationImpl implements ClusterConfiguration {
@@ -835,6 +872,12 @@ public class PropertiesBasedEJBClientConfiguration implements EJBClientConfigura
         public OptionMap getChannelCreationOptions() {
             return this.channelCreationOptions;
         }
+
+        @Override
+        public boolean isConnectEagerly() {
+            // connecting to cluster nodes is always on-demand and not eager. So return false.
+            return false;
+        }
     }
 
     private class ClusterNodeConfigurationImpl implements ClusterNodeConfiguration {
@@ -877,6 +920,12 @@ public class PropertiesBasedEJBClientConfiguration implements EJBClientConfigura
         @Override
         public OptionMap getChannelCreationOptions() {
             return this.channelCreationOptions;
+        }
+
+        @Override
+        public boolean isConnectEagerly() {
+            // connecting to cluster node is always on-demand and not eager. So return false.
+            return false;
         }
     }
 }
