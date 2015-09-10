@@ -71,6 +71,7 @@ public final class EJBClientInvocationContext extends Attachable {
 
     private int interceptorChainIndex;
     private boolean resultDone;
+    private boolean blockingCaller;
 
     EJBClientInvocationContext(final EJBInvocationHandler<?> invocationHandler, final EJBClientContext ejbClientContext, final Object invokedProxy, final Object[] parameters, final EJBProxyInformation.ProxyMethodInfo methodInfo) {
         this.invocationHandler = invocationHandler;
@@ -215,6 +216,28 @@ public final class EJBClientInvocationContext extends Attachable {
      */
     public <T> void setLocator(final EJBLocator<T> locator) {
         this.locator = locator;
+    }
+
+    /**
+     * Determine whether this invocation is currently blocking the calling thread.
+     *
+     * @return {@code true} if the calling thread is being blocked; {@code false} otherwise
+     */
+    public boolean isBlockingCaller() {
+        synchronized (lock) {
+            return blockingCaller;
+        }
+    }
+
+    /**
+     * Establish whether this invocation is currently blocking the calling thread.
+     *
+     * @param blockingCaller {@code true} if the calling thread is being blocked; {@code false} otherwise
+     */
+    public void setBlockingCaller(final boolean blockingCaller) {
+        synchronized (lock) {
+            this.blockingCaller = blockingCaller;
+        }
     }
 
     /**
@@ -401,6 +424,7 @@ public final class EJBClientInvocationContext extends Attachable {
         try {
             synchronized (lock) {
                 if (asyncState == AsyncState.ASYNCHRONOUS) {
+                    blockingCaller = false;
                     return PROCEED_ASYNC;
                 } else if (asyncState == AsyncState.ONE_WAY) {
                     throw log.oneWayInvocation();
@@ -438,8 +462,10 @@ public final class EJBClientInvocationContext extends Attachable {
                     }
                     if (asyncState == AsyncState.ASYNCHRONOUS) {
                         // It's an asynchronous invocation; proceed asynchronously.
+                        blockingCaller = false;
                         return PROCEED_ASYNC;
                     } else if (asyncState == AsyncState.ONE_WAY) {
+                        blockingCaller = false;
                         throw log.oneWayInvocation();
                     }
                     // If the state is still waiting and the invocation timeout was specified,

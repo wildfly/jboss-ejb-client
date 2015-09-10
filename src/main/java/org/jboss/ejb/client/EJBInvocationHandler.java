@@ -136,6 +136,7 @@ final class EJBInvocationHandler<T> extends Attachable implements InvocationHand
             final EJBClientInvocationContext invocationContext = new EJBClientInvocationContext(this, clientContext, proxy, args, methodInfo);
             invocationContext.setReceiver(receiver);
             invocationContext.setLocator(locator.withNewAffinity(newAffinity));
+            invocationContext.setBlockingCaller(true);
 
             try {
                 // send the request
@@ -149,6 +150,7 @@ final class EJBInvocationHandler<T> extends Attachable implements InvocationHand
                     }
                     // proceed asynchronously
                 }
+                invocationContext.setBlockingCaller(false);
                 // force async...
                 if (method.getReturnType() == Future.class) {
                     return invocationContext.getFutureResponse();
