@@ -31,7 +31,6 @@ import javax.ejb.CreateException;
 import javax.transaction.UserTransaction;
 
 import org.jboss.ejb._private.Logs;
-import org.jboss.marshalling.Pair;
 import org.wildfly.common.Assert;
 
 /**
@@ -259,6 +258,51 @@ public final class EJBClient {
     public static <T> StatefulEJBLocator<T> createSession(StatelessEJBLocator<T> statelessLocator) throws Exception {
         final EJBClientContext clientContext = EJBClientContext.getCurrent();
         return clientContext.createSession(statelessLocator);
+    }
+
+    /**
+     * Perform a one-way asynchronous invocation by method locator on a proxy.  Any return value is ignored.
+     *
+     * @param proxy the EJB proxy
+     * @param methodLocator the method locator
+     * @param args the invocation arguments
+     * @param <T> the view type
+     * @throws Exception if the invocation failed for some reason
+     */
+    public static <T> void invokeOneWay(T proxy, EJBMethodLocator<T> methodLocator, Object... args) throws Exception {
+        final EJBInvocationHandler<T> invocationHandler = ((EJBInvocationHandler<?>) Proxy.getInvocationHandler(proxy)).forClass(methodLocator.getViewType()).getAsyncHandler();
+        final EJBProxyInformation.ProxyMethodInfo proxyMethodInfo = invocationHandler.getProxyMethodInfo(methodLocator);
+        invocationHandler.invoke(proxy, proxyMethodInfo, args);
+    }
+
+    /**
+     * Perform an asynchronous invocation by method locator on a proxy, returning the future result.
+     *
+     * @param proxy the EJB proxy
+     * @param methodLocator the method locator
+     * @param args the invocation arguments
+     * @param <T> the view type
+     * @throws Exception if the invocation failed for some reason
+     */
+    public static <T> Future<?> invokeAsync(T proxy, EJBMethodLocator<T> methodLocator, Object... args) throws Exception {
+        final EJBInvocationHandler<T> invocationHandler = ((EJBInvocationHandler<?>) Proxy.getInvocationHandler(proxy)).forClass(methodLocator.getViewType()).getAsyncHandler();
+        final EJBProxyInformation.ProxyMethodInfo proxyMethodInfo = invocationHandler.getProxyMethodInfo(methodLocator);
+        return (Future<?>) invocationHandler.invoke(proxy, proxyMethodInfo, args);
+    }
+
+    /**
+     * Perform an invocation by method locator on a proxy, returning the result.
+     *
+     * @param proxy the EJB proxy
+     * @param methodLocator the method locator
+     * @param args the invocation arguments
+     * @param <T> the view type
+     * @throws Exception if the invocation failed for some reason
+     */
+    public static <T> Object invoke(T proxy, EJBMethodLocator<T> methodLocator, Object... args) throws Exception {
+        final EJBInvocationHandler<T> invocationHandler = ((EJBInvocationHandler<?>) Proxy.getInvocationHandler(proxy)).forClass(methodLocator.getViewType());
+        final EJBProxyInformation.ProxyMethodInfo proxyMethodInfo = invocationHandler.getProxyMethodInfo(methodLocator);
+        return invocationHandler.invoke(proxy, proxyMethodInfo, args);
     }
 
     /**

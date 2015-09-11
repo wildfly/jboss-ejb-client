@@ -88,9 +88,18 @@ final class EJBInvocationHandler<T> extends Attachable implements InvocationHand
         }
     }
 
-    public Object invoke(final Object rawProxy, final Method method, final Object[] args) throws Exception {
+    public Object invoke(final Object rawProxy, final Method method, final Object... args) throws Exception {
         final T proxy = locator.getViewType().cast(rawProxy);
         final EJBProxyInformation.ProxyMethodInfo methodInfo = locator.getProxyInformation().getProxyMethodInfo(method);
+        return invoke(proxy, methodInfo, args);
+    }
+
+    EJBProxyInformation.ProxyMethodInfo getProxyMethodInfo(EJBMethodLocator<T> methodLocator) {
+        return locator.getProxyInformation().getProxyMethodInfo(methodLocator);
+    }
+
+    Object invoke(final T proxy, final EJBProxyInformation.ProxyMethodInfo methodInfo, final Object... args) throws Exception {
+        final Method method = methodInfo.getMethod();
         switch (methodInfo.getMethodType()) {
             case EJBProxyInformation.MT_EQUALS:
             case EJBProxyInformation.MT_IS_IDENTICAL: {
@@ -142,7 +151,7 @@ final class EJBInvocationHandler<T> extends Attachable implements InvocationHand
                 // send the request
                 invocationContext.sendRequest();
 
-                if (!async && !methodInfo.isClientAsync()) {
+                if (! async && ! methodInfo.isClientAsync()) {
                     // wait for invocation to complete
                     final Object value = invocationContext.awaitResponse();
                     if (value != EJBClientInvocationContext.PROCEED_ASYNC) {
@@ -260,5 +269,14 @@ final class EJBInvocationHandler<T> extends Attachable implements InvocationHand
     public String toString() {
         final String s = toString;
         return s != null ? s : (toString = String.format("Proxy invocation handler for %s", locator));
+    }
+
+    @SuppressWarnings("unchecked")
+    <R> EJBInvocationHandler<R> forClass(final Class<R> viewType) {
+        if (viewType.isAssignableFrom(viewType)) {
+            return (EJBInvocationHandler<R>) this;
+        } else {
+            throw new ClassCastException(viewType.getName());
+        }
     }
 }

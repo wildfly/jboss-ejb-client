@@ -31,6 +31,7 @@ import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.lang.reflect.Proxy;
 import java.security.PrivilegedAction;
+import java.util.HashMap;
 import java.util.IdentityHashMap;
 import java.util.zip.Deflater;
 
@@ -72,6 +73,7 @@ final class EJBProxyInformation<T> {
         private <P> EJBProxyInformation<P> doCompute(final Class<P> type) {
             final Class<? extends P> proxyClass = Proxy.getProxyClass(type.getClassLoader(), type).asSubclass(type);
             final IdentityHashMap<Method, ProxyMethodInfo> methodInfoMap = new IdentityHashMap<Method, ProxyMethodInfo>();
+            final HashMap<EJBMethodLocator<P>, ProxyMethodInfo> methodLocatorMap = new HashMap<>();
             final CompressionHint classCompressionHint = type.getAnnotation(CompressionHint.class);
             final int classCompressionLevel;
             final boolean classCompressRequest;
@@ -124,6 +126,7 @@ final class EJBProxyInformation<T> {
                         final EJBMethodLocator<P> methodLocator = new EJBMethodLocator<>(type, methodName, parameterTypeNames);
                         final ProxyMethodInfo proxyMethodInfo = new ProxyMethodInfo(methodType, compressionLevel, compressRequest, compressResponse, idempotent, method, methodLocator, b.toString(), clientAsync);
                         methodInfoMap.put(method, proxyMethodInfo);
+                        methodLocatorMap.put(methodLocator, proxyMethodInfo);
                     } catch (IllegalAccessException e) {
                         throw new IllegalAccessError(e.getMessage());
                     }
@@ -135,7 +138,7 @@ final class EJBProxyInformation<T> {
             } catch (NoSuchMethodException e) {
                 throw new NoSuchMethodError("No valid constructor found on proxy class");
             }
-            return new EJBProxyInformation<P>(proxyClass, constructor, methodInfoMap, classCompressionLevel, classIdempotent, classAsync);
+            return new EJBProxyInformation<P>(proxyClass, constructor, methodInfoMap, methodLocatorMap, classCompressionLevel, classIdempotent, classAsync);
         }
 
         private int getMethodType(final Class<?> interfaceClass, final String name, final Class<?>[] methodParamTypes) {
@@ -187,10 +190,11 @@ final class EJBProxyInformation<T> {
         }
     };
 
-    EJBProxyInformation(final Class<? extends T> proxyClass, final Constructor<? extends T> proxyConstructor, final IdentityHashMap<Method, ProxyMethodInfo> methodInfoMap, final int classCompressionHint, final boolean classIdempotent, final boolean classAsync) {
+    EJBProxyInformation(final Class<? extends T> proxyClass, final Constructor<? extends T> proxyConstructor, final IdentityHashMap<Method, ProxyMethodInfo> methodInfoMap, final HashMap<EJBMethodLocator<T>, ProxyMethodInfo> methodLocatorMap, final int classCompressionHint, final boolean classIdempotent, final boolean classAsync) {
         this.proxyClass = proxyClass;
         this.proxyConstructor = proxyConstructor;
         this.methodInfoMap = methodInfoMap;
+        this.methodLocatorMap = methodLocatorMap;
         this.classCompressionHint = classCompressionHint;
         this.classIdempotent = classIdempotent;
         this.classAsync = classAsync;
@@ -204,6 +208,7 @@ final class EJBProxyInformation<T> {
     private final Class<? extends T> proxyClass;
     private final Constructor<? extends T> proxyConstructor;
     private final IdentityHashMap<Method, ProxyMethodInfo> methodInfoMap;
+    private final HashMap<EJBMethodLocator<T>, ProxyMethodInfo> methodLocatorMap;
     private final int classCompressionHint;
     private final boolean classIdempotent;
     private final boolean classAsync;
@@ -240,6 +245,10 @@ final class EJBProxyInformation<T> {
 
     ProxyMethodInfo getProxyMethodInfo(Method method) {
         return methodInfoMap.get(method);
+    }
+
+    ProxyMethodInfo getProxyMethodInfo(EJBMethodLocator<T> locator) {
+        return methodLocatorMap.get(locator);
     }
 
     static final class ProxyMethodInfo {
