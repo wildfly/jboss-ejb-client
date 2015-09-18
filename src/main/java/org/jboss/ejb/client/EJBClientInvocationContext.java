@@ -411,6 +411,7 @@ public final class EJBClientInvocationContext extends Attachable {
         assert !holdsLock(lock);
         synchronized (lock) {
             if (asyncState == AsyncState.SYNCHRONOUS) {
+                blockingCaller = false;
                 asyncState = AsyncState.ASYNCHRONOUS;
                 lock.notifyAll();
             }
@@ -423,58 +424,59 @@ public final class EJBClientInvocationContext extends Attachable {
         final long invocationTimeout = ejbClientContext.getInvocationTimeout();
         try {
             synchronized (lock) {
-                if (asyncState == AsyncState.ASYNCHRONOUS) {
-                    blockingCaller = false;
-                    return PROCEED_ASYNC;
-                } else if (asyncState == AsyncState.ONE_WAY) {
-                    throw log.oneWayInvocation();
-                }
-                long remainingWaitTimeout = TimeUnit.MILLISECONDS.toNanos(invocationTimeout);
-                long waitStartTime = System.nanoTime();
-                while (state == State.WAITING) {
-                    try {
-                        // if no invocation timeout is configured, then we wait indefinitely
-                        if (invocationTimeout <= 0) {
-                            lock.wait();
-                        } else {
-                            waitStartTime = System.nanoTime();
-                            // we wait for a specific amount of time
-                            lock.wait(remainingWaitTimeout);
-                        }
-                    } catch (InterruptedException e) {
-                        intr = true;
-                        // if there was a invocation timeout configured and the thread was interrupted
-                        // then figure out how long we waited and what remaining time we should wait for
-                        // if the result hasn't yet arrived
-                        if (invocationTimeout > 0) {
-                            final long timeWaitedFor = Math.max(0L, System.nanoTime() - waitStartTime);
-                            // we already waited enough, so setup a result producer which will
-                            // let the client know that the invocation timed out
-                            if (timeWaitedFor >= remainingWaitTimeout) {
-                                // setup a invocation timeout result producer
-                                this.resultReady(new InvocationTimeoutResultProducer(invocationTimeout));
-                                break;
-                            } else {
-                                remainingWaitTimeout = remainingWaitTimeout - timeWaitedFor;
-                            }
-                        }
-                        continue;
-                    }
+                try {
                     if (asyncState == AsyncState.ASYNCHRONOUS) {
-                        // It's an asynchronous invocation; proceed asynchronously.
-                        blockingCaller = false;
                         return PROCEED_ASYNC;
                     } else if (asyncState == AsyncState.ONE_WAY) {
-                        blockingCaller = false;
                         throw log.oneWayInvocation();
                     }
-                    // If the state is still waiting and the invocation timeout was specified,
-                    // then it indicates that the Object.wait(timeout) returned due to a timeout.
-                    if (state == State.WAITING && invocationTimeout > 0) {
-                        // setup a invocation timeout result producer
-                        this.resultReady(new InvocationTimeoutResultProducer(invocationTimeout));
-                        break;
+                    long remainingWaitTimeout = TimeUnit.MILLISECONDS.toNanos(invocationTimeout);
+                    long waitStartTime = System.nanoTime();
+                    while (state == State.WAITING) {
+                        try {
+                            // if no invocation timeout is configured, then we wait indefinitely
+                            if (invocationTimeout <= 0) {
+                                lock.wait();
+                            } else {
+                                waitStartTime = System.nanoTime();
+                                // we wait for a specific amount of time
+                                lock.wait(remainingWaitTimeout);
+                            }
+                        } catch (InterruptedException e) {
+                            intr = true;
+                            // if there was a invocation timeout configured and the thread was interrupted
+                            // then figure out how long we waited and what remaining time we should wait for
+                            // if the result hasn't yet arrived
+                            if (invocationTimeout > 0) {
+                                final long timeWaitedFor = Math.max(0L, System.nanoTime() - waitStartTime);
+                                // we already waited enough, so setup a result producer which will
+                                // let the client know that the invocation timed out
+                                if (timeWaitedFor >= remainingWaitTimeout) {
+                                    // setup a invocation timeout result producer
+                                    this.resultReady(new InvocationTimeoutResultProducer(invocationTimeout));
+                                    break;
+                                } else {
+                                    remainingWaitTimeout = remainingWaitTimeout - timeWaitedFor;
+                                }
+                            }
+                            continue;
+                        }
+                        if (asyncState == AsyncState.ASYNCHRONOUS) {
+                            // It's an asynchronous invocation; proceed asynchronously.
+                            return PROCEED_ASYNC;
+                        } else if (asyncState == AsyncState.ONE_WAY) {
+                            throw log.oneWayInvocation();
+                        }
+                        // If the state is still waiting and the invocation timeout was specified,
+                        // then it indicates that the Object.wait(timeout) returned due to a timeout.
+                        if (state == State.WAITING && invocationTimeout > 0) {
+                            // setup a invocation timeout result producer
+                            this.resultReady(new InvocationTimeoutResultProducer(invocationTimeout));
+                            break;
+                        }
                     }
+                } finally {
+                    blockingCaller = false;
                 }
             }
             return getResult();
