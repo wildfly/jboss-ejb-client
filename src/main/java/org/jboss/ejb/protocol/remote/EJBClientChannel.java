@@ -30,7 +30,6 @@ import java.io.InputStream;
 import java.io.InterruptedIOException;
 import java.lang.reflect.Method;
 import java.util.Map;
-import java.util.concurrent.atomic.AtomicReference;
 import java.util.zip.InflaterInputStream;
 
 import javax.ejb.CreateException;
@@ -53,8 +52,8 @@ import org.jboss.marshalling.MarshallerFactory;
 import org.jboss.marshalling.Marshalling;
 import org.jboss.marshalling.MarshallingConfiguration;
 import org.jboss.marshalling.Unmarshaller;
-import org.jboss.remoting3.Attachments;
 import org.jboss.remoting3.Channel;
+import org.jboss.remoting3.ClientServiceHandle;
 import org.jboss.remoting3.Connection;
 import org.jboss.remoting3.MessageInputStream;
 import org.jboss.remoting3.MessageOutputStream;
@@ -62,8 +61,10 @@ import org.jboss.remoting3.RemotingOptions;
 import org.jboss.remoting3.util.Invocation;
 import org.jboss.remoting3.util.InvocationTracker;
 import org.jboss.remoting3.util.StreamUtils;
+import org.xnio.Cancellable;
 import org.xnio.FutureResult;
 import org.xnio.IoFuture;
+import org.xnio.IoUtils;
 import org.xnio.OptionMap;
 
 /**
@@ -72,6 +73,7 @@ import org.xnio.OptionMap;
 @SuppressWarnings("deprecation")
 class EJBClientChannel {
 
+    static final ClientServiceHandle<EJBClientChannel> SERVICE_HANDLE = new ClientServiceHandle<>("ejb", EJBClientChannel::construct);
     private final MarshallerFactory marshallerFactory;
 
     private final Channel channel;
@@ -269,16 +271,68 @@ class EJBClientChannel {
     }
 
     public static IoFuture<EJBClientChannel> fromFuture(final Connection connection) {
-        final Attachments attachments = connection.getAttachments();
-        Future future = attachments.getAttachment(KEY);
-        if (future == null) {
-            Future appearing = attachments.attachIfAbsent(KEY, future = new Future(connection));
-            if (appearing != null) {
-                // discard constructed Future
-                future = appearing;
+        return SERVICE_HANDLE.getClientService(connection, OptionMap.EMPTY);
+    }
+
+    private static IoFuture<EJBClientChannel> construct(final Channel channel) {
+        FutureResult<EJBClientChannel> futureResult = new FutureResult<>();
+        // now perform opening negotiation: receive server greeting
+        channel.receiveMessage(new Channel.Receiver() {
+            public void handleError(final Channel channel, final IOException error) {
+                futureResult.setException(error);
             }
-        }
-        return future.acquire().getIoFuture();
+
+            public void handleEnd(final Channel channel) {
+                futureResult.setCancelled();
+            }
+
+            public void handleMessage(final Channel channel, final MessageInputStream message) {
+                // receive message body
+                try {
+                    final int version = min(3, StreamUtils.readInt8(message));
+                    // drain the rest of the message because it's just garbage really
+                    message.skip(Long.MAX_VALUE);
+                    while (message.read() != -1) {}
+                    // send back result
+                    try (MessageOutputStream out = channel.writeMessage()) {
+                        out.write(version);
+                        out.write(Protocol.RIVER_BYTES);
+                    }
+                    final EJBClientChannel ejbClientChannel = new EJBClientChannel(channel, version);
+                    futureResult.setResult(ejbClientChannel);
+                    // done!
+                    channel.receiveMessage(new Channel.Receiver() {
+                        public void handleError(final Channel channel, final IOException error) {
+                            safeClose(channel);
+                        }
+
+                        public void handleEnd(final Channel channel) {
+                            safeClose(channel);
+                        }
+
+                        public void handleMessage(final Channel channel, final MessageInputStream message) {
+                            try {
+                                ejbClientChannel.processMessage(message);
+                            } finally {
+                                channel.receiveMessage(this);
+                            }
+                        }
+                    });
+                } catch (final IOException e) {
+                    channel.closeAsync();
+                    channel.addCloseHandler((closed, exception) -> futureResult.setException(e));
+                }
+            }
+        });
+        futureResult.addCancelHandler(new Cancellable() {
+            public Cancellable cancel() {
+                if (futureResult.setCancelled()) {
+                    IoUtils.safeClose(channel);
+                }
+                return this;
+            }
+        });
+        return futureResult.getIoFuture();
     }
 
     public static EJBClientChannel from(final Connection connection) throws IOException {
@@ -557,92 +611,6 @@ class EJBClientChannel {
             }
         }
     }
-
-    @SuppressWarnings("serial")
-    static final class Future extends AtomicReference<FutureResult<EJBClientChannel>> {
-
-        private static final IoFuture.Notifier<? super Channel, FutureResult<EJBClientChannel>> NOTIFIER = new IoFuture.HandlingNotifier<Channel, FutureResult<EJBClientChannel>>() {
-            public void handleCancelled(final FutureResult<EJBClientChannel> attachment) {
-                attachment.setCancelled();
-            }
-
-            public void handleFailed(final IOException exception, final FutureResult<EJBClientChannel> attachment) {
-                attachment.setException(exception);
-            }
-
-            public void handleDone(final Channel channel, final FutureResult<EJBClientChannel> futureResult) {
-                // now perform opening negotiation: receive server greeting
-                channel.receiveMessage(new Channel.Receiver() {
-                    public void handleError(final Channel channel, final IOException error) {
-                        futureResult.setException(error);
-                    }
-
-                    public void handleEnd(final Channel channel) {
-                        futureResult.setCancelled();
-                    }
-
-                    public void handleMessage(final Channel channel, final MessageInputStream message) {
-                        // receive message body
-                        try {
-                            final int version = min(3, StreamUtils.readInt8(message));
-                            // drain the rest of the message because it's just garbage really
-                            message.skip(Long.MAX_VALUE);
-                            while (message.read() != -1) {}
-                            // send back result
-                            try (MessageOutputStream out = channel.writeMessage()) {
-                                out.write(version);
-                                out.write(Protocol.RIVER_BYTES);
-                            }
-                            final EJBClientChannel ejbClientChannel = new EJBClientChannel(channel, version);
-                            futureResult.setResult(ejbClientChannel);
-                            // done!
-                            channel.receiveMessage(new Channel.Receiver() {
-                                public void handleError(final Channel channel, final IOException error) {
-                                    safeClose(channel);
-                                }
-
-                                public void handleEnd(final Channel channel) {
-                                    safeClose(channel);
-                                }
-
-                                public void handleMessage(final Channel channel, final MessageInputStream message) {
-                                    try {
-                                        ejbClientChannel.processMessage(message);
-                                    } finally {
-                                        channel.receiveMessage(this);
-                                    }
-                                }
-                            });
-                        } catch (final IOException e) {
-                            channel.closeAsync();
-                            channel.addCloseHandler((closed, exception) -> futureResult.setException(e));
-                        }
-                    }
-                });
-            }
-        };
-
-        private final Connection connection;
-
-        Future(final Connection connection) {
-            this.connection = connection;
-        }
-
-        FutureResult<EJBClientChannel> acquire() {
-            FutureResult<EJBClientChannel> result = get();
-            if (result == null) {
-                result = new FutureResult<>();
-                if (! compareAndSet(null, result)) {
-                    return get();
-                }
-                final IoFuture<Channel> channel = connection.openChannel("jboss.ejb", OptionMap.EMPTY);
-                channel.addNotifier(NOTIFIER, result);
-            }
-            return result;
-        }
-    }
-
-    static final Attachments.Key<Future> KEY = new Attachments.Key<>(Future.class);
 
     static class ResponseMessageInputStream extends MessageInputStream implements ByteInput {
         private final InputStream delegate;
