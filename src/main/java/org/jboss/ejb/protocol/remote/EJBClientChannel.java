@@ -291,8 +291,9 @@ class EJBClientChannel {
                 try {
                     final int version = min(3, StreamUtils.readInt8(message));
                     // drain the rest of the message because it's just garbage really
-                    message.skip(Long.MAX_VALUE);
-                    while (message.read() != -1) {}
+                    while (message.read() != -1) {
+                        message.skip(Long.MAX_VALUE);
+                    }
                     // send back result
                     try (MessageOutputStream out = channel.writeMessage()) {
                         out.write(version);
