@@ -261,7 +261,7 @@ public final class ClusterContext implements EJBClientContext.EJBReceiverContext
 
     public Set<String> getConnectedAndDeployedNodes(EJBLocator locator) {
         Set<String> connectedAndDeployed = Collections.synchronizedSet(new HashSet<String>());
-        synchronized (this) {
+        synchronized (this.connectedNodes) {
             for (String node : this.connectedNodes) {
                 if (isNodeConnectedAndDeployed(node, locator)) {
                     connectedAndDeployed.add(node);
