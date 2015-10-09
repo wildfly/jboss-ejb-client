@@ -143,7 +143,7 @@ class EJBRootContext extends AbstractContext {
         if (sm != null) {
             classLoader = AccessController.doPrivileged((PrivilegedAction<ClassLoader>) EJBRootContext::doGetContextClassLoader);
         } else {
-            classLoader = getContextClassLoader();
+            classLoader = doGetContextClassLoader();
         }
         return classLoader;
     }
