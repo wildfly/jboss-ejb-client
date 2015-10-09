@@ -24,6 +24,8 @@ package org.jboss.ejb.client.naming;
 
 import java.net.URI;
 import java.net.URLDecoder;
+import java.security.AccessController;
+import java.security.PrivilegedAction;
 
 import javax.naming.Binding;
 import javax.naming.Name;
@@ -118,7 +120,7 @@ class EJBRootContext extends AbstractContext {
         }
         Class<?> view;
         try {
-            view = Class.forName(viewType);
+            view = Class.forName(viewType, false, getContextClassLoader());
         } catch (ClassNotFoundException e) {
             throw Logs.MAIN.lookupFailed(name, name, e);
         }
@@ -133,6 +135,21 @@ class EJBRootContext extends AbstractContext {
             locator = createLocator(view, appName, moduleName, beanName, distinctName);
         }
         return EJBClient.createProxy(locator);
+    }
+
+    private static ClassLoader getContextClassLoader(){
+        final SecurityManager sm = System.getSecurityManager();
+        ClassLoader classLoader;
+        if (sm != null) {
+            classLoader = AccessController.doPrivileged((PrivilegedAction<ClassLoader>) EJBRootContext::doGetContextClassLoader);
+        } else {
+            classLoader = getContextClassLoader();
+        }
+        return classLoader;
+    }
+
+    private static ClassLoader doGetContextClassLoader() {
+        return Thread.currentThread().getContextClassLoader();
     }
 
     private <T> StatelessEJBLocator<T> createLocator(Class<T> viewType, String appName, String moduleName, String beanName, String distinctName) {
