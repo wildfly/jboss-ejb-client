@@ -356,6 +356,22 @@ public final class EJBClient {
     }
 
     /**
+     * Convert a non-stateful proxy to be stateful.  If the proxy was already stateful and the session ID matches, the
+     * proxy is unchanged.  If the proxy was otherwise already stateful, an exception is thrown.  Subsequent calls to
+     * {@link #getLocatorFor(Object)} for the given proxy will return the updated locator.
+     *
+     * @param proxy the proxy to convert (must not be {@code null})
+     * @param sessionID the session ID to use for the stateful locator (must not be {@code null})
+     * @throws IllegalArgumentException if the given proxy is not a valid client proxy instance, or the proxy is already
+     * stateful with a different session ID
+     */
+    public static void convertToStateful(Object proxy, SessionID sessionID) throws IllegalArgumentException {
+        Assert.checkNotNullParam("proxy", proxy);
+        Assert.checkNotNullParam("sessionID", sessionID);
+        EJBInvocationHandler.forProxy(proxy).setSessionID(sessionID);
+    }
+
+    /**
      * Get a {@code UserTransaction} object instance which can be used to control transactions on a specific node.
      *
      * @param targetNodeName the node name

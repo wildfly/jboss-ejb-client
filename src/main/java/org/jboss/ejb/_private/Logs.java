@@ -253,6 +253,9 @@ public interface Logs extends BasicLogger {
     @Message(id = 62, value = "Failed to look up \"%s\"")
     CommunicationException lookupFailed(@Property Name resolvedName, Name name, @Cause Exception e);
 
+    @Message(id = 63, value = "EJB proxy is already stateful")
+    IllegalArgumentException ejbIsAlreadyStateful();
+
     // Proxy API errors
 
     @Message(id = 100, value = "Object '%s' is not a valid proxy object")

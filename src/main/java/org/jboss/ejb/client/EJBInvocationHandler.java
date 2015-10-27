@@ -28,6 +28,7 @@ import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
 import java.rmi.RemoteException;
 import java.util.concurrent.Future;
+import java.util.concurrent.atomic.AtomicReference;
 
 import javax.ejb.EJBException;
 import javax.ejb.EJBHome;
@@ -49,13 +50,8 @@ final class EJBInvocationHandler<T> extends Attachable implements InvocationHand
     private transient String toString;
     private transient String toStringProxy;
 
-    /**
-     * @serial the associated EJB locator
-     */
-    private volatile EJBLocator<T> locator;
-    /**
-     * @serial the weak affinity
-     */
+    private final AtomicReference<EJBLocator<T>> locatorRef;
+
     private volatile Affinity weakAffinity = Affinity.NONE;
 
     /**
@@ -65,7 +61,7 @@ final class EJBInvocationHandler<T> extends Attachable implements InvocationHand
      */
     EJBInvocationHandler(final EJBLocator<T> locator) {
         Assert.checkNotNullParam("locator", locator);
-        this.locator = locator;
+        this.locatorRef = new AtomicReference<>(locator);
         async = false;
         if (locator instanceof StatefulEJBLocator) {
             // set the weak affinity to the node on which the session was created
@@ -80,7 +76,8 @@ final class EJBInvocationHandler<T> extends Attachable implements InvocationHand
      */
     EJBInvocationHandler(final EJBInvocationHandler<T> other) {
         super(other);
-        locator = other.locator;
+        final EJBLocator<T> locator = other.locatorRef.get();
+        locatorRef = new AtomicReference<>(locator);
         async = true;
         if (locator instanceof StatefulEJBLocator) {
             // set the weak affinity to the node on which the session was created
@@ -89,13 +86,13 @@ final class EJBInvocationHandler<T> extends Attachable implements InvocationHand
     }
 
     public Object invoke(final Object rawProxy, final Method method, final Object... args) throws Exception {
-        final T proxy = locator.getViewType().cast(rawProxy);
-        final EJBProxyInformation.ProxyMethodInfo methodInfo = locator.getProxyInformation().getProxyMethodInfo(method);
+        final T proxy = locatorRef.get().getViewType().cast(rawProxy);
+        final EJBProxyInformation.ProxyMethodInfo methodInfo = locatorRef.get().getProxyInformation().getProxyMethodInfo(method);
         return invoke(proxy, methodInfo, args);
     }
 
     EJBProxyInformation.ProxyMethodInfo getProxyMethodInfo(EJBMethodLocator<T> methodLocator) {
-        return locator.getProxyInformation().getProxyMethodInfo(methodLocator);
+        return locatorRef.get().getProxyInformation().getProxyMethodInfo(methodLocator);
     }
 
     Object invoke(final T proxy, final EJBProxyInformation.ProxyMethodInfo methodInfo, final Object... args) throws Exception {
@@ -114,26 +111,26 @@ final class EJBInvocationHandler<T> extends Attachable implements InvocationHand
             }
             case EJBProxyInformation.MT_HASH_CODE: {
                 // TODO: cache instance?
-                return Integer.valueOf(locator.hashCode());
+                return Integer.valueOf(locatorRef.get().hashCode());
             }
             case EJBProxyInformation.MT_TO_STRING: {
                 final String s = toStringProxy;
-                return s != null ? s : (toStringProxy = String.format("Proxy for remote EJB %s", locator));
+                return s != null ? s : (toStringProxy = String.format("Proxy for remote EJB %s", locatorRef.get()));
             }
             case EJBProxyInformation.MT_GET_PRIMARY_KEY: {
-                if (locator instanceof EntityEJBLocator) {
-                    return locator.narrowAsEntity(EJBObject.class).getPrimaryKey();
+                if (locatorRef.get().isEntity()) {
+                    return locatorRef.get().narrowAsEntity(EJBObject.class).getPrimaryKey();
                 }
                 throw new RemoteException("Cannot invoke getPrimaryKey() on " + proxy);
             }
             case EJBProxyInformation.MT_GET_HANDLE: {
                 // TODO: cache instance
-                return EJBHandle.handleFor(locator.narrowTo(EJBObject.class));
+                return EJBHandle.handleFor(locatorRef.get().narrowTo(EJBObject.class));
             }
             case EJBProxyInformation.MT_GET_HOME_HANDLE: {
-                if (locator instanceof EJBHomeLocator) {
+                if (locatorRef.get() instanceof EJBHomeLocator) {
                     // TODO: cache instance
-                    return EJBHomeHandle.handleFor(locator.narrowAsHome(EJBHome.class));
+                    return EJBHomeHandle.handleFor(locatorRef.get().narrowAsHome(EJBHome.class));
                 }
                 throw new RemoteException("Cannot invoke getHomeHandle() on " + proxy);
             }
@@ -141,10 +138,10 @@ final class EJBInvocationHandler<T> extends Attachable implements InvocationHand
         // otherwise it's a business method
         assert methodInfo.getMethodType() == EJBProxyInformation.MT_BUSINESS;
         final EJBClientContext clientContext = EJBClientContext.getCurrent();
-        return clientContext.performLocatedAction(locator, (receiver, originalLocator, newAffinity) -> {
+        return clientContext.performLocatedAction(locatorRef.get(), (receiver, originalLocator, newAffinity) -> {
             final EJBClientInvocationContext invocationContext = new EJBClientInvocationContext(this, clientContext, proxy, args, methodInfo);
             invocationContext.setReceiver(receiver);
-            invocationContext.setLocator(locator.withNewAffinity(newAffinity));
+            invocationContext.setLocator(locatorRef.get().withNewAffinity(newAffinity));
             invocationContext.setBlockingCaller(true);
 
             try {
@@ -210,7 +207,7 @@ final class EJBInvocationHandler<T> extends Attachable implements InvocationHand
 
     @SuppressWarnings("unused")
     protected Object writeReplace() {
-        return new SerializedEJBInvocationHandler(locator, async);
+        return new SerializedEJBInvocationHandler(locatorRef.get(), async);
     }
 
     EJBInvocationHandler<T> getAsyncHandler() {
@@ -222,7 +219,7 @@ final class EJBInvocationHandler<T> extends Attachable implements InvocationHand
     }
 
     EJBLocator<T> getLocator() {
-        return locator;
+        return locatorRef.get();
     }
 
     /**
@@ -252,7 +249,7 @@ final class EJBInvocationHandler<T> extends Attachable implements InvocationHand
      * @return {@code true} if they are equal, {@code false} otherwise
      */
     public boolean equals(EJBInvocationHandler<?> other) {
-        return this == other || other != null && locator.equals(other.locator) && async == other.async;
+        return this == other || other != null && locatorRef.get().equals(other.locatorRef.get()) && async == other.async;
     }
 
     /**
@@ -261,14 +258,14 @@ final class EJBInvocationHandler<T> extends Attachable implements InvocationHand
      * @return the hash code of this handler
      */
     public int hashCode() {
-        int hc = locator.hashCode();
+        int hc = locatorRef.get().hashCode();
         if (async) hc ++;
         return hc;
     }
 
     public String toString() {
         final String s = toString;
-        return s != null ? s : (toString = String.format("Proxy invocation handler for %s", locator));
+        return s != null ? s : (toString = String.format("Proxy invocation handler for %s", locatorRef.get()));
     }
 
     @SuppressWarnings("unchecked")
@@ -281,6 +278,30 @@ final class EJBInvocationHandler<T> extends Attachable implements InvocationHand
     }
 
     void setStrongAffinity(final Affinity newAffinity) {
-        locator = locator.withNewAffinity(newAffinity);
+        final AtomicReference<EJBLocator<T>> locatorRef = this.locatorRef;
+        EJBLocator<T> oldVal, newVal;
+        do {
+            oldVal = locatorRef.get();
+            if (oldVal.getAffinity().equals(newAffinity)) {
+                return;
+            }
+            newVal = oldVal.withNewAffinity(newAffinity);
+        } while (! locatorRef.compareAndSet(oldVal, newVal));
+    }
+
+    void setSessionID(final SessionID sessionID) {
+        final AtomicReference<EJBLocator<T>> locatorRef = this.locatorRef;
+        EJBLocator<T> oldVal, newVal;
+        do {
+            oldVal = locatorRef.get();
+            if (oldVal.isStateful()) {
+                if (oldVal.asStateful().getSessionId().equals(sessionID)) {
+                    // harmless/idempotent
+                    return;
+                }
+                throw Logs.MAIN.ejbIsAlreadyStateful();
+            }
+            newVal = new StatefulEJBLocator<T>(oldVal, sessionID);
+        } while (! locatorRef.compareAndSet(oldVal, newVal));
     }
 }
