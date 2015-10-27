@@ -31,19 +31,15 @@ package org.jboss.ejb.client;
 public interface ClusterNodeSelector {
 
     /**
-     * Returns a node from among the <code>totalAvailableNodes</code>, as the target node for EJB invocations.
-     * The selector can decide whether to pick an already connected node (from the passed <code>connectedNodes</code>)
+     * Returns a node from among the {@code totalAvailableNodes}, as the target node for EJB invocations.
+     * The selector can decide whether to pick an already connected node (from the passed {@code connectedNodes})
      * or decide to select a node to which a connection hasn't yet been established. If a node to which a connection
-     * hasn't been established, is selected then the cluster context will create a connection to it before letting
-     * the corresponding {@link EJBReceiver} to handle the EJB invocation.
+     * hasn't been established is selected then the cluster context will create a connection to it.
      *
-     * @param clusterName         The name of the cluster to which the nodes belong
-     * @param connectedNodes      The cluster context auto-connects to only a maximum allowed limit of nodes. This
-     *                            <code>connectedNodes</code> array contains the node names to which a connection has
-     *                            been established. This can be an empty array but will not be null.
-     * @param totalAvailableNodes Total available nodes in the cluster. This even includes the connected nodes.
-     *                            This array will neither be empty nor null.
-     * @return
+     * @param clusterName         the name of the cluster to which the nodes belong (will not be {@code null})
+     * @param connectedNodes      the node names to which a connection has been established (may be empty but will not be {@code null})
+     * @param totalAvailableNodes all available nodes in the cluster, including connected nodes (will not be empty or {@code null})
+     * @return the selected node name (must not be {@code null})
      */
     String selectNode(final String clusterName, final String[] connectedNodes, final String[] totalAvailableNodes);
 }
