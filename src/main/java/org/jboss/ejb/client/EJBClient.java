@@ -356,6 +356,18 @@ public final class EJBClient {
     }
 
     /**
+     * Get the current weak affinity of a proxy.
+     *
+     * @param proxy the proxy (must not be {@code null})
+     * @return the affinity (not {@code null})
+     * @throws IllegalArgumentException if the given proxy is not a valid client proxy instance
+     */
+    public static Affinity getWeakAffinity(Object proxy) throws IllegalArgumentException {
+        Assert.checkNotNullParam("proxy", proxy);
+        return EJBInvocationHandler.forProxy(proxy).getWeakAffinity();
+    }
+
+    /**
      * Convert a non-stateful proxy to be stateful.  If the proxy was already stateful and the session ID matches, the
      * proxy is unchanged.  If the proxy was otherwise already stateful, an exception is thrown.  Subsequent calls to
      * {@link #getLocatorFor(Object)} for the given proxy will return the updated locator.
