@@ -159,6 +159,14 @@ public final class StatefulEJBLocator<T> extends EJBLocator<T> {
         throw new ClassCastException(type.toString());
     }
 
+    public StatefulEJBLocator<T> asStateful() {
+        return this;
+    }
+
+    public boolean isStateful() {
+        return true;
+    }
+
     /**
      * Get the session ID associated with this locator.
      *

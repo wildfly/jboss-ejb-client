@@ -113,6 +113,14 @@ public final class StatelessEJBLocator<T> extends EJBLocator<T> {
         throw new ClassCastException(type.toString());
     }
 
+    public StatelessEJBLocator<T> asStateless() {
+        return this;
+    }
+
+    public boolean isStateless() {
+        return true;
+    }
+
     /**
      * Get the hash code for this instance.
      *

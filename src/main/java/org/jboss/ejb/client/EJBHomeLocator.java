@@ -115,6 +115,10 @@ public final class EJBHomeLocator<T extends EJBHome> extends EJBLocator<T> {
         throw new ClassCastException(type.toString());
     }
 
+    public boolean isHome() {
+        return true;
+    }
+
     /**
      * Get the hash code for this instance.
      *

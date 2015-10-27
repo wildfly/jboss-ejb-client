@@ -133,6 +133,10 @@ public final class EntityEJBLocator<T extends EJBObject> extends EJBLocator<T> {
         throw new ClassCastException(type.toString());
     }
 
+    public boolean isEntity() {
+        return true;
+    }
+
     /**
      * Get the primary key for the referenced entity.
      *

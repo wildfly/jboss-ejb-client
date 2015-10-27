@@ -158,6 +158,64 @@ public abstract class EJBLocator<T> implements Serializable {
     }
 
     /**
+     * Return this locator as a stateless locator, if it is one.
+     *
+     * @return this instance, cast as a stateless locator
+     * @throws ClassCastException if this locator is not a stateless locator
+     */
+    public StatelessEJBLocator<T> asStateless() {
+        throw new ClassCastException(StatefulEJBLocator.class.toString());
+    }
+
+    /**
+     * Return this locator as a stateful locator, if it is one.
+     *
+     * @return this instance, cast as a stateful locator
+     * @throws ClassCastException if this locator is not a stateful locator
+     */
+    public StatefulEJBLocator<T> asStateful() {
+        throw new ClassCastException(StatefulEJBLocator.class.toString());
+    }
+
+    /**
+     * Determine if this is a stateless locator.  If so, calls to {@link #asStateless()} and {@link #narrowAsStateless(Class)}
+     * will generally succeed.
+     *
+     * @return {@code true} if this locator is stateless, {@code false} otherwise
+     */
+    public boolean isStateless() {
+        return false;
+    }
+
+    /**
+     * Determine if this is a stateful locator.  If so, calls to {@link #asStateful()} and {@link #narrowAsStateful(Class)}
+     * will generally succeed.
+     *
+     * @return {@code true} if this locator is stateful, {@code false} otherwise
+     */
+    public boolean isStateful() {
+        return false;
+    }
+
+    /**
+     * Determine if this is an entity locator.  If so, calls to {@link #narrowAsEntity(Class)} will generally succeed.
+     *
+     * @return {@code true} if this locator is an entity, {@code false} otherwise
+     */
+    public boolean isEntity() {
+        return false;
+    }
+
+    /**
+     * Determine if this is a home locator.  If so, calls to {@link #narrowAsHome(Class)} will generally succeed.
+     *
+     * @return {@code true} if this locator is a home, {@code false} otherwise
+     */
+    public boolean isHome() {
+        return false;
+    }
+
+    /**
      * Get the view type of this locator.
      *
      * @return the view type
