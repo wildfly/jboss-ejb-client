@@ -308,12 +308,51 @@ public final class EJBClient {
     /**
      * Get the locator for a proxy, if it has one.
      *
-     * @param proxy the proxy
+     * @param proxy the proxy (may not be {@code null})
+     * @param <T> the proxy type
      * @return the locator
      * @throws IllegalArgumentException if the given proxy is not a valid client proxy instance
      */
     public static <T> EJBLocator<? extends T> getLocatorFor(T proxy) throws IllegalArgumentException {
+        Assert.checkNotNullParam("proxy", proxy);
         return EJBInvocationHandler.forProxy(proxy).getLocator();
+    }
+
+    /**
+     * Change the strong affinity of a proxy.  All subsequent invocations against the proxy will use the new affinity.
+     * Subsequent calls to {@link #getLocatorFor(Object)} for the given proxy will return the updated locator.
+     *
+     * @param proxy the proxy (may not be {@code null})
+     * @param newAffinity the new affinity (may not be {@code null})
+     * @throws IllegalArgumentException if the given proxy is not a valid client proxy instance
+     * @throws SecurityException if a security manager is present and the caller does not have the {@code changeStrongAffinity} {@link EJBClientPermission}
+     */
+    public static void setStrongAffinity(Object proxy, Affinity newAffinity) throws IllegalArgumentException, SecurityException {
+        Assert.checkNotNullParam("proxy", proxy);
+        Assert.checkNotNullParam("newAffinity", newAffinity);
+        final SecurityManager sm = System.getSecurityManager();
+        if (sm != null) {
+            sm.checkPermission(new EJBClientPermission(EJBClientPermission.Name.changeStrongAffinity));
+        }
+        EJBInvocationHandler.forProxy(proxy).setStrongAffinity(newAffinity);
+    }
+
+    /**
+     * Change the weak affinity of a proxy.  All subsequent invocations against the proxy will use the new affinity.
+     *
+     * @param proxy the proxy (may not be {@code null})
+     * @param newAffinity the new affinity (may not be {@code null})
+     * @throws IllegalArgumentException if the given proxy is not a valid client proxy instance
+     * @throws SecurityException if a security manager is present and the caller does not have the {@code changeWeakAffinity} {@link EJBClientPermission}
+     */
+    public static void setWeakAffinity(Object proxy, Affinity newAffinity) throws IllegalArgumentException, SecurityException {
+        Assert.checkNotNullParam("proxy", proxy);
+        Assert.checkNotNullParam("newAffinity", newAffinity);
+        final SecurityManager sm = System.getSecurityManager();
+        if (sm != null) {
+            sm.checkPermission(new EJBClientPermission(EJBClientPermission.Name.changeWeakAffinity));
+        }
+        EJBInvocationHandler.forProxy(proxy).setWeakAffinity(newAffinity);
     }
 
     /**

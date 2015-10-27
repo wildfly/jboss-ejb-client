@@ -52,7 +52,7 @@ final class EJBInvocationHandler<T> extends Attachable implements InvocationHand
     /**
      * @serial the associated EJB locator
      */
-    private final EJBLocator<T> locator;
+    private volatile EJBLocator<T> locator;
     /**
      * @serial the weak affinity
      */
@@ -278,5 +278,9 @@ final class EJBInvocationHandler<T> extends Attachable implements InvocationHand
         } else {
             throw new ClassCastException(viewType.getName());
         }
+    }
+
+    void setStrongAffinity(final Affinity newAffinity) {
+        locator = locator.withNewAffinity(newAffinity);
     }
 }

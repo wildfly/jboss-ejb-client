@@ -36,6 +36,8 @@ public final class EJBClientPermission extends Permission {
     enum Name {
         createContext,
         createReceiver,
+        changeWeakAffinity,
+        changeStrongAffinity,
         ;
 
         public static Name of(final String name) {
