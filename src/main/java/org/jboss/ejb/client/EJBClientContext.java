@@ -53,6 +53,14 @@ public final class EJBClientContext extends Attachable {
 
     private static final Selector.Getter<EJBClientContext> SELECTOR_GETTER = Selector.selectorGetterFor(EJBClientContext.class);
 
+    static final String FILTER_ATTR_EJB_APP = "ejb-app";
+    static final String FILTER_ATTR_EJB_MODULE = "ejb-module";
+    static final String FILTER_ATTR_EJB_BEAN = "ejb-bean";
+    static final String FILTER_ATTR_EJB_DISTINCT = "ejb-distinct";
+    static final String FILTER_ATTR_EJB_APP_DISTINCT = "ejb-app-distinct";
+    static final String FILTER_ATTR_EJB_MODULE_DISTINCT = "ejb-module-distinct";
+    static final String FILTER_ATTR_EJB_BEAN_DISTINCT = "ejb-bean-distinct";
+
     private final EJBClientInterceptor[] interceptors;
     private final EJBTransportProvider[] transportProviders;
     private final long invocationTimeout;
@@ -216,19 +224,19 @@ public final class EJBClientContext extends Attachable {
             final String distinctName = locator.getDistinctName();
             if (distinctName != null && ! distinctName.isEmpty()) {
                 filterSpec = FilterSpec.any(
-                    FilterSpec.equal("ejb-app", appName),
-                    FilterSpec.equal("ejb-module", appName + '/' + moduleName),
-                    FilterSpec.equal("ejb-bean", appName + '/' + moduleName + '/' + beanName),
-                    FilterSpec.equal("ejb-distinct", distinctName),
-                    FilterSpec.equal("ejb-app-distinct", appName + '/' + distinctName),
-                    FilterSpec.equal("ejb-module-distinct", appName + '/' + moduleName + '/' + distinctName),
-                    FilterSpec.equal("ejb-bean-distinct", appName + '/' + moduleName + '/' + beanName + '/' + distinctName)
+                    FilterSpec.equal(FILTER_ATTR_EJB_APP, appName),
+                    FilterSpec.equal(FILTER_ATTR_EJB_MODULE, appName + '/' + moduleName),
+                    FilterSpec.equal(FILTER_ATTR_EJB_BEAN, appName + '/' + moduleName + '/' + beanName),
+                    FilterSpec.equal(FILTER_ATTR_EJB_DISTINCT, distinctName),
+                    FilterSpec.equal(FILTER_ATTR_EJB_APP_DISTINCT, appName + '/' + distinctName),
+                    FilterSpec.equal(FILTER_ATTR_EJB_MODULE_DISTINCT, appName + '/' + moduleName + '/' + distinctName),
+                    FilterSpec.equal(FILTER_ATTR_EJB_BEAN_DISTINCT, appName + '/' + moduleName + '/' + beanName + '/' + distinctName)
                 );
             } else {
                 filterSpec = FilterSpec.any(
-                    FilterSpec.equal("ejb-app", appName),
-                    FilterSpec.equal("ejb-module", appName + '/' + moduleName),
-                    FilterSpec.equal("ejb-bean", appName + '/' + moduleName + '/' + beanName)
+                    FilterSpec.equal(FILTER_ATTR_EJB_APP, appName),
+                    FilterSpec.equal(FILTER_ATTR_EJB_MODULE, appName + '/' + moduleName),
+                    FilterSpec.equal(FILTER_ATTR_EJB_BEAN, appName + '/' + moduleName + '/' + beanName)
                 );
             }
         } else if (affinity instanceof NodeAffinity) {
