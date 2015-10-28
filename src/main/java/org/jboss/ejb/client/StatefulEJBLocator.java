@@ -97,7 +97,7 @@ public final class StatefulEJBLocator<T> extends EJBLocator<T> {
         super(viewType, appName, moduleName, beanName, distinctName, affinity);
         Assert.checkNotNullParam("sessionId", sessionId);
         this.sessionId = sessionId;
-        hashCode = sessionId.hashCode() * 13 + super.hashCode();
+        hashCode = sessionId.hashCode() + 13 * super.hashCode();
     }
 
     /**
@@ -109,7 +109,7 @@ public final class StatefulEJBLocator<T> extends EJBLocator<T> {
     public StatefulEJBLocator(final StatefulEJBLocator<T> original, final Affinity newAffinity) {
         super(original, newAffinity);
         this.sessionId = original.sessionId;
-        hashCode = sessionId.hashCode() * 13 + super.hashCode();
+        hashCode = sessionId.hashCode() + 13 * super.hashCode();
     }
 
     /**
@@ -123,7 +123,7 @@ public final class StatefulEJBLocator<T> extends EJBLocator<T> {
         super(original, original.getAffinity());
         Assert.checkNotNullParam("sessionId", sessionId);
         this.sessionId = sessionId;
-        hashCode = sessionId.hashCode() * 13 + super.hashCode();
+        hashCode = sessionId.hashCode() + 13 * super.hashCode();
     }
 
     /**
@@ -138,7 +138,7 @@ public final class StatefulEJBLocator<T> extends EJBLocator<T> {
         super(original, newAffinity);
         Assert.checkNotNullParam("sessionId", sessionId);
         this.sessionId = sessionId;
-        hashCode = sessionId.hashCode() * 13 + super.hashCode();
+        hashCode = sessionId.hashCode() + 13 * super.hashCode();
     }
 
     public StatefulEJBLocator<T> withNewAffinity(final Affinity affinity) {

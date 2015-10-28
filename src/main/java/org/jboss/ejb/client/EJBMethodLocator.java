@@ -52,7 +52,7 @@ public final class EJBMethodLocator<T> implements Serializable {
         Assert.checkNotNullParam("parameterTypeNames", parameterTypeNames);
         this.viewType = viewType;
         this.methodName = methodName;
-        String[] clone = (this.parameterTypeNames = parameterTypeNames.clone());
+        String[] clone = this.parameterTypeNames = parameterTypeNames.clone();
         for (int i = 0; i < clone.length; i++) {
             Assert.checkNotNullArrayParam("parameterTypeNames", i, clone[i]);
         }
@@ -60,7 +60,7 @@ public final class EJBMethodLocator<T> implements Serializable {
     }
 
     private static int calcHashCode(final Class<?> viewType, final String methodName, final String[] parameterTypeNames) {
-        return viewType.hashCode() * 13 + (methodName.hashCode() * 13 + (Arrays.hashCode(parameterTypeNames) * 13));
+        return viewType.hashCode() + 13 * (methodName.hashCode() + 13 * Arrays.hashCode(parameterTypeNames));
     }
 
     public Class<T> getViewType() {

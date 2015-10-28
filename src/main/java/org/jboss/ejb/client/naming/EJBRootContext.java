@@ -23,7 +23,6 @@
 package org.jboss.ejb.client.naming;
 
 import java.net.URI;
-import java.net.URLDecoder;
 import java.security.AccessController;
 import java.security.PrivilegedAction;
 

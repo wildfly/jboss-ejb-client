@@ -82,7 +82,7 @@ public abstract class EJBLocator<T> implements Serializable {
     }
 
     private static int calcHashCode(final Class<?> viewType, final String appName, final String moduleName, final String beanName, final String distinctName, final Affinity affinity) {
-        return viewType.hashCode() * 13 + (appName.hashCode() * 13 + (moduleName.hashCode() * 13 + (beanName.hashCode() * 13 + (distinctName.hashCode() * 13 + (affinity.hashCode())))));
+        return viewType.hashCode() + 13 * (appName.hashCode() + 13 * (moduleName.hashCode() + 13 * (beanName.hashCode() + 13 * (distinctName.hashCode() + 13 * affinity.hashCode()))));
     }
 
     /**
