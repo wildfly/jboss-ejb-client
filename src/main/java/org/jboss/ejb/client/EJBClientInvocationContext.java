@@ -147,6 +147,16 @@ public final class EJBClientInvocationContext extends Attachable {
     }
 
     /**
+     * Determine whether the method is definitely synchronous, that is, it is not marked client-async, and the return
+     * value of the method is not {@code void} or {@code Future<?>}.
+     *
+     * @return {@code true} if the method is definitely synchronous, {@code false} if the method may be asynchronous
+     */
+    public boolean isSynchronous() {
+        return ! isClientAsync() && methodInfo.isSynchronous();
+    }
+
+    /**
      * Determine whether the method is marked idempotent, meaning that the method may be invoked more than one time with
      * no additional effect.
      *
@@ -154,6 +164,24 @@ public final class EJBClientInvocationContext extends Attachable {
      */
     public boolean isIdempotent() {
         return methodInfo.isIdempotent();
+    }
+
+    /**
+     * Determine whether the request is expected to be compressed.
+     *
+     * @return {@code true} if the request is expected to be compressed, {@code false} otherwise
+     */
+    public boolean isCompressRequest() {
+        return methodInfo.isCompressRequest();
+    }
+
+    /**
+     * Determine whether the response is expected to be compressed.
+     *
+     * @return {@code true} if the response is expected to be compressed, {@code false} otherwise
+     */
+    public boolean isCompressResponse() {
+        return methodInfo.isCompressResponse();
     }
 
     /**

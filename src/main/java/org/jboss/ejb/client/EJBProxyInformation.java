@@ -33,6 +33,7 @@ import java.lang.reflect.Proxy;
 import java.security.PrivilegedAction;
 import java.util.HashMap;
 import java.util.IdentityHashMap;
+import java.util.concurrent.Future;
 import java.util.zip.Deflater;
 
 import javax.ejb.EJBHome;
@@ -309,6 +310,11 @@ final class EJBProxyInformation<T> {
 
         EJBMethodLocator<?> getMethodLocator() {
             return methodLocator;
+        }
+
+        boolean isSynchronous() {
+            final Class<?> returnType = method.getReturnType();
+            return returnType != void.class && returnType != Future.class;
         }
     }
 }
