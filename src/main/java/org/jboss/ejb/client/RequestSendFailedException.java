@@ -23,7 +23,8 @@
 package org.jboss.ejb.client;
 
 /**
- * An exception (typically) thrown by {@link EJBReceiver}s if the receiver couldn't successfully handle a request.
+ * An exception (typically) thrown by {@link EJBReceiver}s if the receiver couldn't successfully handle a request.  If
+ * this exception is received, the outcome of the request is unknown (and possible retries have also failed indeterminately).
  *
  * @author Jaikiran Pai
  */
