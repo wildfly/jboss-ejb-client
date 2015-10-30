@@ -41,7 +41,6 @@ public abstract class AbstractEJBMetaData<T extends EJBObject, H extends EJBHome
 
     private final Class<T> remoteInterfaceClass;
     private final EJBHomeLocator<H> homeLocator;
-    private transient H home;
 
     AbstractEJBMetaData(final Class<T> remoteInterfaceClass, final EJBHomeLocator<H> homeLocator) {
         this.remoteInterfaceClass = remoteInterfaceClass;
@@ -54,8 +53,7 @@ public abstract class AbstractEJBMetaData<T extends EJBObject, H extends EJBHome
      * @return the EJB home interface
      */
     public H getEJBHome() {
-        final H home = this.home;
-        return home != null ? home : (this.home = EJBClient.createProxy(homeLocator));
+        return EJBClient.createProxy(homeLocator);
     }
 
     /**
