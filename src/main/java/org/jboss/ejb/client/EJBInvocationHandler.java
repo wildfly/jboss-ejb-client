@@ -54,6 +54,9 @@ final class EJBInvocationHandler<T> extends Attachable implements InvocationHand
 
     private volatile Affinity weakAffinity = Affinity.NONE;
 
+    // -1 = use global value
+    private volatile long invocationTimeout = -1L;
+
     /**
      * Construct a new instance.
      *
@@ -150,7 +153,7 @@ final class EJBInvocationHandler<T> extends Attachable implements InvocationHand
 
                 if (! async && ! methodInfo.isClientAsync()) {
                     // wait for invocation to complete
-                    final Object value = invocationContext.awaitResponse();
+                    final Object value = invocationContext.awaitResponse(this);
                     if (value != EJBClientInvocationContext.PROCEED_ASYNC) {
                         return value;
                     }
@@ -303,5 +306,13 @@ final class EJBInvocationHandler<T> extends Attachable implements InvocationHand
             }
             newVal = new StatefulEJBLocator<T>(oldVal, sessionID);
         } while (! locatorRef.compareAndSet(oldVal, newVal));
+    }
+
+    long getInvocationTimeout() {
+        return invocationTimeout;
+    }
+
+    void setInvocationTimeout(final long invocationTimeout) {
+        this.invocationTimeout = invocationTimeout;
     }
 }

@@ -446,10 +446,11 @@ public final class EJBClientInvocationContext extends Attachable {
         }
     }
 
-    Object awaitResponse() throws Exception {
+    Object awaitResponse(final EJBInvocationHandler<?> invocationHandler) throws Exception {
         assert !holdsLock(lock);
         boolean intr = false;
-        final long invocationTimeout = ejbClientContext.getInvocationTimeout();
+        final long handlerInvTimeout = invocationHandler.getInvocationTimeout();
+        final long invocationTimeout = handlerInvTimeout != -1 ? handlerInvTimeout : ejbClientContext.getInvocationTimeout();
         try {
             synchronized (lock) {
                 try {

@@ -26,6 +26,7 @@ import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Proxy;
 import java.net.URI;
 import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 
 import javax.ejb.CreateException;
 import javax.transaction.UserTransaction;
@@ -316,6 +317,33 @@ public final class EJBClient {
     public static <T> EJBLocator<? extends T> getLocatorFor(T proxy) throws IllegalArgumentException {
         Assert.checkNotNullParam("proxy", proxy);
         return EJBInvocationHandler.forProxy(proxy).getLocator();
+    }
+
+    /**
+     * Set a per-proxy invocation timeout.  This overrides the globally configured timeout.
+     *
+     * @param proxy the proxy to change (must not be {@code null}, must be a valid EJB proxy)
+     * @param timeout the amount of time (must be greater than zero)
+     * @param timeUnit the time unit (must not be {@code null})
+     * @throws IllegalArgumentException if the timeout is less than or equal to zero or a required parameter is
+     * {@code null} or invalid
+     */
+    public static void setInvocationTimeout(Object proxy, long timeout, TimeUnit timeUnit) throws IllegalArgumentException {
+        Assert.checkNotNullParam("proxy", proxy);
+        Assert.checkMinimumParameter("timeout", 1L, timeout);
+        Assert.checkNotNullParam("timeUnit", timeUnit);
+        EJBInvocationHandler.forProxy(proxy).setInvocationTimeout(Math.max(1L, timeUnit.toMillis(timeout)));
+    }
+
+    /**
+     * Clear the per-proxy invocation timeout, causing it to use the globally configured timeout.
+     *
+     * @param proxy the proxy to change (must not be {@code null}, must be a valid EJB proxy)
+     * @throws IllegalArgumentException if the proxy is {@code null} or is not valid
+     */
+    public static void clearInvocationTimeout(Object proxy) throws IllegalArgumentException {
+        Assert.checkNotNullParam("proxy", proxy);
+        EJBInvocationHandler.forProxy(proxy).setInvocationTimeout(-1L);
     }
 
     /**
