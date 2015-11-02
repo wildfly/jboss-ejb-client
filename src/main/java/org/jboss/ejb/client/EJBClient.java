@@ -366,6 +366,44 @@ public final class EJBClient {
     }
 
     /**
+     * Get the strong affinity of a proxy.  This is a shortcut for {@code getLocatorFor(proxy).getAffinity()}.
+     *
+     * @param proxy the proxy (may not be {@code null})
+     * @return the proxy strong affinity
+     * @throws IllegalArgumentException if the given proxy is not a valid client proxy instance
+     */
+    public static Affinity getStrongAffinity(Object proxy) throws IllegalArgumentException {
+        Assert.checkNotNullParam("proxy", proxy);
+        return getLocatorFor(proxy).getAffinity();
+    }
+
+    /**
+     * Compare and change the strong affinity of a proxy.  All subsequent invocations against the proxy will use the new affinity.
+     * Subsequent calls to {@link #getLocatorFor(Object)} for the given proxy will return the updated locator.  If the
+     * affinity is not equal to the expected value, {@code false} is returned and no change is made.
+     *
+     * @param proxy the proxy (may not be {@code null})
+     * @param newAffinity the new affinity (may not be {@code null})
+     * @throws IllegalArgumentException if the given proxy is not a valid client proxy instance
+     * @throws SecurityException if a security manager is present and the caller does not have the {@code changeStrongAffinity} {@link EJBClientPermission}
+     */
+    public static boolean compareAndSetStrongAffinity(Object proxy, Affinity expectedAffinity, Affinity newAffinity) throws IllegalArgumentException, SecurityException {
+        Assert.checkNotNullParam("proxy", proxy);
+        Assert.checkNotNullParam("expectedAffinity", expectedAffinity);
+        Assert.checkNotNullParam("newAffinity", newAffinity);
+        final EJBInvocationHandler<?> invocationHandler = EJBInvocationHandler.forProxy(proxy);
+        final Affinity existing = invocationHandler.getLocator().getAffinity();
+        if (! expectedAffinity.equals(existing)) {
+            return false;
+        }
+        final SecurityManager sm = System.getSecurityManager();
+        if (sm != null) {
+            sm.checkPermission(new EJBClientPermission(EJBClientPermission.Name.changeStrongAffinity));
+        }
+        return invocationHandler.compareAndSetStrongAffinity(expectedAffinity, newAffinity);
+    }
+
+    /**
      * Change the weak affinity of a proxy.  All subsequent invocations against the proxy will use the new affinity.
      *
      * @param proxy the proxy (may not be {@code null})
