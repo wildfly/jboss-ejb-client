@@ -315,4 +315,16 @@ final class EJBInvocationHandler<T> extends Attachable implements InvocationHand
     void setInvocationTimeout(final long invocationTimeout) {
         this.invocationTimeout = invocationTimeout;
     }
+
+    boolean compareAndSetStrongAffinity(final Affinity expectedAffinity, final Affinity newAffinity) {
+        Assert.checkNotNullParam("expectedAffinity", expectedAffinity);
+        Assert.checkNotNullParam("newAffinity", newAffinity);
+        final AtomicReference<EJBLocator<T>> locatorRef = this.locatorRef;
+        EJBLocator<T> oldVal = locatorRef.get();
+        if (! oldVal.getAffinity().equals(expectedAffinity)) {
+            return false;
+        }
+        EJBLocator<T> newVal = oldVal.withNewAffinity(newAffinity);
+        return locatorRef.compareAndSet(oldVal, newVal);
+    }
 }

@@ -27,6 +27,7 @@ import java.lang.reflect.Proxy;
 import java.net.URI;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
+import java.util.function.UnaryOperator;
 
 import javax.ejb.CreateException;
 import javax.transaction.UserTransaction;
@@ -401,6 +402,39 @@ public final class EJBClient {
             sm.checkPermission(new EJBClientPermission(EJBClientPermission.Name.changeStrongAffinity));
         }
         return invocationHandler.compareAndSetStrongAffinity(expectedAffinity, newAffinity);
+    }
+
+    /**
+     * Transform the strong affinity of a proxy.  All subsequent invocations against the proxy will use the new affinity.
+     * Subsequent calls to {@link #getLocatorFor(Object)} for the given proxy will return the updated locator.
+     *
+     * @param proxy the proxy (may not be {@code null})
+     * @param transformOperator the operator to apply to acquire the new affinity from the old one (may not be {@code null})
+     * @throws IllegalArgumentException if the given proxy is not a valid client proxy instance
+     * @throws SecurityException if a security manager is present and the caller does not have the {@code changeStrongAffinity} {@link EJBClientPermission}
+     */
+    public static void transformStrongAffinity(Object proxy, UnaryOperator<Affinity> transformOperator) throws IllegalArgumentException, SecurityException {
+        Assert.checkNotNullParam("proxy", proxy);
+        Assert.checkNotNullParam("transformOperator", transformOperator);
+        final EJBInvocationHandler<?> invocationHandler = EJBInvocationHandler.forProxy(proxy);
+        Affinity oldAffinity = invocationHandler.getLocator().getAffinity();
+        Affinity newAffinity = transformOperator.apply(oldAffinity);
+        Assert.assertNotNull(newAffinity);
+        if (oldAffinity.equals(newAffinity)) {
+            return;
+        }
+        final SecurityManager sm = System.getSecurityManager();
+        if (sm != null) {
+            sm.checkPermission(new EJBClientPermission(EJBClientPermission.Name.changeStrongAffinity));
+        }
+        while (! invocationHandler.compareAndSetStrongAffinity(oldAffinity, newAffinity)) {
+            oldAffinity = invocationHandler.getLocator().getAffinity();
+            newAffinity = transformOperator.apply(oldAffinity);
+            Assert.assertNotNull(newAffinity);
+            if (oldAffinity.equals(newAffinity)) {
+                return;
+            }
+        }
     }
 
     /**
