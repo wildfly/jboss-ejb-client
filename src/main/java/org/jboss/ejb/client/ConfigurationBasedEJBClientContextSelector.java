@@ -177,7 +177,7 @@ public final class ConfigurationBasedEJBClientContextSelector extends Selector<E
             throw streamReader.missingRequiredAttribute(null, "uri");
         }
         final ServiceURL.Builder urlBuilder = new ServiceURL.Builder();
-        urlBuilder.addAttribute("node", AttributeValue.fromEncodedString(nodeName));
+        urlBuilder.addAttribute("node", AttributeValue.fromString(nodeName));
         urlBuilder.setUri(uri);
         urlBuilder.setAbstractType("ejb");
         urlBuilder.setAbstractTypeAuthority("jboss");
@@ -217,7 +217,7 @@ public final class ConfigurationBasedEJBClientContextSelector extends Selector<E
             } else if (next == END_ELEMENT) {
                 if (connectUris != null) for (URI connectUri : connectUris) {
                     final ServiceURL.Builder urlBuilder = new ServiceURL.Builder();
-                    urlBuilder.addAttribute("cluster", AttributeValue.fromEncodedString(clusterName));
+                    urlBuilder.addAttribute("cluster", AttributeValue.fromString(clusterName));
                     urlBuilder.setUri(connectUri);
                     urlBuilder.setAbstractType("ejb");
                     urlBuilder.setAbstractTypeAuthority("jboss");
@@ -292,8 +292,8 @@ public final class ConfigurationBasedEJBClientContextSelector extends Selector<E
         } else {
             secondary = beanName + "/" + distinctName;
         }
-        urlBuilder.addAttribute("module", AttributeValue.fromEncodedString(primary));
-        urlBuilder.addAttribute("bean", AttributeValue.fromEncodedString(primary + "/" + secondary));
+        urlBuilder.addAttribute("module", AttributeValue.fromString(primary));
+        urlBuilder.addAttribute("bean", AttributeValue.fromString(primary + "/" + secondary));
         urlBuilder.setUri(uri);
         urlBuilder.setAbstractType("ejb");
         urlBuilder.setAbstractTypeAuthority("jboss");
