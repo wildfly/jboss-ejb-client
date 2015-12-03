@@ -81,9 +81,7 @@ final class ProtocolV1ClassTable implements ClassTable {
     private static final Map<Class<?>, ByteWriter> writers;
     /**
      * Do NOT change the order of this list.
-     * Do NOT even remove entries from this list. If at all you no longer want a certain
-     * class to be made available by this ClassTable, then add that class to the {@link #deprecatedClassTableClasses}
-     * set below.
+     * Do NOT even remove entries from this list.
      */
     private static final Class<?>[] classes = {
             EJBLocator.class,
@@ -143,7 +141,7 @@ final class ProtocolV1ClassTable implements ClassTable {
 
         for (int i = 0, length = classes.length; i < length; i++) {
             clazz = classes[i];
-            if (clazz == Throwable.class || clazz == Exception.class || clazz == RuntimeException.class) {
+            if (Throwable.class.isAssignableFrom(clazz)) {
                 // don't write out exception types as class table items since they're out of our control
                 continue;
             }
