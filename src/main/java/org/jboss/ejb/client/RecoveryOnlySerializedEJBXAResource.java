@@ -49,8 +49,12 @@ class RecoveryOnlySerializedEJBXAResource implements XAResource, Serializable {
     public void commit(Xid xid, boolean onePhase) throws XAException {
         final List<EJBReceiverContext> receiverContexts = ReceiverRegistrationListener.INSTANCE.getRelevantReceiverContexts(this.ejbReceiverNodeName);
         if (receiverContexts.isEmpty()) {
-            Logs.TXN.debugf("No EJB receiver contexts available for committing EJB XA resource for Xid %s during transaction recovery. Returning XAException.XA_RETRY", xid);
-            throw new XAException(XAException.XA_RETRY);
+            final EJBClientContext context = EJBClientContext.getCurrent();
+            // getting the node EJB receiver should cause the receiver contexts list to be populated
+            if (context == null || context.getNodeEJBReceiver(ejbReceiverNodeName) == null || receiverContexts.isEmpty()) {
+                Logs.TXN.debugf("No EJB receiver contexts available for committing EJB XA resource for Xid %s during transaction recovery. Returning XAException.XA_RETRY", xid);
+                throw new XAException(XAException.XA_RETRY);
+            }
         }
         final XidTransactionID transactionID = new XidTransactionID(xid);
         for (final EJBReceiverContext receiverContext : receiverContexts) {
@@ -64,8 +68,12 @@ class RecoveryOnlySerializedEJBXAResource implements XAResource, Serializable {
     public void rollback(Xid xid) throws XAException {
         final List<EJBReceiverContext> receiverContexts = ReceiverRegistrationListener.INSTANCE.getRelevantReceiverContexts(this.ejbReceiverNodeName);
         if (receiverContexts.isEmpty()) {
-            Logs.TXN.debugf("No EJB receiver contexts available for rolling back EJB XA resource for Xid %s during transaction recovery. Returning XAException.XA_RETRY", xid);
-            throw new XAException(XAException.XA_RETRY);
+            final EJBClientContext context = EJBClientContext.getCurrent();
+            // getting the node EJB receiver should cause the receiver contexts list to be populated
+            if (context == null || context.getNodeEJBReceiver(ejbReceiverNodeName) == null || receiverContexts.isEmpty()) {
+                Logs.TXN.debugf("No EJB receiver contexts available for rolling back EJB XA resource for Xid %s during transaction recovery. Returning XAException.XA_RETRY", xid);
+                throw new XAException(XAException.XA_RETRY);
+            }
         }
 
         final XidTransactionID transactionID = new XidTransactionID(xid);
@@ -80,8 +88,12 @@ class RecoveryOnlySerializedEJBXAResource implements XAResource, Serializable {
     public void forget(Xid xid) throws XAException {
         final List<EJBReceiverContext> receiverContexts = ReceiverRegistrationListener.INSTANCE.getRelevantReceiverContexts(this.ejbReceiverNodeName);
         if (receiverContexts.isEmpty()) {
-            Logs.TXN.debugf("No EJB receiver contexts available for forgetting EJB XA resource for Xid %s during transaction recovery. Returning XAException.XA_RETRY", xid);
-            throw new XAException(XAException.XA_RETRY);
+            final EJBClientContext context = EJBClientContext.getCurrent();
+            // getting the node EJB receiver should cause the receiver contexts list to be populated
+            if (context == null || context.getNodeEJBReceiver(ejbReceiverNodeName) == null || receiverContexts.isEmpty()) {
+                Logs.TXN.debugf("No EJB receiver contexts available for forgetting EJB XA resource for Xid %s during transaction recovery. Returning XAException.XA_RETRY", xid);
+                throw new XAException(XAException.XA_RETRY);
+            }
         }
         final XidTransactionID transactionID = new XidTransactionID(xid);
         for (final EJBReceiverContext receiverContext : receiverContexts) {
