@@ -36,6 +36,9 @@ final class Protocol {
     public static final int NEW_LOCATOR    = 0x00;
     public static final int CACHED_LOCATOR = 0x01;
 
+    // flags field (v3 and up)
+    public static final int COMPRESS_RESPONSE = 0b0000_1111;
+
     public static final int OPEN_SESSION_REQUEST   = 0x01; // c → s
     public static final int OPEN_SESSION_RESPONSE  = 0x02; // s → c
     public static final int INVOCATION_REQUEST     = 0x03; // c → s

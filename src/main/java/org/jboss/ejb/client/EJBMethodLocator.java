@@ -35,59 +35,82 @@ import org.wildfly.common.Assert;
  *
  * @author <a href="mailto:david.lloyd@redhat.com">David M. Lloyd</a>
  */
-public final class EJBMethodLocator<T> implements Serializable {
+public final class EJBMethodLocator implements Serializable {
 
     private static final long serialVersionUID = -1387266421025030533L;
 
-    private final Class<T> viewType;
     private final String methodName;
     private final String[] parameterTypeNames;
     private final transient int hashCode;
 
     private static final FieldSetter hashCodeSetter = FieldSetter.get(EJBMethodLocator.class, "hashCode");
 
-    public EJBMethodLocator(final Class<T> viewType, final String methodName, final String... parameterTypeNames) {
-        Assert.checkNotNullParam("viewType", viewType);
+    /**
+     * Construct a new instance.
+     *
+     * @param methodName the method name (must not be {@code null})
+     * @param parameterTypeNames the parameter type names array (may be empty, must not be {@code null} nor contain {@code null} elements)
+     */
+    public EJBMethodLocator(final String methodName, final String... parameterTypeNames) {
         Assert.checkNotNullParam("methodName", methodName);
         Assert.checkNotNullParam("parameterTypeNames", parameterTypeNames);
-        this.viewType = viewType;
         this.methodName = methodName;
         String[] clone = this.parameterTypeNames = parameterTypeNames.clone();
         for (int i = 0; i < clone.length; i++) {
             Assert.checkNotNullArrayParam("parameterTypeNames", i, clone[i]);
         }
-        hashCode = calcHashCode(viewType, methodName, parameterTypeNames);
+        hashCode = calcHashCode(methodName, parameterTypeNames);
     }
 
-    private static int calcHashCode(final Class<?> viewType, final String methodName, final String[] parameterTypeNames) {
-        return viewType.hashCode() + 13 * (methodName.hashCode() + 13 * Arrays.hashCode(parameterTypeNames));
+    /**
+     * Construct a new instance via method.  This is useful when creating a method locator with a {@code Class<?>}.
+     *
+     * @param methodName the method name (must not be {@code null})
+     * @param parameterTypeNames the parameter type names array (may be empty, must not be {@code null} nor contain {@code null} elements)
+     */
+    public static <T> EJBMethodLocator create(final String methodName, final String... parameterTypeNames) {
+        return new EJBMethodLocator(methodName, parameterTypeNames);
     }
 
-    public Class<T> getViewType() {
-        return viewType;
+    private static int calcHashCode(final String methodName, final String[] parameterTypeNames) {
+        return methodName.hashCode() + 13 * Arrays.hashCode(parameterTypeNames);
     }
 
+    /**
+     * Get the method name.
+     *
+     * @return the method name (not {@code null})
+     */
     public String getMethodName() {
         return methodName;
     }
 
+    /**
+     * Get the parameter count.
+     *
+     * @return the parameter count
+     */
     public int getParameterCount() {
         return parameterTypeNames.length;
     }
 
+    /**
+     * Get the name of the parameter at the given index.
+     *
+     * @return the name of the parameter at the given index
+     */
     public String getParameterTypeName(int index) {
         return parameterTypeNames[index];
     }
 
     private void readObject(ObjectInputStream ois) throws IOException, ClassNotFoundException {
         ois.defaultReadObject();
-        Assert.checkNotNullParam("viewType", viewType);
         Assert.checkNotNullParam("methodName", methodName);
         Assert.checkNotNullParam("parameterTypeNames", parameterTypeNames);
         for (int i = 0; i < parameterTypeNames.length; i++) {
             Assert.checkNotNullArrayParam("parameterTypeNames", i, parameterTypeNames[i]);
         }
-        hashCodeSetter.setInt(this, calcHashCode(viewType, methodName, parameterTypeNames));
+        hashCodeSetter.setInt(this, calcHashCode(methodName, parameterTypeNames));
     }
 
     /**
@@ -97,7 +120,7 @@ public final class EJBMethodLocator<T> implements Serializable {
      * @return {@code true} if they are equal, {@code false} otherwise
      */
     public boolean equals(Object other) {
-        return other instanceof EJBMethodLocator && equals((EJBMethodLocator<?>)other);
+        return other instanceof EJBMethodLocator && equals((EJBMethodLocator)other);
     }
 
     /**
@@ -106,10 +129,15 @@ public final class EJBMethodLocator<T> implements Serializable {
      * @param other the other object
      * @return {@code true} if they are equal, {@code false} otherwise
      */
-    public boolean equals(EJBMethodLocator<?> other) {
-        return this == other || other != null && hashCode == other.hashCode && viewType == other.viewType && methodName.equals(other.methodName) && Arrays.equals(parameterTypeNames, other.parameterTypeNames);
+    public boolean equals(EJBMethodLocator other) {
+        return this == other || other != null && hashCode == other.hashCode && methodName.equals(other.methodName) && Arrays.equals(parameterTypeNames, other.parameterTypeNames);
     }
 
+    /**
+     * Get the hash code.
+     *
+     * @return the hash code
+     */
     public int hashCode() {
         return hashCode;
     }

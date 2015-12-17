@@ -61,6 +61,7 @@ import org.jboss.remoting3.RemotingOptions;
 import org.jboss.remoting3.util.Invocation;
 import org.jboss.remoting3.util.InvocationTracker;
 import org.jboss.remoting3.util.StreamUtils;
+import org.wildfly.security.auth.AuthenticationException;
 import org.xnio.Cancellable;
 import org.xnio.FutureResult;
 import org.xnio.IoFuture;
@@ -126,6 +127,15 @@ class EJBClientChannel {
         MethodInvocation invocation = invocationTracker.addInvocation(id -> new MethodInvocation(id, receiverContext));
         final EJBClientInvocationContext invocationContext = receiverContext.getClientInvocationContext();
         final EJBLocator<?> locator = invocationContext.getLocator();
+        final int peerIdentityId;
+        if (version >= 3) try {
+            peerIdentityId = channel.getConnection().getPeerIdentityId(channel.getConnection().getPeerIdentityContext().getCurrentIdentity());
+        } catch (AuthenticationException e) {
+            receiverContext.resultReady(new EJBReceiverInvocationContext.ResultProducer.Failed(e));
+            return;
+        } else {
+            peerIdentityId = 0; // unused
+        }
         try (MessageOutputStream out = invocationTracker.allocateMessage()) {
             try {
                 out.write(Protocol.INVOCATION_REQUEST);
@@ -150,8 +160,29 @@ class EJBClientChannel {
                     marshaller.writeObject(locator.getDistinctName());
                     marshaller.writeObject(locator.getBeanName());
                 } else {
+
+                    // write app & module to allow the peer to find the class loader
+                    marshaller.writeObject(locator.getAppName());
+                    marshaller.writeObject(locator.getModuleName());
+
                     // write method locator
                     marshaller.writeObject(invocationContext.getMethodLocator());
+
+                    // write weak affinity
+                    marshaller.writeObject(null); // todo
+
+                    // write response compression info
+                    if (invocationContext.isCompressResponse()) {
+                        marshaller.writeByte(invocationContext.getCompressionLevel());
+                    } else {
+                        marshaller.writeByte(0);
+                    }
+
+                    // write sec context
+                    marshaller.writeInt(peerIdentityId);
+
+                    // write txn context
+                    marshaller.writeInt(0);
                 }
                 // write the invocation locator itself
                 marshaller.writeObject(locator);
@@ -172,10 +203,6 @@ class EJBClientChannel {
                 // write the attachment count which is the sum of invocation context data + 1 (since we write
                 // out the private attachments under a single key with the value being the entire attachment map)
                 int totalAttachments = contextData.size();
-                final boolean hasPrivateAttachments = !privateAttachments.isEmpty();
-                if (hasPrivateAttachments) {
-                    totalAttachments++;
-                }
                 if (version >= 3) {
                     // Just write the attachments.
                     PackedInteger.writePackedInteger(marshaller, totalAttachments);
@@ -184,14 +211,11 @@ class EJBClientChannel {
                         marshaller.writeObject(invocationContextData.getKey());
                         marshaller.writeObject(invocationContextData.getValue());
                     }
-
-                    if (hasPrivateAttachments) {
-                        // now write out the JBoss specific attachments under a single key and the value will be the
-                        // entire map of JBoss specific attachments
-                        marshaller.writeObject(EJBClientInvocationContext.PRIVATE_ATTACHMENTS_KEY);
-                        marshaller.writeObject(privateAttachments);
-                    }
                 } else {
+                    final boolean hasPrivateAttachments = !privateAttachments.isEmpty();
+                    if (hasPrivateAttachments) {
+                        totalAttachments++;
+                    }
                     // Note: The code here is just for backward compatibility of 1.x and 2.x versions of EJB client project.
                     // Attach legacy transaction ID, if there is an active txn.
 

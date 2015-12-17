@@ -74,7 +74,7 @@ final class EJBProxyInformation<T> {
         private <P> EJBProxyInformation<P> doCompute(final Class<P> type) {
             final Class<? extends P> proxyClass = Proxy.getProxyClass(type.getClassLoader(), type).asSubclass(type);
             final IdentityHashMap<Method, ProxyMethodInfo> methodInfoMap = new IdentityHashMap<Method, ProxyMethodInfo>();
-            final HashMap<EJBMethodLocator<P>, ProxyMethodInfo> methodLocatorMap = new HashMap<>();
+            final HashMap<EJBMethodLocator, ProxyMethodInfo> methodLocatorMap = new HashMap<>();
             final CompressionHint classCompressionHint = type.getAnnotation(CompressionHint.class);
             final int classCompressionLevel;
             final boolean classCompressRequest;
@@ -124,7 +124,7 @@ final class EJBProxyInformation<T> {
                         }
                         final String methodName = method.getName();
                         final int methodType = getMethodType(type, methodName, methodParamTypes);
-                        final EJBMethodLocator<P> methodLocator = new EJBMethodLocator<>(type, methodName, parameterTypeNames);
+                        final EJBMethodLocator methodLocator = new EJBMethodLocator(methodName, parameterTypeNames);
                         final ProxyMethodInfo proxyMethodInfo = new ProxyMethodInfo(methodType, compressionLevel, compressRequest, compressResponse, idempotent, method, methodLocator, b.toString(), clientAsync);
                         methodInfoMap.put(method, proxyMethodInfo);
                         methodLocatorMap.put(methodLocator, proxyMethodInfo);
@@ -191,7 +191,7 @@ final class EJBProxyInformation<T> {
         }
     };
 
-    EJBProxyInformation(final Class<? extends T> proxyClass, final Constructor<? extends T> proxyConstructor, final IdentityHashMap<Method, ProxyMethodInfo> methodInfoMap, final HashMap<EJBMethodLocator<T>, ProxyMethodInfo> methodLocatorMap, final int classCompressionHint, final boolean classIdempotent, final boolean classAsync) {
+    EJBProxyInformation(final Class<? extends T> proxyClass, final Constructor<? extends T> proxyConstructor, final IdentityHashMap<Method, ProxyMethodInfo> methodInfoMap, final HashMap<EJBMethodLocator, ProxyMethodInfo> methodLocatorMap, final int classCompressionHint, final boolean classIdempotent, final boolean classAsync) {
         this.proxyClass = proxyClass;
         this.proxyConstructor = proxyConstructor;
         this.methodInfoMap = methodInfoMap;
@@ -209,7 +209,7 @@ final class EJBProxyInformation<T> {
     private final Class<? extends T> proxyClass;
     private final Constructor<? extends T> proxyConstructor;
     private final IdentityHashMap<Method, ProxyMethodInfo> methodInfoMap;
-    private final HashMap<EJBMethodLocator<T>, ProxyMethodInfo> methodLocatorMap;
+    private final HashMap<EJBMethodLocator, ProxyMethodInfo> methodLocatorMap;
     private final int classCompressionHint;
     private final boolean classIdempotent;
     private final boolean classAsync;
@@ -248,7 +248,7 @@ final class EJBProxyInformation<T> {
         return methodInfoMap.get(method);
     }
 
-    ProxyMethodInfo getProxyMethodInfo(EJBMethodLocator<T> locator) {
+    ProxyMethodInfo getProxyMethodInfo(EJBMethodLocator locator) {
         return methodLocatorMap.get(locator);
     }
 
@@ -260,11 +260,11 @@ final class EJBProxyInformation<T> {
         final boolean compressResponse;
         final boolean idempotent;
         final Method method;
-        final EJBMethodLocator<?> methodLocator;
+        final EJBMethodLocator methodLocator;
         final String signature;
         final boolean clientAsync;
 
-        ProxyMethodInfo(final int methodType, final int compressionLevel, final boolean compressRequest, final boolean compressResponse, final boolean idempotent, final Method method, final EJBMethodLocator<?> methodLocator, final String signature, final boolean clientAsync) {
+        ProxyMethodInfo(final int methodType, final int compressionLevel, final boolean compressRequest, final boolean compressResponse, final boolean idempotent, final Method method, final EJBMethodLocator methodLocator, final String signature, final boolean clientAsync) {
             this.methodType = methodType;
             this.compressionLevel = compressionLevel;
             this.compressRequest = compressRequest;
@@ -308,7 +308,7 @@ final class EJBProxyInformation<T> {
             return compressResponse;
         }
 
-        EJBMethodLocator<?> getMethodLocator() {
+        EJBMethodLocator getMethodLocator() {
             return methodLocator;
         }
 

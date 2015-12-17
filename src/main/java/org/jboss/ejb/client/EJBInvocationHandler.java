@@ -94,11 +94,11 @@ final class EJBInvocationHandler<T> extends Attachable implements InvocationHand
         return invoke(proxy, methodInfo, args);
     }
 
-    EJBProxyInformation.ProxyMethodInfo getProxyMethodInfo(EJBMethodLocator<T> methodLocator) {
+    EJBProxyInformation.ProxyMethodInfo getProxyMethodInfo(EJBMethodLocator methodLocator) {
         return locatorRef.get().getProxyInformation().getProxyMethodInfo(methodLocator);
     }
 
-    Object invoke(final T proxy, final EJBProxyInformation.ProxyMethodInfo methodInfo, final Object... args) throws Exception {
+    Object invoke(final Object proxy, final EJBProxyInformation.ProxyMethodInfo methodInfo, final Object... args) throws Exception {
         final Method method = methodInfo.getMethod();
         switch (methodInfo.getMethodType()) {
             case EJBProxyInformation.MT_EQUALS:

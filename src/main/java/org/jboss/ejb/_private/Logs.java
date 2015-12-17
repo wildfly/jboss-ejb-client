@@ -40,6 +40,7 @@ import javax.naming.Name;
 import javax.naming.NamingException;
 import javax.transaction.NotSupportedException;
 
+import java.io.InvalidObjectException;
 import java.util.Set;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.ExecutionException;
@@ -285,4 +286,10 @@ public interface Logs extends BasicLogger {
     // @Message(id = 405, value = "An EJB client context is already registered for EJB client context identifier %s")
     // @Message(id = 406, value = "Unexpected exception when discarding invocation result")
     // @message(id = 407, value = "Issue regarding unmarshalling of EJB parameters (possible Out of Memory issue).")
+
+    // Server exceptions and messages
+
+    @Message(id = 500, value = "Protocol error: mismatched method location")
+    InvalidObjectException mismatchedMethodLocation();
+
 }

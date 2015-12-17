@@ -55,7 +55,11 @@ Version is 0x01 or 0x02 or 0x03. 0x00 is reserved for test purposes.
     │   Dist.Name   │  Variable length UTF-8Z string
     ├───────────────┤
     │   Bean Name   │  Variable length UTF-8Z string
-    └───────────────┘
+    └───────┬───────┴───────┐
+            │  Sec. Context │ V3: SecurityIdentity ID (4 bytes, 0 = none)
+            ├───────────────┤
+            │ Txn. Context  │ V3: Transaction ID (2 bytes, 0 = none)
+            └───────────────┘
 
 2.2½. Session Open Response
 
@@ -80,31 +84,11 @@ Version is 0x01 or 0x02 or 0x03. 0x00 is reserved for test purposes.
 
 2.2¾. EJB Verify Request
 
-     7 6 5 4 3 2 1 0 
-    ┌─┬─┬─┬─┬─┬─┬─┬─┐
-    │      0x0?     │  Command = EJB Verify Request
-    ├───────────────┤
-    │ Invocation ID │  Fixed length, two bytes
-    ├ ─ ─ ─ ─ ─ ─ ─ ┤
-    │               │
-    ├───────────────┤
-    │ EJBIdentifier │  Variable length 4x UTF-8Z string
-    ├───────────────┤
-    │ InterfaceName │  Variable length UTF-8Z string
-    └───────────────┘
+(deleted)
 
 2.2⅞. EJB Verify Response
 
-     7 6 5 4 3 2 1 0 
-    ┌─┬─┬─┬─┬─┬─┬─┬─┐
-    │      0x0?     │  Command = EJB Verify Response
-    ├───────────────┤
-    │ Invocation ID │  Fixed length, two bytes
-    ├ ─ ─ ─ ─ ─ ─ ─ ┤
-    │               │
-    ├─────────────┬─┤
-    │░░░░░░░░░░░░░│R│  R = result; 1 = found, 0 = not found
-    └─────────────┴─┘
+(deleted)
 
 2.3. Invocation Request (original spec)
 
@@ -120,18 +104,20 @@ Version is 0x01 or 0x02 or 0x03. 0x00 is reserved for test purposes.
         ├ ─ ─ ─ ─ ─ ─ ─ ┤
  V1 & 2 │               │  V3
 ┌───────┴───────┬───────┴───────┐
-│  Method Name  │ Method Locator│ V1,2: Variable length UTF-8Z string; V3: Marshalled EJBMethodLocator object
-├───────────────┼───────────────┘
-│   MethodSig   │          V1,2: Variable length UTF-8Z string
-├───────────────┤
-│   App. Name   │          V1,2: Marshalled String object
-├───────────────┤
-│   Mod. Name   │          V1,2: Marshalled String object
-├───────────────┤
-│  Dist. Name   │          V1,2: Marshalled String object
-├───────────────┤
-│   Bean Name   │          V1,2: Marshalled String object
-└───────┬───────┴───────┐
+│  Method Name  │   App. Name   │ V1,2: Variable length UTF-8Z string; V3: Marshalled String object
+├───────────────┼───────────────┤
+│   MethodSig   │   Mod. Name   │ V1,2: Variable length UTF-8Z string; V3: Marshalled String object
+├───────────────┼───────────────┤ ← V3: switch class loader here
+│   App. Name   │ Method Locator│ V1,2: Marshalled String object; V3: Marshalled EJBMethodLocator object
+├───────────────┼───────────────┤
+│   Mod. Name   │ Weak Affinity │ V1,2: Marshalled String object; V3: Marshalled Affinity object
+├───────────────┼─┬─┬─┬─┬───────┤ ← V2: switch class loader here
+│  Dist. Name   │0│0│0│0│ Level │ V1,2: Marshalled String object; V3: Response Compression level 0 = no compression
+├───────────────┼─┴─┴─┴─┴───────┤
+│   Bean Name   │  Sec. Context │ V1,2: Marshalled String object; V3: SecurityIdentity ID (4 bytes)
+└───────────────┼───────────────┤
+                │ Txn. Context  │ V3: Transaction ID (2 bytes, 0 = none)
+        ┌───────┴───────┬───────┘
         │  EJB Locator  │  Marshalled EJBLocator object
         ├───────────────┤
         │   Parameter   │  Variable length marshalled objects

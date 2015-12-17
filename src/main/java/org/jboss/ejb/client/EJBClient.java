@@ -271,8 +271,8 @@ public final class EJBClient {
      * @param <T> the view type
      * @throws Exception if the invocation failed for some reason
      */
-    public static <T> void invokeOneWay(T proxy, EJBMethodLocator<T> methodLocator, Object... args) throws Exception {
-        final EJBInvocationHandler<T> invocationHandler = ((EJBInvocationHandler<?>) Proxy.getInvocationHandler(proxy)).forClass(methodLocator.getViewType()).getAsyncHandler();
+    public static <T> void invokeOneWay(T proxy, EJBMethodLocator methodLocator, Object... args) throws Exception {
+        final EJBInvocationHandler<? extends T> invocationHandler = EJBInvocationHandler.forProxy(proxy);
         final EJBProxyInformation.ProxyMethodInfo proxyMethodInfo = invocationHandler.getProxyMethodInfo(methodLocator);
         invocationHandler.invoke(proxy, proxyMethodInfo, args);
     }
@@ -286,8 +286,8 @@ public final class EJBClient {
      * @param <T> the view type
      * @throws Exception if the invocation failed for some reason
      */
-    public static <T> Future<?> invokeAsync(T proxy, EJBMethodLocator<T> methodLocator, Object... args) throws Exception {
-        final EJBInvocationHandler<T> invocationHandler = ((EJBInvocationHandler<?>) Proxy.getInvocationHandler(proxy)).forClass(methodLocator.getViewType()).getAsyncHandler();
+    public static <T> Future<?> invokeAsync(T proxy, EJBMethodLocator methodLocator, Object... args) throws Exception {
+        final EJBInvocationHandler<? extends T> invocationHandler = EJBInvocationHandler.forProxy(proxy);
         final EJBProxyInformation.ProxyMethodInfo proxyMethodInfo = invocationHandler.getProxyMethodInfo(methodLocator);
         return (Future<?>) invocationHandler.invoke(proxy, proxyMethodInfo, args);
     }
@@ -301,8 +301,8 @@ public final class EJBClient {
      * @param <T> the view type
      * @throws Exception if the invocation failed for some reason
      */
-    public static <T> Object invoke(T proxy, EJBMethodLocator<T> methodLocator, Object... args) throws Exception {
-        final EJBInvocationHandler<T> invocationHandler = ((EJBInvocationHandler<?>) Proxy.getInvocationHandler(proxy)).forClass(methodLocator.getViewType());
+    public static <T> Object invoke(T proxy, EJBMethodLocator methodLocator, Object... args) throws Exception {
+        final EJBInvocationHandler<? extends T> invocationHandler = EJBInvocationHandler.forProxy(proxy);
         final EJBProxyInformation.ProxyMethodInfo proxyMethodInfo = invocationHandler.getProxyMethodInfo(methodLocator);
         return invocationHandler.invoke(proxy, proxyMethodInfo, args);
     }

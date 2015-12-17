@@ -207,7 +207,7 @@ public final class EJBClientInvocationContext extends Attachable {
      *
      * @return the EJB method locator
      */
-    public EJBMethodLocator<?> getMethodLocator() {
+    public EJBMethodLocator getMethodLocator() {
         return methodInfo.getMethodLocator();
     }
 
