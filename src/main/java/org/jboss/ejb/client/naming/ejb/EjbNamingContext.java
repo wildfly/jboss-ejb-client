@@ -46,6 +46,8 @@ import javax.naming.NameParser;
 import javax.naming.NamingEnumeration;
 import javax.naming.NamingException;
 import java.io.IOException;
+import java.security.AccessController;
+import java.security.PrivilegedAction;
 import java.util.Hashtable;
 import java.util.Map;
 import java.util.Properties;
@@ -95,7 +97,16 @@ class EjbNamingContext implements Context {
         root = true;
 
         // setup a "identifiable" (a.k.a named) EJB client context if applicable
-        this.ejbClientContextIdentifier = setupScopedEjbClientContextIfNeeded();
+        if(System.getSecurityManager() == null) {
+            this.ejbClientContextIdentifier = setupScopedEjbClientContextIfNeeded();
+        } else {
+            this.ejbClientContextIdentifier = AccessController.doPrivileged(new PrivilegedAction<EJBClientContextIdentifier>() {
+                @Override
+                public EJBClientContextIdentifier run() {
+                    return setupScopedEjbClientContextIfNeeded();
+                }
+            });
+        }
     }
 
     private synchronized EJBClientContextIdentifier setupScopedEjbClientContextIfNeeded() {
