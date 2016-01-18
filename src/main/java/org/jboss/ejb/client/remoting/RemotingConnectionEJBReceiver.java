@@ -494,7 +494,9 @@ public final class RemotingConnectionEJBReceiver extends EJBReceiver {
                 dataOutputStream.close();
             }
         } catch (Exception e) {
-            throw new RuntimeException("Error sending transaction commit message", e);
+            final XAException xae = new XAException(XAException.XAER_RMFAIL);
+            xae.initCause(e);
+            throw xae;
         }
         try {
             // wait for the result
@@ -503,9 +505,13 @@ public final class RemotingConnectionEJBReceiver extends EJBReceiver {
         } catch (XAException xae) {
             throw xae;
         } catch (RuntimeException re) {
-            throw re;
+            final XAException xae = new XAException(XAException.XAER_RMFAIL);
+            xae.initCause(re);
+            throw xae;
         } catch (Exception e) {
-            throw new RuntimeException(e);
+            final XAException xae = new XAException(XAException.XAER_RMFAIL);
+            xae.initCause(e);
+            throw xae;
         }
     }
 
@@ -534,7 +540,9 @@ public final class RemotingConnectionEJBReceiver extends EJBReceiver {
                 dataOutputStream.close();
             }
         } catch (Exception e) {
-            throw new RuntimeException("Error sending transaction rollback message", e);
+            final XAException xae = new XAException(XAException.XAER_RMFAIL);
+            xae.initCause(e);
+            throw xae;
         }
         try {
             // wait for the result
@@ -543,9 +551,13 @@ public final class RemotingConnectionEJBReceiver extends EJBReceiver {
         } catch (XAException xae) {
             throw xae;
         } catch (RuntimeException re) {
-            throw re;
+            final XAException xae = new XAException(XAException.XAER_RMFAIL);
+            xae.initCause(re);
+            throw xae;
         } catch (Exception e) {
-            throw new RuntimeException(e);
+            final XAException xae = new XAException(XAException.XAER_RMFAIL);
+            xae.initCause(e);
+            throw xae;
         }
     }
 
@@ -574,7 +586,9 @@ public final class RemotingConnectionEJBReceiver extends EJBReceiver {
                 dataOutputStream.close();
             }
         } catch (Exception e) {
-            throw new RuntimeException("Error sending transaction prepare message", e);
+            final XAException xae = new XAException(XAException.XAER_RMFAIL);
+            xae.initCause(e);
+            throw xae;
         }
         try {
             // wait for result
@@ -583,13 +597,19 @@ public final class RemotingConnectionEJBReceiver extends EJBReceiver {
             if (result instanceof Integer) {
                 return (Integer) result;
             }
-            throw new RuntimeException("Unexpected result for transaction prepare: " + result);
+            final XAException xae = new XAException(XAException.XAER_RMFAIL);
+            xae.initCause(new RuntimeException("Unexpected result for transaction prepare: " + result));
+            throw xae;
         } catch (XAException xae) {
             throw xae;
         } catch (RuntimeException re) {
-            throw re;
+            final XAException xae = new XAException(XAException.XAER_RMFAIL);
+            xae.initCause(re);
+            throw xae;
         } catch (Exception e) {
-            throw new RuntimeException(e);
+            final XAException xae = new XAException(XAException.XAER_RMFAIL);
+            xae.initCause(e);
+            throw xae;
         }
     }
 
@@ -618,7 +638,9 @@ public final class RemotingConnectionEJBReceiver extends EJBReceiver {
                 dataOutputStream.close();
             }
         } catch (Exception e) {
-            throw new RuntimeException("Error sending transaction forget message", e);
+            final XAException xae = new XAException(XAException.XAER_RMFAIL);
+            xae.initCause(e);
+            throw xae;
         }
         try {
             // wait for result
@@ -627,9 +649,13 @@ public final class RemotingConnectionEJBReceiver extends EJBReceiver {
         } catch (XAException xae) {
             throw xae;
         } catch (RuntimeException re) {
-            throw re;
+            final XAException xae = new XAException(XAException.XAER_RMFAIL);
+            xae.initCause(re);
+            throw xae;
         } catch (Exception e) {
-            throw new RuntimeException(e);
+            final XAException xae = new XAException(XAException.XAER_RMFAIL);
+            xae.initCause(e);
+            throw xae;
         }
     }
 
@@ -661,7 +687,9 @@ public final class RemotingConnectionEJBReceiver extends EJBReceiver {
                 dataOutputStream.close();
             }
         } catch (Exception e) {
-            throw new RuntimeException("Error sending transaction recover message", e);
+            final XAException xae = new XAException(XAException.XAER_RMFAIL);
+            xae.initCause(e);
+            throw xae;
         }
         try {
             // wait for result
@@ -674,9 +702,13 @@ public final class RemotingConnectionEJBReceiver extends EJBReceiver {
         } catch (XAException xae) {
             throw xae;
         } catch (RuntimeException re) {
-            throw re;
+            final XAException xae = new XAException(XAException.XAER_RMFAIL);
+            xae.initCause(re);
+            throw xae;
         } catch (Exception e) {
-            throw new RuntimeException(e);
+            final XAException xae = new XAException(XAException.XAER_RMFAIL);
+            xae.initCause(e);
+            throw xae;
         }
     }
 
