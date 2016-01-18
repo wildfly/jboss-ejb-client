@@ -94,9 +94,8 @@ class RecoveryOnlyEJBXAResource implements XAResource {
 
     @Override
     public int prepare(Xid xid) throws XAException {
-        Logs.TXN.debug("Prepare wasn't supposed to be called on " + this + " since this XAResource is only meant for transaction recovery. " +
-                "Ignoring the prepare request for xid " + xid);
-        return XA_OK;
+        Logs.TXN.debugf("Called prepare on recovery-only resource for xid %s", this, xid);
+        throw new XAException(XAException.XAER_RMERR);
     }
 
     @Override
