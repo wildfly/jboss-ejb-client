@@ -52,10 +52,19 @@ abstract class ProtocolMessageHandler {
         final Map<String, Object> attachments = new HashMap<String, Object>(numAttachments);
         for (int i = 0; i < numAttachments; i++) {
             // read the key
-            final String key = (String) input.readObject();
-            // read the attachment value
-            final Object val = input.readObject();
-            attachments.put(key, val);
+            final Object objectKey = input.readObject();
+            if (objectKey instanceof String) {
+
+                if (objectKey.toString().compareTo("LEADBYTE_0") == 0) {
+                    break;
+                }
+
+                final String key = (String) objectKey;
+                // read the attachment value
+                final Object val = input.readObject();
+                attachments.put(key, val);
+            }
+
         }
         return attachments;
     }
