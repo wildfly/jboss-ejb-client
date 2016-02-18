@@ -28,6 +28,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.Callable;
@@ -260,12 +261,15 @@ public final class ClusterContext implements EJBClientContext.EJBReceiverContext
     }
 
     public Set<String> getConnectedAndDeployedNodes(EJBLocator locator) {
-        Set<String> connectedAndDeployed = Collections.synchronizedSet(new HashSet<String>());
+        Set<String> connectedAndDeployed = new HashSet<String>();
         synchronized (this.connectedNodes) {
-            for (String node : this.connectedNodes) {
-                if (isNodeConnectedAndDeployed(node, locator)) {
-                    connectedAndDeployed.add(node);
-                }
+            connectedAndDeployed.addAll(this.connectedNodes);
+        }
+        Iterator<String> iteratorConnectedNodes = connectedAndDeployed.iterator();
+        while(iteratorConnectedNodes.hasNext()) {
+            String node = iteratorConnectedNodes.next();
+            if (!isNodeConnectedAndDeployed(node, locator)) {
+                iteratorConnectedNodes.remove();
             }
         }
         return connectedAndDeployed;
