@@ -167,7 +167,16 @@ class ChannelAssociation {
      * @return
      */
     short getNextInvocationId() {
-        return (short) nextInvocationId.getAndIncrement();
+        for (;;) {
+            short nextId = (short) nextInvocationId.getAndIncrement();
+            if (this.waitingMethodInvocations.containsKey(nextId)) {
+                continue;
+            }
+            if (this.waitingFutureResults.containsKey(nextId)) {
+                continue;
+            }
+            return nextId;
+        }
     }
 
     /**
