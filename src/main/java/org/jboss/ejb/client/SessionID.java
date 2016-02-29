@@ -31,7 +31,7 @@ import java.util.Arrays;
  *
  * @author <a href="mailto:david.lloyd@redhat.com">David M. Lloyd</a>
  */
-public abstract class SessionID implements Serializable {
+public abstract class SessionID implements Serializable, Comparable<SessionID> {
 
     private static final long serialVersionUID = 3872192729805797520L;
 
@@ -87,6 +87,15 @@ public abstract class SessionID implements Serializable {
 
     public final int hashCode() {
         return hashCode;
+    }
+
+    @Override
+    public int compareTo(SessionID id) {
+        int result = this.encodedForm.length - id.encodedForm.length;
+        for (int i = 0; (result == 0) && (i < this.encodedForm.length); ++i) {
+            result = Byte.compare(this.encodedForm[i], id.encodedForm[i]);
+        }
+        return result;
     }
 
     /**
