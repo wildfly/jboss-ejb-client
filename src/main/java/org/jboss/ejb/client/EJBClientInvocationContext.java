@@ -464,7 +464,7 @@ public final class EJBClientInvocationContext extends Attachable {
                 asyncState = AsyncState.ONE_WAY;
                 lock.notifyAll();
             }
-            if (state != State.DONE) {
+            if (state == State.DONE) {
                 return;
             }
             // result is waiting, discard it
@@ -473,7 +473,11 @@ public final class EJBClientInvocationContext extends Attachable {
             lock.notifyAll();
             // fall out of the lock to discard the result
         }
-        resultProducer.discardResult();
+        // If task thread invoked #resultReady() method before current thread invokes this methods,
+        //  then #state in #resultReady() was WAITING. Therefore resultProducer.discardResult() in
+        //  #resultReady() was not invoked.
+        // In the reverse of the pattern, resultProducer is null.
+        if(resultProducer != null) resultProducer.discardResult();
     }
 
     void cancelled() {
