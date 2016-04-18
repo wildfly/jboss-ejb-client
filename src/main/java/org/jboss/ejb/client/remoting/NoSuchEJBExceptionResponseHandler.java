@@ -22,6 +22,8 @@
 
 package org.jboss.ejb.client.remoting;
 
+import org.jboss.ejb.client.AttachmentKeys;
+import org.jboss.ejb.client.EJBClientInvocationContext;
 import org.jboss.ejb.client.EJBReceiverInvocationContext;
 import org.jboss.logging.Logger;
 
@@ -70,6 +72,15 @@ class NoSuchEJBExceptionResponseHandler extends ProtocolMessageHandler {
             logger.info("Cannot retry invocation which failed with exception:", noSuchEJBException);
             // let the client know the result, since we can't retry without a receiver invocation context
             this.channelAssociation.resultReady(invocationId, new ResultProducer(noSuchEJBException));
+            return;
+        }
+        // if the invocation is associated with a transaction, disable retry
+        EJBClientInvocationContext clientInvocationContext = receiverInvocationContext.getClientInvocationContext();
+        if (clientInvocationContext.getAttachment(AttachmentKeys.TRANSACTION_ID_KEY) != null) {
+            final IllegalStateException illegalStateException = new IllegalStateException("Cannot retry transaction-scoped invocation");
+            logger.info("Cannot retry invocation which failed with exception:", illegalStateException);
+            // let the client know the result, since we can't retry with a transaction context
+            this.channelAssociation.resultReady(invocationId, new ResultProducer(illegalStateException));
             return;
         }
         // retry the invocation on a different node
