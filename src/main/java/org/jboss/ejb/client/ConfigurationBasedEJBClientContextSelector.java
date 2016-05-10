@@ -31,6 +31,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.ServiceConfigurationError;
 import java.util.ServiceLoader;
+import java.util.function.Supplier;
 
 import org.jboss.ejb._private.Logs;
 import org.jboss.modules.Module;
@@ -40,7 +41,6 @@ import org.wildfly.client.config.ClientConfiguration;
 import org.wildfly.client.config.ConfigXMLParseException;
 import org.wildfly.client.config.ConfigurationXMLStreamReader;
 import org.wildfly.common.Assert;
-import org.wildfly.common.selector.Selector;
 import org.wildfly.discovery.AttributeValue;
 import org.wildfly.discovery.ServiceURL;
 import org.wildfly.discovery.impl.StaticDiscoveryProvider;
@@ -50,7 +50,7 @@ import org.wildfly.discovery.impl.StaticDiscoveryProvider;
  *
  * @author <a href="mailto:david.lloyd@redhat.com">David M. Lloyd</a>
  */
-public final class ConfigurationBasedEJBClientContextSelector extends Selector<EJBClientContext> {
+public final class ConfigurationBasedEJBClientContextSelector implements Supplier<EJBClientContext> {
     private static final EJBClientContext configuredContext;
 
     private static final String NS_EJB_CLIENT_3_0 = "urn:jboss:ejb-client:3.0";

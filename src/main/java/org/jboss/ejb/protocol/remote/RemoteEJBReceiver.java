@@ -40,7 +40,6 @@ import org.jboss.ejb.client.StatelessEJBLocator;
 import org.jboss.ejb.client.URIAffinity;
 import org.jboss.remoting3.Connection;
 import org.jboss.remoting3.Endpoint;
-import org.wildfly.common.selector.Selector;
 import org.wildfly.discovery.FilterSpec;
 import org.wildfly.discovery.ServiceType;
 import org.wildfly.discovery.spi.DiscoveryProvider;
@@ -52,8 +51,6 @@ import org.xnio.IoFuture;
  * @author <a href="mailto:david.lloyd@redhat.com">David M. Lloyd</a>
  */
 class RemoteEJBReceiver extends EJBReceiver implements DiscoveryProvider {
-
-    static final Selector.Getter<Endpoint> ENDPOINT_GETTER = AccessController.doPrivileged(Selector.selectorGetterActionFor(Endpoint.class));
 
     static final IoFuture.HandlingNotifier<Connection, EJBReceiverInvocationContext> NOTIFIER = new IoFuture.HandlingNotifier<Connection, EJBReceiverInvocationContext>() {
         public void handleDone(final Connection connection, final EJBReceiverInvocationContext attachment) {
@@ -107,7 +104,7 @@ class RemoteEJBReceiver extends EJBReceiver implements DiscoveryProvider {
         } else {
             throw new IllegalArgumentException("Invalid EJB affinity");
         }
-        return ENDPOINT_GETTER.getSelector().get().getConnection(target);
+        return Endpoint.getCurrent().getConnection(target);
     }
 
     public DiscoveryRequest discover(final ServiceType serviceType, final FilterSpec filterSpec, final DiscoveryResult result) {

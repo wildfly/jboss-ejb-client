@@ -22,13 +22,17 @@
 
 package org.jboss.ejb.client;
 
+import static java.security.AccessController.doPrivileged;
+
 import java.net.URI;
+import java.security.PrivilegedAction;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.Supplier;
 
 import org.jboss.ejb._private.Logs;
-import org.wildfly.common.selector.DefaultSelector;
-import org.wildfly.common.selector.Selector;
+import org.wildfly.common.context.ContextManager;
+import org.wildfly.common.context.Contextual;
 import org.wildfly.discovery.Discovery;
 import org.wildfly.discovery.FilterSpec;
 import org.wildfly.discovery.ServiceType;
@@ -40,18 +44,19 @@ import org.wildfly.discovery.spi.DiscoveryProvider;
  *
  * @author <a href="mailto:david.lloyd@redhat.com">David M. Lloyd</a>
  */
-@DefaultSelector(ConfigurationBasedEJBClientContextSelector.class)
-public final class EJBClientContext extends Attachable {
+public final class EJBClientContext extends Attachable implements Contextual<EJBClientContext> {
 
     /**
      * The service type to use for EJB discovery.
      */
     public static final ServiceType EJB_SERVICE_TYPE = ServiceType.of("ejb", "jboss");
 
+    private static final ContextManager<EJBClientContext> CONTEXT_MANAGER = new ContextManager<EJBClientContext>(EJBClientContext.class, "jboss.ejb.client");
+
+    static final Supplier<EJBClientContext> GETTER = doPrivileged((PrivilegedAction<Supplier<EJBClientContext>>) CONTEXT_MANAGER::getPrivilegedSupplier);
+
     private static final EJBClientInterceptor[] NO_INTERCEPTORS = new EJBClientInterceptor[0];
     private static final EJBTransportProvider[] NO_TRANSPORT_PROVIDERS = new EJBTransportProvider[0];
-
-    private static final Selector.Getter<EJBClientContext> SELECTOR_GETTER = Selector.selectorGetterFor(EJBClientContext.class);
 
     static final String FILTER_ATTR_EJB_APP = "ejb-app";
     static final String FILTER_ATTR_EJB_MODULE = "ejb-module";
@@ -60,6 +65,10 @@ public final class EJBClientContext extends Attachable {
     static final String FILTER_ATTR_EJB_APP_DISTINCT = "ejb-app-distinct";
     static final String FILTER_ATTR_EJB_MODULE_DISTINCT = "ejb-module-distinct";
     static final String FILTER_ATTR_EJB_BEAN_DISTINCT = "ejb-bean-distinct";
+
+    static {
+        CONTEXT_MANAGER.setGlobalDefaultSupplier(new ConfigurationBasedEJBClientContextSelector());
+    }
 
     private final EJBClientInterceptor[] interceptors;
     private final EJBTransportProvider[] transportProviders;
@@ -89,6 +98,14 @@ public final class EJBClientContext extends Attachable {
         if (builder.discoveryProviders != null) discoveryProviders.addAll(builder.discoveryProviders);
         discovery = Discovery.create(discoveryProviders.toArray(new DiscoveryProvider[discoveryProviders.size()]));
         invocationTimeout = 0;
+    }
+
+    public ContextManager<EJBClientContext> getInstanceContextManager() {
+        return getContextManager();
+    }
+
+    public static ContextManager<EJBClientContext> getContextManager() {
+        return CONTEXT_MANAGER;
     }
 
     public long getInvocationTimeout() {
@@ -164,7 +181,7 @@ public final class EJBClientContext extends Attachable {
      * @return the current client context
      */
     public static EJBClientContext getCurrent() {
-        return SELECTOR_GETTER.getSelector().get();
+        return GETTER.get();
     }
 
     /**
