@@ -40,6 +40,8 @@ import javax.ejb.EJBHome;
 import javax.ejb.EJBObject;
 
 import org.jboss.ejb.client.annotation.ClientAsynchronous;
+import org.jboss.ejb.client.annotation.ClientTransaction;
+import org.jboss.ejb.client.annotation.ClientTransactionPolicy;
 import org.jboss.ejb.client.annotation.CompressionHint;
 import org.jboss.ejb.client.annotation.Idempotent;
 
@@ -76,6 +78,7 @@ final class EJBProxyInformation<T> {
             final IdentityHashMap<Method, ProxyMethodInfo> methodInfoMap = new IdentityHashMap<Method, ProxyMethodInfo>();
             final HashMap<EJBMethodLocator, ProxyMethodInfo> methodLocatorMap = new HashMap<>();
             final CompressionHint classCompressionHint = type.getAnnotation(CompressionHint.class);
+            final ClientTransaction classTransactionHint = type.getAnnotation(ClientTransaction.class);
             final int classCompressionLevel;
             final boolean classCompressRequest;
             final boolean classCompressResponse;
@@ -99,9 +102,11 @@ final class EJBProxyInformation<T> {
                         final boolean idempotent = classIdempotent || method.getAnnotation(Idempotent.class) != null;
                         final boolean clientAsync = classAsync || method.getAnnotation(ClientAsynchronous.class) != null;
                         final CompressionHint compressionHint = method.getAnnotation(CompressionHint.class);
+                        final ClientTransaction transactionHint = method.getAnnotation(ClientTransaction.class);
                         final int compressionLevel;
                         final boolean compressRequest;
                         final boolean compressResponse;
+                        final ClientTransactionPolicy transactionPolicy;
                         if (compressionHint == null) {
                             compressionLevel = classCompressionLevel;
                             compressRequest = classCompressRequest;
@@ -111,6 +116,7 @@ final class EJBProxyInformation<T> {
                             compressRequest = compressionHint.compressRequest();
                             compressResponse = compressionHint.compressResponse();
                         }
+                        transactionPolicy = transactionHint != null ? transactionHint.value() : classTransactionHint != null ? classTransactionHint.value() : null;
                         // build the old signature format
                         final StringBuilder b = new StringBuilder();
                         final Class<?>[] methodParamTypes = method.getParameterTypes();
@@ -125,7 +131,7 @@ final class EJBProxyInformation<T> {
                         final String methodName = method.getName();
                         final int methodType = getMethodType(type, methodName, methodParamTypes);
                         final EJBMethodLocator methodLocator = new EJBMethodLocator(methodName, parameterTypeNames);
-                        final ProxyMethodInfo proxyMethodInfo = new ProxyMethodInfo(methodType, compressionLevel, compressRequest, compressResponse, idempotent, method, methodLocator, b.toString(), clientAsync);
+                        final ProxyMethodInfo proxyMethodInfo = new ProxyMethodInfo(methodType, compressionLevel, compressRequest, compressResponse, idempotent, transactionPolicy, method, methodLocator, b.toString(), clientAsync);
                         methodInfoMap.put(method, proxyMethodInfo);
                         methodLocatorMap.put(methodLocator, proxyMethodInfo);
                     } catch (IllegalAccessException e) {
@@ -259,17 +265,19 @@ final class EJBProxyInformation<T> {
         final boolean compressRequest;
         final boolean compressResponse;
         final boolean idempotent;
+        final ClientTransactionPolicy transactionPolicy;
         final Method method;
         final EJBMethodLocator methodLocator;
         final String signature;
         final boolean clientAsync;
 
-        ProxyMethodInfo(final int methodType, final int compressionLevel, final boolean compressRequest, final boolean compressResponse, final boolean idempotent, final Method method, final EJBMethodLocator methodLocator, final String signature, final boolean clientAsync) {
+        ProxyMethodInfo(final int methodType, final int compressionLevel, final boolean compressRequest, final boolean compressResponse, final boolean idempotent, final ClientTransactionPolicy transactionPolicy, final Method method, final EJBMethodLocator methodLocator, final String signature, final boolean clientAsync) {
             this.methodType = methodType;
             this.compressionLevel = compressionLevel;
             this.compressRequest = compressRequest;
             this.compressResponse = compressResponse;
             this.idempotent = idempotent;
+            this.transactionPolicy = transactionPolicy;
             this.method = method;
             this.methodLocator = methodLocator;
             this.signature = signature;
@@ -286,6 +294,10 @@ final class EJBProxyInformation<T> {
 
         boolean isIdempotent() {
             return idempotent;
+        }
+
+        ClientTransactionPolicy getTransactionPolicy() {
+            return transactionPolicy;
         }
 
         Method getMethod() {
