@@ -33,7 +33,10 @@ import java.util.concurrent.TimeoutException;
 
 import static java.lang.Thread.holdsLock;
 
+import javax.transaction.Transaction;
+
 import org.jboss.ejb._private.Logs;
+import org.jboss.ejb.client.annotation.ClientTransactionPolicy;
 
 /**
  * An invocation context for EJB invocations from an EJB client
@@ -72,6 +75,7 @@ public final class EJBClientInvocationContext extends Attachable {
     private int interceptorChainIndex;
     private boolean resultDone;
     private boolean blockingCaller;
+    private Transaction transaction;
 
     EJBClientInvocationContext(final EJBInvocationHandler<?> invocationHandler, final EJBClientContext ejbClientContext, final Object invokedProxy, final Object[] parameters, final EJBProxyInformation.ProxyMethodInfo methodInfo) {
         this.invocationHandler = invocationHandler;
@@ -164,6 +168,15 @@ public final class EJBClientInvocationContext extends Attachable {
      */
     public boolean isIdempotent() {
         return methodInfo.isIdempotent();
+    }
+
+    /**
+     * Determine whether the method has an explicit transaction policy set.
+     *
+     * @return the transaction policy, if any, or {@code null} if none was explicitly set
+     */
+    public ClientTransactionPolicy getTransactionPolicy() {
+        return methodInfo.getTransactionPolicy();
     }
 
     /**
@@ -429,6 +442,27 @@ public final class EJBClientInvocationContext extends Attachable {
         return invocationHandler.getLocator().getViewType();
     }
 
+    /**
+     * Get the transaction associated with the invocation.  If there is no transaction (i.e. transactions should not
+     * be propagated), {@code null} is returned.
+     *
+     * @return the transaction associated with the invocation, or {@code null} if no transaction should be propagated
+     */
+    public Transaction getTransaction() {
+        return transaction;
+    }
+
+    /**
+     * Set the transaction associated with the invocation.  If there is no transaction (i.e. transactions should not
+     * be propagated), {@code null} should be set.
+     *
+     * @param transaction the transaction associated with the invocation, or {@code null} if no transaction should be
+     *  propagated
+     */
+    public void setTransaction(final Transaction transaction) {
+        this.transaction = transaction;
+    }
+
     Future<?> getFutureResponse() {
         return new FutureResponse();
     }
@@ -522,7 +556,7 @@ public final class EJBClientInvocationContext extends Attachable {
                 asyncState = AsyncState.ONE_WAY;
                 lock.notifyAll();
             }
-            if (state != State.DONE) {
+            if (state == State.DONE) {
                 return;
             }
             // result is waiting, discard it
@@ -531,7 +565,7 @@ public final class EJBClientInvocationContext extends Attachable {
             lock.notifyAll();
             // fall out of the lock to discard the result
         }
-        resultProducer.discardResult();
+        if (resultProducer != null) resultProducer.discardResult();
     }
 
     void cancelled() {
