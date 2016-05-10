@@ -58,7 +58,7 @@ public enum ClientTransactionPolicy {
     MANDATORY(false, true, true),
     /**
      * Invoke without a transaction if there is no client-side transaction context; propagate the client-side transaction context if it is present.
-     * The target is invoked may be invoked with or without a client-side transaction context.
+     * The target may be invoked with or without a client-side transaction context.
      * <p>
      * This is the overall default policy.
      * <p>
