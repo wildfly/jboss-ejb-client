@@ -129,7 +129,7 @@ class EJBClientChannel {
         final EJBLocator<?> locator = invocationContext.getLocator();
         final int peerIdentityId;
         if (version >= 3) try {
-            peerIdentityId = channel.getConnection().getPeerIdentityId(channel.getConnection().getPeerIdentityContext().getCurrentIdentity());
+            peerIdentityId = channel.getConnection().getPeerIdentityId();
         } catch (AuthenticationException e) {
             receiverContext.resultReady(new EJBReceiverInvocationContext.ResultProducer.Failed(e));
             return;
