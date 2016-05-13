@@ -30,6 +30,7 @@ import java.io.InputStream;
 import java.io.InterruptedIOException;
 import java.lang.reflect.Method;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.zip.InflaterInputStream;
 
 import javax.ejb.CreateException;
@@ -65,7 +66,6 @@ import org.wildfly.security.auth.AuthenticationException;
 import org.xnio.Cancellable;
 import org.xnio.FutureResult;
 import org.xnio.IoFuture;
-import org.xnio.IoUtils;
 import org.xnio.OptionMap;
 
 /**
@@ -112,7 +112,7 @@ class EJBClientChannel {
             final int msg = message.readUnsignedByte();
             if (msg == Protocol.INVOCATION_RESPONSE) {
                 final int invId = message.readUnsignedShort();
-                ok = invocationTracker.signalResponse(invId, msg, message, true);
+                ok = invocationTracker.signalResponse(invId, msg, message, false);
             }
         } catch (IOException e) {
 
@@ -123,9 +123,12 @@ class EJBClientChannel {
         }
     }
 
+    private static final AttachmentKey<MethodInvocation> INV_KEY = new AttachmentKey<>();
+
     public void processInvocation(final EJBReceiverInvocationContext receiverContext) {
         MethodInvocation invocation = invocationTracker.addInvocation(id -> new MethodInvocation(id, receiverContext));
         final EJBClientInvocationContext invocationContext = receiverContext.getClientInvocationContext();
+        invocationContext.putAttachment(INV_KEY, invocation);
         final EJBLocator<?> locator = invocationContext.getLocator();
         final int peerIdentityId;
         if (version >= 3) try {
@@ -266,6 +269,24 @@ class EJBClientChannel {
         }
     }
 
+    boolean cancelInvocation(final EJBReceiverInvocationContext receiverContext, boolean cancelIfRunning) {
+        final MethodInvocation invocation = receiverContext.getClientInvocationContext().getAttachment(INV_KEY);
+        if (invocation.alloc()) try {
+            final int index = invocation.getIndex();
+            try (MessageOutputStream out = invocationTracker.allocateMessage()) {
+                out.write(Protocol.CANCEL_REQUEST);
+                out.writeShort(index);
+                if (version >= 3) {
+                    out.writeByte(cancelIfRunning ? 1 : 0);
+                }
+            } catch (IOException ignored) {}
+        } finally {
+            invocation.free();
+        }
+        // now await the result
+        return invocation.receiverInvocationContext.getClientInvocationContext().awaitCancellationResult();
+    }
+
     private Marshaller getMarshaller() throws IOException {
         return marshallerFactory.createMarshaller(configuration);
     }
@@ -352,7 +373,7 @@ class EJBClientChannel {
         futureResult.addCancelHandler(new Cancellable() {
             public Cancellable cancel() {
                 if (futureResult.setCancelled()) {
-                    IoUtils.safeClose(channel);
+                    safeClose(channel);
                 }
                 return this;
             }
@@ -480,27 +501,52 @@ class EJBClientChannel {
 
     final class MethodInvocation extends Invocation {
         private final EJBReceiverInvocationContext receiverInvocationContext;
+        private final AtomicInteger refCounter = new AtomicInteger(1);
 
-        protected MethodInvocation(final int index, final EJBReceiverInvocationContext receiverInvocationContext) {
+        MethodInvocation(final int index, final EJBReceiverInvocationContext receiverInvocationContext) {
             super(index);
             this.receiverInvocationContext = receiverInvocationContext;
+        }
+
+        boolean alloc() {
+            final AtomicInteger refCounter = this.refCounter;
+            int oldVal;
+            do {
+                oldVal = refCounter.get();
+                if (oldVal == 0) {
+                    return false;
+                }
+            } while (! refCounter.compareAndSet(oldVal, oldVal + 1));
+            return true;
+        }
+
+        void free() {
+            final AtomicInteger refCounter = this.refCounter;
+            final int newVal = refCounter.decrementAndGet();
+            if (newVal == 0) {
+                invocationTracker.remove(this);
+            }
         }
 
         public void handleResponse(final int id, final MessageInputStream inputStream) {
             switch (id) {
                 case Protocol.COMPRESSED_INVOCATION_MESSAGE: {
+                    free();
                     receiverInvocationContext.resultReady(new MethodCallResultProducer(new InflaterInputStream(inputStream), id));
                     break;
                 }
                 case Protocol.INVOCATION_RESPONSE: {
+                    free();
                     receiverInvocationContext.resultReady(new MethodCallResultProducer(inputStream, id));
                     break;
                 }
                 case Protocol.APPLICATION_EXCEPTION: {
+                    free();
                     receiverInvocationContext.resultReady(new ExceptionResultProducer(inputStream, id));
                     break;
                 }
                 case Protocol.NO_SUCH_EJB: {
+                    free();
                     try {
                         final String message = inputStream.readUTF();
                         receiverInvocationContext.resultReady(new EJBReceiverInvocationContext.ResultProducer.Failed(new NoSuchEJBException(message)));
@@ -512,6 +558,7 @@ class EJBClientChannel {
                     break;
                 }
                 case Protocol.NO_SUCH_METHOD: {
+                    free();
                     try {
                         final String message = inputStream.readUTF();
                         // todo: I don't think this is the best exception type for this case...
@@ -524,6 +571,7 @@ class EJBClientChannel {
                     break;
                 }
                 case Protocol.SESSION_NOT_ACTIVE: {
+                    free();
                     try {
                         final String message = inputStream.readUTF();
                         receiverInvocationContext.resultReady(new EJBReceiverInvocationContext.ResultProducer.Failed(new EJBException(message)));
@@ -535,6 +583,7 @@ class EJBClientChannel {
                     break;
                 }
                 case Protocol.EJB_NOT_STATEFUL: {
+                    free();
                     try {
                         final String message = inputStream.readUTF();
                         receiverInvocationContext.resultReady(new EJBReceiverInvocationContext.ResultProducer.Failed(new EJBException(message)));
@@ -546,11 +595,13 @@ class EJBClientChannel {
                     break;
                 }
                 case Protocol.PROCEED_ASYNC_RESPONSE: {
+                    // do not free; response is forthcoming
                     safeClose(inputStream);
                     receiverInvocationContext.proceedAsynchronously();
                     break;
                 }
                 default: {
+                    free();
                     safeClose(inputStream);
                     receiverInvocationContext.resultReady(new EJBReceiverInvocationContext.ResultProducer.Failed(new EJBException("Unknown protocol response")));
                     break;
@@ -566,7 +617,7 @@ class EJBClientChannel {
             private final InputStream inputStream;
             private final int id;
 
-            public MethodCallResultProducer(final InputStream inputStream, final int id) {
+            MethodCallResultProducer(final InputStream inputStream, final int id) {
                 this.inputStream = inputStream;
                 this.id = id;
             }
@@ -599,12 +650,12 @@ class EJBClientChannel {
             }
         }
 
-        private class ExceptionResultProducer implements EJBReceiverInvocationContext.ResultProducer {
+        class ExceptionResultProducer implements EJBReceiverInvocationContext.ResultProducer {
 
             private final InputStream inputStream;
             private final int id;
 
-            public ExceptionResultProducer(final InputStream inputStream, final int id) {
+            ExceptionResultProducer(final InputStream inputStream, final int id) {
                 this.inputStream = inputStream;
                 this.id = id;
             }

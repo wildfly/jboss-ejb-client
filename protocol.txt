@@ -137,14 +137,18 @@ Version is 0x01 or 0x02 or 0x03. 0x00 is reserved for test purposes.
 
 2.4. Invocation Cancel Request
 
-     7 6 5 4 3 2 1 0 
-    ┌─┬─┬─┬─┬─┬─┬─┬─┐
-    │      0x04     │  Command = Invocation Cancel Request
-    ├───────────────┤
-    │ Invocation ID │  Fixed length, two bytes
-    ├ ─ ─ ─ ─ ─ ─ ─ ┤
-    │               │
-    └───────────────┘
+         7 6 5 4 3 2 1 0
+        ┌─┬─┬─┬─┬─┬─┬─┬─┐
+        │      0x04     │  Command = Invocation Cancel Request
+        ├───────────────┤
+        │ Invocation ID │  Fixed length, two bytes
+        ├ ─ ─ ─ ─ ─ ─ ─ ┤
+ V1 & 2 │               │  V3
+        └───────┬───────┴───────┐
+                │CancelIfRunning│ V3: Cancel-if-running flag (1 byte, 0 = do not cancel if running, 1 = cancel anyway)
+                └───────────────┘
+
+Ignored if the invocation ID was already responded to.
 
 2.5. Module Availability Report (server → client)
 
@@ -184,6 +188,8 @@ REMOVED: The removal of the session should be done via a client interceptor meth
 This message is sent when the server notifies the client that a method invocation will proceed asynchronously.  After this message is received, if the invoking client thread is currently blocking, it may unblock and allow execution to complete in the background.
 
 Note.  The client may already be unblocked if it can determine that the method invocation must be asynchronous (because it returns a java.util.concurrent.Future) or if the user utilized some API-specific mechanism to deliberately force an asynchronous execution (in which case the method is most likely a void method).  There is no way for a client to know in advance if a method which returns void is asynchronous due to the generally stateless nature of this protocol.  The client will generally propagate transactional context regardless of the method; the server may opt to not use the transactional context in the event that the method is asynchronous.
+
+Note.  As of protocol V3, this message is no longer used.
 
 3.2. Invocation Response (server → client)
 

@@ -24,7 +24,6 @@ package org.jboss.ejb.protocol.remote;
 
 import java.io.IOException;
 import java.net.URI;
-import java.security.AccessController;
 
 import javax.ejb.CreateException;
 
@@ -77,8 +76,22 @@ class RemoteEJBReceiver extends EJBReceiver implements DiscoveryProvider {
     protected void processInvocation(final EJBReceiverInvocationContext receiverContext) throws Exception {
         final EJBClientInvocationContext clientInvocationContext = receiverContext.getClientInvocationContext();
         final EJBLocator<?> locator = clientInvocationContext.getLocator();
-        final IoFuture<Connection> connection = getConnection(locator);
-        connection.addNotifier(NOTIFIER, receiverContext);
+        final IoFuture<Connection> futureConnection = getConnection(locator);
+        // this actually causes the invocation to move forward
+        futureConnection.addNotifier(NOTIFIER, receiverContext);
+    }
+
+    protected boolean cancelInvocation(final EJBReceiverInvocationContext receiverContext, final boolean cancelIfRunning) {
+        final EJBClientInvocationContext clientInvocationContext = receiverContext.getClientInvocationContext();
+        final EJBLocator<?> locator = clientInvocationContext.getLocator();
+        try {
+            final IoFuture<Connection> futureConnection = getConnection(locator);
+            final Connection connection = futureConnection.get();
+            final EJBClientChannel channel = EJBClientChannel.from(connection);
+            return channel.cancelInvocation(receiverContext, cancelIfRunning);
+        } catch (IOException e) {
+            return false;
+        }
     }
 
     protected <T> StatefulEJBLocator<T> createSession(final StatelessEJBLocator<T> statelessLocator) throws Exception {

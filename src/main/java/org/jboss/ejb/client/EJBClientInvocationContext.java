@@ -94,15 +94,25 @@ public final class EJBClientInvocationContext extends Attachable {
     }
 
     enum State {
-        WAITING,
-        CANCEL_REQ,
-        CANCELLED,
-        READY,
-        CONSUMING,
-        FAILED,
-        DONE,
-        DISCARDED,
+        WAITING(true),
+        CANCEL_REQ(true),
+        CANCELLED(false),
+        READY(false),
+        CONSUMING(false),
+        FAILED(false),
+        DONE(false),
+        DISCARDED(false),
         ;
+
+        private final boolean waiting;
+
+        State(final boolean waiting) {
+            this.waiting = waiting;
+        }
+
+        boolean isWaiting() {
+            return waiting;
+        }
     }
 
     /**
@@ -480,6 +490,31 @@ public final class EJBClientInvocationContext extends Attachable {
         }
     }
 
+    /**
+     * Wait to determine whether this invocation was cancelled.
+     *
+     * @return {@code true} if the invocation was cancelled; {@code false} if it completed or failed or the thread was
+     *  interrupted
+     */
+    public boolean awaitCancellationResult() {
+        assert ! holdsLock(lock);
+        synchronized (lock) {
+            for (;;) {
+                if (state == State.CANCELLED) {
+                    return true;
+                } else if (! state.isWaiting()) {
+                    return false;
+                }
+                try {
+                    lock.wait();
+                } catch (InterruptedException ex) {
+                    Thread.currentThread().interrupt();
+                    return false;
+                }
+            }
+        }
+    }
+
     Object awaitResponse(final EJBInvocationHandler<?> invocationHandler) throws Exception {
         assert !holdsLock(lock);
         boolean intr = false;
@@ -616,7 +651,7 @@ public final class EJBClientInvocationContext extends Attachable {
                 // a cancel request and change the current state
                 state = State.CANCEL_REQ;
             }
-            return getReceiver().cancelInvocation(EJBClientInvocationContext.this, receiverInvocationContext);
+            return getReceiver().cancelInvocation(receiverInvocationContext, mayInterruptIfRunning);
         }
 
         public boolean isCancelled() {

@@ -22,8 +22,6 @@
 
 package org.jboss.ejb.client;
 
-import javax.ejb.CreateException;
-
 /**
  * A receiver for EJB invocations.  Receivers can be associated with one or more client contexts.  This interface is
  * implemented by providers for EJB invocation services.
@@ -53,12 +51,12 @@ public abstract class EJBReceiver extends Attachable {
      * the operation was actually cancelled; however it is permissible to fall back to returning {@code false} if
      * it cannot be discovered.
      *
-     * @param clientInvocationContext the original clientInvocationContext
      * @param receiverContext         the EJB receiver invocation context
+     * @param cancelIfRunning {@code true} to request that the cancellation proceed even if the method is running
      * @return {@code true} if the operation was definitely cancelled immediately, {@code false} otherwise
      */
     @SuppressWarnings("unused")
-    protected boolean cancelInvocation(EJBClientInvocationContext clientInvocationContext, EJBReceiverInvocationContext receiverContext) {
+    protected boolean cancelInvocation(EJBReceiverInvocationContext receiverContext, boolean cancelIfRunning) {
         return false;
     }
 
