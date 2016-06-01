@@ -86,15 +86,15 @@ public final class EJBMetaDataImpl implements EJBMetaData, Serializable {
     }
 
     private static <T extends EJBObject, H extends EJBHome> StatelessEJBMetaData<T, ? extends H> createStatelessMetaData(Class<T> remoteClass, Class<H> homeClass, EJBHome home) {
-        return new StatelessEJBMetaData<>(remoteClass, EJBClient.getLocatorFor(home).narrowAsHome(homeClass));
+        return new StatelessEJBMetaData<>(remoteClass, EJBClient.getLocatorFor(home).<H>narrowAsHome(homeClass));
     }
 
     private static <T extends EJBObject, H extends EJBHome> StatefulEJBMetaData<T, ? extends H> createStatefulMetaData(Class<T> remoteClass, Class<H> homeClass, EJBHome home) {
-        return new StatefulEJBMetaData<>(remoteClass, EJBClient.getLocatorFor(home).narrowAsHome(homeClass));
+        return new StatefulEJBMetaData<>(remoteClass, EJBClient.getLocatorFor(home).<H>narrowAsHome(homeClass));
     }
 
     private static <T extends EJBObject, H extends EJBHome> EntityEJBMetaData<T, ? extends H> createEntityMetaData(Class<T> remoteClass, Class<H> homeClass, EJBHome home, Class<?> pkClass) {
-        return new EntityEJBMetaData<>(remoteClass, EJBClient.getLocatorFor(home).narrowAsHome(homeClass), pkClass);
+        return new EntityEJBMetaData<>(remoteClass, EJBClient.getLocatorFor(home).<H>narrowAsHome(homeClass), pkClass);
     }
 
     /**

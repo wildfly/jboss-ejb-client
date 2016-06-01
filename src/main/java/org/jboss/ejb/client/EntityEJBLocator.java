@@ -22,12 +22,8 @@
 
 package org.jboss.ejb.client;
 
-import java.io.IOException;
-import java.io.ObjectInputStream;
-
 import javax.ejb.EJBObject;
 
-import org.jboss.marshalling.FieldSetter;
 import org.wildfly.common.Assert;
 
 /**
@@ -40,9 +36,6 @@ public final class EntityEJBLocator<T extends EJBObject> extends EJBLocator<T> {
     private static final long serialVersionUID = 6674116259124568398L;
 
     private final Object primaryKey;
-    private final transient int hashCode;
-
-    private static final FieldSetter hashCodeSetter = FieldSetter.get(EntityEJBLocator.class, "hashCode");
 
     /**
      * Construct a new instance.
@@ -100,7 +93,31 @@ public final class EntityEJBLocator<T extends EJBObject> extends EJBLocator<T> {
         super(viewType, appName, moduleName, beanName, distinctName, affinity);
         Assert.checkNotNullParam("primaryKey", primaryKey);
         this.primaryKey = primaryKey;
-        hashCode = primaryKey.hashCode() * 13 + super.hashCode();
+    }
+
+    /**
+     * Construct a new instance.
+     *
+     * @param viewType the view type
+     * @param identifier the EJB identifier
+     * @param primaryKey the entity primary key
+     * @param affinity the affinity
+     */
+    public EntityEJBLocator(final Class<T> viewType, final EJBIdentifier identifier, final Object primaryKey, final Affinity affinity) {
+        super(viewType, identifier, affinity);
+        Assert.checkNotNullParam("primaryKey", primaryKey);
+        this.primaryKey = primaryKey;
+    }
+
+    /**
+     * Construct a new instance.
+     *
+     * @param viewType the view type
+     * @param identifier the EJB identifier
+     * @param primaryKey the entity primary key
+     */
+    public EntityEJBLocator(final Class<T> viewType, final EJBIdentifier identifier, final Object primaryKey) {
+        this(viewType, identifier, primaryKey, Affinity.NONE);
     }
 
     /**
@@ -112,7 +129,6 @@ public final class EntityEJBLocator<T extends EJBObject> extends EJBLocator<T> {
     public EntityEJBLocator(final EntityEJBLocator<T> original, final Affinity newAffinity) {
         super(original, newAffinity);
         this.primaryKey = original.primaryKey;
-        hashCode = primaryKey.hashCode() * 13 + super.hashCode();
     }
 
     public EntityEJBLocator<T> withNewAffinity(final Affinity affinity) {
@@ -176,18 +192,8 @@ public final class EntityEJBLocator<T extends EJBObject> extends EJBLocator<T> {
         return super.equals(other) && primaryKey.equals(other.primaryKey);
     }
 
-    /**
-     * Get the hash code for this instance.
-     *
-     * @return the hash code for this instance
-     */
-    public int hashCode() {
-        return hashCode;
-    }
-
-    private void readObject(ObjectInputStream ois) throws ClassNotFoundException, IOException {
-        ois.defaultReadObject();
-        hashCodeSetter.setInt(this, primaryKey.hashCode() * 13 + super.hashCode());
+    int calculateHashCode() {
+        return primaryKey.hashCode() * 13 + super.calculateHashCode();
     }
 
     @Override

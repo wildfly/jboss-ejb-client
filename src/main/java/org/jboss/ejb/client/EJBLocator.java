@@ -24,16 +24,21 @@ package org.jboss.ejb.client;
 
 import java.io.IOException;
 import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
+import java.io.ObjectStreamField;
 import java.io.Serializable;
+import java.lang.invoke.MethodHandle;
+import java.lang.invoke.MethodHandles;
 import java.lang.reflect.Constructor;
+import java.lang.reflect.Field;
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.UndeclaredThrowableException;
+import java.util.Objects;
 
 import javax.ejb.EJBHome;
 import javax.ejb.EJBObject;
 
-import org.jboss.marshalling.FieldSetter;
 import org.wildfly.common.Assert;
 
 /**
@@ -44,45 +49,61 @@ import org.wildfly.common.Assert;
 public abstract class EJBLocator<T> implements Serializable {
     private static final long serialVersionUID = -7306257085240447972L;
 
-    private final Class<T> viewType;
-    private final String appName;
-    private final String moduleName;
-    private final String beanName;
-    private final String distinctName;
-    private final Affinity affinity;
-    private final transient int hashCode;
-    private transient EJBProxyInformation<T> proxyInformation;
+    private static final ObjectStreamField[] serialPersistentFields = {
+        new ObjectStreamField("viewType", Class.class),
+        new ObjectStreamField("appName", String.class),
+        new ObjectStreamField("moduleName", String.class),
+        new ObjectStreamField("beanName", String.class),
+        new ObjectStreamField("distinctName", String.class),
+        new ObjectStreamField("affinity", Affinity.class),
+        new ObjectStreamField("identifier", EJBIdentifier.class), // may not be present (V3+ only)
+    };
 
-    private static final FieldSetter hashCodeSetter = FieldSetter.get(EJBLocator.class, "hashCode");
+    private final Class<T> viewType;
+    private final EJBIdentifier identifier;
+    private final Affinity affinity;
+    private int hashCode;
+    private EJBProxyInformation<T> proxyInformation;
+
+    private static final MethodHandle viewTypeSetter;
+    private static final MethodHandle identifierSetter;
+    private static final MethodHandle affinitySetter;
+
+    static {
+        final MethodHandles.Lookup lookup = MethodHandles.lookup();
+        final Class<?> clazz = EJBLocator.class;
+        try {
+            Field f = clazz.getDeclaredField("viewType");
+            f.setAccessible(true);
+            viewTypeSetter = lookup.unreflectSetter(f);
+            f = clazz.getDeclaredField("identifier");
+            f.setAccessible(true);
+            identifierSetter = lookup.unreflectSetter(f);
+            f = clazz.getDeclaredField("affinity");
+            f.setAccessible(true);
+            affinitySetter = lookup.unreflectSetter(f);
+        } catch (NoSuchFieldException e) {
+            throw new NoSuchFieldError(e.getMessage());
+        } catch (IllegalAccessException e) {
+            throw new IllegalAccessError(e.getMessage());
+        }
+    }
+
+    EJBLocator(final Class<T> viewType, final EJBIdentifier identifier, final Affinity affinity) {
+        Assert.checkNotNullParam("viewType", viewType);
+        Assert.checkNotNullParam("identifier", identifier);
+        Assert.checkNotNullParam("affinity", affinity);
+        this.viewType = viewType;
+        this.identifier = identifier;
+        this.affinity = affinity == null ? Affinity.NONE : affinity;
+    }
 
     EJBLocator(final Class<T> viewType, final String appName, final String moduleName, final String beanName, final String distinctName, final Affinity affinity) {
-        Assert.checkNotNullParam("viewType", viewType);
-        Assert.checkNotNullParam("appName", appName);
-        Assert.checkNotNullParam("moduleName", moduleName);
-        Assert.checkNotNullParam("beanName", beanName);
-        Assert.checkNotNullParam("distinctName", distinctName);
-        this.viewType = viewType;
-        this.appName = appName;
-        this.moduleName = moduleName;
-        this.beanName = beanName;
-        this.distinctName = distinctName;
-        this.affinity = affinity == null ? Affinity.NONE : affinity;
-        hashCode = calcHashCode(viewType, appName, moduleName, beanName, distinctName, this.affinity);
+        this(viewType, new EJBIdentifier(appName, moduleName, beanName, distinctName), affinity);
     }
 
     EJBLocator(final EJBLocator<T> original, final Affinity newAffinity) {
-        Assert.checkNotNullParam("original", original);
-        this.viewType = original.viewType;
-        this.appName = original.appName;
-        this.moduleName = original.moduleName;
-        this.beanName = original.beanName;
-        this.distinctName = original.distinctName;
-        this.affinity = newAffinity == null ? Affinity.NONE : newAffinity;
-        hashCode = calcHashCode(viewType, appName, moduleName, beanName, distinctName, affinity);
-    }
-
-    private static int calcHashCode(final Class<?> viewType, final String appName, final String moduleName, final String beanName, final String distinctName, final Affinity affinity) {
-        return viewType.hashCode() + 13 * (appName.hashCode() + 13 * (moduleName.hashCode() + 13 * (beanName.hashCode() + 13 * (distinctName.hashCode() + 13 * affinity.hashCode()))));
+        this(Assert.checkNotNullParam("original", original).viewType, original.identifier, newAffinity);
     }
 
     /**
@@ -92,6 +113,16 @@ public abstract class EJBLocator<T> implements Serializable {
      * @return the new locator
      */
     public abstract EJBLocator<T> withNewAffinity(Affinity affinity);
+
+    /**
+     * Determine whether a {@link #narrowTo(Class)} operation would succeed.
+     *
+     * @param type the type to narrow to
+     * @return {@code true} if the narrow would succeed; {@code false} otherwise
+     */
+    public boolean canNarrowTo(Class<?> type) {
+        return type != null && type.isAssignableFrom(viewType);
+    }
 
     /**
      * Narrow this locator to the target type.
@@ -230,7 +261,7 @@ public abstract class EJBLocator<T> implements Serializable {
      * @return the application name
      */
     public String getAppName() {
-        return appName;
+        return identifier.getAppName();
     }
 
     /**
@@ -239,7 +270,7 @@ public abstract class EJBLocator<T> implements Serializable {
      * @return the module name
      */
     public String getModuleName() {
-        return moduleName;
+        return identifier.getModuleName();
     }
 
     /**
@@ -248,7 +279,7 @@ public abstract class EJBLocator<T> implements Serializable {
      * @return the EJB bean name
      */
     public String getBeanName() {
-        return beanName;
+        return identifier.getBeanName();
     }
 
     /**
@@ -257,7 +288,7 @@ public abstract class EJBLocator<T> implements Serializable {
      * @return the module distinct name
      */
     public String getDistinctName() {
-        return distinctName;
+        return identifier.getDistinctName();
     }
 
     /**
@@ -274,8 +305,17 @@ public abstract class EJBLocator<T> implements Serializable {
      *
      * @return the hash code for this instance
      */
-    public int hashCode() {
-        return hashCode;
+    public final int hashCode() {
+        int hashCode = this.hashCode;
+        if (hashCode != 0) {
+            return hashCode;
+        }
+        hashCode = calculateHashCode();
+        return this.hashCode = hashCode == 0 ? hashCode | 0x8000_0000 : hashCode;
+    }
+
+    int calculateHashCode() {
+        return Objects.hashCode(viewType) + 13 * (Objects.hashCode(identifier) + 13 * Objects.hashCode(affinity));
     }
 
     /**
@@ -339,25 +379,44 @@ public abstract class EJBLocator<T> implements Serializable {
      */
     public boolean equals(EJBLocator<?> other) {
         return this == other || other != null && hashCode == other.hashCode
-                && appName.equals(other.appName)
-                && moduleName.equals(other.moduleName)
-                && beanName.equals(other.beanName)
-                && distinctName.equals(other.distinctName)
+                && identifier.equals(other.identifier)
                 && affinity.equals(other.affinity);
     }
 
     private void readObject(ObjectInputStream ois) throws ClassNotFoundException, IOException {
-        ois.defaultReadObject();
-        hashCodeSetter.setInt(this, calcHashCode(viewType, appName, moduleName, beanName, distinctName, affinity));
+        final ObjectInputStream.GetField fields = ois.readFields();
+        try {
+            final Object identifierObj = fields.get("identifier", null);
+            // if not null, the old *Name fields will share backreferences with the fields of the identifier at a cost of 4 bytes
+            final EJBIdentifier identifier = identifierObj != null ? (EJBIdentifier) identifierObj : new EJBIdentifier(
+                (String) fields.get("appName", null),
+                (String) fields.get("moduleName", null),
+                (String) fields.get("beanName", null),
+                (String) fields.get("distinctName", null)
+            );
+            viewTypeSetter.invokeExact(fields.get("viewType", null));
+            identifierSetter.invokeExact(identifier);
+            affinitySetter.invokeExact(fields.get("affinity", Affinity.NONE));
+        } catch (Throwable t) {
+            throw new UndeclaredThrowableException(t);
+        }
+    }
+
+    private void writeObject(ObjectOutputStream oos) throws IOException {
+        final ObjectOutputStream.PutField fields = oos.putFields();
+        final EJBIdentifier identifier = this.identifier;
+        fields.put("identifier", identifier);
+        fields.put("viewType", viewType);
+        fields.put("affinity", affinity);
+        // now compat fields
+        fields.put("appName", identifier.getAppName());
+        fields.put("moduleName", identifier.getModuleName());
+        fields.put("beanName", identifier.getBeanName());
+        fields.put("distinctName", identifier.getDistinctName());
     }
 
     @Override
     public String toString() {
-        final String distinctName = getDistinctName();
-        if (distinctName == null || distinctName.isEmpty()) {
-            return String.format("%s for \"%s/%s/%s\", view is %s, affinity is %s", getClass().getSimpleName(), getAppName(), getModuleName(), getBeanName(), getViewType(), getAffinity());
-        } else {
-            return String.format("%s for \"%s/%s/%s/%s\", view is %s, affinity is %s", getClass().getSimpleName(), getAppName(), getModuleName(), getBeanName(), distinctName, getViewType(), getAffinity());
-        }
+        return String.format("%s for \"%s\", view is %s, affinity is %s", getClass().getSimpleName(), identifier, getViewType(), getAffinity());
     }
 }

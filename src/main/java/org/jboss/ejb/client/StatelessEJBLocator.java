@@ -86,6 +86,27 @@ public final class StatelessEJBLocator<T> extends EJBLocator<T> {
     }
 
     /**
+     * Construct a new instance.
+     *
+     * @param viewType the view type
+     * @param identifier the EJB identifier
+     * @param affinity the affinity
+     */
+    public StatelessEJBLocator(final Class<T> viewType, final EJBIdentifier identifier, final Affinity affinity) {
+        super(viewType, identifier, affinity);
+    }
+
+    /**
+     * Construct a new instance.
+     *
+     * @param viewType the view type
+     * @param identifier the EJB identifier
+     */
+    public StatelessEJBLocator(final Class<T> viewType, final EJBIdentifier identifier) {
+        this(viewType, identifier, Affinity.NONE);
+    }
+
+    /**
      * Construct a new instance.  This constructor creates a copy of the original locator, but with a new affinity.
      *
      * @param original the original locator
@@ -119,15 +140,6 @@ public final class StatelessEJBLocator<T> extends EJBLocator<T> {
 
     public boolean isStateless() {
         return true;
-    }
-
-    /**
-     * Get the hash code for this instance.
-     *
-     * @return the hash code for this instance
-     */
-    public int hashCode() {
-        return super.hashCode();
     }
 
     /**

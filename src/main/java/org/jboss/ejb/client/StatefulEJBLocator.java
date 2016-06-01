@@ -22,11 +22,7 @@
 
 package org.jboss.ejb.client;
 
-import org.jboss.marshalling.FieldSetter;
 import org.wildfly.common.Assert;
-
-import java.io.IOException;
-import java.io.ObjectInputStream;
 
 /**
  * A locator for a stateful session EJB.
@@ -36,10 +32,8 @@ import java.io.ObjectInputStream;
 public final class StatefulEJBLocator<T> extends EJBLocator<T> {
 
     private static final long serialVersionUID = 8229686118358785586L;
-    private static final FieldSetter hashCodeSetter = FieldSetter.get(StatefulEJBLocator.class, "hashCode");
 
     private final SessionID sessionId;
-    private final transient int hashCode;
 
     /**
      * Construct a new instance.
@@ -97,7 +91,31 @@ public final class StatefulEJBLocator<T> extends EJBLocator<T> {
         super(viewType, appName, moduleName, beanName, distinctName, affinity);
         Assert.checkNotNullParam("sessionId", sessionId);
         this.sessionId = sessionId;
-        hashCode = sessionId.hashCode() + 13 * super.hashCode();
+    }
+
+    /**
+     * Construct a new instance.
+     *
+     * @param viewType the view type
+     * @param identifier the EJB identifier
+     * @param sessionId the stateful session ID
+     * @param affinity the {@link Affinity} for this stateful bean locator
+     */
+    public StatefulEJBLocator(final Class<T> viewType, final EJBIdentifier identifier, final SessionID sessionId, final Affinity affinity) {
+        super(viewType, identifier, affinity);
+        Assert.checkNotNullParam("sessionId", sessionId);
+        this.sessionId = sessionId;
+    }
+
+    /**
+     * Construct a new instance.
+     *
+     * @param viewType the view type
+     * @param identifier the EJB identifier
+     * @param sessionId the stateful session ID
+     */
+    public StatefulEJBLocator(final Class<T> viewType, final EJBIdentifier identifier, final SessionID sessionId) {
+        this(viewType, identifier, sessionId, Affinity.NONE);
     }
 
     /**
@@ -109,7 +127,6 @@ public final class StatefulEJBLocator<T> extends EJBLocator<T> {
     public StatefulEJBLocator(final StatefulEJBLocator<T> original, final Affinity newAffinity) {
         super(original, newAffinity);
         this.sessionId = original.sessionId;
-        hashCode = sessionId.hashCode() + 13 * super.hashCode();
     }
 
     /**
@@ -123,7 +140,6 @@ public final class StatefulEJBLocator<T> extends EJBLocator<T> {
         super(original, original.getAffinity());
         Assert.checkNotNullParam("sessionId", sessionId);
         this.sessionId = sessionId;
-        hashCode = sessionId.hashCode() + 13 * super.hashCode();
     }
 
     /**
@@ -138,7 +154,6 @@ public final class StatefulEJBLocator<T> extends EJBLocator<T> {
         super(original, newAffinity);
         Assert.checkNotNullParam("sessionId", sessionId);
         this.sessionId = sessionId;
-        hashCode = sessionId.hashCode() + 13 * super.hashCode();
     }
 
     public StatefulEJBLocator<T> withNewAffinity(final Affinity affinity) {
@@ -177,15 +192,6 @@ public final class StatefulEJBLocator<T> extends EJBLocator<T> {
     }
 
     /**
-     * Get the hash code for this instance.
-     *
-     * @return the hash code for this instance
-     */
-    public int hashCode() {
-        return hashCode;
-    }
-
-    /**
      * Determine whether this object is equal to another.
      *
      * @param other the other object
@@ -215,9 +221,8 @@ public final class StatefulEJBLocator<T> extends EJBLocator<T> {
         return super.equals(other) && sessionId.equals(other.sessionId);
     }
 
-    private void readObject(ObjectInputStream ois) throws ClassNotFoundException, IOException {
-        ois.defaultReadObject();
-        hashCodeSetter.setInt(this, sessionId.hashCode() * 13 + super.hashCode());
+    int calculateHashCode() {
+        return sessionId.hashCode() * 13 + super.calculateHashCode();
     }
 
     @Override

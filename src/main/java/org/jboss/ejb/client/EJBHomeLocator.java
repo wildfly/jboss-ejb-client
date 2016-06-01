@@ -88,6 +88,27 @@ public final class EJBHomeLocator<T extends EJBHome> extends EJBLocator<T> {
     }
 
     /**
+     * Construct a new instance.
+     *
+     * @param viewType the view type
+     * @param identifier the EJB identifier
+     * @param affinity the affinity
+     */
+    public EJBHomeLocator(final Class<T> viewType, final EJBIdentifier identifier, final Affinity affinity) {
+        super(viewType, identifier, affinity);
+    }
+
+    /**
+     * Construct a new instance.
+     *
+     * @param viewType the view type
+     * @param identifier the EJB identifier
+     */
+    public EJBHomeLocator(final Class<T> viewType, final EJBIdentifier identifier) {
+        super(viewType, identifier, Affinity.NONE);
+    }
+
+    /**
      * Construct a new instance from an original instance but with a new affinity.
      *
      * @param original the original locator
@@ -117,15 +138,6 @@ public final class EJBHomeLocator<T extends EJBHome> extends EJBLocator<T> {
 
     public boolean isHome() {
         return true;
-    }
-
-    /**
-     * Get the hash code for this instance.
-     *
-     * @return the hash code for this instance
-     */
-    public int hashCode() {
-        return super.hashCode();
     }
 
     /**
