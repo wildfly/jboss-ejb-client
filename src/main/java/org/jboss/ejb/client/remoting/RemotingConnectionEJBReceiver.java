@@ -66,7 +66,6 @@ import org.jboss.remoting3.CloseHandler;
 import org.jboss.remoting3.Connection;
 import org.jboss.remoting3.MessageOutputStream;
 import org.xnio.IoFuture;
-import org.xnio.IoUtils;
 import org.xnio.OptionMap;
 
 /**
