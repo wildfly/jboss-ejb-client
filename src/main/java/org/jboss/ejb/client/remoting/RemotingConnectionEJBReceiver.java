@@ -51,7 +51,6 @@ import org.jboss.ejb.client.EJBReceiverContext;
 import org.jboss.ejb.client.EJBReceiverInvocationContext;
 import org.jboss.ejb.client.Logs;
 import org.jboss.ejb.client.RequestSendFailedException;
-import java.rmi.UnmarshalException;
 import org.jboss.ejb.client.StatefulEJBLocator;
 import org.jboss.ejb.client.TransactionID;
 import org.jboss.ejb.client.annotation.CompressionHint;
@@ -66,7 +65,6 @@ import org.jboss.remoting3.CloseHandler;
 import org.jboss.remoting3.Connection;
 import org.jboss.remoting3.MessageOutputStream;
 import org.xnio.IoFuture;
-import org.xnio.IoUtils;
 import org.xnio.OptionMap;
 
 /**
