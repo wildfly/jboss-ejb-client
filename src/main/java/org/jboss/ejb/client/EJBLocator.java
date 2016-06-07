@@ -301,6 +301,15 @@ public abstract class EJBLocator<T> implements Serializable {
     }
 
     /**
+     * Get the EJB identifier for this locator.
+     *
+     * @return the EJB identifier
+     */
+    public EJBIdentifier getIdentifier() {
+        return identifier;
+    }
+
+    /**
      * Get the hash code for this instance.
      *
      * @return the hash code for this instance
