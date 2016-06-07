@@ -174,7 +174,7 @@ When the client connects to the server, and from then on, the server will provid
 
 REMOVED: The removal of the session should be done via a client interceptor method which clears the session ID when the remove method returns.
 
-3.1. Invocation Async Notification (server → client)
+3.1. Invocation Async Notification (server → client) (V1-2 only)
 
      7 6 5 4 3 2 1 0 
     ┌─┬─┬─┬─┬─┬─┬─┬─┐
@@ -217,9 +217,18 @@ Note.  As of protocol V3, this message is no longer used.
     │        :      │
     └───────────────┘
 
-3.2½. Invocation Cancellation Response
+3.2½. Invocation Cancellation Response (server → client) (V3+ only)
 
-(deleted)
+Sent when a nonspecific cancellation occurred (e.g. the method was cancelled before it began invocation).
+
+     7 6 5 4 3 2 1 0
+    ┌─┬─┬─┬─┬─┬─┬─┬─┐
+    │      0x07     │  Command code
+    ├───────────────┤
+    │ Invocation ID │  Fixed length, two bytes
+    ├ ─ ─ ─ ─ ─ ─ ─ ┤
+    │               │
+    └───────────────┘
 
 3.3. Invocation Failure
 
