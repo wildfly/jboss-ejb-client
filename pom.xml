@@ -121,7 +121,6 @@
             <groupId>org.jboss.marshalling</groupId>
             <artifactId>jboss-marshalling-river</artifactId>
             <version>${version.org.jboss.marshalling}</version>
-            <scope>provided</scope>
         </dependency>
 
         <dependency>
@@ -134,20 +133,12 @@
             <groupId>org.jboss.xnio</groupId>
             <artifactId>xnio-nio</artifactId>
             <version>${version.org.jboss.xnio}</version>
-            <scope>test</scope>
         </dependency>
 
         <dependency>
             <groupId>org.jboss.remoting</groupId>
             <artifactId>jboss-remoting</artifactId>
             <version>${version.org.jboss.remoting}</version>
-        </dependency>
-
-        <dependency>
-            <groupId>org.jboss.sasl</groupId>
-            <artifactId>jboss-sasl</artifactId>
-            <version>${version.org.jboss.sasl}</version>
-            <scope>provided</scope>
         </dependency>
 
         <dependency>
@@ -174,14 +165,12 @@
             <groupId>org.jboss.spec.javax.ejb</groupId>
             <artifactId>jboss-ejb-api_3.1_spec</artifactId>
             <version>${version.org.jboss.spec.javax.ejb}</version>
-            <scope>provided</scope>
         </dependency>
 
         <dependency>
             <groupId>org.jboss.spec.javax.transaction</groupId>
             <artifactId>jboss-transaction-api_1.1_spec</artifactId>
             <version>${version.org.jboss.spec.javax.transaction}</version>
-            <scope>provided</scope>
         </dependency>
 
         <dependency>
