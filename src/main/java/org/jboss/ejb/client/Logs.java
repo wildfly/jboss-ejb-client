@@ -265,6 +265,9 @@ public interface Logs extends BasicLogger {
     @Message(id = 61, value = "Cannot send a transaction recovery message to the server since the protocol version of EJBReceiver %s doesn't support it")
     void transactionRecoveryMessageNotSupported(EJBReceiver receiver);
 
+    @Message(id = 62, value = "Cannot register EJB client interceptor %s since a different interceptor is already registered with the same priority %d" )
+    IllegalArgumentException duplicatePriorityEJBClientInterceptorRegistration(final EJBClientInterceptor interceptor, final int priority);
+
     // Proxy API errors
 
     @Message(id = 100, value = "Object '%s' is not a valid proxy object")
