@@ -52,7 +52,7 @@
         <version.org.kohsuke.metainf-services>1.5-jboss-1</version.org.kohsuke.metainf-services>
         <version.org.wildfly.common>1.2.0.Beta1</version.org.wildfly.common>
         <version.org.wildfly.naming.client>1.0.0.Beta2-SNAPSHOT</version.org.wildfly.naming.client>
-        <version.org.wildfly.discovery>1.0.0.Beta1-SNAPSHOT</version.org.wildfly.discovery>
+        <version.org.wildfly.discovery>1.0.0.Beta1</version.org.wildfly.discovery>
 
         <maven.compiler.source>1.8</maven.compiler.source>
         <maven.compiler.target>1.8</maven.compiler.target>
