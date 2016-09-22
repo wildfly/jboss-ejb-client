@@ -38,6 +38,7 @@
     <description>Client library for EJB applications working against Wildfly</description>
 
     <properties>
+        <version.org.jboss.invocation>1.5.0.Beta2-SNAPSHOT</version.org.jboss.invocation>
         <version.org.jboss.logging.jboss-logging>3.1.4.GA</version.org.jboss.logging.jboss-logging>
         <version.org.jboss.logging.jboss-logging-processor>1.1.0.Final</version.org.jboss.logging.jboss-logging-processor>
         <version.org.jboss.logmanager>1.5.2.Final</version.org.jboss.logmanager>
@@ -50,7 +51,7 @@
         <version.org.jboss.xnio>3.2.0.Final</version.org.jboss.xnio>
         <version.org.kohsuke.metainf-services>1.5-jboss-1</version.org.kohsuke.metainf-services>
         <version.org.wildfly.common>1.2.0.Beta1</version.org.wildfly.common>
-        <version.org.wildfly.naming.client>1.0.0.Beta1-SNAPSHOT</version.org.wildfly.naming.client>
+        <version.org.wildfly.naming.client>1.0.0.Beta2-SNAPSHOT</version.org.wildfly.naming.client>
         <version.org.wildfly.discovery>1.0.0.Beta1-SNAPSHOT</version.org.wildfly.discovery>
 
         <maven.compiler.source>1.8</maven.compiler.source>
@@ -95,6 +96,14 @@
 
     <dependencies>
         <dependency>
+            <groupId>org.jboss.invocation</groupId>
+            <artifactId>jboss-invocation</artifactId>
+            <version>${version.org.jboss.invocation}</version>
+            <scope>provided</scope>
+            <optional>true</optional>
+        </dependency>
+
+        <dependency>
             <groupId>org.jboss.marshalling</groupId>
             <artifactId>jboss-marshalling</artifactId>
             <version>${version.org.jboss.marshalling}</version>
@@ -112,7 +121,6 @@
             <groupId>org.jboss.marshalling</groupId>
             <artifactId>jboss-marshalling-river</artifactId>
             <version>${version.org.jboss.marshalling}</version>
-            <scope>provided</scope>
         </dependency>
 
         <dependency>
@@ -125,20 +133,12 @@
             <groupId>org.jboss.xnio</groupId>
             <artifactId>xnio-nio</artifactId>
             <version>${version.org.jboss.xnio}</version>
-            <scope>test</scope>
         </dependency>
 
         <dependency>
             <groupId>org.jboss.remoting</groupId>
             <artifactId>jboss-remoting</artifactId>
             <version>${version.org.jboss.remoting}</version>
-        </dependency>
-
-        <dependency>
-            <groupId>org.jboss.sasl</groupId>
-            <artifactId>jboss-sasl</artifactId>
-            <version>${version.org.jboss.sasl}</version>
-            <scope>provided</scope>
         </dependency>
 
         <dependency>
@@ -165,14 +165,12 @@
             <groupId>org.jboss.spec.javax.ejb</groupId>
             <artifactId>jboss-ejb-api_3.1_spec</artifactId>
             <version>${version.org.jboss.spec.javax.ejb}</version>
-            <scope>provided</scope>
         </dependency>
 
         <dependency>
             <groupId>org.jboss.spec.javax.transaction</groupId>
             <artifactId>jboss-transaction-api_1.1_spec</artifactId>
             <version>${version.org.jboss.spec.javax.transaction}</version>
-            <scope>provided</scope>
         </dependency>
 
         <dependency>

@@ -133,6 +133,6 @@ public final class SerializedEJBInvocationHandler implements Externalizable {
      * @return the invocation handler
      */
     private static <T> EJBInvocationHandler<T> readResolve(EJBLocator<T> locator) {
-        return new EJBInvocationHandler<T>(locator);
+        return new EJBInvocationHandler<T>(null, locator);
     }
 }

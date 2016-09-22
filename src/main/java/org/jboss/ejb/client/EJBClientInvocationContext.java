@@ -37,6 +37,7 @@ import javax.transaction.Transaction;
 
 import org.jboss.ejb._private.Logs;
 import org.jboss.ejb.client.annotation.ClientTransactionPolicy;
+import org.wildfly.naming.client.NamingProvider;
 
 /**
  * An invocation context for EJB invocations from an EJB client
@@ -76,6 +77,7 @@ public final class EJBClientInvocationContext extends Attachable {
     private boolean resultDone;
     private boolean blockingCaller;
     private Transaction transaction;
+    private NamingProvider namingProvider;
 
     EJBClientInvocationContext(final EJBInvocationHandler<?> invocationHandler, final EJBClientContext ejbClientContext, final Object invokedProxy, final Object[] parameters, final EJBProxyInformation.ProxyMethodInfo methodInfo) {
         this.invocationHandler = invocationHandler;
@@ -632,6 +634,14 @@ public final class EJBClientInvocationContext extends Attachable {
         }
     }
 
+    NamingProvider getNamingProvider() {
+        return namingProvider;
+    }
+
+    void setNamingProvider(final NamingProvider namingProvider) {
+        this.namingProvider = namingProvider;
+    }
+
     final class FutureResponse implements Future<Object> {
 
         FutureResponse() {
@@ -739,43 +749,47 @@ public final class EJBClientInvocationContext extends Attachable {
             assert !holdsLock(lock);
             final EJBReceiverInvocationContext.ResultProducer resultProducer;
             synchronized (lock) {
-                if (state == State.WAITING || state == State.CANCEL_REQ || state == State.CONSUMING) {
-                    long now = System.nanoTime();
-                    final long end = Math.max(now, now + unit.toNanos(timeout));
-                    do {
-                        final long remaining = end - now;
-                        if (remaining <= 0L) {
+                loop: for (;;) {
+                    switch (state) {
+                        case READY: {
+                            // Change state to consuming, but don't notify since nobody but us can act on it.
+                            // Instead we'll notify after the result is consumed.
+                            state = State.CONSUMING;
+                            resultProducer = EJBClientInvocationContext.this.resultProducer;
+                            // we have to get the result, so break out of here.
+                            break loop;
+                        }
+                        case FAILED: {
+                            throw log.remoteInvFailed((Throwable) cachedResult);
+                        }
+                        case CANCELLED: {
+                            throw log.requestCancelled();
+                        }
+                        case DONE: {
+                            return cachedResult;
+                        }
+                        case DISCARDED: {
+                            throw log.oneWayInvocation();
+                        }
+                        case WAITING:
+                        case CANCEL_REQ:
+                        case CONSUMING: {
+                            long remaining = unit.toNanos(timeout);
+                            if (remaining > 0L) {
+                                long now = System.nanoTime();
+                                do {
+                                    lock.wait(remaining / 1000000L, (int) (remaining % 1000000L));
+                                    if (state != State.WAITING && state != State.CANCEL_REQ && state != State.CONSUMING) {
+                                        continue loop;
+                                    }
+                                    remaining -= Math.max(1L, System.nanoTime() - now);
+                                } while (remaining > 0L);
+                            }
                             throw log.timedOut();
                         }
-                        // wait at least 1ms
-                        long millis = (remaining + 999999L) / 1000000L;
-                        lock.wait(millis);
-                        now = System.nanoTime();
-                    } while (state == State.WAITING || state == State.CANCEL_REQ || state == State.CONSUMING);
-                }
-                switch (state) {
-                    case READY: {
-                        // Change state to consuming, but don't notify since nobody but us can act on it.
-                        // Instead we'll notify after the result is consumed.
-                        state = State.CONSUMING;
-                        resultProducer = EJBClientInvocationContext.this.resultProducer;
-                        // we have to get the result, so break out of here.
-                        break;
+                        default:
+                            throw new IllegalStateException();
                     }
-                    case FAILED: {
-                        throw log.remoteInvFailed((Throwable) cachedResult);
-                    }
-                    case CANCELLED: {
-                        throw log.requestCancelled();
-                    }
-                    case DONE: {
-                        return cachedResult;
-                    }
-                    case DISCARDED: {
-                        throw log.oneWayInvocation();
-                    }
-                    default:
-                        throw new IllegalStateException();
                 }
             }
             // extract the result from the producer.

@@ -22,7 +22,6 @@
 
 package org.jboss.ejb._private;
 
-import org.jboss.ejb.client.Affinity;
 import org.jboss.ejb.client.EJBClientInvocationContext;
 import org.jboss.ejb.client.EJBLocator;
 import org.jboss.ejb.client.EJBReceiver;
@@ -46,8 +45,7 @@ import java.util.concurrent.CancellationException;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeoutException;
 
-import static org.jboss.logging.Logger.Level.INFO;
-import static org.jboss.logging.Logger.Level.WARN;
+import static org.jboss.logging.Logger.Level.*;
 
 /**
  * Primary logging for the main EJB client API.
@@ -292,4 +290,7 @@ public interface Logs extends BasicLogger {
     @Message(id = 500, value = "Protocol error: mismatched method location")
     InvalidObjectException mismatchedMethodLocation();
 
+    @LogMessage(level = DEBUG)
+    @Message(id = 501, value = "Protocol error: invalid message ID %02x received")
+    void invalidMessageReceived(int code);
 }
