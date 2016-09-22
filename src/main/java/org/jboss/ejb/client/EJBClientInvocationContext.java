@@ -37,6 +37,7 @@ import javax.transaction.Transaction;
 
 import org.jboss.ejb._private.Logs;
 import org.jboss.ejb.client.annotation.ClientTransactionPolicy;
+import org.wildfly.naming.client.NamingProvider;
 
 /**
  * An invocation context for EJB invocations from an EJB client
@@ -76,6 +77,7 @@ public final class EJBClientInvocationContext extends Attachable {
     private boolean resultDone;
     private boolean blockingCaller;
     private Transaction transaction;
+    private NamingProvider namingProvider;
 
     EJBClientInvocationContext(final EJBInvocationHandler<?> invocationHandler, final EJBClientContext ejbClientContext, final Object invokedProxy, final Object[] parameters, final EJBProxyInformation.ProxyMethodInfo methodInfo) {
         this.invocationHandler = invocationHandler;
@@ -630,6 +632,14 @@ public final class EJBClientInvocationContext extends Attachable {
                 }
             }
         }
+    }
+
+    NamingProvider getNamingProvider() {
+        return namingProvider;
+    }
+
+    void setNamingProvider(final NamingProvider namingProvider) {
+        this.namingProvider = namingProvider;
     }
 
     final class FutureResponse implements Future<Object> {

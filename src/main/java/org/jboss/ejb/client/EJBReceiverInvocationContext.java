@@ -24,6 +24,8 @@ package org.jboss.ejb.client;
 
 import java.util.Arrays;
 
+import org.wildfly.naming.client.NamingProvider;
+
 /**
  * The context used for an EJB receiver to return the result of an invocation.
  *
@@ -70,6 +72,15 @@ public final class EJBReceiverInvocationContext {
      */
     public EJBClientInvocationContext getClientInvocationContext() {
         return clientInvocationContext;
+    }
+
+    /**
+     * Get the naming provider attached to this invocation, if any.
+     *
+     * @return the naming provider attached to this invocation, or {@code null} if there is none
+     */
+    public NamingProvider getNamingProvider() {
+        return clientInvocationContext.getNamingProvider();
     }
 
     /**

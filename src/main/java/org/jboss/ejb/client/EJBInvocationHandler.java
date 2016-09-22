@@ -36,6 +36,7 @@ import javax.ejb.EJBObject;
 
 import org.jboss.ejb._private.Logs;
 import org.wildfly.common.Assert;
+import org.wildfly.naming.client.NamingProvider;
 
 /**
  * @param <T> the proxy view type
@@ -46,6 +47,7 @@ final class EJBInvocationHandler<T> extends Attachable implements InvocationHand
     private static final long serialVersionUID = 946555285095057230L;
 
     private final transient boolean async;
+    private final NamingProvider namingProvider;
 
     private transient String toString;
     private transient String toStringProxy;
@@ -60,10 +62,12 @@ final class EJBInvocationHandler<T> extends Attachable implements InvocationHand
     /**
      * Construct a new instance.
      *
+     * @param namingProvider the naming provider, if any (may be {@code null})
      * @param locator the EJB locator (not {@code null})
      */
-    EJBInvocationHandler(final EJBLocator<T> locator) {
+    EJBInvocationHandler(final NamingProvider namingProvider, final EJBLocator<T> locator) {
         Assert.checkNotNullParam("locator", locator);
+        this.namingProvider = namingProvider;
         this.locatorRef = new AtomicReference<>(locator);
         async = false;
         if (locator instanceof StatefulEJBLocator) {
@@ -81,6 +85,7 @@ final class EJBInvocationHandler<T> extends Attachable implements InvocationHand
         super(other);
         final EJBLocator<T> locator = other.locatorRef.get();
         locatorRef = new AtomicReference<>(locator);
+        namingProvider = other.namingProvider;
         async = true;
         if (locator instanceof StatefulEJBLocator) {
             // set the weak affinity to the node on which the session was created
@@ -146,6 +151,7 @@ final class EJBInvocationHandler<T> extends Attachable implements InvocationHand
             invocationContext.setReceiver(receiver);
             invocationContext.setLocator(locatorRef.get().withNewAffinity(newAffinity));
             invocationContext.setBlockingCaller(true);
+            invocationContext.setNamingProvider(namingProvider);
 
             try {
                 // send the request

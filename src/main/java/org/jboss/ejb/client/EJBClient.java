@@ -34,6 +34,7 @@ import javax.transaction.UserTransaction;
 
 import org.jboss.ejb._private.Logs;
 import org.wildfly.common.Assert;
+import org.wildfly.naming.client.NamingProvider;
 
 /**
  * The main EJB client API class.  This class contains helper methods which may be used to create proxies, open sessions,
@@ -136,8 +137,12 @@ public final class EJBClient {
      * @throws IllegalArgumentException if the locator parameter is {@code null} or is invalid
      */
     public static <T> T createProxy(final EJBLocator<T> locator) throws IllegalArgumentException {
+        return createProxy(null, locator);
+    }
+
+    static <T> T createProxy(final NamingProvider namingProvider, final EJBLocator<T> locator) throws IllegalArgumentException {
         Assert.checkNotNullParam("locator", locator);
-        return locator.createProxyInstance(new EJBInvocationHandler<T>(locator));
+        return locator.createProxyInstance(new EJBInvocationHandler<T>(namingProvider, locator));
     }
 
     /**
