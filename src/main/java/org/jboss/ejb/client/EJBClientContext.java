@@ -27,6 +27,7 @@ import static java.security.AccessController.doPrivileged;
 import java.net.URI;
 import java.security.PrivilegedAction;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.function.Supplier;
 
@@ -57,6 +58,7 @@ public final class EJBClientContext extends Attachable implements Contextual<EJB
 
     private static final EJBClientInterceptor[] NO_INTERCEPTORS = new EJBClientInterceptor[0];
     private static final EJBTransportProvider[] NO_TRANSPORT_PROVIDERS = new EJBTransportProvider[0];
+    private static final DiscoveryProvider[] NO_DISCOVERY_PROVIDERS = new DiscoveryProvider[0];
 
     static final String FILTER_ATTR_EJB_APP = "ejb-app";
     static final String FILTER_ATTR_EJB_MODULE = "ejb-module";
@@ -72,6 +74,7 @@ public final class EJBClientContext extends Attachable implements Contextual<EJB
 
     private final EJBClientInterceptor[] interceptors;
     private final EJBTransportProvider[] transportProviders;
+    private final DiscoveryProvider[] discoveryProviders;
     private final long invocationTimeout;
     private final Discovery discovery;
 
@@ -96,20 +99,113 @@ public final class EJBClientContext extends Attachable implements Contextual<EJB
             }
         }
         if (builder.discoveryProviders != null) discoveryProviders.addAll(builder.discoveryProviders);
-        discovery = Discovery.create(discoveryProviders.toArray(new DiscoveryProvider[discoveryProviders.size()]));
+        discovery = Discovery.create(this.discoveryProviders = discoveryProviders.toArray(NO_DISCOVERY_PROVIDERS));
         invocationTimeout = 0;
     }
 
+    /**
+     * Get the context manager.  Simply calls the {@code static} method {@link #getContextManager()}.
+     *
+     * @return the context manager (not {@code null})
+     */
     public ContextManager<EJBClientContext> getInstanceContextManager() {
         return getContextManager();
     }
 
+    /**
+     * Get the context manager.
+     *
+     * @return the context manager (not {@code null})
+     */
     public static ContextManager<EJBClientContext> getContextManager() {
         return CONTEXT_MANAGER;
     }
 
+    /**
+     * Get the configured invocation timeout.  A value of zero indicates that invocations never time out.
+     *
+     * @return the configured invocation timeout
+     */
     public long getInvocationTimeout() {
         return invocationTimeout;
+    }
+
+    /**
+     * Get a copy of this context with the given interceptor(s) added.  If the array is {@code null} or empty, the
+     * current context is returned as-is.
+     *
+     * @param interceptors the interceptor(s) to add
+     * @return the new context (not {@code null})
+     */
+    public EJBClientContext withAddedInterceptors(EJBClientInterceptor... interceptors) {
+        if (interceptors == null) {
+            return this;
+        }
+        final int length = interceptors.length;
+        if (length == 0) {
+            return this;
+        }
+        final Builder builder = new Builder(this);
+        boolean construct = false;
+        for (EJBClientInterceptor interceptor : interceptors) {
+            if (interceptor != null) {
+                builder.addInterceptor(interceptor);
+                construct = true;
+            }
+        }
+        return construct ? builder.build() : this;
+    }
+
+    /**
+     * Get a copy of this context with the given discovery provider(s) added.  If the array is {@code null} or empty, the
+     * current context is returned as-is.
+     *
+     * @param discoveryProviders the discovery providers(s) to add
+     * @return the new context (not {@code null})
+     */
+    public EJBClientContext withAddedDiscoveryProviders(DiscoveryProvider... discoveryProviders) {
+        if (discoveryProviders == null) {
+            return this;
+        }
+        final int length = discoveryProviders.length;
+        if (length == 0) {
+            return this;
+        }
+        final Builder builder = new Builder(this);
+        boolean construct = false;
+        for (DiscoveryProvider discoveryProvider : discoveryProviders) {
+            if (discoveryProvider != null) {
+                builder.addDiscoveryProvider(discoveryProvider);
+                construct = true;
+            }
+        }
+        return construct ? builder.build() : this;
+    }
+
+    /**
+     * Get a copy of this context with the given transport provider(s) added.  If the array is {@code null} or empty, the
+     * current context is returned as-is.
+     *
+     * @param transportProviders the transport providers(s) to add
+     * @return the new context (not {@code null})
+     */
+    public EJBClientContext withAddedTransportProviders(EJBTransportProvider... transportProviders) {
+        if (transportProviders == null) {
+            return this;
+        }
+        final int length = transportProviders.length;
+        if (length == 0) {
+            return this;
+        }
+        final Builder builder = new Builder(this);
+        boolean construct = false;
+        for (EJBTransportProvider transportProvider : transportProviders) {
+            if (transportProvider != null) {
+                builder.addTransportProvider(transportProvider);
+                construct = true;
+            }
+        }
+        return construct ? builder.build() : this;
     }
 
     EJBReceiver getTransportProvider(final String scheme) {
@@ -125,6 +221,18 @@ public final class EJBClientContext extends Attachable implements Contextual<EJB
         return discovery.discover(EJB_SERVICE_TYPE, filterSpec);
     }
 
+    EJBTransportProvider[] getTransportProviders() {
+        return transportProviders;
+    }
+
+    Discovery getDiscovery() {
+        return discovery;
+    }
+
+    DiscoveryProvider[] getDiscoveryProviders() {
+        return discoveryProviders;
+    }
+
     /**
      * A builder for EJB client contexts.
      */
@@ -138,6 +246,21 @@ public final class EJBClientContext extends Attachable implements Contextual<EJB
          * Construct a new instance.
          */
         public Builder() {
+        }
+
+        Builder(final EJBClientContext ejbClientContext) {
+            final EJBClientInterceptor[] interceptors = ejbClientContext.getInterceptors();
+            if (interceptors.length > 0) {
+                this.interceptors = new ArrayList<>(Arrays.asList(interceptors));
+            }
+            final EJBTransportProvider[] transportProviders = ejbClientContext.getTransportProviders();
+            if (transportProviders.length > 0) {
+                this.transportProviders = new ArrayList<>(Arrays.asList(transportProviders));
+            }
+            final DiscoveryProvider[] discoveryProviders = ejbClientContext.getDiscoveryProviders();
+            if (discoveryProviders.length > 0) {
+                this.discoveryProviders = new ArrayList<>(Arrays.asList(discoveryProviders));
+            }
         }
 
         public void addInterceptor(EJBClientInterceptor interceptor) {
