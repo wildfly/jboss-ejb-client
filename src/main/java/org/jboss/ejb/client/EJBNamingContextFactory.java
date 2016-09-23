@@ -1,6 +1,6 @@
 /*
  * JBoss, Home of Professional Open Source.
- * Copyright 2015, Red Hat, Inc., and individual contributors
+ * Copyright 2016, Red Hat, Inc., and individual contributors
  * as indicated by the @author tags. See the copyright.txt file in the
  * distribution for a full listing of individual contributors.
  *
@@ -20,28 +20,30 @@
  * 02110-1301 USA, or see the FSF site: http://www.fsf.org.
  */
 
-package org.jboss.ejb.client.naming;
-
-import java.net.URI;
+package org.jboss.ejb.client;
 
 import javax.naming.Context;
+import javax.naming.NamingException;
 
 import org.kohsuke.MetaInfServices;
+import org.wildfly.naming.client.NamingContextFactory;
 import org.wildfly.naming.client.NamingProvider;
+import org.wildfly.naming.client.remote.RemoteNamingProvider;
 import org.wildfly.naming.client.util.FastHashtable;
 
 /**
+ * The naming context factory for EJB JNDI names.  This covers any names that begin with {@code ejb:}.
+ *
  * @author <a href="mailto:david.lloyd@redhat.com">David M. Lloyd</a>
  */
 @MetaInfServices
-public final class EJBNamingProvider implements NamingProvider {
-
-    public boolean supportsUriScheme(final String providerScheme, final String nameScheme) {
-        return nameScheme != null && nameScheme.equals("ejb");
+public final class EJBNamingContextFactory implements NamingContextFactory {
+    public boolean supportsUriScheme(final NamingProvider namingProvider, final String nameScheme) {
+        return namingProvider instanceof RemoteNamingProvider && "ejb".equals(nameScheme);
     }
 
-    public Context createRootContext(final String nameScheme, final URI providerUri, final FastHashtable<String, Object> env) {
+    public Context createRootContext(final NamingProvider namingProvider, final String nameScheme, final FastHashtable<String, Object> env) throws NamingException {
         assert nameScheme.equals("ejb");
-        return new EJBRootContext(providerUri, env);
+        return new EJBRootContext(namingProvider, env);
     }
 }

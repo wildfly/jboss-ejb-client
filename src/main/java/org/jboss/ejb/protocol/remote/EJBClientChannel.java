@@ -37,6 +37,7 @@ import javax.ejb.CreateException;
 import javax.ejb.EJBException;
 import javax.ejb.NoSuchEJBException;
 
+import org.jboss.ejb._private.Logs;
 import org.jboss.ejb.client.Affinity;
 import org.jboss.ejb.client.AttachmentKey;
 import org.jboss.ejb.client.AttachmentKeys;
@@ -449,6 +450,9 @@ class EJBClientChannel {
                         // todo: glue stack traces
                         break;
                     }
+                    case Protocol.CANCEL_RESPONSE: {
+                        throw Logs.REMOTING.requestCancelled();
+                    }
                     case Protocol.NO_SUCH_EJB: {
                         final String message = response.readUTF();
                         throw new NoSuchEJBException(message);
@@ -538,6 +542,11 @@ class EJBClientChannel {
                 case Protocol.INVOCATION_RESPONSE: {
                     free();
                     receiverInvocationContext.resultReady(new MethodCallResultProducer(inputStream, id));
+                    break;
+                }
+                case Protocol.CANCEL_RESPONSE: {
+                    free();
+                    receiverInvocationContext.resultReady(new EJBReceiverInvocationContext.ResultProducer.Failed(Logs.REMOTING.requestCancelled()));
                     break;
                 }
                 case Protocol.APPLICATION_EXCEPTION: {

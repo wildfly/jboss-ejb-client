@@ -44,6 +44,9 @@ import org.wildfly.discovery.ServiceType;
 import org.wildfly.discovery.spi.DiscoveryProvider;
 import org.wildfly.discovery.spi.DiscoveryRequest;
 import org.wildfly.discovery.spi.DiscoveryResult;
+import org.wildfly.naming.client.NamingProvider;
+import org.wildfly.naming.client.remote.RemoteNamingProvider;
+import org.xnio.FinishedIoFuture;
 import org.xnio.IoFuture;
 
 /**
@@ -76,16 +79,18 @@ class RemoteEJBReceiver extends EJBReceiver implements DiscoveryProvider {
     protected void processInvocation(final EJBReceiverInvocationContext receiverContext) throws Exception {
         final EJBClientInvocationContext clientInvocationContext = receiverContext.getClientInvocationContext();
         final EJBLocator<?> locator = clientInvocationContext.getLocator();
-        final IoFuture<Connection> futureConnection = getConnection(locator);
+        final NamingProvider namingProvider = receiverContext.getNamingProvider();
+        final IoFuture<Connection> futureConnection = getConnection(locator, namingProvider);
         // this actually causes the invocation to move forward
         futureConnection.addNotifier(NOTIFIER, receiverContext);
     }
 
     protected boolean cancelInvocation(final EJBReceiverInvocationContext receiverContext, final boolean cancelIfRunning) {
+        final NamingProvider namingProvider = receiverContext.getNamingProvider();
         final EJBClientInvocationContext clientInvocationContext = receiverContext.getClientInvocationContext();
         final EJBLocator<?> locator = clientInvocationContext.getLocator();
         try {
-            final IoFuture<Connection> futureConnection = getConnection(locator);
+            final IoFuture<Connection> futureConnection = getConnection(locator, namingProvider);
             final Connection connection = futureConnection.get();
             final EJBClientChannel channel = EJBClientChannel.from(connection);
             return channel.cancelInvocation(receiverContext, cancelIfRunning);
@@ -96,7 +101,7 @@ class RemoteEJBReceiver extends EJBReceiver implements DiscoveryProvider {
 
     protected <T> StatefulEJBLocator<T> createSession(final StatelessEJBLocator<T> statelessLocator) throws Exception {
         try {
-            IoFuture<Connection> futureConnection = getConnection(statelessLocator);
+            IoFuture<Connection> futureConnection = getConnection(statelessLocator, null);
             final EJBClientChannel ejbClientChannel = EJBClientChannel.from(futureConnection.getInterruptibly());
             return ejbClientChannel.openSession(statelessLocator);
         } catch (IOException e) {
@@ -109,11 +114,15 @@ class RemoteEJBReceiver extends EJBReceiver implements DiscoveryProvider {
         }
     }
 
-    private <T> IoFuture<Connection> getConnection(final EJBLocator<T> statelessLocator) throws IOException {
-        final Affinity affinity = statelessLocator.getAffinity();
+    private <T> IoFuture<Connection> getConnection(final EJBLocator<T> locator, final NamingProvider namingProvider) throws IOException {
+        final Connection namingConnection = namingProvider instanceof RemoteNamingProvider ? ((RemoteNamingProvider) namingProvider).getConnection() : null;
+        final Affinity affinity = locator.getAffinity();
         final URI target;
         if (affinity instanceof URIAffinity) {
             target = ((URIAffinity) affinity).getUri();
+            if (namingConnection != null && target.equals(namingConnection.getPeerURI())) {
+                return new FinishedIoFuture<>(namingConnection);
+            }
         } else {
             throw new IllegalArgumentException("Invalid EJB affinity");
         }

@@ -45,7 +45,7 @@ final class Protocol {
     public static final int CANCEL_REQUEST         = 0x04; // c → s
     public static final int INVOCATION_RESPONSE    = 0x05; // s → c
     public static final int APPLICATION_EXCEPTION  = 0x06; // s → c
-    // unused                                      = 0x07;
+    public static final int CANCEL_RESPONSE        = 0x07; // s → c
     public static final int MODULE_AVAILABLE       = 0x08; // s → c
     public static final int MODULE_UNAVAILABLE     = 0x09; // s → c
     public static final int NO_SUCH_EJB            = 0x0A; // s → c

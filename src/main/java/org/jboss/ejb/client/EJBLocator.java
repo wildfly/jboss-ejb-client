@@ -301,6 +301,15 @@ public abstract class EJBLocator<T> implements Serializable {
     }
 
     /**
+     * Get the EJB identifier for this locator.
+     *
+     * @return the EJB identifier
+     */
+    public EJBIdentifier getIdentifier() {
+        return identifier;
+    }
+
+    /**
      * Get the hash code for this instance.
      *
      * @return the hash code for this instance
@@ -394,9 +403,11 @@ public abstract class EJBLocator<T> implements Serializable {
                 (String) fields.get("beanName", null),
                 (String) fields.get("distinctName", null)
             );
-            viewTypeSetter.invokeExact(fields.get("viewType", null));
-            identifierSetter.invokeExact(identifier);
-            affinitySetter.invokeExact(fields.get("affinity", Affinity.NONE));
+            viewTypeSetter.invokeExact(this, (Class<?>) fields.get("viewType", null));
+            identifierSetter.invokeExact(this, identifier);
+            affinitySetter.invokeExact(this, (Affinity) fields.get("affinity", Affinity.NONE));
+        } catch (ClassNotFoundException | IOException | RuntimeException | Error e) {
+            throw e;
         } catch (Throwable t) {
             throw new UndeclaredThrowableException(t);
         }
@@ -413,6 +424,7 @@ public abstract class EJBLocator<T> implements Serializable {
         fields.put("moduleName", identifier.getModuleName());
         fields.put("beanName", identifier.getBeanName());
         fields.put("distinctName", identifier.getDistinctName());
+        oos.writeFields();
     }
 
     @Override

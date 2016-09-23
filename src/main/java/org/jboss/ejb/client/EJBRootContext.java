@@ -1,6 +1,6 @@
 /*
  * JBoss, Home of Professional Open Source.
- * Copyright 2015, Red Hat, Inc., and individual contributors
+ * Copyright 2016, Red Hat, Inc., and individual contributors
  * as indicated by the @author tags. See the copyright.txt file in the
  * distribution for a full listing of individual contributors.
  *
@@ -20,7 +20,7 @@
  * 02110-1301 USA, or see the FSF site: http://www.fsf.org.
  */
 
-package org.jboss.ejb.client.naming;
+package org.jboss.ejb.client;
 
 import java.net.URI;
 import java.security.AccessController;
@@ -32,21 +32,21 @@ import javax.naming.NameClassPair;
 import javax.naming.NamingException;
 
 import org.jboss.ejb._private.Logs;
-import org.jboss.ejb.client.Affinity;
-import org.jboss.ejb.client.EJBClient;
-import org.jboss.ejb.client.EJBLocator;
-import org.jboss.ejb.client.StatelessEJBLocator;
 import org.wildfly.naming.client.AbstractContext;
 import org.wildfly.naming.client.CloseableNamingEnumeration;
+import org.wildfly.naming.client.NamingProvider;
 import org.wildfly.naming.client.SimpleName;
 import org.wildfly.naming.client.store.RelativeContext;
 import org.wildfly.naming.client.util.FastHashtable;
 
 class EJBRootContext extends AbstractContext {
     private final Affinity affinity;
+    private final NamingProvider namingProvider;
 
-    EJBRootContext(final URI providerUri, final FastHashtable<String, Object> env) {
+    EJBRootContext(final NamingProvider namingProvider, final FastHashtable<String, Object> env) {
         super(env);
+        this.namingProvider = namingProvider;
+        final URI providerUri = namingProvider.getProviderUri();
         if (providerUri == null) {
             affinity = Affinity.NONE;
         } else {
@@ -133,7 +133,7 @@ class EJBRootContext extends AbstractContext {
         } else {
             locator = createLocator(view, appName, moduleName, beanName, distinctName);
         }
-        return EJBClient.createProxy(locator);
+        return EJBClient.createProxy(namingProvider, locator);
     }
 
     private static ClassLoader getContextClassLoader(){
