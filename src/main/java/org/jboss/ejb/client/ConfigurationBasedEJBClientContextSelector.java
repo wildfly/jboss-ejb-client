@@ -79,14 +79,16 @@ public final class ConfigurationBasedEJBClientContextSelector implements Supplie
     }
 
     private static void parseEJBClientConfiguration(final ConfigurationXMLStreamReader streamReader, final EJBClientContext.Builder builder) throws ConfigXMLParseException {
-        if (streamReader.nextTag() == START_ELEMENT) {
-            if (! streamReader.getNamespaceURI().equals(NS_EJB_CLIENT_3_0) || ! streamReader.getLocalName().equals("jboss-ejb-client")) {
-                throw streamReader.unexpectedElement();
+        if (streamReader.hasNext()) {
+            if (streamReader.nextTag() == START_ELEMENT) {
+                if (! streamReader.getNamespaceURI().equals(NS_EJB_CLIENT_3_0) || ! streamReader.getLocalName().equals("jboss-ejb-client")) {
+                    throw streamReader.unexpectedElement();
+                }
+                parseEJBClientType(streamReader, builder);
+                return;
             }
-            parseEJBClientType(streamReader, builder);
-            return;
+            throw streamReader.unexpectedContent();
         }
-        throw streamReader.unexpectedContent();
     }
 
     private static void parseEJBClientType(final ConfigurationXMLStreamReader streamReader, final EJBClientContext.Builder builder) throws ConfigXMLParseException {
