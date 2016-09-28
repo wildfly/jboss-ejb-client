@@ -75,7 +75,7 @@ import org.xnio.OptionMap;
 @SuppressWarnings("deprecation")
 class EJBClientChannel {
 
-    static final ClientServiceHandle<EJBClientChannel> SERVICE_HANDLE = new ClientServiceHandle<>("ejb", EJBClientChannel::construct);
+    static final ClientServiceHandle<EJBClientChannel> SERVICE_HANDLE = new ClientServiceHandle<>("jboss.ejb", EJBClientChannel::construct);
     private final MarshallerFactory marshallerFactory;
 
     private final Channel channel;
