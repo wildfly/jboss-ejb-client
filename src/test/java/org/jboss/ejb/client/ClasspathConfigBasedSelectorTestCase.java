@@ -48,7 +48,7 @@ public class ClasspathConfigBasedSelectorTestCase {
     private static final Logger logger = Logger.getLogger(ClasspathConfigBasedSelectorTestCase.class);
 
     private static DummyServer server;
-    private static final String SERVER_ENDPOINT_NAME = "classpath-config-based-test-case-endpoint";
+    private static final String SERVER_ENDPOINT_NAME = "test-endpoint-two";
 
     private static ClassLoader originalTCCL;
     private static String skipClassLoaderScanSysPropPreviousValue;
@@ -61,7 +61,7 @@ public class ClasspathConfigBasedSelectorTestCase {
         originalTCCL = Thread.currentThread().getContextClassLoader();
         Thread.currentThread().setContextClassLoader(resourceSwitchingCL);
 
-        server = new DummyServer("localhost", 7999, SERVER_ENDPOINT_NAME);
+        server = new DummyServer("localhost", 7999);
         server.start();
         server.register("dummy-app", "dummy-module", "", EchoBean.class.getSimpleName(), new EchoBean());
 

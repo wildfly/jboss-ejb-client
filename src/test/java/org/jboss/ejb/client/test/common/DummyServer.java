@@ -34,19 +34,26 @@ import org.jboss.marshalling.SimpleDataInput;
 import org.jboss.remoting3.Channel;
 import org.jboss.remoting3.CloseHandler;
 import org.jboss.remoting3.Endpoint;
+import org.jboss.remoting3.EndpointBuilder;
 import org.jboss.remoting3.MessageInputStream;
 import org.jboss.remoting3.MessageOutputStream;
 import org.jboss.remoting3.OpenListener;
-import org.jboss.remoting3.Remoting;
-import org.jboss.remoting3.remote.RemoteConnectionProviderFactory;
-import org.jboss.remoting3.security.SimpleServerAuthenticationProvider;
+import org.jboss.remoting3.ServiceRegistrationException;
 import org.jboss.remoting3.spi.NetworkServerProvider;
+import org.wildfly.security.auth.realm.SimpleMapBackedSecurityRealm;
+import org.wildfly.security.auth.server.MechanismConfiguration;
+import org.wildfly.security.auth.server.SaslAuthenticationFactory;
+import org.wildfly.security.auth.server.SecurityDomain;
+import org.wildfly.security.password.interfaces.ClearPassword;
+import org.wildfly.security.permission.PermissionVerifier;
+import org.wildfly.security.sasl.anonymous.AnonymousServerFactory;
+import org.wildfly.security.sasl.util.SaslFactories;
 import org.xnio.IoUtils;
 import org.xnio.OptionMap;
 import org.xnio.Options;
 import org.xnio.Sequence;
+import org.xnio.StreamConnection;
 import org.xnio.channels.AcceptingChannel;
-import org.xnio.channels.ConnectedStreamChannel;
 
 import javax.ejb.NoSuchEJBException;
 import java.io.DataInputStream;
@@ -85,79 +92,91 @@ public class DummyServer {
     private static final ThreadLocal<Boolean> requestCompressed = new ThreadLocal<Boolean>();
     private static final ThreadLocal<Boolean> responseCompressed = new ThreadLocal<Boolean>();
 
+    private static final int SERVER_ONE_PORT = 6999;
+
     private Endpoint endpoint;
 
     private final int port;
     private final String host;
-    private final String endpointName;
 
-    private AcceptingChannel<? extends ConnectedStreamChannel> server;
+    private AcceptingChannel<StreamConnection> server;
     private Map<EJBModuleIdentifier, Map<String, Object>> registeredEJBs = new ConcurrentHashMap<EJBModuleIdentifier, Map<String, Object>>();
 
     private final Collection<Channel> openChannels = new CopyOnWriteArraySet<Channel>();
 
     public DummyServer(final String host, final int port) {
-        this(host, port, "default-dummy-server-endpoint");
-    }
-
-    public DummyServer(final String host, final int port, final String endpointName) {
         this.host = host;
         this.port = port;
-        this.endpointName = endpointName;
     }
 
     public void start() throws IOException {
         logger.info("Starting " + this);
-        final OptionMap options = OptionMap.EMPTY;
-        endpoint = Remoting.createEndpoint(this.endpointName, options);
-        endpoint.addConnectionProvider("remote", new RemoteConnectionProviderFactory(), OptionMap.create(Options.SSL_ENABLED, Boolean.FALSE));
+        if (port == SERVER_ONE_PORT) {
+            endpoint = Endpoint.getCurrent();
+        } else {
+            endpoint = Endpoint.builder().setEndpointName("test-endpoint-two").build();
+        }
+
         final NetworkServerProvider serverProvider = endpoint.getConnectionProviderInterface("remote", NetworkServerProvider.class);
         final SocketAddress bindAddress = new InetSocketAddress(InetAddress.getByName(host), port);
-        final SimpleServerAuthenticationProvider authenticationProvider = new SimpleServerAuthenticationProvider();
-        authenticationProvider.addUser("test", "localhost.localdomain", "test".toCharArray());
-        final OptionMap serverOptions = OptionMap.create(Options.SASL_MECHANISMS, Sequence.of("ANONYMOUS"), Options.SASL_POLICY_NOANONYMOUS, Boolean.FALSE);
-        this.server = serverProvider.createServer(bindAddress, serverOptions, authenticationProvider, null);
+        final SecurityDomain.Builder domainBuilder = SecurityDomain.builder();
+        final SimpleMapBackedSecurityRealm realm = new SimpleMapBackedSecurityRealm();
+        realm.setPasswordMap("test", ClearPassword.createRaw(ClearPassword.ALGORITHM_CLEAR, "test".toCharArray()));
+        domainBuilder.addRealm("default", realm).build();
+        domainBuilder.setDefaultRealmName("default");
+        domainBuilder.setPermissionMapper((permissionMappable, roles) -> PermissionVerifier.ALL);
+        SecurityDomain testDomain = domainBuilder.build();
+        SaslAuthenticationFactory saslAuthenticationFactory = SaslAuthenticationFactory.builder()
+                .setSecurityDomain(testDomain)
+                .setMechanismConfigurationSelector(mechanismInformation -> "ANONYMOUS".equals(mechanismInformation.getMechanismName()) ? MechanismConfiguration.EMPTY : null)
+                .setFactory(new AnonymousServerFactory())
+                .build();
+        this.server = serverProvider.createServer(bindAddress, OptionMap.EMPTY, saslAuthenticationFactory, null);
 
-        endpoint.registerService("jboss.ejb", new OpenListener() {
-            @Override
-            public void channelOpened(Channel channel) {
-                logger.info("Channel opened " + channel);
-                channel.addCloseHandler(new CloseHandler<Channel>() {
-                    @Override
-                    public void handleClose(Channel closed, IOException exception) {
-                        logger.info("Bye " + closed);
+        try {
+            endpoint.registerService("jboss.ejb", new OpenListener() {
+                @Override
+                public void channelOpened(Channel channel) {
+                    logger.info("Channel opened " + channel);
+                    channel.addCloseHandler(new CloseHandler<Channel>() {
+                        @Override
+                        public void handleClose(Channel closed, IOException exception) {
+                            logger.info("Bye " + closed);
+                        }
+                    });
+                    try {
+                        this.sendVersionMessage(channel);
+                    } catch (IOException e) {
+                        logger.error("Could not send version message to channel " + channel + " Closing the channel");
+                        IoUtils.safeClose(channel);
                     }
-                });
-                try {
-                    this.sendVersionMessage(channel);
-                } catch (IOException e) {
-                    logger.error("Could not send version message to channel " + channel + " Closing the channel");
-                    IoUtils.safeClose(channel);
+                    Channel.Receiver handler = new VersionReceiver();
+                    channel.receiveMessage(handler);
                 }
-                Channel.Receiver handler = new VersionReceiver();
-                channel.receiveMessage(handler);
-            }
 
-            @Override
-            public void registrationTerminated() {
-                logger.info("Registration terminated for open listener");
-            }
-
-            private void sendVersionMessage(final Channel channel) throws IOException {
-                final DataOutputStream outputStream = new DataOutputStream(channel.writeMessage());
-                // write the version
-                outputStream.write(0x02);
-                // write the marshaller type count
-                PackedInteger.writePackedInteger(outputStream, supportedMarshallerTypes.length);
-                // write the marshaller types
-                for (int i = 0; i < supportedMarshallerTypes.length; i++) {
-                    outputStream.writeUTF(supportedMarshallerTypes[i]);
+                @Override
+                public void registrationTerminated() {
+                    logger.info("Registration terminated for open listener");
                 }
-                outputStream.flush();
-                outputStream.close();
-            }
 
-        }, OptionMap.EMPTY);
+                private void sendVersionMessage(final Channel channel) throws IOException {
+                    final DataOutputStream outputStream = new DataOutputStream(channel.writeMessage());
+                    // write the version
+                    outputStream.write(0x02);
+                    // write the marshaller type count
+                    PackedInteger.writePackedInteger(outputStream, supportedMarshallerTypes.length);
+                    // write the marshaller types
+                    for (int i = 0; i < supportedMarshallerTypes.length; i++) {
+                        outputStream.writeUTF(supportedMarshallerTypes[i]);
+                    }
+                    outputStream.flush();
+                    outputStream.close();
+                }
+
+            }, OptionMap.EMPTY);
+        } catch (ServiceRegistrationException ignored) {
+            // already registered
+        }
     }
 
     public void stop() throws IOException {

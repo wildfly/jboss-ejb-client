@@ -22,8 +22,16 @@
 
 package org.jboss.ejb.client.remoting;
 
+import static java.security.AccessController.doPrivileged;
+
 import org.jboss.remoting3.Connection;
 import org.jboss.remoting3.Endpoint;
+import org.jboss.remoting3.UnknownURISchemeException;
+import org.wildfly.security.auth.client.AuthenticationConfiguration;
+import org.wildfly.security.auth.client.AuthenticationContext;
+import org.wildfly.security.auth.client.AuthenticationContextConfigurationClient;
+import org.wildfly.security.auth.client.MatchRule;
+import org.wildfly.security.sasl.util.SaslFactories;
 import org.xnio.IoFuture;
 import org.xnio.OptionMap;
 
@@ -34,6 +42,8 @@ import java.net.Inet4Address;
 import java.net.Inet6Address;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
+import java.net.URI;
+import java.net.URISyntaxException;
 
 /**
  * @author Jaikiran Pai
@@ -56,6 +66,8 @@ public class NetworkUtil {
     private static long nwsl(long arg, int places) {
         return places <= 0 ? arg : places >= 64 ? 0L : arg << places;
     }
+
+    private static final AuthenticationContextConfigurationClient AUTH_CONFIGURATION_CLIENT = doPrivileged(AuthenticationContextConfigurationClient.ACTION);
 
     /**
      * Returns true if the passed <code>address</code> is part of the network represented by the passed <code>networkAddress</code>
@@ -150,6 +162,25 @@ public class NetworkUtil {
     public static IoFuture<Connection> connect(final Endpoint endpoint, final String protocol, final InetSocketAddress destination,
                                                final InetSocketAddress sourceBindAddress, final OptionMap connectionCreationOptions,
                                                final CallbackHandler callbackHandler, final SSLContext sslContext) throws IOException {
-        return endpoint.connect(protocol, sourceBindAddress, destination, connectionCreationOptions, callbackHandler, sslContext);
+        if (! endpoint.isValidUriScheme(protocol)) {
+            throw new UnknownURISchemeException("No connection provider for URI scheme \"" + protocol + "\" is installed");
+        }
+        final URI uri;
+        try {
+            uri = new URI(protocol, "", destination.getHostString(), destination.getPort(), "", "", "");
+        } catch (URISyntaxException e) {
+            throw new IllegalArgumentException(e);
+        }
+
+        AuthenticationContext captured = AuthenticationContext.captureCurrent();
+        AuthenticationConfiguration mergedConfiguration = AUTH_CONFIGURATION_CLIENT.getAuthenticationConfiguration(uri, captured);
+        if (callbackHandler != null) {
+            mergedConfiguration = mergedConfiguration.useCallbackHandler(callbackHandler);
+        }
+        if (sslContext != null) {
+            mergedConfiguration = mergedConfiguration.useSslContext(sslContext);
+        }
+        final AuthenticationContext context = AuthenticationContext.empty().with(MatchRule.ALL, mergedConfiguration);
+        return endpoint.connect(uri, sourceBindAddress, connectionCreationOptions, context, SaslFactories.getElytronSaslClientFactory());
     }
 }

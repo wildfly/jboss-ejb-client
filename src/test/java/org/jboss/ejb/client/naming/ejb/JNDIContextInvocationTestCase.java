@@ -35,11 +35,12 @@ import org.jboss.ejb.client.test.common.EchoRemote;
 import org.jboss.logging.Logger;
 import org.jboss.remoting3.Connection;
 import org.jboss.remoting3.Endpoint;
-import org.jboss.remoting3.Remoting;
-import org.jboss.remoting3.remote.RemoteConnectionProviderFactory;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
+import org.wildfly.security.auth.client.AuthenticationConfiguration;
+import org.wildfly.security.auth.client.AuthenticationContext;
+import org.wildfly.security.auth.client.MatchRule;
 import org.xnio.IoFuture;
 import org.xnio.OptionMap;
 import org.xnio.Options;
@@ -85,7 +86,7 @@ public class JNDIContextInvocationTestCase {
      */
     @Before
     public void beforeTest() throws IOException {
-        server = new DummyServer(serverHost, serverPort, "jndi-invocation-test-server");
+        server = new DummyServer(serverHost, serverPort);
         server.start();
 
         final EchoRemote echoBean = new EchoBean();
@@ -277,12 +278,15 @@ public class JNDIContextInvocationTestCase {
      * @throws Exception
      */
     private EJBReceiver createReceiver() throws Exception {
-        final Endpoint endpoint = Remoting.createEndpoint("jndi-context-test-endpoint", OptionMap.EMPTY);
-        endpoint.addConnectionProvider("remote", new RemoteConnectionProviderFactory(), OptionMap.create(Options.SSL_ENABLED, Boolean.FALSE));
-
+        final Endpoint endpoint = Endpoint.getCurrent();
+        final AuthenticationContext authenticationContext = AuthenticationContext.empty()
+                .with(
+                        MatchRule.ALL,
+                        AuthenticationConfiguration.EMPTY
+                                .useAnonymous());
 
         // open a connection
-        final IoFuture<Connection> futureConnection = endpoint.connect(new URI("remote://" + serverHost + ":" + serverPort), OptionMap.create(Options.SASL_POLICY_NOANONYMOUS, Boolean.FALSE), new AnonymousCallbackHandler());
+        final IoFuture<Connection> futureConnection = endpoint.connect(new URI("remote://" + serverHost + ":" + serverPort), OptionMap.create(Options.SASL_POLICY_NOANONYMOUS, Boolean.FALSE), authenticationContext);
         final Connection connection = get(futureConnection, 5, TimeUnit.SECONDS);
         return new RemotingConnectionEJBReceiver(connection, "remote");
     }

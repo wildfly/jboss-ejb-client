@@ -57,7 +57,7 @@ public class AsyncInvocationTestCase {
 
     @Before
     public void beforeTest() throws IOException {
-        server = new DummyServer("localhost", 6999, "async-invocation-test-server");
+        server = new DummyServer("localhost", 7999);
         server.start();
 
         final SlowEcho asyncBean = new AsyncBean();

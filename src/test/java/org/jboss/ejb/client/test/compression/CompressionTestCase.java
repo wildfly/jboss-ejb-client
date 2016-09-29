@@ -31,8 +31,6 @@ public class CompressionTestCase {
     private static final String MODULE_NAME = "my-bar-module";
     private static final String DISTINCT_NAME = "";
 
-    private static final String SERVER_NAME = "data-compression-test-server";
-
     private DummyServer server;
     private boolean serverStarted;
 
@@ -40,7 +38,7 @@ public class CompressionTestCase {
 
     @Before
     public void beforeTest() throws IOException {
-        server = new DummyServer("localhost", 6999, SERVER_NAME);
+        server = new DummyServer("localhost", 6999);
         server.start();
         serverStarted = true;
 

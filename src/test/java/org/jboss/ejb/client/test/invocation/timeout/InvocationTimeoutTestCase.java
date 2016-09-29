@@ -65,7 +65,7 @@ public class InvocationTimeoutTestCase {
     @Before
     public void beforeTest() throws IOException {
         // TODO: Come back to this once we enable a way to test this project against IPv6
-        server = new DummyServer("localhost", 6999, "invocation-timeout-test-server");
+        server = new DummyServer("localhost", 6999);
         server.start();
 
         final LazyMan slowBean = new SlowBean();

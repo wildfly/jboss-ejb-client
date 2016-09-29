@@ -24,8 +24,8 @@ package org.jboss.ejb.client.remoting;
 
 import java.io.Closeable;
 import java.io.IOException;
-import java.security.Principal;
-import java.util.Collection;
+import java.net.SocketAddress;
+import java.net.URI;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
@@ -43,7 +43,10 @@ import org.jboss.remoting3.CloseHandler;
 import org.jboss.remoting3.Connection;
 import org.jboss.remoting3.Endpoint;
 import org.jboss.remoting3.HandleableCloseable;
-import org.jboss.remoting3.security.UserInfo;
+import org.wildfly.security.auth.AuthenticationException;
+import org.wildfly.security.auth.client.PeerIdentity;
+import org.wildfly.security.auth.client.PeerIdentityContext;
+import org.wildfly.security.auth.server.SecurityIdentity;
 import org.xnio.IoFuture;
 import org.xnio.OptionMap;
 
@@ -219,13 +222,58 @@ class ConnectionPool {
         }
 
         @Override
-        public Collection<Principal> getPrincipals() {
-            return this.underlyingConnection.getPrincipals();
+        public SocketAddress getLocalAddress() {
+            return this.underlyingConnection.getLocalAddress();
         }
 
         @Override
-        public UserInfo getUserInfo() {
-            return this.underlyingConnection.getUserInfo();
+        public <S extends SocketAddress> S getLocalAddress(Class<S> type) {
+            return this.underlyingConnection.getLocalAddress(type);
+        }
+
+        @Override
+        public SocketAddress getPeerAddress() {
+            return this.underlyingConnection.getPeerAddress();
+        }
+
+        @Override
+        public <S extends SocketAddress> S getPeerAddress(Class<S> type) {
+            return this.underlyingConnection.getPeerAddress(type);
+        }
+
+        @Override
+        public URI getPeerURI() {
+            return this.underlyingConnection.getPeerURI();
+        }
+
+        @Override
+        public SecurityIdentity getLocalIdentity() {
+            return this.underlyingConnection.getLocalIdentity();
+        }
+
+        @Override
+        public SecurityIdentity getLocalIdentity(int id) {
+            return this.underlyingConnection.getLocalIdentity(id);
+        }
+
+        @Override
+        public int getPeerIdentityId() throws AuthenticationException {
+            return this.underlyingConnection.getPeerIdentityId();
+        }
+
+        @Override
+        public PeerIdentity getConnectionPeerIdentity() throws SecurityException {
+            return this.underlyingConnection.getConnectionPeerIdentity();
+        }
+
+        @Override
+        public PeerIdentity getConnectionAnonymousIdentity() {
+            return this.underlyingConnection.getConnectionAnonymousIdentity();
+        }
+
+        @Override
+        public PeerIdentityContext getPeerIdentityContext() {
+            return this.underlyingConnection.getPeerIdentityContext();
         }
 
         @Override

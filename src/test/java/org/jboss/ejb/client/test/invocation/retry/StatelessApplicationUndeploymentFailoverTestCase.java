@@ -56,8 +56,8 @@ public class StatelessApplicationUndeploymentFailoverTestCase {
     private static final String MODULE_NAME = "my-bar-module";
     private static final String DISTINCT_NAME = "";
 
-    private static final String SERVER_ONE_NAME = "server-one";
-    private static final String SERVER_TWO_NAME = "server-two";
+    private static final String SERVER_ONE_NAME = "test-endpoint-one";
+    private static final String SERVER_TWO_NAME = "test-endpoint-two";
 
     private DummyServer serverOne;
     private DummyServer serverTwo;
@@ -71,8 +71,8 @@ public class StatelessApplicationUndeploymentFailoverTestCase {
     public void beforeTest() throws IOException {
         // start a couple of servers and deploy the beans into them
         // TODO: Come back to this once we enable a way to test this project against IPv6
-        serverOne = new DummyServer("localhost", 6999, SERVER_ONE_NAME);
-        serverTwo = new DummyServer("localhost", 7999, SERVER_TWO_NAME);
+        serverOne = new DummyServer("localhost", 6999);
+        serverTwo = new DummyServer("localhost", 7999);
 
         serverOne.start();
         serverOneStarted = true;

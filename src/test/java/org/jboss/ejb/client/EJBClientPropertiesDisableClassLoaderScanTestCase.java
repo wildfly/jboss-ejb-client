@@ -47,7 +47,6 @@ public class EJBClientPropertiesDisableClassLoaderScanTestCase {
     private static final Logger logger = Logger.getLogger(EJBClientPropertiesDisableClassLoaderScanTestCase.class);
 
     private static DummyServer server;
-    private static final String SERVER_ENDPOINT_NAME = "disable-cl-scan-test-case-endpoint";
 
     private static ClassLoader originalTCCL;
 
@@ -65,7 +64,7 @@ public class EJBClientPropertiesDisableClassLoaderScanTestCase {
         System.setProperty("jboss.ejb.client.properties.skip.classloader.scan", "true");
         logger.info("Disabled classpath scan of jboss-ejb-client.properties by setting jboss.ejb.client.properties.skip.classloader.scan system property");
 
-        server = new DummyServer("localhost", 7999, SERVER_ENDPOINT_NAME);
+        server = new DummyServer("localhost", 7999);
         server.start();
         server.register("dummy-app", "dummy-module", "", EchoBean.class.getSimpleName(), new EchoBean());
     }
