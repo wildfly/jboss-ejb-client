@@ -50,8 +50,8 @@ public class MultipleConnectionsConfigBasedSelectorTestCase {
     private static final Logger logger = Logger.getLogger(MultipleConnectionsConfigBasedSelectorTestCase.class);
     private static DummyServer serverOne;
     private static DummyServer serverTwo;
-    private static final String SERVER_ONE_ENDPOINT_NAME = "config-based-multiple-connections-test-endpoint-one";
-    private static final String SERVER_TWO_ENDPOINT_NAME = "config-based-multiple-connections-test-endpoint-two";
+    private static final String SERVER_ONE_ENDPOINT_NAME = "test-endpoint-one";
+    private static final String SERVER_TWO_ENDPOINT_NAME = "test-endpoint-two";
 
     @BeforeClass
     public static void beforeClass() throws Exception {
@@ -64,12 +64,12 @@ public class MultipleConnectionsConfigBasedSelectorTestCase {
         }
         System.setProperty("jboss.ejb.client.properties.file.path", url.getPath());
 
-        serverOne = new DummyServer("localhost", 6999, SERVER_ONE_ENDPOINT_NAME);
+        serverOne = new DummyServer("localhost", 6999);
         serverOne.start();
         serverOne.register("dummy-app-one", "dummy-module-one", "", EchoBean.class.getSimpleName(), new EchoBean());
         serverOne.register("dummy-app-on-both-servers", "dummy-module-on-both-servers", "", EchoBean.class.getSimpleName(), new EchoBean());
 
-        serverTwo = new DummyServer("localhost", 7999, SERVER_TWO_ENDPOINT_NAME);
+        serverTwo = new DummyServer("localhost", 7999);
         serverTwo.start();
         serverTwo.register("dummy-app-two", "dummy-module-two", "", EchoBean.class.getSimpleName(), new EchoBean());
         serverTwo.register("dummy-app-on-both-servers", "dummy-module-on-both-servers", "", EchoBean.class.getSimpleName(), new EchoBean());

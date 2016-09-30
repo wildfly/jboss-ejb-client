@@ -311,7 +311,7 @@ public class ReconnectTestCase {
      * @throws IOException
      */
     private DummyServer startServer() throws IOException {
-        final DummyServer server = new DummyServer("localhost", 6999);
+        final DummyServer server = new DummyServer("localhost", 7999);
         server.start();
         return server;
     }

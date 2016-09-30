@@ -49,14 +49,13 @@ public class ClasspathEJBClientInterceptorsTestCase {
     private static final Logger logger = Logger.getLogger(ClasspathConfigBasedSelectorTestCase.class);
 
     private static DummyServer server;
-    private static final String SERVER_ENDPOINT_NAME = "classpath-ejb-client-interceptors-test-case-endpoint";
 
     // setup a resource switching classloader
     final ClassLoader resourceSwitchingCL = new ResourceSwitchingClassLoader("META-INF/services/" + EJBClientInterceptor.class.getName(), "ejb-client-interceptors." + EJBClientInterceptor.class.getName());
 
     @BeforeClass
     public static void beforeClass() throws Exception {
-        server = new DummyServer("localhost", 7999, SERVER_ENDPOINT_NAME);
+        server = new DummyServer("localhost", 7999);
         server.start();
         server.register("dummy-app", "dummy-module", "", EchoBean.class.getSimpleName(), new EchoBean());
     }

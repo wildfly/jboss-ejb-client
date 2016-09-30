@@ -33,18 +33,18 @@ import org.jboss.ejb.client.EJBClientContext;
 import org.jboss.ejb.client.EJBReceiver;
 import org.jboss.ejb.client.StatefulEJBLocator;
 import org.jboss.ejb.client.remoting.RemotingConnectionEJBReceiver;
-import org.jboss.ejb.client.test.common.AnonymousCallbackHandler;
 import org.jboss.ejb.client.test.common.DummyServer;
 import org.jboss.logging.Logger;
 import org.jboss.remoting3.Connection;
 import org.jboss.remoting3.Endpoint;
-import org.jboss.remoting3.Remoting;
-import org.jboss.remoting3.remote.RemoteConnectionProviderFactory;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
+import org.wildfly.security.auth.client.AuthenticationConfiguration;
+import org.wildfly.security.auth.client.AuthenticationContext;
+import org.wildfly.security.auth.client.MatchRule;
 import org.xnio.IoFuture;
 import org.xnio.OptionMap;
 import org.xnio.Options;
@@ -73,8 +73,8 @@ public class StatefulClusteredApplicationUndeploymentFailoverTestCase {
     private static final String MODULE_NAME = "my-bar-module";
     private static final String DISTINCT_NAME = "";
 
-    private static final String SERVER_ONE_NAME = "server-one";
-    private static final String SERVER_TWO_NAME = "server-two";
+    private static final String SERVER_ONE_NAME = "test-endpoint-one";
+    private static final String SERVER_TWO_NAME = "test-endpoint-two";
 
     private DummyServer serverOne;
     private DummyServer serverTwo;
@@ -88,8 +88,8 @@ public class StatefulClusteredApplicationUndeploymentFailoverTestCase {
     public void beforeTest() throws Exception {
         // start a couple of servers and deploy the beans into them
         // TODO: Come back to this once we enable a way to test this project against IPv6
-        serverOne = new DummyServer("localhost", 6999, SERVER_ONE_NAME);
-        serverTwo = new DummyServer("localhost", 7999, SERVER_TWO_NAME);
+        serverOne = new DummyServer("localhost", 6999);
+        serverTwo = new DummyServer("localhost", 7999);
 
         serverOne.start();
         serverOneStarted = true;
@@ -291,19 +291,29 @@ public class StatefulClusteredApplicationUndeploymentFailoverTestCase {
     }
 
     private EJBReceiver getServerOneReceiver() throws IOException, URISyntaxException {
-        final Endpoint endpoint = Remoting.createEndpoint("endpoint", OptionMap.EMPTY);
-        endpoint.addConnectionProvider("remote", new RemoteConnectionProviderFactory(), OptionMap.create(Options.SSL_ENABLED, Boolean.FALSE));
+        final Endpoint endpoint = Endpoint.getCurrent();
+        final AuthenticationContext authenticationContext = AuthenticationContext.empty()
+                .with(
+                        MatchRule.ALL,
+                        AuthenticationConfiguration.EMPTY
+                                .useAnonymous());
+
+
         // open a connection
-        final IoFuture<Connection> futureConnection = endpoint.connect(new URI("remote://localhost:6999"), OptionMap.create(Options.SASL_POLICY_NOANONYMOUS, Boolean.FALSE), new AnonymousCallbackHandler());
+        final IoFuture<Connection> futureConnection = endpoint.connect(new URI("remote://localhost:6999"), OptionMap.create(Options.SASL_POLICY_NOANONYMOUS, Boolean.FALSE), authenticationContext);
         final Connection connection = get(futureConnection, 5, TimeUnit.SECONDS);
         return new RemotingConnectionEJBReceiver(connection, null, OptionMap.EMPTY, "remote");
     }
 
     private EJBReceiver getServerTwoReceiver() throws IOException, URISyntaxException {
-        final Endpoint endpoint = Remoting.createEndpoint("endpoint", OptionMap.EMPTY);
-        endpoint.addConnectionProvider("remote", new RemoteConnectionProviderFactory(), OptionMap.create(Options.SSL_ENABLED, Boolean.FALSE));
+        final Endpoint endpoint = Endpoint.getCurrent();
+        final AuthenticationContext authenticationContext = AuthenticationContext.empty()
+                .with(
+                        MatchRule.ALL,
+                        AuthenticationConfiguration.EMPTY
+                                .useAnonymous());
         // open a connection
-        final IoFuture<Connection> futureConnection = endpoint.connect(new URI("remote://localhost:7999"), OptionMap.create(Options.SASL_POLICY_NOANONYMOUS, Boolean.FALSE), new AnonymousCallbackHandler());
+        final IoFuture<Connection> futureConnection = endpoint.connect(new URI("remote://localhost:7999"), OptionMap.create(Options.SASL_POLICY_NOANONYMOUS, Boolean.FALSE), authenticationContext);
         final Connection connection = get(futureConnection, 5, TimeUnit.SECONDS);
         return new RemotingConnectionEJBReceiver(connection, null, OptionMap.EMPTY, "remote");
     }

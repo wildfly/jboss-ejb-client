@@ -28,19 +28,19 @@ import org.jboss.ejb.client.EJBClientContext;
 import org.jboss.ejb.client.EJBClientInterceptor;
 import org.jboss.ejb.client.EJBClientInvocationContext;
 import org.jboss.ejb.client.StatelessEJBLocator;
-import org.jboss.ejb.client.test.common.AnonymousCallbackHandler;
 import org.jboss.ejb.client.test.common.DummyServer;
 import org.jboss.logging.Logger;
 import org.jboss.ejb.client.test.common.EchoBean;
 import org.jboss.ejb.client.test.common.EchoRemote;
 import org.jboss.remoting3.Connection;
 import org.jboss.remoting3.Endpoint;
-import org.jboss.remoting3.Remoting;
-import org.jboss.remoting3.remote.RemoteConnectionProviderFactory;
 import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Test;
+import org.wildfly.security.auth.client.AuthenticationConfiguration;
+import org.wildfly.security.auth.client.AuthenticationContext;
+import org.wildfly.security.auth.client.MatchRule;
 import org.xnio.IoFuture;
 import org.xnio.OptionMap;
 import org.xnio.Options;
@@ -76,12 +76,15 @@ public class EJBClientAPIUsageTestCase {
         server.start();
         server.register("my-app", "my-module", "", EchoBean.class.getSimpleName(), new EchoBean());
 
-        final Endpoint endpoint = Remoting.createEndpoint("endpoint", OptionMap.EMPTY);
-        endpoint.addConnectionProvider("remote", new RemoteConnectionProviderFactory(), OptionMap.create(Options.SSL_ENABLED, Boolean.FALSE));
-
+        final Endpoint endpoint = Endpoint.getCurrent();
+        final AuthenticationContext authenticationContext = AuthenticationContext.empty()
+                .with(
+                        MatchRule.ALL,
+                        AuthenticationConfiguration.EMPTY
+                                .useAnonymous());
 
         // open a connection
-        final IoFuture<Connection> futureConnection = endpoint.connect(new URI("remote://localhost:6999"), OptionMap.create(Options.SASL_POLICY_NOANONYMOUS, Boolean.FALSE), new AnonymousCallbackHandler());
+        final IoFuture<Connection> futureConnection = endpoint.connect(new URI("remote://localhost:6999"), OptionMap.create(Options.SASL_POLICY_NOANONYMOUS, Boolean.FALSE), authenticationContext);
         connection = get(futureConnection, 5, TimeUnit.SECONDS);
     }
 

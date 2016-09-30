@@ -48,7 +48,7 @@ public class SingleConnectionConfigBasedSelectorTestCase {
     private static final Logger logger = Logger.getLogger(SingleConnectionConfigBasedSelectorTestCase.class);
 
     private static DummyServer server;
-    private static final String SERVER_ENDPOINT_NAME = "single-connection-test-case-endpoint";
+    private static final String SERVER_ENDPOINT_NAME = "test-endpoint-two";
 
     @BeforeClass
     public static void beforeClass() throws Exception {
@@ -61,7 +61,7 @@ public class SingleConnectionConfigBasedSelectorTestCase {
         }
         System.setProperty("jboss.ejb.client.properties.file.path", url.getPath());
 
-        server = new DummyServer("localhost", 7999, SERVER_ENDPOINT_NAME);
+        server = new DummyServer("localhost", 7999);
         server.start();
         server.register("dummy-app", "dummy-module", "", EchoBean.class.getSimpleName(), new EchoBean());
     }
