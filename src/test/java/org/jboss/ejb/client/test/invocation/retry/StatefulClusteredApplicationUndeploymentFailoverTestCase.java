@@ -291,7 +291,7 @@ public class StatefulClusteredApplicationUndeploymentFailoverTestCase {
     }
 
     private EJBReceiver getServerOneReceiver() throws IOException, URISyntaxException {
-        final Endpoint endpoint = Endpoint.getCurrent();
+        final Endpoint endpoint = serverOne.getEndpoint();
         final AuthenticationContext authenticationContext = AuthenticationContext.empty()
                 .with(
                         MatchRule.ALL,
@@ -306,7 +306,7 @@ public class StatefulClusteredApplicationUndeploymentFailoverTestCase {
     }
 
     private EJBReceiver getServerTwoReceiver() throws IOException, URISyntaxException {
-        final Endpoint endpoint = Endpoint.getCurrent();
+        final Endpoint endpoint = serverTwo.getEndpoint();
         final AuthenticationContext authenticationContext = AuthenticationContext.empty()
                 .with(
                         MatchRule.ALL,

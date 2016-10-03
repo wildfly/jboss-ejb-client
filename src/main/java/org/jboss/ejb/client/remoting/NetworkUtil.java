@@ -167,7 +167,7 @@ public class NetworkUtil {
         }
         final URI uri;
         try {
-            uri = new URI(protocol, "", destination.getHostString(), destination.getPort(), "", "", "");
+            uri = new URI(protocol, null, destination.getHostString(), destination.getPort(), "", "", "");
         } catch (URISyntaxException e) {
             throw new IllegalArgumentException(e);
         }
