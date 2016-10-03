@@ -104,18 +104,18 @@ public class DummyServer {
 
     private final Collection<Channel> openChannels = new CopyOnWriteArraySet<Channel>();
 
-    public DummyServer(final String host, final int port) {
+    public DummyServer(final String host, final int port) throws IOException {
         this.host = host;
         this.port = port;
+        if (port == SERVER_ONE_PORT) {
+            endpoint = Endpoint.builder().setEndpointName("test-endpoint-one").build();
+        } else {
+            endpoint = Endpoint.builder().setEndpointName("test-endpoint-two").build();
+        }
     }
 
     public void start() throws IOException {
         logger.info("Starting " + this);
-        if (port == SERVER_ONE_PORT) {
-            endpoint = Endpoint.getCurrent();
-        } else {
-            endpoint = Endpoint.builder().setEndpointName("test-endpoint-two").build();
-        }
 
         final NetworkServerProvider serverProvider = endpoint.getConnectionProviderInterface("remote", NetworkServerProvider.class);
         final SocketAddress bindAddress = new InetSocketAddress(InetAddress.getByName(host), port);
@@ -412,6 +412,9 @@ public class DummyServer {
         }
     }
 
+    public Endpoint getEndpoint() {
+        return endpoint;
+    }
 
     private void sendNewModuleReportToClients(final EJBModuleIdentifier[] modules, final boolean availabilityReport) throws IOException {
         if (modules == null) {
