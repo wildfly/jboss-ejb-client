@@ -22,6 +22,7 @@
 
 package org.jboss.ejb.client.test.invocation.retry;
 
+import org.jboss.beach.priv.runner.PrivilegedSetupRunner;
 import org.jboss.ejb.client.ClusterContext;
 import org.jboss.ejb.client.ClusterNodeManager;
 import org.jboss.ejb.client.ConstantContextSelector;
@@ -42,6 +43,7 @@ import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
+import org.junit.runner.RunWith;
 import org.xnio.IoFuture;
 import org.xnio.OptionMap;
 import org.xnio.Options;
@@ -61,6 +63,7 @@ import static org.jboss.ejb.client.remoting.IoFutureHelper.*;
  * @author Jaikiran Pai
  * @see https://issues.jboss.org/browse/EJBCLIENT-32
  */
+@RunWith(PrivilegedSetupRunner.class)
 public class StatefulClusteredApplicationUndeploymentFailoverTestCase {
     private static final Logger logger = Logger.getLogger(StatefulClusteredApplicationUndeploymentFailoverTestCase.class);
 

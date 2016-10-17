@@ -21,7 +21,10 @@
  */
 package org.jboss.ejb.client;
 
+import static javax.security.auth.Subject.doAsPrivileged;
+
 import org.jboss.ejb.client.naming.ejb.EjbNamingContextSetup;
+import org.jboss.ejb.client.test.SimplePrincipal;
 import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -29,7 +32,17 @@ import org.junit.Test;
 import javax.naming.Context;
 import javax.naming.InitialContext;
 import javax.naming.NamingException;
+import javax.security.auth.Subject;
+
+import java.lang.reflect.InvocationHandler;
+import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
+import java.net.URL;
+import java.net.URLClassLoader;
+import java.security.CodeSource;
+import java.security.PrivilegedAction;
+import java.security.ProtectionDomain;
+import java.util.Arrays;
 
 /**
  * Tests the ejb: jndi context
@@ -81,5 +94,64 @@ public class EjbNamespaceTestCase {
         Assert.assertEquals("module", locator.getModuleName());
         Assert.assertEquals("", locator.getDistinctName());
         Assert.assertEquals("MyEjb", locator.getBeanName());
+    }
+
+    // EJBCLIENT-104
+    @Test
+    public void testEjbNamespaceLookupFromDifferentClassLoader() throws NamingException {
+        final ClassLoader previousClassLoader = Thread.currentThread().getContextClassLoader();
+        final URL testClasses = protectionDomain(SimpleInterface.class).getCodeSource().getLocation();
+        final ClassLoader classLoader = new URLClassLoader(new URL[] { testClasses }, new ClassLoader(null) {
+            @Override
+            protected Class<?> loadClass(final String name, boolean resolve) throws ClassNotFoundException {
+                final Class<?> cls = previousClassLoader.loadClass(name);
+                if (name.equals(SimpleInterface.class.getName()))
+                    throw new ClassNotFoundException(name);
+                else
+                    return cls;
+            }
+        });
+        priv(new PrivilegedAction<Void>() {
+            @Override
+            public Void run() {
+                Thread.currentThread().setContextClassLoader(classLoader);
+                return null;
+            }
+        });
+        try {
+            Object result = new InitialContext().lookup("ejb:app/module/distinct/MyEjb!org.jboss.ejb.client.SimpleInterface");
+            Assert.assertEquals(SimpleInterface.class.getName(), result.getClass().getInterfaces()[0].getName());
+            final EJBInvocationHandler handler = (EJBInvocationHandler) Proxy.getInvocationHandler(result);
+            final EJBLocator<SimpleInterface> locator = (EJBLocator<SimpleInterface>) handler.getLocator();
+            Assert.assertEquals("app", locator.getAppName());
+            Assert.assertEquals("module", locator.getModuleName());
+            Assert.assertEquals("distinct", locator.getDistinctName());
+            Assert.assertEquals("MyEjb", locator.getBeanName());
+        } finally {
+            priv(new PrivilegedAction<Void>() {
+                @Override
+                public Void run() {
+                    Thread.currentThread().setContextClassLoader(previousClassLoader);
+                    return null;
+                }
+            });
+        }
+    }
+
+    private static final <T> T priv(final PrivilegedAction<T> action) {
+        Subject subject = new Subject();
+        subject.getPrincipals().add(new SimplePrincipal());
+        return doAsPrivileged(subject, action, null);
+    }
+
+    private static final ProtectionDomain protectionDomain(final Class<?> cls) {
+        Subject subject = new Subject();
+        subject.getPrincipals().add(new SimplePrincipal());
+        return doAsPrivileged(subject, new PrivilegedAction<ProtectionDomain>() {
+            @Override
+            public ProtectionDomain run() {
+                return cls.getProtectionDomain();
+            }
+        }, null);
     }
 }

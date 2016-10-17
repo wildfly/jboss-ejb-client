@@ -22,6 +22,7 @@
 
 package org.jboss.ejb.client.remoting;
 
+import static java.security.AccessController.doPrivileged;
 import static org.jboss.ejb.client.remoting.Protocol.*;
 import static org.xnio.IoUtils.safeClose;
 
@@ -149,7 +150,12 @@ public final class RemotingConnectionEJBReceiver extends EJBReceiver {
         this.remotingProtocol = remotingProtocol;
         this.channelCreationOptions = channelCreationOptions == null ? OptionMap.EMPTY : channelCreationOptions;
 
-        this.marshallerFactory = Marshalling.getProvidedMarshallerFactory("river");
+        this.marshallerFactory = doPrivileged(new PrivilegedAction<MarshallerFactory>() {
+            @Override
+            public MarshallerFactory run() {
+                return Marshalling.getProvidedMarshallerFactory("river");
+            }
+        });
         if (this.marshallerFactory == null) {
             throw new RuntimeException("Could not find a marshaller factory for 'river' marshalling strategy");
         }

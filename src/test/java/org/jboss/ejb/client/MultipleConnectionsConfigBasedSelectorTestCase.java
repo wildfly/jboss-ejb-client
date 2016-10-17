@@ -22,6 +22,7 @@
 
 package org.jboss.ejb.client;
 
+import org.jboss.beach.priv.runner.PrivilegedSetupRunner;
 import org.jboss.ejb.client.remoting.ConfigBasedEJBClientContextSelector;
 import org.jboss.ejb.client.remoting.RemotingConnectionEJBReceiver;
 import org.jboss.ejb.client.test.common.EchoBean;
@@ -31,6 +32,7 @@ import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Test;
+import org.junit.runner.RunWith;
 
 import java.net.URL;
 import java.util.Collection;
@@ -45,6 +47,7 @@ import java.util.Set;
  *
  * @author Jaikiran Pai
  */
+@RunWith(PrivilegedSetupRunner.class)
 public class MultipleConnectionsConfigBasedSelectorTestCase {
 
     private static final Logger logger = Logger.getLogger(MultipleConnectionsConfigBasedSelectorTestCase.class);
