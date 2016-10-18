@@ -29,6 +29,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InterruptedIOException;
 import java.lang.reflect.Method;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.zip.InflaterInputStream;
@@ -216,7 +217,14 @@ class EJBClientChannel {
                         marshaller.writeObject(invocationContextData.getValue());
                     }
                 } else {
-                    final boolean hasPrivateAttachments = !privateAttachments.isEmpty();
+                    // We are only marshalling those attachments whose keys are present in the object table
+                    final Map<AttachmentKey<?>, Object> marshalledPrivateAttachments = new HashMap<>();
+                    for(final Map.Entry<AttachmentKey<?>, ?> entry: privateAttachments.entrySet()){
+                        if(ProtocolV1ObjectTable.INSTANCE.getObjectWriter(entry.getKey()) != null){
+                            marshalledPrivateAttachments.put(entry.getKey(), entry.getValue());
+                        }
+                    }
+                    final boolean hasPrivateAttachments = !marshalledPrivateAttachments.isEmpty();
                     if (hasPrivateAttachments) {
                         totalAttachments++;
                     }
@@ -241,7 +249,7 @@ class EJBClientChannel {
                         // now write out the JBoss specific attachments under a single key and the value will be the
                         // entire map of JBoss specific attachments
                         marshaller.writeObject(EJBClientInvocationContext.PRIVATE_ATTACHMENTS_KEY);
-                        marshaller.writeObject(privateAttachments);
+                        marshaller.writeObject(marshalledPrivateAttachments);
                     }
 
                     // Note: The code here is just for backward compatibility of 1.0.x version of EJB client project
