@@ -34,6 +34,9 @@ import org.wildfly.security.auth.client.MatchRule;
 import org.wildfly.security.sasl.util.SaslFactories;
 import org.xnio.IoFuture;
 import org.xnio.OptionMap;
+import org.xnio.Options;
+import org.xnio.Property;
+import org.xnio.Sequence;
 
 import javax.net.ssl.SSLContext;
 import javax.security.auth.callback.CallbackHandler;
@@ -44,6 +47,8 @@ import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.util.HashMap;
+import java.util.Map;
 
 /**
  * @author Jaikiran Pai
@@ -180,7 +185,24 @@ public class NetworkUtil {
         if (sslContext != null) {
             mergedConfiguration = mergedConfiguration.useSslContext(sslContext);
         }
+        Map<String, String> saslProperties = getSaslProperties(connectionCreationOptions);
+        if (saslProperties != null) {
+            mergedConfiguration = mergedConfiguration.useMechanismProperties(saslProperties);
+        }
+
         final AuthenticationContext context = AuthenticationContext.empty().with(MatchRule.ALL, mergedConfiguration);
         return endpoint.connect(uri, sourceBindAddress, connectionCreationOptions, context, SaslFactories.getElytronSaslClientFactory());
+    }
+
+    private static Map<String, String> getSaslProperties(final OptionMap connectionCreationOptions) {
+        Map<String, String> saslProperties = null;
+        Sequence<Property> value = connectionCreationOptions.get(Options.SASL_PROPERTIES);
+        if (value != null) {
+            saslProperties = new HashMap<>(value.size());
+            for (Property property : value) {
+                saslProperties.put(property.getKey(), (String) property.getValue());
+            }
+        }
+        return saslProperties;
     }
 }

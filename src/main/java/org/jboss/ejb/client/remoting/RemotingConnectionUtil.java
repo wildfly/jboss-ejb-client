@@ -59,10 +59,15 @@ public class RemotingConnectionUtil {
         // *not* want to enable silent local auth and instead let the CallbackHandler be invoked and let
         // it pass the credentials
         if (!(callbackHandler instanceof DefaultCallbackHandler)) {
-            return connectionCreationOptions;
+            // Ensure silent local auth will be disabled if the user hasn't already overidden this property
+            return setSilentLocalAuthOption(connectionCreationOptions, "false");
         }
         // Neither a username nor a CallbackHandler was specified by the user, so let's
         // enable silent local auth *if* the user hasn't already overidden that property
+        return setSilentLocalAuthOption(connectionCreationOptions, "true");
+    }
+
+    private static OptionMap setSilentLocalAuthOption(final OptionMap connectionCreationOptions, final String silentLocalAuthOption) {
         final Sequence<Property> existingSaslProps = connectionCreationOptions.get(Options.SASL_PROPERTIES);
         if (existingSaslProps != null) {
             for (Property prop : existingSaslProps) {
@@ -72,13 +77,13 @@ public class RemotingConnectionUtil {
             }
             // the jboss.sasl.local-user.quiet-auth wasn't set by the user, so we add it
             // to the existing sasl properties
-            existingSaslProps.add(Property.of(JBOSS_SASL_LOCAL_USER_QUIET_AUTH_PROP, "true"));
+            existingSaslProps.add(Property.of(JBOSS_SASL_LOCAL_USER_QUIET_AUTH_PROP, silentLocalAuthOption));
             return connectionCreationOptions;
         }
         // copy all the connection creation options and add the jboss.sasl.local-user.quiet-auth property
         // to the sasl property option
         final OptionMap.Builder updatedConnectionOptsBuilder = OptionMap.builder().addAll(connectionCreationOptions);
-        updatedConnectionOptsBuilder.set(Options.SASL_PROPERTIES, Sequence.of(Property.of(JBOSS_SASL_LOCAL_USER_QUIET_AUTH_PROP, "true")));
+        updatedConnectionOptsBuilder.set(Options.SASL_PROPERTIES, Sequence.of(Property.of(JBOSS_SASL_LOCAL_USER_QUIET_AUTH_PROP, silentLocalAuthOption)));
         return updatedConnectionOptsBuilder.getMap();
     }
 
