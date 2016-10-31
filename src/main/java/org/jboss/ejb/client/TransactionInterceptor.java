@@ -28,7 +28,6 @@ import java.security.PrivilegedAction;
 import java.util.function.Function;
 import java.util.function.Supplier;
 
-import javax.transaction.RollbackException;
 import javax.transaction.SystemException;
 import javax.transaction.Transaction;
 import javax.transaction.TransactionManager;
@@ -58,11 +57,7 @@ public final class TransactionInterceptor implements EJBClientInterceptor {
     }
 
     public void handleInvocation(final EJBClientInvocationContext context) throws Exception {
-        ClientTransactionPolicy transactionPolicy = context.getTransactionPolicy();
-        if (transactionPolicy == null) {
-            // TODO: per-thread and/or global default settings
-            transactionPolicy = ClientTransactionPolicy.SUPPORTS;
-        }
+        final ClientTransactionPolicy transactionPolicy = context.getTransactionPolicy();
         final TransactionManager transactionManager = transactionManagerSupplier.get();
         final Transaction transaction = safeGetTransaction(transactionManager);
 

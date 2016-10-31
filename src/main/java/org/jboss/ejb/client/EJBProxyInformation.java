@@ -99,8 +99,9 @@ final class EJBProxyInformation<T> {
                     // seems a likely match
                     try {
                         final Method method = (Method) declaredField.get(null);
+                        final boolean alwaysAsync = method.getReturnType() == Future.class;
                         final boolean idempotent = classIdempotent || method.getAnnotation(Idempotent.class) != null;
-                        final boolean clientAsync = classAsync || method.getAnnotation(ClientAsynchronous.class) != null;
+                        final boolean clientAsync = alwaysAsync || classAsync || method.getAnnotation(ClientAsynchronous.class) != null;
                         final CompressionHint compressionHint = method.getAnnotation(CompressionHint.class);
                         final ClientTransaction transactionHint = method.getAnnotation(ClientTransaction.class);
                         final int compressionLevel;
@@ -116,7 +117,7 @@ final class EJBProxyInformation<T> {
                             compressRequest = compressionHint.compressRequest();
                             compressResponse = compressionHint.compressResponse();
                         }
-                        transactionPolicy = transactionHint != null ? transactionHint.value() : classTransactionHint != null ? classTransactionHint.value() : null;
+                        transactionPolicy = transactionHint != null ? transactionHint.value() : clientAsync ? ClientTransactionPolicy.NOT_SUPPORTED : classTransactionHint != null ? classTransactionHint.value() : ClientTransactionPolicy.SUPPORTS;
                         // build the old signature format
                         final StringBuilder b = new StringBuilder();
                         final Class<?>[] methodParamTypes = method.getParameterTypes();
