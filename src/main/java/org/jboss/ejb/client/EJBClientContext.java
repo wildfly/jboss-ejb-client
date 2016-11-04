@@ -38,7 +38,6 @@ import org.wildfly.discovery.Discovery;
 import org.wildfly.discovery.FilterSpec;
 import org.wildfly.discovery.ServiceType;
 import org.wildfly.discovery.ServicesQueue;
-import org.wildfly.discovery.spi.DiscoveryProvider;
 
 /**
  * The public API for an EJB client context.  An EJB client context may be associated with (and used by) one or more threads concurrently.
@@ -54,11 +53,12 @@ public final class EJBClientContext extends Attachable implements Contextual<EJB
 
     private static final ContextManager<EJBClientContext> CONTEXT_MANAGER = new ContextManager<EJBClientContext>(EJBClientContext.class, "jboss.ejb.client");
 
+    private static final Supplier<Discovery> DISCOVERY_SUPPLIER = doPrivileged((PrivilegedAction<Supplier<Discovery>>) Discovery.getContextManager()::getPrivilegedSupplier);
+
     static final Supplier<EJBClientContext> GETTER = doPrivileged((PrivilegedAction<Supplier<EJBClientContext>>) CONTEXT_MANAGER::getPrivilegedSupplier);
 
     private static final EJBClientInterceptor[] NO_INTERCEPTORS = new EJBClientInterceptor[0];
     private static final EJBTransportProvider[] NO_TRANSPORT_PROVIDERS = new EJBTransportProvider[0];
-    private static final DiscoveryProvider[] NO_DISCOVERY_PROVIDERS = new DiscoveryProvider[0];
 
     static final String FILTER_ATTR_EJB_APP = "ejb-app";
     static final String FILTER_ATTR_EJB_MODULE = "ejb-module";
@@ -74,9 +74,7 @@ public final class EJBClientContext extends Attachable implements Contextual<EJB
 
     private final EJBClientInterceptor[] interceptors;
     private final EJBTransportProvider[] transportProviders;
-    private final DiscoveryProvider[] discoveryProviders;
     private final long invocationTimeout;
-    private final Discovery discovery;
 
     EJBClientContext(Builder builder) {
         final List<EJBClientInterceptor> builderInterceptors = builder.interceptors;
@@ -91,15 +89,6 @@ public final class EJBClientContext extends Attachable implements Contextual<EJB
         } else {
             transportProviders = builderTransportProviders.toArray(new EJBTransportProvider[builderTransportProviders.size()]);
         }
-        final ArrayList<DiscoveryProvider> discoveryProviders = new ArrayList<>();
-        for (EJBTransportProvider transportProvider : transportProviders) {
-            final DiscoveryProvider discoveryProvider = transportProvider.getDiscoveryProvider();
-            if (discoveryProvider != null) {
-                discoveryProviders.add(discoveryProvider);
-            }
-        }
-        if (builder.discoveryProviders != null) discoveryProviders.addAll(builder.discoveryProviders);
-        discovery = Discovery.create(this.discoveryProviders = discoveryProviders.toArray(NO_DISCOVERY_PROVIDERS));
         invocationTimeout = 0;
     }
 
@@ -157,32 +146,6 @@ public final class EJBClientContext extends Attachable implements Contextual<EJB
     }
 
     /**
-     * Get a copy of this context with the given discovery provider(s) added.  If the array is {@code null} or empty, the
-     * current context is returned as-is.
-     *
-     * @param discoveryProviders the discovery providers(s) to add
-     * @return the new context (not {@code null})
-     */
-    public EJBClientContext withAddedDiscoveryProviders(DiscoveryProvider... discoveryProviders) {
-        if (discoveryProviders == null) {
-            return this;
-        }
-        final int length = discoveryProviders.length;
-        if (length == 0) {
-            return this;
-        }
-        final Builder builder = new Builder(this);
-        boolean construct = false;
-        for (DiscoveryProvider discoveryProvider : discoveryProviders) {
-            if (discoveryProvider != null) {
-                builder.addDiscoveryProvider(discoveryProvider);
-                construct = true;
-            }
-        }
-        return construct ? builder.build() : this;
-    }
-
-    /**
      * Get a copy of this context with the given transport provider(s) added.  If the array is {@code null} or empty, the
      * current context is returned as-is.
      *
@@ -218,7 +181,7 @@ public final class EJBClientContext extends Attachable implements Contextual<EJB
     }
 
     ServicesQueue discover(final FilterSpec filterSpec) {
-        return discovery.discover(EJB_SERVICE_TYPE, filterSpec);
+        return getDiscovery().discover(EJB_SERVICE_TYPE, filterSpec);
     }
 
     EJBTransportProvider[] getTransportProviders() {
@@ -226,11 +189,7 @@ public final class EJBClientContext extends Attachable implements Contextual<EJB
     }
 
     Discovery getDiscovery() {
-        return discovery;
-    }
-
-    DiscoveryProvider[] getDiscoveryProviders() {
-        return discoveryProviders;
+        return DISCOVERY_SUPPLIER.get();
     }
 
     /**
@@ -240,7 +199,6 @@ public final class EJBClientContext extends Attachable implements Contextual<EJB
 
         List<EJBClientInterceptor> interceptors;
         List<EJBTransportProvider> transportProviders;
-        List<DiscoveryProvider> discoveryProviders;
 
         /**
          * Construct a new instance.
@@ -256,10 +214,6 @@ public final class EJBClientContext extends Attachable implements Contextual<EJB
             final EJBTransportProvider[] transportProviders = ejbClientContext.getTransportProviders();
             if (transportProviders.length > 0) {
                 this.transportProviders = new ArrayList<>(Arrays.asList(transportProviders));
-            }
-            final DiscoveryProvider[] discoveryProviders = ejbClientContext.getDiscoveryProviders();
-            if (discoveryProviders.length > 0) {
-                this.discoveryProviders = new ArrayList<>(Arrays.asList(discoveryProviders));
             }
         }
 
@@ -281,16 +235,6 @@ public final class EJBClientContext extends Attachable implements Contextual<EJB
                 transportProviders = new ArrayList<>();
             }
             transportProviders.add(provider);
-        }
-
-        public void addDiscoveryProvider(DiscoveryProvider provider) {
-            if (provider == null) {
-                throw new IllegalArgumentException("provider is null");
-            }
-            if (discoveryProviders == null) {
-                discoveryProviders = new ArrayList<>();
-            }
-            discoveryProviders.add(provider);
         }
 
         public EJBClientContext build() {

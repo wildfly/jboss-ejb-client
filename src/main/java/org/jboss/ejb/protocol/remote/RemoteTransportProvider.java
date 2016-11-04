@@ -25,7 +25,6 @@ package org.jboss.ejb.protocol.remote;
 import org.jboss.ejb.client.EJBReceiver;
 import org.jboss.ejb.client.EJBTransportProvider;
 import org.kohsuke.MetaInfServices;
-import org.wildfly.discovery.spi.DiscoveryProvider;
 
 /**
  * The JBoss Remoting-based transport provider.
@@ -69,10 +68,6 @@ public final class RemoteTransportProvider implements EJBTransportProvider {
                 throw new IllegalArgumentException("Unsupported EJB receiver protocol " + uriScheme);
             }
         }
-        return receiver;
-    }
-
-    public DiscoveryProvider getDiscoveryProvider() {
         return receiver;
     }
 }

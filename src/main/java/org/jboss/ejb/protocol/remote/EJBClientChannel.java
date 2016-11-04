@@ -23,15 +23,22 @@
 package org.jboss.ejb.protocol.remote;
 
 import static java.lang.Math.min;
+import static java.security.AccessController.doPrivileged;
 import static org.xnio.IoUtils.safeClose;
 
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InterruptedIOException;
 import java.lang.reflect.Method;
+import java.net.URI;
+import java.security.PrivilegedAction;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Objects;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.Supplier;
 import java.util.zip.InflaterInputStream;
 
 import javax.ejb.CreateException;
@@ -64,6 +71,10 @@ import org.jboss.remoting3.RemotingOptions;
 import org.jboss.remoting3.util.Invocation;
 import org.jboss.remoting3.util.InvocationTracker;
 import org.jboss.remoting3.util.StreamUtils;
+import org.wildfly.discovery.AttributeValue;
+import org.wildfly.discovery.ServiceRegistration;
+import org.wildfly.discovery.ServiceRegistry;
+import org.wildfly.discovery.ServiceURL;
 import org.wildfly.security.auth.AuthenticationException;
 import org.xnio.Cancellable;
 import org.xnio.FutureResult;
@@ -77,6 +88,9 @@ import org.xnio.OptionMap;
 class EJBClientChannel {
 
     static final ClientServiceHandle<EJBClientChannel> SERVICE_HANDLE = new ClientServiceHandle<>("jboss.ejb", EJBClientChannel::construct);
+
+    private static final Supplier<ServiceRegistry> REGISTRY_SUPPLIER = doPrivileged((PrivilegedAction<Supplier<ServiceRegistry>>) ServiceRegistry.getContextManager()::getPrivilegedSupplier);
+
     private final MarshallerFactory marshallerFactory;
 
     private final Channel channel;
@@ -84,7 +98,9 @@ class EJBClientChannel {
 
     private final InvocationTracker invocationTracker;
 
+    private final ServiceRegistry serviceRegistry;
     private final MarshallingConfiguration configuration;
+    private final ConcurrentMap<DiscKey, ServiceRegistration> registrationsMap = new ConcurrentHashMap<>();
 
     EJBClientChannel(final Channel channel, final int version) {
         this.channel = channel;
@@ -100,6 +116,7 @@ class EJBClientChannel {
             configuration.setObjectTable(ProtocolV3ObjectTable.INSTANCE);
             configuration.setVersion(4);
         }
+        this.serviceRegistry = REGISTRY_SUPPLIER.get();
         this.configuration = configuration;
         invocationTracker = new InvocationTracker(this.channel, channel.getOption(RemotingOptions.MAX_OUTBOUND_MESSAGES).intValue(), EJBClientChannel::mask);
     }
@@ -108,18 +125,105 @@ class EJBClientChannel {
         return original & 0xffff;
     }
 
+    static class DiscKey {
+        private final String appName;
+        private final String moduleName;
+        private final String distinctName;
+        private final int hashCode;
+
+        DiscKey(final String appName, final String moduleName, final String distinctName) {
+            this.appName = appName;
+            this.moduleName = moduleName;
+            this.distinctName = distinctName;
+            hashCode = Objects.hash(appName, moduleName, distinctName);
+        }
+
+        public boolean equals(final Object obj) {
+            return obj instanceof DiscKey && equals((DiscKey) obj);
+        }
+
+        private boolean equals(final DiscKey other) {
+            return other == this || appName.equals(other.appName) && moduleName.equals(other.moduleName) && distinctName.equals(other.distinctName);
+        }
+
+        public int hashCode() {
+            return hashCode;
+        }
+    }
+
     private void processMessage(final MessageInputStream message) {
-        boolean ok = false;
+        boolean leaveOpen = false;
         try {
             final int msg = message.readUnsignedByte();
-            if (msg == Protocol.INVOCATION_RESPONSE) {
-                final int invId = message.readUnsignedShort();
-                ok = invocationTracker.signalResponse(invId, msg, message, false);
+            switch (msg) {
+                case Protocol.INVOCATION_RESPONSE:
+                case Protocol.APPLICATION_EXCEPTION:
+                case Protocol.CANCEL_RESPONSE:
+                case Protocol.NO_SUCH_EJB:
+                case Protocol.NO_SUCH_METHOD:
+                case Protocol.SESSION_NOT_ACTIVE:
+                case Protocol.EJB_NOT_STATEFUL:
+                case Protocol.PROCEED_ASYNC_RESPONSE: {
+                    final int invId = message.readUnsignedShort();
+                    leaveOpen = invocationTracker.signalResponse(invId, msg, message, false);
+                    break;
+                }
+                case Protocol.MODULE_AVAILABLE: {
+                    int count = StreamUtils.readPackedSignedInt32(message);
+                    final Connection connection = channel.getConnection();
+                    final URI peerURI = connection.getPeerURI();
+//                    builder.setUriSchemeAuthority(connection.getPeerURISchemeAuthority()) XXX todo
+                    final ServiceRegistry serviceRegistry = this.serviceRegistry;
+                    final ConcurrentMap<DiscKey, ServiceRegistration> registrationsMap = this.registrationsMap;
+                    for (int i = 0; i < count; i ++) {
+                        String appName = message.readUTF();
+                        final String moduleName = message.readUTF();
+                        if (appName.isEmpty()) appName = moduleName;
+                        final String distinctName = message.readUTF();
+                        final DiscKey key = new DiscKey(appName, moduleName, distinctName);
+                        final ServiceURL.Builder builder = new ServiceURL.Builder();
+                        builder.setUri(peerURI);
+                        builder.setAbstractType("ejb");
+                        builder.setAbstractTypeAuthority("jboss");
+                        builder.addAttribute("ejb-app", AttributeValue.fromString(appName));
+                        builder.addAttribute("ejb-module", AttributeValue.fromString(appName + "/" + moduleName));
+                        if (! distinctName.isEmpty()) {
+                            builder.addAttribute("ejb-distinct", AttributeValue.fromString(distinctName));
+                            builder.addAttribute("ejb-app-distinct", AttributeValue.fromString(appName + "/" + distinctName));
+                            builder.addAttribute("ejb-module-distinct", AttributeValue.fromString(appName + "/" + moduleName + "/" + distinctName));
+                        }
+                        final ServiceRegistration registration = serviceRegistry.registerService(builder.create());
+                        final ServiceRegistration old = registrationsMap.put(key, registration);
+                        if (old != null) {
+                            old.close();
+                        }
+                    }
+                    break;
+                }
+                case Protocol.MODULE_UNAVAILABLE: {
+                    int count = StreamUtils.readPackedSignedInt32(message);
+                    final ConcurrentMap<DiscKey, ServiceRegistration> registrationsMap = this.registrationsMap;
+                    for (int i = 0; i < count; i ++) {
+                        String appName = message.readUTF();
+                        final String moduleName = message.readUTF();
+                        if (appName.isEmpty()) appName = moduleName;
+                        final String distinctName = message.readUTF();
+                        final DiscKey key = new DiscKey(appName, moduleName, distinctName);
+                        final ServiceRegistration old = registrationsMap.remove(key);
+                        if (old != null) {
+                            old.close();
+                        }
+                    }
+                    break;
+                }
+                default: {
+                    // ignore message
+                }
             }
         } catch (IOException e) {
 
         } finally {
-            if (! ok) {
+            if (! leaveOpen) {
                 safeClose(message);
             }
         }
