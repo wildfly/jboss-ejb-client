@@ -25,7 +25,7 @@
 <configuration>
     <authentication-client xmlns="urn:elytron:1.0">
         <rules>
-            <rule name="main">
+            <rule>
                 <allow-sasl-mechanisms names="ANONYMOUS"/>
                 <set-anonymous/>
             </rule>
