@@ -86,7 +86,7 @@ class EndpointPool {
         final CacheKey key = new CacheKey(remoteConnectionProviderOptions, endPointCreationOptions, endpointName);
         PooledEndpoint pooledEndpoint = cache.get(key);
         if (pooledEndpoint == null) {
-            final Endpoint endpoint = Endpoint.getCurrent();
+            final Endpoint endpoint = Endpoint.builder().setEndpointName(endpointName).setXnioWorkerOptions(endPointCreationOptions).build();
 
             // We don't want to hold stale endpoint(s), so add a close handler which removes the entry
             // from the cache when the endpoint is closed
