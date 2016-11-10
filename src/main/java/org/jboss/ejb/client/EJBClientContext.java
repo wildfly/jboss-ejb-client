@@ -62,6 +62,8 @@ import org.jboss.remoting3.Connection;
 @SuppressWarnings({"UnnecessaryThis"})
 public final class EJBClientContext extends Attachable implements Closeable {
 
+    private static final boolean WILDFLY_TESTSUITE_HACK = Boolean.getBoolean("org.jboss.ejb.client.wildfly-testsuite-hack");
+
     private static final Logger logger = Logger.getLogger(EJBClientContext.class);
 
     private static final RuntimePermission SET_SELECTOR_PERMISSION = new RuntimePermission("setEJBClientContextSelector");
@@ -698,8 +700,19 @@ public final class EJBClientContext extends Attachable implements Closeable {
             throws IllegalStateException {
 
         // try and find a receiver which can handle this combination
-        final EJBReceiver ejbReceiver = this.getEJBReceiver(appName, moduleName, distinctName);
+        EJBReceiver ejbReceiver = this.getEJBReceiver(appName, moduleName, distinctName);
         if (ejbReceiver == null) {
+            if(WILDFLY_TESTSUITE_HACK) {
+                try {
+                    Thread.sleep(2000);
+                } catch (InterruptedException e) {
+                    throw new RuntimeException(e);
+                }
+                ejbReceiver = this.getEJBReceiver(appName, moduleName, distinctName);
+                if (ejbReceiver != null) {
+                    return ejbReceiver;
+                }
+            }
             throw Logs.MAIN.noEJBReceiverAvailableForDeployment(appName, moduleName, distinctName);
         }
         return ejbReceiver;
@@ -769,8 +782,19 @@ public final class EJBClientContext extends Attachable implements Closeable {
             throws IllegalStateException {
 
         // try and find a receiver which can handle this combination
-        final EJBReceiver ejbReceiver = this.getEJBReceiver(clientInvocationContext, appName, moduleName, distinctName);
+        EJBReceiver ejbReceiver = this.getEJBReceiver(clientInvocationContext, appName, moduleName, distinctName);
         if (ejbReceiver == null) {
+            if(WILDFLY_TESTSUITE_HACK) {
+                try {
+                    Thread.sleep(2000);
+                } catch (InterruptedException e) {
+                    throw new RuntimeException(e);
+                }
+                ejbReceiver = this.getEJBReceiver(clientInvocationContext, appName, moduleName, distinctName);
+                if (ejbReceiver != null) {
+                    return ejbReceiver;
+                }
+            }
             throw Logs.MAIN.noEJBReceiverAvailableForDeploymentDuringInvocation(appName, moduleName, distinctName, clientInvocationContext);
         }
         return ejbReceiver;
@@ -833,8 +857,19 @@ public final class EJBClientContext extends Attachable implements Closeable {
             throws IllegalStateException {
 
         // try and find a receiver which can handle this combination
-        final EJBReceiver ejbReceiver = this.getEJBReceiver(excludedNodeNames, appName, moduleName, distinctName);
+        EJBReceiver ejbReceiver = this.getEJBReceiver(excludedNodeNames, appName, moduleName, distinctName);
         if (ejbReceiver == null) {
+            if(WILDFLY_TESTSUITE_HACK) {
+                try {
+                    Thread.sleep(2000);
+                } catch (InterruptedException e) {
+                    throw new RuntimeException(e);
+                }
+                ejbReceiver = this.getEJBReceiver(excludedNodeNames, appName, moduleName, distinctName);
+                if (ejbReceiver != null) {
+                    return ejbReceiver;
+                }
+            }
             throw Logs.MAIN.noEJBReceiverAvailableForDeployment(appName, moduleName, distinctName);
         }
         return ejbReceiver;
