@@ -33,7 +33,7 @@
     </parent>
 
     <artifactId>jboss-ejb-client</artifactId>
-    <version>3.0.0.Beta3-SNAPSHOT</version>
+    <version>3.0.0.Beta3</version>
 
     <name>JBoss EJB client</name>
     <description>Client library for EJB applications working against Wildfly</description>
