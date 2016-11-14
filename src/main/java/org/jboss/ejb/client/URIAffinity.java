@@ -47,11 +47,6 @@ public final class URIAffinity extends Affinity {
         this.uri = uri;
     }
 
-    /**
-     * Get the associated URI.
-     *
-     * @return the associated URI (not {@code null})
-     */
     public URI getUri() {
         return uri;
     }

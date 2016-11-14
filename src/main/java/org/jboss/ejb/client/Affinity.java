@@ -27,6 +27,7 @@ import java.io.InvalidClassException;
 import java.io.ObjectInputStream;
 import java.io.Serializable;
 import java.net.URI;
+import java.net.URISyntaxException;
 
 /**
  * The affinity specification for an EJB proxy.
@@ -74,6 +75,13 @@ public abstract class Affinity implements Serializable {
         }
     }
 
+    /**
+     * Get the associated URI.
+     *
+     * @return the associated URI (not {@code null})
+     */
+    public abstract URI getUri();
+
     public boolean equals(Object other) {
         return other instanceof Affinity && equals((Affinity) other);
     }
@@ -97,6 +105,10 @@ public abstract class Affinity implements Serializable {
             return -1;
         }
 
+        public URI getUri() {
+            return null;
+        }
+
         public boolean equals(final Object other) {
             return other == this;
         }
@@ -117,9 +129,22 @@ public abstract class Affinity implements Serializable {
     static class LocalAffinity extends Affinity {
 
         private static final long serialVersionUID = -2052559528672779420L;
+        private static final URI uri;
+
+        static {
+            try {
+                uri = new URI("local", "-", null);
+            } catch (URISyntaxException e) {
+                throw new IllegalStateException(e);
+            }
+        }
 
         public int hashCode() {
             return -1;
+        }
+
+        public URI getUri() {
+            return uri;
         }
 
         public boolean equals(final Object other) {

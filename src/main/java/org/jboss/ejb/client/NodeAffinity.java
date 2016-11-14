@@ -22,6 +22,9 @@
 
 package org.jboss.ejb.client;
 
+import java.net.URI;
+import java.net.URISyntaxException;
+
 /**
  * A single node affinity specification.
  *
@@ -53,6 +56,14 @@ public final class NodeAffinity extends Affinity {
 
     public String toString() {
         return String.format("Node \"%s\"", nodeName);
+    }
+
+    public URI getUri() {
+        try {
+            return new URI("node", nodeName, null);
+        } catch (URISyntaxException e) {
+            throw new IllegalStateException(e);
+        }
     }
 
     public boolean equals(final Object other) {
