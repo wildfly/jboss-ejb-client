@@ -37,44 +37,9 @@
 
     <xsd:complexType name="ejb-client-type">
         <xsd:all minOccurs="1" maxOccurs="1">
-            <xsd:element name="discovery" type="discovery-type" minOccurs="0" maxOccurs="1"/>
             <xsd:element name="global-interceptors" type="interceptors-type" minOccurs="0" maxOccurs="1"/>
             <xsd:element name="connections" type="connections-type" minOccurs="0" maxOccurs="1"/>
         </xsd:all>
-    </xsd:complexType>
-
-    <!-- Discovery -->
-
-    <xsd:complexType name="discovery-type">
-        <xsd:choice minOccurs="0" maxOccurs="unbounded">
-            <xsd:element name="static-node-discovery" type="static-node-discovery-type"/>
-            <xsd:element name="static-cluster-discovery" type="static-cluster-discovery-type"/>
-            <xsd:element name="static-ejb-discovery" type="static-ejb-discovery-type"/>
-        </xsd:choice>
-    </xsd:complexType>
-
-    <xsd:complexType name="static-node-discovery-type">
-        <xsd:attribute name="node-name" type="xsd:string" use="required"/>
-        <xsd:attribute name="uri" type="xsd:anyURI" use="required"/>
-    </xsd:complexType>
-
-    <xsd:complexType name="static-cluster-discovery-type">
-        <xsd:sequence minOccurs="1" maxOccurs="1">
-            <xsd:element name="connect-to" type="connect-to-type" minOccurs="0" maxOccurs="unbounded"/>
-        </xsd:sequence>
-        <xsd:attribute name="cluster-name" type="xsd:string" use="required"/>
-    </xsd:complexType>
-
-    <xsd:complexType name="connect-to-type">
-        <xsd:attribute name="uri" type="xsd:anyURI" use="required"/>
-    </xsd:complexType>
-
-    <xsd:complexType name="static-ejb-discovery-type">
-        <xsd:attribute name="app-name" type="xsd:string" use="optional"/> <!-- defaults to equal module name -->
-        <xsd:attribute name="module-name" type="xsd:string" use="required"/> <!-- may be * -->
-        <xsd:attribute name="bean-name" type="xsd:string" use="required"/> <!-- may be * -->
-        <xsd:attribute name="distinct-name" type="xsd:string" use="optional" default=""/> <!-- may be * -->
-        <xsd:attribute name="uri" type="xsd:anyURI" use="required"/>
     </xsd:complexType>
 
     <!-- Interceptors -->

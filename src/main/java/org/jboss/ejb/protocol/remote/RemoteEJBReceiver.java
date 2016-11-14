@@ -28,7 +28,6 @@ import java.net.URI;
 import javax.ejb.CreateException;
 
 import org.jboss.ejb.client.Affinity;
-import org.jboss.ejb.client.EJBClientContext;
 import org.jboss.ejb.client.EJBClientInvocationContext;
 import org.jboss.ejb.client.EJBLocator;
 import org.jboss.ejb.client.EJBReceiver;
@@ -39,11 +38,6 @@ import org.jboss.ejb.client.StatelessEJBLocator;
 import org.jboss.ejb.client.URIAffinity;
 import org.jboss.remoting3.Connection;
 import org.jboss.remoting3.Endpoint;
-import org.wildfly.discovery.FilterSpec;
-import org.wildfly.discovery.ServiceType;
-import org.wildfly.discovery.spi.DiscoveryProvider;
-import org.wildfly.discovery.spi.DiscoveryRequest;
-import org.wildfly.discovery.spi.DiscoveryResult;
 import org.wildfly.naming.client.NamingProvider;
 import org.wildfly.naming.client.remote.RemoteNamingProvider;
 import org.xnio.FinishedIoFuture;
@@ -52,7 +46,7 @@ import org.xnio.IoFuture;
 /**
  * @author <a href="mailto:david.lloyd@redhat.com">David M. Lloyd</a>
  */
-class RemoteEJBReceiver extends EJBReceiver implements DiscoveryProvider {
+class RemoteEJBReceiver extends EJBReceiver {
 
     static final IoFuture.HandlingNotifier<Connection, EJBReceiverInvocationContext> NOTIFIER = new IoFuture.HandlingNotifier<Connection, EJBReceiverInvocationContext>() {
         public void handleDone(final Connection connection, final EJBReceiverInvocationContext attachment) {
@@ -127,16 +121,5 @@ class RemoteEJBReceiver extends EJBReceiver implements DiscoveryProvider {
             throw new IllegalArgumentException("Invalid EJB affinity");
         }
         return Endpoint.getCurrent().getConnection(target);
-    }
-
-    public DiscoveryRequest discover(final ServiceType serviceType, final FilterSpec filterSpec, final DiscoveryResult result) {
-        if (! EJBClientContext.EJB_SERVICE_TYPE.implies(serviceType)) {
-            // we can only discover EJBs
-            result.complete();
-            return DiscoveryRequest.NULL;
-        }
-        // todo: iterate known and future discovery results
-        result.complete();
-        return DiscoveryRequest.NULL;
     }
 }
