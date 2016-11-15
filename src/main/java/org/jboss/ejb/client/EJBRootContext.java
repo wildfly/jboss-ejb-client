@@ -116,6 +116,11 @@ class EJBRootContext extends AbstractContext {
                     eq = -1;
                 }
             }
+            if ("stateful".equals(lastPart.substring(st, eq == -1 ? lastPart.length() : eq))) {
+                if (eq == -1 || "true".equalsIgnoreCase(lastPart.substring(eq + 1))) {
+                    stateful = true;
+                }
+            }
         }
         Class<?> view;
         try {
