@@ -269,6 +269,13 @@ final class EJBInvocationHandler<T> extends Attachable implements InvocationHand
                     throw (UnmarshalException) rsfe.getCause();
                 }
             }
+            // check to see if the request has already been retried by response-triggered retry mechanism
+            // despite the fact that the send raised an exception (see WFLY-6417)
+            if (clientInvocationContext.isDone()) {
+                Logs.MAIN.debugf(rsfe, "Aborting client-side retry of invocation %s (the request has already returned), due to:", clientInvocationContext);
+                return;
+            }
+            // retry the request
             final String failedNodeName = rsfe.getFailedNodeName();
             if (failedNodeName != null) {
                 Logs.MAIN.debugf(rsfe, "Retrying invocation %s which failed on node: %s due to:", clientInvocationContext, failedNodeName);
