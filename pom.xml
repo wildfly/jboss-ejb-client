@@ -46,7 +46,7 @@
         <version.org.jboss.logmanager>1.5.2.Final</version.org.jboss.logmanager>
         <version.org.jboss.modules>1.4.3.Final</version.org.jboss.modules>
         <version.org.jboss.marshalling>1.4.3.Final</version.org.jboss.marshalling>
-        <version.org.jboss.remoting>5.0.0.Beta7</version.org.jboss.remoting>
+        <version.org.jboss.remoting>5.0.0.Beta9</version.org.jboss.remoting>
         <version.org.jboss.sasl>1.0.4.Final</version.org.jboss.sasl>
         <version.org.jboss.spec.javax.ejb>1.0.1.Final</version.org.jboss.spec.javax.ejb>
         <version.org.jboss.spec.javax.transaction>1.0.0.Final</version.org.jboss.spec.javax.transaction>
