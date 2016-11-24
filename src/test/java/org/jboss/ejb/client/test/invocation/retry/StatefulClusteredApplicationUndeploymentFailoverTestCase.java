@@ -296,7 +296,8 @@ public class StatefulClusteredApplicationUndeploymentFailoverTestCase {
                 .with(
                         MatchRule.ALL,
                         AuthenticationConfiguration.EMPTY
-                                .useAnonymous());
+                                .useAnonymous()
+                                .useProvidersFromClassLoader(StatefulClusteredApplicationUndeploymentFailoverTestCase.class.getClassLoader()));
 
 
         // open a connection
@@ -311,7 +312,8 @@ public class StatefulClusteredApplicationUndeploymentFailoverTestCase {
                 .with(
                         MatchRule.ALL,
                         AuthenticationConfiguration.EMPTY
-                                .useAnonymous());
+                                .useAnonymous()
+                                .useProvidersFromClassLoader(StatefulClusteredApplicationUndeploymentFailoverTestCase.class.getClassLoader()));
         // open a connection
         final IoFuture<Connection> futureConnection = endpoint.connect(new URI("remote://localhost:7999"), OptionMap.create(Options.SASL_POLICY_NOANONYMOUS, Boolean.FALSE), authenticationContext);
         final Connection connection = get(futureConnection, 5, TimeUnit.SECONDS);

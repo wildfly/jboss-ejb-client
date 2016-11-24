@@ -26,6 +26,7 @@ import java.io.Closeable;
 import java.io.IOException;
 import java.net.SocketAddress;
 import java.net.URI;
+import java.security.Principal;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
@@ -41,6 +42,8 @@ import org.jboss.remoting3.Attachments;
 import org.jboss.remoting3.Channel;
 import org.jboss.remoting3.CloseHandler;
 import org.jboss.remoting3.Connection;
+import org.jboss.remoting3.ConnectionPeerIdentity;
+import org.jboss.remoting3.ConnectionPeerIdentityContext;
 import org.jboss.remoting3.Endpoint;
 import org.jboss.remoting3.HandleableCloseable;
 import org.wildfly.security.auth.AuthenticationException;
@@ -262,17 +265,17 @@ class ConnectionPool {
         }
 
         @Override
-        public PeerIdentity getConnectionPeerIdentity() throws SecurityException {
+        public ConnectionPeerIdentity getConnectionPeerIdentity() throws SecurityException {
             return this.underlyingConnection.getConnectionPeerIdentity();
         }
 
         @Override
-        public PeerIdentity getConnectionAnonymousIdentity() {
+        public ConnectionPeerIdentity getConnectionAnonymousIdentity() {
             return this.underlyingConnection.getConnectionAnonymousIdentity();
         }
 
         @Override
-        public PeerIdentityContext getPeerIdentityContext() {
+        public ConnectionPeerIdentityContext getPeerIdentityContext() {
             return this.underlyingConnection.getPeerIdentityContext();
         }
 
@@ -299,6 +302,11 @@ class ConnectionPool {
         @Override
         public SSLSession getSslSession() {
             return this.underlyingConnection.getSslSession();
+        }
+
+        @Override
+        public Principal getPrincipal() {
+            return this.underlyingConnection.getPrincipal();
         }
     }
 

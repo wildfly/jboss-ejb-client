@@ -31,7 +31,6 @@ import org.wildfly.security.auth.client.AuthenticationConfiguration;
 import org.wildfly.security.auth.client.AuthenticationContext;
 import org.wildfly.security.auth.client.AuthenticationContextConfigurationClient;
 import org.wildfly.security.auth.client.MatchRule;
-import org.wildfly.security.sasl.util.SaslFactories;
 import org.xnio.IoFuture;
 import org.xnio.OptionMap;
 import org.xnio.Options;
@@ -191,7 +190,7 @@ public class NetworkUtil {
         }
 
         final AuthenticationContext context = AuthenticationContext.empty().with(MatchRule.ALL, mergedConfiguration);
-        return endpoint.connect(uri, sourceBindAddress, connectionCreationOptions, context, SaslFactories.getElytronSaslClientFactory());
+        return endpoint.connect(uri, sourceBindAddress, connectionCreationOptions, context);
     }
 
     private static Map<String, String> getSaslProperties(final OptionMap connectionCreationOptions) {
