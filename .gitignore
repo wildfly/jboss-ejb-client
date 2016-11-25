@@ -5,6 +5,7 @@
 target
 # ignore eclipse files
 .project
+.checkstyle
 .classpath
 .settings
 .metadata

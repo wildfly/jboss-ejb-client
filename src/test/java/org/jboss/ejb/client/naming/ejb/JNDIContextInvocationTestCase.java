@@ -283,7 +283,8 @@ public class JNDIContextInvocationTestCase {
                 .with(
                         MatchRule.ALL,
                         AuthenticationConfiguration.EMPTY
-                                .useAnonymous());
+                                .useAnonymous()
+                                .useProvidersFromClassLoader(JNDIContextInvocationTestCase.class.getClassLoader()));
 
         // open a connection
         final IoFuture<Connection> futureConnection = endpoint.connect(new URI("remote://" + serverHost + ":" + serverPort), OptionMap.create(Options.SASL_POLICY_NOANONYMOUS, Boolean.FALSE), authenticationContext);

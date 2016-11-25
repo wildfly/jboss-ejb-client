@@ -81,7 +81,8 @@ public class EJBClientAPIUsageTestCase {
                 .with(
                         MatchRule.ALL,
                         AuthenticationConfiguration.EMPTY
-                                .useAnonymous());
+                                .useAnonymous()
+                                .useProvidersFromClassLoader(EJBClientAPIUsageTestCase.class.getClassLoader()));
 
         // open a connection
         final IoFuture<Connection> futureConnection = endpoint.connect(new URI("remote://localhost:6999"), OptionMap.create(Options.SASL_POLICY_NOANONYMOUS, Boolean.FALSE), authenticationContext);

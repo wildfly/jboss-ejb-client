@@ -28,6 +28,7 @@
             <rule>
                 <allow-sasl-mechanisms names="ANONYMOUS"/>
                 <set-anonymous/>
+                <use-service-loader-providers />
             </rule>
         </rules>
     </authentication-client>

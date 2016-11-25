@@ -33,25 +33,15 @@ import org.jboss.remoting3.OpenListener;
 import org.jboss.remoting3.Registration;
 import org.jboss.remoting3.ServiceRegistrationException;
 import org.jboss.remoting3.UnknownURISchemeException;
-import org.jboss.remoting3.remote.HttpUpgradeConnectionProviderFactory;
-import org.jboss.remoting3.remote.RemoteConnectionProviderFactory;
 import org.jboss.remoting3.spi.ConnectionProviderFactory;
 import org.wildfly.security.auth.client.AuthenticationContext;
-import org.wildfly.security.sasl.util.SaslFactories;
 import org.xnio.IoFuture;
 import org.xnio.OptionMap;
-import org.xnio.Options;
 import org.xnio.XnioWorker;
-import org.xnio.ssl.XnioSsl;
-
-import javax.net.ssl.SSLContext;
-import javax.security.auth.callback.CallbackHandler;
-import javax.security.sasl.SaslClientFactory;
 
 import java.io.Closeable;
 import java.io.IOException;
 import java.net.InetSocketAddress;
-import java.net.SocketAddress;
 import java.net.URI;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -149,32 +139,28 @@ class EndpointPool {
             return underlyingEndpoint.getConnection(destination);
         }
 
+        @Override
+        public IoFuture<Connection> getConnection(URI destination, String abstractType, String abstractTypeAuthority) {
+            return underlyingEndpoint.getConnection(destination, abstractType, abstractTypeAuthority);
+        }
+
+        @Override
+        public IoFuture<Connection> connect(URI destination, InetSocketAddress bindAddress, OptionMap connectOptions, AuthenticationContext authenticationContext) throws IOException {
+            return underlyingEndpoint.connect(destination, bindAddress, connectOptions, authenticationContext);
+        }
+
+        @Override
+        public IoFuture<Connection> connect(URI destination, OptionMap connectOptions) throws IOException {
+            return underlyingEndpoint.connect(destination, connectOptions);
+        }
+
+        @Override
+        public IoFuture<Connection> connect(URI destination, OptionMap connectOptions, AuthenticationContext authenticationContext) throws IOException {
+            return underlyingEndpoint.connect(destination, connectOptions, authenticationContext);
+        }
+
         public IoFuture<Connection> connect(URI uri) throws IOException {
             return underlyingEndpoint.connect(uri);
-        }
-
-        public IoFuture<Connection> connect(final URI destination, final OptionMap connectOptions) throws IOException {
-            return underlyingEndpoint.connect(destination, connectOptions, AuthenticationContext.captureCurrent(), SaslFactories.getElytronSaslClientFactory());
-        }
-
-        public IoFuture<Connection> connect(final URI destination, final OptionMap connectOptions, SaslClientFactory saslClientFactory) throws IOException {
-            return underlyingEndpoint.connect(destination, connectOptions, AuthenticationContext.captureCurrent(), saslClientFactory);
-        }
-
-        public IoFuture<Connection> connect(final URI destination, final OptionMap connectOptions, final AuthenticationContext authenticationContext) throws IOException {
-            return underlyingEndpoint.connect(destination, connectOptions, authenticationContext, SaslFactories.getElytronSaslClientFactory());
-        }
-
-        public IoFuture<Connection> connect(final URI destination, final OptionMap connectOptions, final AuthenticationContext authenticationContext, SaslClientFactory saslClientFactory) throws IOException {
-            return underlyingEndpoint.connect(destination, null, connectOptions, authenticationContext, saslClientFactory);
-        }
-
-        public IoFuture<Connection> connect(URI destination, InetSocketAddress bindAddress, OptionMap connectOptions, AuthenticationContext authenticationContext, SaslClientFactory saslClientFactory) throws IOException {
-            return underlyingEndpoint.connect(destination, bindAddress, connectOptions, authenticationContext, saslClientFactory);
-        }
-
-        public boolean isConnected(URI uri) {
-            return underlyingEndpoint.isConnected(uri);
         }
 
         public Registration addConnectionProvider(String uriScheme, ConnectionProviderFactory providerFactory, OptionMap optionMap) throws DuplicateRegistrationException, IOException {
@@ -216,6 +202,7 @@ class EndpointPool {
         public Attachments getAttachments() {
             return underlyingEndpoint.getAttachments();
         }
+
     }
 
     private static class CacheKey {
