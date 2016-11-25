@@ -509,6 +509,28 @@ public final class EJBClientInvocationContext extends Attachable {
         }
     }
 
+    boolean isDone() {
+        assert !holdsLock(lock);
+        synchronized (lock) {
+            switch (state) {
+                case WAITING: {
+                    return false;
+                }
+                case CANCEL_REQ:
+                case READY:
+                case FAILED:
+                case CANCELLED:
+                case DONE:
+                case CONSUMING:
+                case DISCARDED: {
+                    return true;
+                }
+                default:
+                    throw new IllegalStateException();
+            }
+        }
+    }
+
     final class FutureResponse implements Future<Object> {
 
         public boolean cancel(final boolean mayInterruptIfRunning) {
