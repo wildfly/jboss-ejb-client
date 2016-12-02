@@ -1,6 +1,6 @@
 /*
  * JBoss, Home of Professional Open Source.
- * Copyright 2015, Red Hat, Inc., and individual contributors
+ * Copyright 2016, Red Hat, Inc., and individual contributors
  * as indicated by the @author tags. See the copyright.txt file in the
  * distribution for a full listing of individual contributors.
  *
@@ -83,6 +83,7 @@ import org.xnio.OptionMap;
 
 /**
  * @author <a href="mailto:david.lloyd@redhat.com">David M. Lloyd</a>
+ * @author <a href="mailto:tadamski@redhat.com">Tomasz Adamski</a>
  */
 @SuppressWarnings("deprecation")
 class EJBClientChannel {
@@ -157,6 +158,7 @@ class EJBClientChannel {
             final int msg = message.readUnsignedByte();
             switch (msg) {
                 case Protocol.INVOCATION_RESPONSE:
+                case Protocol.OPEN_SESSION_RESPONSE:
                 case Protocol.APPLICATION_EXCEPTION:
                 case Protocol.CANCEL_RESPONSE:
                 case Protocol.NO_SUCH_EJB:
@@ -221,7 +223,6 @@ class EJBClientChannel {
                 }
             }
         } catch (IOException e) {
-
         } finally {
             if (! leaveOpen) {
                 safeClose(message);
@@ -291,7 +292,7 @@ class EJBClientChannel {
                     marshaller.writeInt(peerIdentityId);
 
                     // write txn context
-                    marshaller.writeInt(0);
+                    marshaller.writeShort(0);
                 }
                 // write the invocation locator itself
                 marshaller.writeObject(locator);
@@ -408,8 +409,14 @@ class EJBClientChannel {
         SessionOpenInvocation<T> invocation = invocationTracker.addInvocation(id -> new SessionOpenInvocation<>(id, statelessLocator));
         try (MessageOutputStream out = invocationTracker.allocateMessage()) {
             out.write(Protocol.OPEN_SESSION_REQUEST);
-            out.writeShort(invocation.id);
+            out.writeShort(invocation.getIndex());
             writeRawIdentifier(statelessLocator, out);
+            if (version >= 3) {
+                //TODO Elytron
+                final int peerIdentityId = 0; //channel.getConnection().getPeerIdentityId();
+                out.writeInt(peerIdentityId);
+                out.writeShort(0);
+            }
         } catch (IOException e) {
             CreateException createException = new CreateException(e.getMessage());
             createException.initCause(e);
@@ -423,9 +430,9 @@ class EJBClientChannel {
         final String appName = statelessLocator.getAppName();
         out.writeUTF(appName == null ? "" : appName);
         out.writeUTF(statelessLocator.getModuleName());
-        out.writeUTF(statelessLocator.getBeanName());
         final String distinctName = statelessLocator.getDistinctName();
         out.writeUTF(distinctName == null ? "" : distinctName);
+        out.writeUTF(statelessLocator.getBeanName());
     }
 
     public static IoFuture<EJBClientChannel> fromFuture(final Connection connection) {
@@ -524,7 +531,6 @@ class EJBClientChannel {
 
         public void handleClosed() {
             synchronized (this) {
-                id = -1;
                 notifyAll();
             }
         }
@@ -532,7 +538,6 @@ class EJBClientChannel {
         StatefulEJBLocator<T> getResult() throws Exception {
             Exception e;
             try (ResponseMessageInputStream response = removeInvocationResult()) {
-                final int id = response.getId();
                 switch (id) {
                     case Protocol.OPEN_SESSION_RESPONSE: {
                         final Affinity affinity;
@@ -540,10 +545,14 @@ class EJBClientChannel {
                         byte[] bytes = new byte[size];
                         response.readFully(bytes);
                         // todo: pool unmarshallers?  use very small instance count config?
-                        try (final Unmarshaller unmarshaller = createUnmarshaller()) {
-                            unmarshaller.start(response);
-                            affinity = unmarshaller.readObject(Affinity.class);
-                            unmarshaller.finish();
+                        if (1 <= version && version <= 2) {
+                            try (final Unmarshaller unmarshaller = createUnmarshaller()) {
+                                unmarshaller.start(response);
+                                affinity = unmarshaller.readObject(Affinity.class);
+                                unmarshaller.finish();
+                            }
+                        } else {
+                            affinity = statelessLocator.getAffinity();
                         }
                         return new StatefulEJBLocator<>(statelessLocator, SessionID.createSessionID(bytes), affinity);
                     }
@@ -591,7 +600,7 @@ class EJBClientChannel {
             try {
                 synchronized (this) {
                     for (; ; ) {
-                        id = this.id;
+                        id = this.getIndex();
                         if (inputStream != null) {
                             mis = inputStream;
                             inputStream = null;

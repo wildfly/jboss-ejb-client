@@ -70,6 +70,7 @@ import org.wildfly.security.auth.server.SecurityIdentity;
 
 /**
  * @author <a href="mailto:david.lloyd@redhat.com">David M. Lloyd</a>
+ * @author <a href="mailto:tadamski@redhat.com">Tomasz Adamski</a>
  */
 public final class RemoteServer {
 
@@ -262,7 +263,7 @@ public final class RemoteServer {
                 transactionContext = 0;
             }
             final Connection connection = channel.getConnection();
-            // TODO: read transaction by transaction ID from local transaction provider
+            // TODO Elytron read transaction by transaction ID from local transaction provider
             final Transaction transaction = null;
 
             association.receiveSessionOpenRequest(new IncomingSessionOpen(
@@ -294,28 +295,28 @@ public final class RemoteServer {
                 String moduleName = unmarshaller.readObject(String.class);
                 classResolver.setClassLoader(association.mapClassLoader(appName, moduleName));
                 methodLocator = unmarshaller.readObject(EJBMethodLocator.class);
-                locator = unmarshaller.readObject(EJBLocator.class);
-                // do identity checks for these strings to guarantee integrity.
-                //noinspection StringEquality
-                if (appName != locator.getAppName() || moduleName != locator.getModuleName()) {
-                    throw Logs.REMOTING.mismatchedMethodLocation();
-                }
                 weakAffinity = unmarshaller.readObject(Affinity.class);
                 if (weakAffinity == null) weakAffinity = Affinity.NONE;
                 int flags = unmarshaller.readUnsignedByte();
                 responseCompressLevel = flags & Protocol.COMPRESS_RESPONSE;
-                int identityId = unmarshaller.readUnsignedShort();
+                int identityId = unmarshaller.readInt();
                 int transactionId = unmarshaller.readUnsignedShort();
                 identity = identityId == 0 ? connection.getLocalIdentity() : connection.getLocalIdentity(identityId);
-                transaction = null; // todo: look up transaction by transactionId
+                transaction = null; // TODO Elytron - look up transaction by transactionId
+                locator = unmarshaller.readObject(EJBLocator.class);
+                // do identity checks for these strings to guarantee integrity.
+                // noinspection StringEquality
+                if (appName != locator.getAppName() || moduleName != locator.getModuleName()) {
+                    throw Logs.REMOTING.mismatchedMethodLocation();
+                }
             } else {
                 assert version <= 2;
                 String sigString = UTFUtils.readUTFZBytes(unmarshaller);
                 String appName = unmarshaller.readObject(String.class);
                 String moduleName = unmarshaller.readObject(String.class);
                 classResolver.setClassLoader(association.mapClassLoader(appName, moduleName));
-                String beanName = unmarshaller.readObject(String.class);
                 String distinctName = unmarshaller.readObject(String.class);
+                String beanName = unmarshaller.readObject(String.class);
 
                 // always use connection identity
                 identity = connection.getLocalIdentity();
@@ -381,7 +382,7 @@ public final class RemoteServer {
                 }
             }
             unmarshaller.finish();
-            final IncomingInvocation incomingInvocation = new IncomingInvocation(invId, weakAffinity, identity, transaction, locator.getIdentifier(), attachments, methodLocator, parameters, responseCompressLevel);
+            final IncomingInvocation incomingInvocation = new IncomingInvocation(invId, weakAffinity, identity, transaction, locator, attachments, methodLocator, parameters, responseCompressLevel);
             final AsynchronousInterceptor.CancellationHandle handle = association.receiveInvocationRequest(incomingInvocation);
             invocations.put(new InProgress(incomingInvocation, handle));
         }
@@ -407,14 +408,12 @@ public final class RemoteServer {
         private final Affinity weakAffinity;
         private final SecurityIdentity identity;
         private final Transaction transaction;
-        private final EJBIdentifier identifier;
 
-        Incoming(final int invId, final Affinity weakAffinity, final SecurityIdentity identity, final Transaction transaction, final EJBIdentifier identifier) {
+        Incoming(final int invId, final Affinity weakAffinity, final SecurityIdentity identity, final Transaction transaction) {
             this.invId = invId;
             this.weakAffinity = weakAffinity;
             this.identity = identity;
             this.transaction = transaction;
-            this.identifier = identifier;
         }
 
         int getInvId() {
@@ -432,15 +431,15 @@ public final class RemoteServer {
         public Transaction getTransaction() {
             return transaction;
         }
-
-        public EJBIdentifier getIdentifier() {
-            return identifier;
-        }
     }
 
     public final class IncomingSessionOpen extends Incoming {
+
+        private final EJBIdentifier identifier;
+
         public IncomingSessionOpen(final int invId, final Affinity weakAffinity, final SecurityIdentity identity, final Transaction transaction, final EJBIdentifier identifier) {
-            super(invId, weakAffinity, identity, transaction, identifier);
+            super(invId, weakAffinity, identity, transaction);
+            this.identifier = identifier;
         }
 
         public void writeResponse(SessionID sessionID) {
@@ -461,21 +460,29 @@ public final class RemoteServer {
                 Logs.REMOTING.trace("EJB session open response write failed", e);
             }
         }
+
+        public EJBIdentifier getIdentifier() {
+            return identifier;
+        }
     }
 
     public final class IncomingInvocation extends Incoming {
+        private final EJBLocator<?> ejbLocator;
         private final Map<String, Object> attachments;
         private final EJBMethodLocator methodLocator;
         private final Object[] parameters;
         private final int responseCompressLevel;
 
-        IncomingInvocation(final int invId, final Affinity weakAffinity, final SecurityIdentity identity, final Transaction transaction, final EJBIdentifier identifier, final Map<String, Object> attachments, final EJBMethodLocator methodLocator, final Object[] parameters, final int responseCompressLevel) {
-            super(invId, weakAffinity, identity, transaction, identifier);
+        IncomingInvocation(final int invId, final Affinity weakAffinity, final SecurityIdentity identity, final Transaction transaction, final EJBLocator<?> ejbLocator, final Map<String, Object> attachments, final EJBMethodLocator methodLocator, final Object[] parameters, final int responseCompressLevel) {
+            super(invId, weakAffinity, identity, transaction);
+            this.ejbLocator = ejbLocator;
             this.attachments = attachments;
             this.methodLocator = methodLocator;
             this.parameters = parameters;
             this.responseCompressLevel = responseCompressLevel;
         }
+
+        public EJBLocator<?> getEjbLocator() {return ejbLocator;}
 
         public Map<String, Object> getAttachments() {
             return attachments;
@@ -503,15 +510,15 @@ public final class RemoteServer {
             } finally {
                 invocations.removeKey(getInvId());
             } else {
-                writeException(Logs.REMOTING.requestCancelled());
+                writeThrowable(Logs.REMOTING.requestCancelled());
             }
         }
 
         public void writeResponse(final Object response) {
             try (MessageOutputStream os = messageTracker.openMessageUninterruptibly()) {
-                os.writeByte(responseCompressLevel >= 0 ? Protocol.COMPRESSED_INVOCATION_MESSAGE : Protocol.INVOCATION_RESPONSE);
+                os.writeByte(responseCompressLevel > 0 ? Protocol.COMPRESSED_INVOCATION_MESSAGE : Protocol.INVOCATION_RESPONSE);
                 os.writeShort(getInvId());
-                try (OutputStream output = responseCompressLevel >= 0 ? new DeflaterOutputStream(os, new Deflater(responseCompressLevel, false)) : os) {
+                try (OutputStream output = responseCompressLevel > 0 ? new DeflaterOutputStream(os, new Deflater(responseCompressLevel, false)) : os) {
                     final Marshaller marshaller = marshallerFactory.createMarshaller(configuration);
                     marshaller.start(Marshalling.createByteOutput(output));
                     marshaller.writeObject(response);
@@ -539,7 +546,7 @@ public final class RemoteServer {
             }
         }
 
-        public void writeException(final Exception response) {
+        public void writeThrowable(final Throwable response) {
             try (MessageOutputStream os = messageTracker.openMessageUninterruptibly()) {
                 os.writeByte(Protocol.APPLICATION_EXCEPTION);
                 os.writeShort(getInvId());
