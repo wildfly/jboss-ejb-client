@@ -47,7 +47,7 @@ class ByteExternalizer extends AbstractWritingExternalizer {
         output.writeByte(b);
     }
 
-    public Object createExternal(final Class<?> subjectType, final ObjectInput input, final Creator defaultCreator) throws IOException, ClassNotFoundException {
+    public Object createExternal(final Class<?> subjectType, final ObjectInput input) throws IOException, ClassNotFoundException {
         return object;
     }
 
