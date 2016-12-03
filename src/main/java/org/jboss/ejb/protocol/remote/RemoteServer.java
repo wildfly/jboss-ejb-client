@@ -416,7 +416,7 @@ public final class RemoteServer {
             this.transaction = transaction;
         }
 
-        int getInvId() {
+        public int getInvId() {
             return invId;
         }
 
@@ -431,6 +431,66 @@ public final class RemoteServer {
         public Transaction getTransaction() {
             return transaction;
         }
+
+
+        public void writeResponse(SessionID sessionID) {
+            try (MessageOutputStream os = messageTracker.openMessageUninterruptibly()) {
+                os.writeByte(Protocol.OPEN_SESSION_RESPONSE);
+                os.writeShort(getInvId());
+                final byte[] encodedForm = sessionID.getEncodedForm();
+                PackedInteger.writePackedInteger(os, encodedForm.length);
+                os.write(encodedForm);
+                if (1 <= version && version <= 2) {
+                    final Marshaller marshaller = marshallerFactory.createMarshaller(configuration);
+                    marshaller.start(Marshalling.createByteOutput(os));
+                    marshaller.writeObject(getWeakAffinity());
+                    marshaller.finish();
+                }
+            } catch (IOException e) {
+                // nothing to do at this point; the client doesn't want the response
+                Logs.REMOTING.trace("EJB session open response write failed", e);
+            }
+        }
+
+        public void writeNoSuchEJBFailureMessage() {
+            final StringBuffer sb = new StringBuffer("No such EJB[");
+            sb.append(formatEJBString());
+            sb.append("]");
+            writeInvocationFailure(Protocol.NO_SUCH_EJB, sb.toString());
+        }
+
+        abstract String formatEJBString();
+
+        protected void writeInvocationFailure(final int commandCode, final String message) {
+            try (MessageOutputStream os = messageTracker.openMessageUninterruptibly()) {
+                os.writeByte(commandCode);
+                os.writeShort(getInvId());
+                if(message != null) {
+                    os.writeUTF(message);
+                }
+            } catch (IOException e) {
+                // nothing to do at this point; the client doesn't want the response
+                Logs.REMOTING.trace("Invocation failure write failed", e);
+            }
+        }
+
+        public void writeException(final Exception response) {
+            try (MessageOutputStream os = messageTracker.openMessageUninterruptibly()) {
+                os.writeByte(Protocol.APPLICATION_EXCEPTION);
+                os.writeShort(getInvId());
+                final Marshaller marshaller = marshallerFactory.createMarshaller(configuration);
+                marshaller.start(Marshalling.createByteOutput(os));
+                marshaller.writeObject(response);
+                marshaller.writeByte(0);
+                marshaller.finish();
+            } catch (IOException e) {
+                // nothing to do at this point; the client doesn't want the response
+                Logs.REMOTING.trace("EJB response write failed", e);
+            } finally {
+                invocations.removeKey(getInvId());
+            }
+        }
+
     }
 
     public final class IncomingSessionOpen extends Incoming {
@@ -440,6 +500,10 @@ public final class RemoteServer {
         public IncomingSessionOpen(final int invId, final Affinity weakAffinity, final SecurityIdentity identity, final Transaction transaction, final EJBIdentifier identifier) {
             super(invId, weakAffinity, identity, transaction);
             this.identifier = identifier;
+        }
+
+        public EJBIdentifier getIdentifier() {
+            return identifier;
         }
 
         public void writeResponse(SessionID sessionID) {
@@ -461,8 +525,23 @@ public final class RemoteServer {
             }
         }
 
-        public EJBIdentifier getIdentifier() {
-            return identifier;
+        public void writeNotStatefulSessionBean(){
+            final StringBuffer sb = new StringBuffer("EJB[");
+            sb.append(formatEJBString());
+            sb.append("] is not stateful");
+            writeInvocationFailure(Protocol.EJB_NOT_STATEFUL, sb.toString());
+        }
+
+
+
+        @Override
+        protected String formatEJBString() {
+            final StringBuilder sb = new StringBuilder();
+            sb.append("appname=").append(identifier.getAppName()).append(",");
+            sb.append("modulename=").append(identifier.getModuleName()).append(",");
+            sb.append("distinctname=").append(identifier.getDistinctName()).append(",");
+            sb.append("beanname=").append(identifier.getBeanName()).append(",");
+            return sb.toString();
         }
     }
 
@@ -500,20 +579,6 @@ public final class RemoteServer {
             return responseCompressLevel;
         }
 
-        public void writeCancellation() {
-            if (version >= 3) try (MessageOutputStream os = messageTracker.openMessageUninterruptibly()) {
-                os.writeByte(Protocol.CANCEL_RESPONSE);
-                os.writeShort(getInvId());
-            } catch (IOException e) {
-                // nothing to do at this point; the client doesn't want the response
-                Logs.REMOTING.trace("EJB response write failed", e);
-            } finally {
-                invocations.removeKey(getInvId());
-            } else {
-                writeThrowable(Logs.REMOTING.requestCancelled());
-            }
-        }
-
         public void writeResponse(final Object response) {
             try (MessageOutputStream os = messageTracker.openMessageUninterruptibly()) {
                 os.writeByte(responseCompressLevel > 0 ? Protocol.COMPRESSED_INVOCATION_MESSAGE : Protocol.INVOCATION_RESPONSE);
@@ -546,21 +611,51 @@ public final class RemoteServer {
             }
         }
 
-        public void writeThrowable(final Throwable response) {
-            try (MessageOutputStream os = messageTracker.openMessageUninterruptibly()) {
-                os.writeByte(Protocol.APPLICATION_EXCEPTION);
+        @Override
+        protected String formatEJBString() {
+            final StringBuilder sb = new StringBuilder();
+            sb.append("appname=").append(",");
+            sb.append("modulename=").append(ejbLocator.getModuleName()).append(",");
+            sb.append("distinctname=").append(ejbLocator.getDistinctName()).append(",");
+            sb.append("beanname=").append(ejbLocator.getBeanName()).append(",");
+            final String viewClassName = ejbLocator.getViewType().getName();
+            if (viewClassName != null) {
+                sb.append(",").append("viewclassname=").append(ejbLocator.getViewType().getName());
+            }
+            return sb.toString();
+        }
+
+        public void writeCancellation() {
+            if (version >= 3) try (MessageOutputStream os = messageTracker.openMessageUninterruptibly()) {
+                os.writeByte(Protocol.CANCEL_RESPONSE);
                 os.writeShort(getInvId());
-                final Marshaller marshaller = marshallerFactory.createMarshaller(configuration);
-                marshaller.start(Marshalling.createByteOutput(os));
-                marshaller.writeObject(response);
-                marshaller.writeByte(0);
-                marshaller.finish();
             } catch (IOException e) {
                 // nothing to do at this point; the client doesn't want the response
                 Logs.REMOTING.trace("EJB response write failed", e);
             } finally {
                 invocations.removeKey(getInvId());
+            } else {
+                writeException(Logs.REMOTING.requestCancelled());
             }
+        }
+
+        public void writeNoSuchEJBMethodFailureMessage() {
+            final StringBuilder sb = new StringBuilder("No such method ");
+            sb.append(methodLocator.getMethodName()).append("(");
+            for (int i = 0; i < methodLocator.getParameterCount(); i++) {
+                if (i != 0) {
+                    sb.append(",");
+                }
+                sb.append(methodLocator.getParameterTypeName(i));
+            }
+            sb.append(") on EJB[");
+            sb.append(formatEJBString());
+            sb.append("]");
+            this.writeInvocationFailure(Protocol.NO_SUCH_METHOD, sb.toString());
+        }
+
+        public void writeAsyncMethodNotification(){
+            writeInvocationFailure(Protocol.PROCEED_ASYNC_RESPONSE, null);
         }
     }
 
