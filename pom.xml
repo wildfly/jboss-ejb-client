@@ -47,7 +47,7 @@
         <version.org.jboss.remoting>5.0.0.Beta13</version.org.jboss.remoting>
         <version.org.jboss.spec.javax.ejb>1.0.0.Final</version.org.jboss.spec.javax.ejb>
         <version.org.jboss.spec.javax.transaction>1.0.0.Final</version.org.jboss.spec.javax.transaction>
-        <version.org.jboss.xnio>3.2.0.Final</version.org.jboss.xnio>
+        <version.org.jboss.xnio>3.4.2.Final</version.org.jboss.xnio>
         <version.org.kohsuke.metainf-services>1.7</version.org.kohsuke.metainf-services>
         <version.org.wildfly.common>1.2.0.Beta1</version.org.wildfly.common>
         <version.org.wildfly.naming.client>1.0.0.Beta2</version.org.wildfly.naming.client>
