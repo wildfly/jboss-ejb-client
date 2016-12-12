@@ -1,6 +1,6 @@
 /*
  * JBoss, Home of Professional Open Source.
- * Copyright 2015, Red Hat, Inc., and individual contributors
+ * Copyright 2016, Red Hat, Inc., and individual contributors
  * as indicated by the @author tags. See the copyright.txt file in the
  * distribution for a full listing of individual contributors.
  *
@@ -38,6 +38,7 @@ import java.util.zip.InflaterInputStream;
 
 import javax.transaction.Transaction;
 
+import org.jboss.ejb.client.InvocationInformation;
 import org.jboss.ejb._private.Logs;
 import org.jboss.ejb.client.Affinity;
 import org.jboss.ejb.client.AttachmentKeys;
@@ -197,9 +198,10 @@ public final class RemoteServer {
                     case Protocol.COMPRESSED_INVOCATION_MESSAGE:
                     case Protocol.INVOCATION_REQUEST: {
                         final int invId = message.readUnsignedShort();
+                        final InvocationInformation invocationInformation = new InvocationInformation(channel.getConnection().getPeerAddress().toString(),invId);
                         // now if we get an error, we can respond.
                         try (InputStream input = code == Protocol.COMPRESSED_INVOCATION_MESSAGE ? new InflaterInputStream(message) : message) {
-                            handleInvocationRequest(invId, input);
+                            handleInvocationRequest(invocationInformation, input);
                         } catch (IOException | ClassNotFoundException e) {
                             // write response back to client
                             writeFailedResponse(invId, e);
@@ -209,7 +211,8 @@ public final class RemoteServer {
                     case Protocol.OPEN_SESSION_REQUEST: {
                         final int invId = message.readUnsignedShort();
                         try {
-                            handleSessionOpenRequest(invId, message);
+                            final InvocationInformation invocationInformation = new InvocationInformation(channel.getConnection().getPeerAddress().toString(), invId);
+                            handleSessionOpenRequest(invocationInformation, message);
                         } catch (IOException e) {
                             // write response back to client
                             writeFailedResponse(invId, e);
@@ -248,7 +251,7 @@ public final class RemoteServer {
             }
         }
 
-        void handleSessionOpenRequest(final int invId, final MessageInputStream inputStream) throws IOException {
+        void handleSessionOpenRequest(final InvocationInformation invocationInformation, final MessageInputStream inputStream) throws IOException {
             final String appName = inputStream.readUTF();
             final String moduleName = inputStream.readUTF();
             final String distName = inputStream.readUTF();
@@ -267,7 +270,7 @@ public final class RemoteServer {
             final Transaction transaction = null;
 
             association.receiveSessionOpenRequest(new IncomingSessionOpen(
-                invId,
+                invocationInformation,
                 Affinity.NONE,
                 connection.getLocalIdentity(securityContext),
                 transaction,
@@ -275,7 +278,7 @@ public final class RemoteServer {
             ));
         }
 
-        void handleInvocationRequest(final int invId, final InputStream input) throws IOException, ClassNotFoundException {
+        void handleInvocationRequest(final InvocationInformation invocationInformation, final InputStream input) throws IOException, ClassNotFoundException {
             final MarshallingConfiguration configuration = RemoteServer.this.configuration.clone();
             final ServerClassResolver classResolver = new ServerClassResolver();
             configuration.setClassResolver(classResolver);
@@ -382,7 +385,7 @@ public final class RemoteServer {
                 }
             }
             unmarshaller.finish();
-            final IncomingInvocation incomingInvocation = new IncomingInvocation(invId, weakAffinity, identity, transaction, locator, attachments, methodLocator, parameters, responseCompressLevel);
+            final IncomingInvocation incomingInvocation = new IncomingInvocation(invocationInformation, weakAffinity, identity, transaction, locator, attachments, methodLocator, parameters, responseCompressLevel);
             final AsynchronousInterceptor.CancellationHandle handle = association.receiveInvocationRequest(incomingInvocation);
             invocations.put(new InProgress(incomingInvocation, handle));
         }
@@ -404,20 +407,20 @@ public final class RemoteServer {
     }
 
     abstract class Incoming {
-        private final int invId;
+        private final InvocationInformation invocationInformation;
         private final Affinity weakAffinity;
         private final SecurityIdentity identity;
         private final Transaction transaction;
 
-        Incoming(final int invId, final Affinity weakAffinity, final SecurityIdentity identity, final Transaction transaction) {
-            this.invId = invId;
+        Incoming(final InvocationInformation invocationInformation, final Affinity weakAffinity, final SecurityIdentity identity, final Transaction transaction) {
+            this.invocationInformation = invocationInformation;
             this.weakAffinity = weakAffinity;
             this.identity = identity;
             this.transaction = transaction;
         }
 
-        public int getInvId() {
-            return invId;
+        public InvocationInformation getInvocationInformation() {
+            return invocationInformation;
         }
 
         public Affinity getWeakAffinity() {
@@ -436,7 +439,7 @@ public final class RemoteServer {
         public void writeResponse(SessionID sessionID) {
             try (MessageOutputStream os = messageTracker.openMessageUninterruptibly()) {
                 os.writeByte(Protocol.OPEN_SESSION_RESPONSE);
-                os.writeShort(getInvId());
+                os.writeShort(getInvocationInformation().getInvocationId());
                 final byte[] encodedForm = sessionID.getEncodedForm();
                 PackedInteger.writePackedInteger(os, encodedForm.length);
                 os.write(encodedForm);
@@ -464,7 +467,7 @@ public final class RemoteServer {
         protected void writeInvocationFailure(final int commandCode, final String message) {
             try (MessageOutputStream os = messageTracker.openMessageUninterruptibly()) {
                 os.writeByte(commandCode);
-                os.writeShort(getInvId());
+                os.writeShort(getInvocationInformation().getInvocationId());
                 if(message != null) {
                     os.writeUTF(message);
                 }
@@ -477,7 +480,7 @@ public final class RemoteServer {
         public void writeException(final Exception response) {
             try (MessageOutputStream os = messageTracker.openMessageUninterruptibly()) {
                 os.writeByte(Protocol.APPLICATION_EXCEPTION);
-                os.writeShort(getInvId());
+                os.writeShort(getInvocationInformation().getInvocationId());
                 final Marshaller marshaller = marshallerFactory.createMarshaller(configuration);
                 marshaller.start(Marshalling.createByteOutput(os));
                 marshaller.writeObject(response);
@@ -487,7 +490,7 @@ public final class RemoteServer {
                 // nothing to do at this point; the client doesn't want the response
                 Logs.REMOTING.trace("EJB response write failed", e);
             } finally {
-                invocations.removeKey(getInvId());
+                invocations.removeKey(getInvocationInformation().getInvocationId());
             }
         }
 
@@ -497,8 +500,8 @@ public final class RemoteServer {
 
         private final EJBIdentifier identifier;
 
-        public IncomingSessionOpen(final int invId, final Affinity weakAffinity, final SecurityIdentity identity, final Transaction transaction, final EJBIdentifier identifier) {
-            super(invId, weakAffinity, identity, transaction);
+        public IncomingSessionOpen(final InvocationInformation invocationInformation, final Affinity weakAffinity, final SecurityIdentity identity, final Transaction transaction, final EJBIdentifier identifier) {
+            super(invocationInformation, weakAffinity, identity, transaction);
             this.identifier = identifier;
         }
 
@@ -509,7 +512,7 @@ public final class RemoteServer {
         public void writeResponse(SessionID sessionID) {
             try (MessageOutputStream os = messageTracker.openMessageUninterruptibly()) {
                 os.writeByte(Protocol.OPEN_SESSION_RESPONSE);
-                os.writeShort(getInvId());
+                os.writeShort(getInvocationInformation().getInvocationId());
                 final byte[] encodedForm = sessionID.getEncodedForm();
                 PackedInteger.writePackedInteger(os, encodedForm.length);
                 os.write(encodedForm);
@@ -552,8 +555,8 @@ public final class RemoteServer {
         private final Object[] parameters;
         private final int responseCompressLevel;
 
-        IncomingInvocation(final int invId, final Affinity weakAffinity, final SecurityIdentity identity, final Transaction transaction, final EJBLocator<?> ejbLocator, final Map<String, Object> attachments, final EJBMethodLocator methodLocator, final Object[] parameters, final int responseCompressLevel) {
-            super(invId, weakAffinity, identity, transaction);
+        IncomingInvocation(final InvocationInformation invocationInformation, final Affinity weakAffinity, final SecurityIdentity identity, final Transaction transaction, final EJBLocator<?> ejbLocator, final Map<String, Object> attachments, final EJBMethodLocator methodLocator, final Object[] parameters, final int responseCompressLevel) {
+            super(invocationInformation, weakAffinity, identity, transaction);
             this.ejbLocator = ejbLocator;
             this.attachments = attachments;
             this.methodLocator = methodLocator;
@@ -582,7 +585,7 @@ public final class RemoteServer {
         public void writeResponse(final Object response) {
             try (MessageOutputStream os = messageTracker.openMessageUninterruptibly()) {
                 os.writeByte(responseCompressLevel > 0 ? Protocol.COMPRESSED_INVOCATION_MESSAGE : Protocol.INVOCATION_RESPONSE);
-                os.writeShort(getInvId());
+                os.writeShort(getInvocationInformation().getInvocationId());
                 try (OutputStream output = responseCompressLevel > 0 ? new DeflaterOutputStream(os, new Deflater(responseCompressLevel, false)) : os) {
                     final Marshaller marshaller = marshallerFactory.createMarshaller(configuration);
                     marshaller.start(Marshalling.createByteOutput(output));
@@ -607,7 +610,7 @@ public final class RemoteServer {
                 // nothing to do at this point; the client doesn't want the response
                 Logs.REMOTING.trace("EJB response write failed", e);
             } finally {
-                invocations.removeKey(getInvId());
+                invocations.removeKey(getInvocationInformation().getInvocationId());
             }
         }
 
@@ -628,12 +631,12 @@ public final class RemoteServer {
         public void writeCancellation() {
             if (version >= 3) try (MessageOutputStream os = messageTracker.openMessageUninterruptibly()) {
                 os.writeByte(Protocol.CANCEL_RESPONSE);
-                os.writeShort(getInvId());
+                os.writeShort(getInvocationInformation().getInvocationId());
             } catch (IOException e) {
                 // nothing to do at this point; the client doesn't want the response
                 Logs.REMOTING.trace("EJB response write failed", e);
             } finally {
-                invocations.removeKey(getInvId());
+                invocations.removeKey(getInvocationInformation().getInvocationId());
             } else {
                 writeException(Logs.REMOTING.requestCancelled());
             }
@@ -668,16 +671,12 @@ public final class RemoteServer {
             this.cancellationHandle = cancellationHandle;
         }
 
-        IncomingInvocation getIncomingInvocation() {
-            return incomingInvocation;
+        int getInvId() {
+            return incomingInvocation.getInvocationInformation().getInvocationId();
         }
 
         AsynchronousInterceptor.CancellationHandle getCancellationHandle() {
             return cancellationHandle;
-        }
-
-        int getInvId() {
-            return incomingInvocation.getInvId();
         }
     }
 
