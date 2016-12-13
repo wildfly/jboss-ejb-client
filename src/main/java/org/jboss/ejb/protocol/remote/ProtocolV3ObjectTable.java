@@ -108,6 +108,6 @@ final class ProtocolV3ObjectTable implements ObjectTable {
         if (idx >= extById.length) {
             throw new InvalidObjectException("ObjectTable " + this.getClass().getName() + " cannot find an object for object index " + idx);
         }
-        return extById[idx].createExternal(Object.class, unmarshaller, null);
+        return extById[idx].createExternal(Object.class, unmarshaller);
     }
 }

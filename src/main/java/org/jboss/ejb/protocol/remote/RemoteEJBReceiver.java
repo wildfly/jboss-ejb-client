@@ -88,7 +88,7 @@ class RemoteEJBReceiver extends EJBReceiver {
             final Connection connection = futureConnection.get();
             final EJBClientChannel channel = EJBClientChannel.from(connection);
             return channel.cancelInvocation(receiverContext, cancelIfRunning);
-        } catch (IOException e) {
+        } catch (Exception e) {
             return false;
         }
     }
@@ -108,8 +108,8 @@ class RemoteEJBReceiver extends EJBReceiver {
         }
     }
 
-    private <T> IoFuture<Connection> getConnection(final EJBLocator<T> locator, final NamingProvider namingProvider) throws IOException {
-        final Connection namingConnection = namingProvider instanceof RemoteNamingProvider ? ((RemoteNamingProvider) namingProvider).getConnection() : null;
+    private <T> IoFuture<Connection> getConnection(final EJBLocator<T> locator, final NamingProvider namingProvider) throws Exception {
+        final Connection namingConnection = namingProvider instanceof RemoteNamingProvider ? ((RemoteNamingProvider) namingProvider).getPeerIdentity().getConnection() : null;
         final Affinity affinity = locator.getAffinity();
         final URI target;
         if (affinity instanceof URIAffinity) {
