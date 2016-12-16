@@ -34,7 +34,7 @@ import org.kohsuke.MetaInfServices;
 @MetaInfServices
 public final class RemoteTransportProvider implements EJBTransportProvider {
 
-    private final RemoteEJBReceiver receiver = new RemoteEJBReceiver();
+    private final RemoteEJBReceiver receiver = new RemoteEJBReceiver(this);
 
     public boolean supportsProtocol(final String uriScheme) {
         switch (uriScheme) {

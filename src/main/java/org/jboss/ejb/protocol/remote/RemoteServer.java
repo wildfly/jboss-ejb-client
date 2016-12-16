@@ -25,6 +25,7 @@ package org.jboss.ejb.protocol.remote;
 import static java.lang.Math.min;
 import static org.xnio.IoUtils.safeClose;
 
+import java.io.DataInput;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -36,7 +37,13 @@ import java.util.zip.Deflater;
 import java.util.zip.DeflaterOutputStream;
 import java.util.zip.InflaterInputStream;
 
+import javax.transaction.HeuristicMixedException;
+import javax.transaction.HeuristicRollbackException;
+import javax.transaction.RollbackException;
+import javax.transaction.SystemException;
 import javax.transaction.Transaction;
+import javax.transaction.xa.XAException;
+import javax.transaction.xa.Xid;
 
 import org.jboss.ejb.client.InvocationInformation;
 import org.jboss.ejb._private.Logs;
@@ -49,6 +56,8 @@ import org.jboss.ejb.client.EJBMethodLocator;
 import org.jboss.ejb.client.RequestSendFailedException;
 import org.jboss.ejb.client.SessionID;
 import org.jboss.ejb.client.TransactionID;
+import org.jboss.ejb.client.UserTransactionID;
+import org.jboss.ejb.client.XidTransactionID;
 import org.jboss.invocation.AsynchronousInterceptor;
 import org.jboss.marshalling.AbstractClassResolver;
 import org.jboss.marshalling.Marshaller;
@@ -67,7 +76,15 @@ import org.jboss.remoting3.RemotingOptions;
 import org.jboss.remoting3._private.IntIndexHashMap;
 import org.jboss.remoting3.util.MessageTracker;
 import org.jboss.remoting3.util.StreamUtils;
+import org.wildfly.common.Assert;
+import org.wildfly.common.function.ExceptionSupplier;
 import org.wildfly.security.auth.server.SecurityIdentity;
+import org.wildfly.transaction.client.ImportResult;
+import org.wildfly.transaction.client.LocalTransaction;
+import org.wildfly.transaction.client.LocalTransactionContext;
+import org.wildfly.transaction.client.SimpleXid;
+import org.wildfly.transaction.client.provider.remoting.RemotingTransactionServer;
+import org.wildfly.transaction.client.spi.SubordinateTransactionControl;
 
 /**
  * @author <a href="mailto:david.lloyd@redhat.com">David M. Lloyd</a>
@@ -75,6 +92,7 @@ import org.wildfly.security.auth.server.SecurityIdentity;
  */
 public final class RemoteServer {
 
+    private final RemotingTransactionServer transactionServer;
     private final Channel channel;
     private final int version;
     private final MessageTracker messageTracker;
@@ -82,7 +100,8 @@ public final class RemoteServer {
     private final MarshallingConfiguration configuration;
     private final IntIndexHashMap<InProgress> invocations = new IntIndexHashMap<>(InProgress::getInvId);
 
-    RemoteServer(final Channel channel, final int version, final MessageTracker messageTracker) {
+    RemoteServer(final RemotingTransactionServer transactionServer, final Channel channel, final int version, final MessageTracker messageTracker) {
+        this.transactionServer = transactionServer;
         this.channel = channel;
         this.version = version;
         this.messageTracker = messageTracker;
@@ -100,7 +119,7 @@ public final class RemoteServer {
         this.configuration = configuration;
     }
 
-    public static OpenListener createOpenListener(Function<RemoteServer, Association> associationFactory) {
+    public static OpenListener createOpenListener(Function<RemoteServer, Association> associationFactory, RemotingTransactionServer transactionServer) {
         return new OpenListener() {
             public void channelOpened(final Channel channel) {
                 final MessageTracker messageTracker = new MessageTracker(channel, channel.getOption(RemotingOptions.MAX_OUTBOUND_MESSAGES).intValue());
@@ -123,7 +142,7 @@ public final class RemoteServer {
                             safeClose(channel);
                             return;
                         }
-                        final RemoteServer remoteServer = new RemoteServer(channel, version, messageTracker);
+                        final RemoteServer remoteServer = new RemoteServer(transactionServer, channel, version, messageTracker);
                         final Association association = associationFactory.apply(remoteServer);
                         channel.receiveMessage(remoteServer.getReceiver(association));
                     }
@@ -172,8 +191,6 @@ public final class RemoteServer {
         void receiveSessionOpenRequest(IncomingSessionOpen incomingSessionOpen);
 
         void closed();
-
-        Transaction lookupLegacyTransaction(TransactionID transactionId);
     }
 
     class ReceiverImpl implements Channel.Receiver {
@@ -228,7 +245,28 @@ public final class RemoteServer {
                         }
                         break;
                     }
-                    // TODO: transaction messages should proxy to transaction server handler
+                    case Protocol.TXN_COMMIT_REQUEST:
+                    case Protocol.TXN_ROLLBACK_REQUEST:
+                    case Protocol.TXN_PREPARE_REQUEST:
+                    case Protocol.TXN_FORGET_REQUEST:
+                    case Protocol.TXN_BEFORE_COMPLETION_REQUEST: {
+                        final int invId = message.readUnsignedShort();
+                        try {
+                            handleTxnRequest(code, invId, message);
+                        } catch (IOException e) {
+                            // ignored
+                        }
+                        break;
+                    }
+                    case Protocol.TXN_RECOVERY_REQUEST: {
+                        final int invId = message.readUnsignedShort();
+                        try {
+                            handleTxnRecoverRequest(invId, message);
+                        } catch (IOException e) {
+                            // ignored
+                        }
+                        break;
+                    }
                     default: {
                         // unrecognized
                         Logs.REMOTING.invalidMessageReceived(code);
@@ -243,11 +281,153 @@ public final class RemoteServer {
             }
         }
 
+        private void writeTxnResponse(final int invId, final int flag) {
+            try (MessageOutputStream os = messageTracker.openMessageUninterruptibly()) {
+                os.writeByte(Protocol.TXN_RESPONSE);
+                os.writeShort(invId);
+                os.writeBoolean(true);
+                PackedInteger.writePackedInteger(os, flag);
+            } catch (IOException e) {
+                // nothing to do at this point; the client doesn't want the response
+                Logs.REMOTING.trace("EJB transaction response write failed", e);
+            }
+        }
+
+        private void writeTxnResponse(final int invId) {
+            try (MessageOutputStream os = messageTracker.openMessageUninterruptibly()) {
+                os.writeByte(Protocol.TXN_RESPONSE);
+                os.writeShort(invId);
+                os.writeBoolean(false);
+            } catch (IOException e) {
+                // nothing to do at this point; the client doesn't want the response
+                Logs.REMOTING.trace("EJB transaction response write failed", e);
+            }
+        }
+
+        private void handleTxnRequest(final int code, final int invId, final MessageInputStream message) throws IOException {
+            final byte[] bytes = new byte[message.readUnsignedShort()];
+            message.readFully(bytes);
+            final TransactionID transactionID = TransactionID.createTransactionID(bytes);
+            if (transactionID instanceof XidTransactionID) try {
+                final SubordinateTransactionControl control = transactionServer.getTransactionService().getTransactionContext().findOrImportTransaction(((XidTransactionID) transactionID).getXid(), 0).getControl();
+                switch (code) {
+                    case Protocol.TXN_COMMIT_REQUEST: {
+                        boolean opc = message.readBoolean();
+                        control.commit(opc);
+                        writeTxnResponse(invId);
+                        break;
+                    }
+                    case Protocol.TXN_ROLLBACK_REQUEST: {
+                        control.rollback();
+                        writeTxnResponse(invId);
+                        break;
+                    }
+                    case Protocol.TXN_PREPARE_REQUEST: {
+                        int res = control.prepare();
+                        writeTxnResponse(invId, res);
+                        break;
+                    }
+                    case Protocol.TXN_FORGET_REQUEST: {
+                        control.forget();
+                        writeTxnResponse(invId);
+                        break;
+                    }
+                    case Protocol.TXN_BEFORE_COMPLETION_REQUEST: {
+                        control.beforeCompletion();
+                        writeTxnResponse(invId);
+                        break;
+                    }
+                    default: throw Assert.impossibleSwitchCase(code);
+                }
+            } catch (XAException e) {
+                writeFailedResponse(invId, e);
+            } else if (transactionID instanceof UserTransactionID) try {
+                final LocalTransaction localTransaction = transactionServer.getTransactionIfExists(((UserTransactionID) transactionID).getId());
+                switch (code) {
+                    case Protocol.TXN_COMMIT_REQUEST: {
+                        if (localTransaction != null) localTransaction.commit();
+                        writeTxnResponse(invId);
+                        break;
+                    }
+                    case Protocol.TXN_ROLLBACK_REQUEST: {
+                        if (localTransaction != null) localTransaction.rollback();
+                        writeTxnResponse(invId);
+                        break;
+                    }
+                    case Protocol.TXN_PREPARE_REQUEST:
+                    case Protocol.TXN_FORGET_REQUEST:
+                    case Protocol.TXN_BEFORE_COMPLETION_REQUEST: {
+                        writeFailedResponse(invId, Logs.TXN.userTxNotSupportedByTxContext());
+                        break;
+                    }
+                    default: throw Assert.impossibleSwitchCase(code);
+                }
+            } catch (SystemException | HeuristicMixedException | RollbackException | HeuristicRollbackException e) {
+                writeFailedResponse(invId, e);
+            } else {
+                throw Assert.unreachableCode();
+            }
+        }
+
+        void handleTxnRecoverRequest(final int invId, final MessageInputStream message) throws IOException {
+            final String parentName = message.readUTF();
+            final int flags = message.readInt();
+            final Xid[] xids;
+            try {
+                xids = transactionServer.getTransactionService().getTransactionContext().getRecoveryInterface().recover(flags);
+            } catch (XAException e) {
+                writeFailedResponse(invId, e);
+                return;
+            }
+            try (MessageOutputStream os = messageTracker.openMessageUninterruptibly()) {
+                os.writeByte(Protocol.TXN_RECOVERY_RESPONSE);
+                os.writeShort(invId);
+                PackedInteger.writePackedInteger(os, xids.length);
+                final Marshaller marshaller = marshallerFactory.createMarshaller(configuration);
+                marshaller.start(Marshalling.createByteOutput(os));
+                for (Xid xid : xids) {
+                    marshaller.writeObject(new XidTransactionID(xid));
+                }
+                marshaller.finish();
+            } catch (IOException e) {
+                // nothing to do at this point; the client doesn't want the response
+                Logs.REMOTING.trace("EJB transaction response write failed", e);
+            }
+        }
+
         void handleCancelRequest(final int invId, final MessageInputStream message) throws IOException {
             final boolean cancelIfRunning = version >= 3 && message.readBoolean();
             final InProgress inProgress = invocations.get(invId);
             if (inProgress != null) {
                 inProgress.getCancellationHandle().cancel(cancelIfRunning);
+            }
+        }
+
+        private ExceptionSupplier<ImportResult, SystemException> readTransaction(final DataInput input) throws IOException {
+            final int type = input.readUnsignedByte();
+            if (type == 0) {
+                return null;
+            } else if (type == 1) {
+                // remote user transaction
+                final int id = input.readInt();
+                final int timeout = PackedInteger.readPackedInteger(input);
+                return () -> new ImportResult(transactionServer.getOrBeginTransaction(id, timeout), SubordinateTransactionControl.EMPTY, false);
+            } else if (type == 2) {
+                final int fmt = PackedInteger.readPackedInteger(input);
+                final byte[] gtid = new byte[input.readUnsignedByte()];
+                input.readFully(gtid);
+                final byte[] bq = new byte[input.readUnsignedByte()];
+                input.readFully(bq);
+                final int timeout = PackedInteger.readPackedInteger(input);
+                return () -> {
+                    try {
+                        return transactionServer.getTransactionService().getTransactionContext().findOrImportTransaction(new SimpleXid(fmt, gtid, bq), timeout);
+                    } catch (XAException e) {
+                        throw new SystemException(e.getMessage());
+                    }
+                };
+            } else {
+                throw Logs.REMOTING.invalidTransactionType(type);
             }
         }
 
@@ -258,22 +438,21 @@ public final class RemoteServer {
             final String beanName = inputStream.readUTF();
             final int securityContext;
             final int transactionContext;
+            final ExceptionSupplier<ImportResult, SystemException> transactionSupplier;
             if (version >= 3) {
                 securityContext = inputStream.readInt();
-                transactionContext = inputStream.readUnsignedShort();
+                transactionSupplier = readTransaction(inputStream);
             } else {
                 securityContext = 0;
-                transactionContext = 0;
+                transactionSupplier = null;
             }
             final Connection connection = channel.getConnection();
-            // TODO Elytron read transaction by transaction ID from local transaction provider
-            final Transaction transaction = null;
 
             association.receiveSessionOpenRequest(new IncomingSessionOpen(
                 invocationInformation,
                 Affinity.NONE,
                 connection.getLocalIdentity(securityContext),
-                transaction,
+                transactionSupplier,
                 new EJBIdentifier(appName, moduleName, beanName, distName)
             ));
         }
@@ -290,7 +469,8 @@ public final class RemoteServer {
             Affinity weakAffinity = Affinity.NONE;
             int responseCompressLevel = -1;
             SecurityIdentity identity;
-            Transaction transaction = null;
+            ExceptionSupplier<ImportResult, SystemException> transactionSupplier = null;
+
             final Connection connection = channel.getConnection();
             if (version >= 3) {
                 // read MethodLocator
@@ -303,9 +483,8 @@ public final class RemoteServer {
                 int flags = unmarshaller.readUnsignedByte();
                 responseCompressLevel = flags & Protocol.COMPRESS_RESPONSE;
                 int identityId = unmarshaller.readInt();
-                int transactionId = unmarshaller.readUnsignedShort();
+                transactionSupplier = readTransaction(unmarshaller);
                 identity = identityId == 0 ? connection.getLocalIdentity() : connection.getLocalIdentity(identityId);
-                transaction = null; // TODO Elytron - look up transaction by transactionId
                 locator = unmarshaller.readObject(EJBLocator.class);
                 // do identity checks for these strings to guarantee integrity.
                 // noinspection StringEquality
@@ -366,9 +545,21 @@ public final class RemoteServer {
                         final Object transactionIdObject = map.get(AttachmentKeys.TRANSACTION_ID_KEY);
                         if (transactionIdObject != null) {
                             // attach it
-                            TransactionID transactionId = (TransactionID) transactionIdObject;
+                            final TransactionID transactionId = (TransactionID) transactionIdObject;
                             // look up the transaction
-                            transaction = association.lookupLegacyTransaction(transactionId);
+                            if (transactionId instanceof UserTransactionID) {
+                                transactionSupplier = () -> new ImportResult(transactionServer.getOrBeginTransaction(((UserTransactionID) transactionId).getId(), 0), SubordinateTransactionControl.EMPTY, false);
+                            } else if (transactionId instanceof XidTransactionID) {
+                                transactionSupplier = () -> {
+                                    try {
+                                        return transactionServer.getTransactionService().getTransactionContext().findOrImportTransaction(((XidTransactionID) transactionId).getXid(), 0);
+                                    } catch (XAException e) {
+                                        throw new SystemException(e.getMessage());
+                                    }
+                                };
+                            } else {
+                                throw Assert.impossibleSwitchCase(transactionId);
+                            }
                         }
                         weakAffinity = (Affinity) map.get(AttachmentKeys.WEAK_AFFINITY);
                         if (weakAffinity == null) {
@@ -385,7 +576,7 @@ public final class RemoteServer {
                 }
             }
             unmarshaller.finish();
-            final IncomingInvocation incomingInvocation = new IncomingInvocation(invocationInformation, weakAffinity, identity, transaction, locator, attachments, methodLocator, parameters, responseCompressLevel);
+            final IncomingInvocation incomingInvocation = new IncomingInvocation(invocationInformation, weakAffinity, identity, transactionSupplier, locator, attachments, methodLocator, parameters, responseCompressLevel);
             final AsynchronousInterceptor.CancellationHandle handle = association.receiveInvocationRequest(incomingInvocation);
             invocations.put(new InProgress(incomingInvocation, handle));
         }
@@ -410,13 +601,14 @@ public final class RemoteServer {
         private final InvocationInformation invocationInformation;
         private final Affinity weakAffinity;
         private final SecurityIdentity identity;
-        private final Transaction transaction;
+        private final ExceptionSupplier<ImportResult, SystemException> transactionSupplier;
+        int txnCmd = 0; // assume nobody will ask about the transaction
 
-        Incoming(final InvocationInformation invocationInformation, final Affinity weakAffinity, final SecurityIdentity identity, final Transaction transaction) {
+        Incoming(final InvocationInformation invocationInformation, final Affinity weakAffinity, final SecurityIdentity identity, final ExceptionSupplier<ImportResult, SystemException> transactionSupplier) {
             this.invocationInformation = invocationInformation;
             this.weakAffinity = weakAffinity;
             this.identity = identity;
-            this.transaction = transaction;
+            this.transactionSupplier = transactionSupplier;
         }
 
         public InvocationInformation getInvocationInformation() {
@@ -431,28 +623,18 @@ public final class RemoteServer {
             return identity;
         }
 
-        public Transaction getTransaction() {
-            return transaction;
-        }
-
-
-        public void writeResponse(SessionID sessionID) {
-            try (MessageOutputStream os = messageTracker.openMessageUninterruptibly()) {
-                os.writeByte(Protocol.OPEN_SESSION_RESPONSE);
-                os.writeShort(getInvocationInformation().getInvocationId());
-                final byte[] encodedForm = sessionID.getEncodedForm();
-                PackedInteger.writePackedInteger(os, encodedForm.length);
-                os.write(encodedForm);
-                if (1 <= version && version <= 2) {
-                    final Marshaller marshaller = marshallerFactory.createMarshaller(configuration);
-                    marshaller.start(Marshalling.createByteOutput(os));
-                    marshaller.writeObject(getWeakAffinity());
-                    marshaller.finish();
-                }
-            } catch (IOException e) {
-                // nothing to do at this point; the client doesn't want the response
-                Logs.REMOTING.trace("EJB session open response write failed", e);
+        public Transaction getTransaction() throws SystemException {
+            final ExceptionSupplier<ImportResult, SystemException> transactionSupplier = this.transactionSupplier;
+            if (transactionSupplier == null) {
+                return null;
             }
+            final ImportResult importResult = transactionSupplier.get();
+            if (importResult.isNew()) {
+                txnCmd = 1;
+            } else {
+                txnCmd = 2;
+            }
+            return importResult.getTransaction();
         }
 
         public void writeNoSuchEJBFailureMessage() {
@@ -500,13 +682,17 @@ public final class RemoteServer {
 
         private final EJBIdentifier identifier;
 
-        public IncomingSessionOpen(final InvocationInformation invocationInformation, final Affinity weakAffinity, final SecurityIdentity identity, final Transaction transaction, final EJBIdentifier identifier) {
-            super(invocationInformation, weakAffinity, identity, transaction);
+        IncomingSessionOpen(final InvocationInformation invocationInformation, final Affinity weakAffinity, final SecurityIdentity identity, final ExceptionSupplier<ImportResult, SystemException> transactionSupplier, final EJBIdentifier identifier) {
+            super(invocationInformation, weakAffinity, identity, transactionSupplier);
             this.identifier = identifier;
         }
 
         public EJBIdentifier getIdentifier() {
             return identifier;
+        }
+
+        public Transaction getTransaction() throws SystemException {
+            return super.getTransaction();
         }
 
         public void writeResponse(SessionID sessionID) {
@@ -521,6 +707,9 @@ public final class RemoteServer {
                     marshaller.start(Marshalling.createByteOutput(os));
                     marshaller.writeObject(getWeakAffinity());
                     marshaller.finish();
+                } else {
+                    assert version >= 3;
+                    os.writeByte(txnCmd);
                 }
             } catch (IOException e) {
                 // nothing to do at this point; the client doesn't want the response
@@ -555,13 +744,17 @@ public final class RemoteServer {
         private final Object[] parameters;
         private final int responseCompressLevel;
 
-        IncomingInvocation(final InvocationInformation invocationInformation, final Affinity weakAffinity, final SecurityIdentity identity, final Transaction transaction, final EJBLocator<?> ejbLocator, final Map<String, Object> attachments, final EJBMethodLocator methodLocator, final Object[] parameters, final int responseCompressLevel) {
-            super(invocationInformation, weakAffinity, identity, transaction);
+        IncomingInvocation(final InvocationInformation invocationInformation, final Affinity weakAffinity, final SecurityIdentity identity, final ExceptionSupplier<ImportResult, SystemException> transactionSupplier, final EJBLocator<?> ejbLocator, final Map<String, Object> attachments, final EJBMethodLocator methodLocator, final Object[] parameters, final int responseCompressLevel) {
+            super(invocationInformation, weakAffinity, identity, transactionSupplier);
             this.ejbLocator = ejbLocator;
             this.attachments = attachments;
             this.methodLocator = methodLocator;
             this.parameters = parameters;
             this.responseCompressLevel = responseCompressLevel;
+        }
+
+        public Transaction getTransaction() throws SystemException {
+            return super.getTransaction();
         }
 
         public EJBLocator<?> getEjbLocator() {return ejbLocator;}
@@ -586,6 +779,7 @@ public final class RemoteServer {
             try (MessageOutputStream os = messageTracker.openMessageUninterruptibly()) {
                 os.writeByte(responseCompressLevel > 0 ? Protocol.COMPRESSED_INVOCATION_MESSAGE : Protocol.INVOCATION_RESPONSE);
                 os.writeShort(getInvocationInformation().getInvocationId());
+                if (version >= 3) os.writeByte(txnCmd);
                 try (OutputStream output = responseCompressLevel > 0 ? new DeflaterOutputStream(os, new Deflater(responseCompressLevel, false)) : os) {
                     final Marshaller marshaller = marshallerFactory.createMarshaller(configuration);
                     marshaller.start(Marshalling.createByteOutput(output));

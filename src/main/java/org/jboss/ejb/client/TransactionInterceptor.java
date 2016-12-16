@@ -22,21 +22,13 @@
 
 package org.jboss.ejb.client;
 
-import static java.security.AccessController.doPrivileged;
+import java.net.URI;
 
-import java.security.PrivilegedAction;
-import java.util.function.Function;
-import java.util.function.Supplier;
-
-import javax.transaction.SystemException;
 import javax.transaction.Transaction;
-import javax.transaction.TransactionManager;
-import javax.transaction.xa.Xid;
 
 import org.jboss.ejb._private.Logs;
 import org.jboss.ejb.client.annotation.ClientTransactionPolicy;
-import org.wildfly.common.Assert;
-import org.wildfly.transaction.client.RemoteTransactionContext;
+import org.wildfly.transaction.client.ContextTransactionManager;
 
 /**
  * The client interceptor which associates the current transaction with the invocation.
@@ -44,22 +36,15 @@ import org.wildfly.transaction.client.RemoteTransactionContext;
  * @author <a href="mailto:david.lloyd@redhat.com">David M. Lloyd</a>
  */
 public final class TransactionInterceptor implements EJBClientInterceptor {
-    private static final RemoteTransactionContext TRANSACTION_SYSTEM = doPrivileged((PrivilegedAction<RemoteTransactionContext>) RemoteTransactionContext::getInstance);
+    private static final ContextTransactionManager transactionManager = ContextTransactionManager.getInstance();
 
-    private final Supplier<TransactionManager> transactionManagerSupplier;
-    private final Function<Transaction, Xid> xidMapper;
-
-    public TransactionInterceptor(final Supplier<TransactionManager> transactionManagerSupplier, final Function<Transaction, Xid> xidMapper) {
-        Assert.checkNotNullParam("transactionManagerSupplier", transactionManagerSupplier);
-        Assert.checkNotNullParam("xidMapper", xidMapper);
-        this.transactionManagerSupplier = transactionManagerSupplier;
-        this.xidMapper = xidMapper;
+    public TransactionInterceptor() {
     }
 
     public void handleInvocation(final EJBClientInvocationContext context) throws Exception {
         final ClientTransactionPolicy transactionPolicy = context.getTransactionPolicy();
-        final TransactionManager transactionManager = transactionManagerSupplier.get();
-        final Transaction transaction = safeGetTransaction(transactionManager);
+        final URI uri = context.getLocator().getAffinity().getUri();
+        final Transaction transaction = transactionManager.getTransaction();
 
         if (transactionPolicy.failIfTransactionAbsent()) {
             if (transaction == null) {
@@ -75,14 +60,6 @@ public final class TransactionInterceptor implements EJBClientInterceptor {
             context.setTransaction(transaction);
         }
         context.sendRequest();
-    }
-
-    private static Transaction safeGetTransaction(final TransactionManager transactionManager) {
-        try {
-            return transactionManager == null ? null : transactionManager.getTransaction();
-        } catch (SystemException e) {
-            return null;
-        }
     }
 
     public Object handleInvocationResult(final EJBClientInvocationContext context) throws Exception {

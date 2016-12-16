@@ -26,9 +26,11 @@ import static java.lang.Math.min;
 import static java.security.AccessController.doPrivileged;
 import static org.xnio.IoUtils.safeClose;
 
+import java.io.DataOutput;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InterruptedIOException;
+import java.io.UnsupportedEncodingException;
 import java.lang.reflect.Method;
 import java.net.URI;
 import java.security.PrivilegedAction;
@@ -37,6 +39,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Supplier;
 import java.util.zip.InflaterInputStream;
@@ -44,6 +47,11 @@ import java.util.zip.InflaterInputStream;
 import javax.ejb.CreateException;
 import javax.ejb.EJBException;
 import javax.ejb.NoSuchEJBException;
+import javax.transaction.InvalidTransactionException;
+import javax.transaction.RollbackException;
+import javax.transaction.SystemException;
+import javax.transaction.Transaction;
+import javax.transaction.xa.Xid;
 
 import org.jboss.ejb._private.Logs;
 import org.jboss.ejb.client.Affinity;
@@ -56,6 +64,8 @@ import org.jboss.ejb.client.SessionID;
 import org.jboss.ejb.client.StatefulEJBLocator;
 import org.jboss.ejb.client.StatelessEJBLocator;
 import org.jboss.ejb.client.TransactionID;
+import org.jboss.ejb.client.UserTransactionID;
+import org.jboss.ejb.client.XidTransactionID;
 import org.jboss.marshalling.ByteInput;
 import org.jboss.marshalling.Marshaller;
 import org.jboss.marshalling.MarshallerFactory;
@@ -68,14 +78,23 @@ import org.jboss.remoting3.Connection;
 import org.jboss.remoting3.MessageInputStream;
 import org.jboss.remoting3.MessageOutputStream;
 import org.jboss.remoting3.RemotingOptions;
+import org.jboss.remoting3._private.IntIndexHashMap;
+import org.jboss.remoting3._private.IntIndexMap;
 import org.jboss.remoting3.util.Invocation;
 import org.jboss.remoting3.util.InvocationTracker;
 import org.jboss.remoting3.util.StreamUtils;
+import org.wildfly.common.Assert;
 import org.wildfly.discovery.AttributeValue;
 import org.wildfly.discovery.ServiceRegistration;
 import org.wildfly.discovery.ServiceRegistry;
 import org.wildfly.discovery.ServiceURL;
 import org.wildfly.security.auth.AuthenticationException;
+import org.wildfly.transaction.client.LocalTransaction;
+import org.wildfly.transaction.client.ContextTransactionManager;
+import org.wildfly.transaction.client.XAOutflowHandle;
+import org.wildfly.transaction.client.RemoteTransaction;
+import org.wildfly.transaction.client.RemoteTransactionContext;
+import org.wildfly.transaction.client.provider.remoting.SimpleIdResolver;
 import org.xnio.Cancellable;
 import org.xnio.FutureResult;
 import org.xnio.IoFuture;
@@ -102,6 +121,9 @@ class EJBClientChannel {
     private final ServiceRegistry serviceRegistry;
     private final MarshallingConfiguration configuration;
     private final ConcurrentMap<DiscKey, ServiceRegistration> registrationsMap = new ConcurrentHashMap<>();
+    private final IntIndexMap<UserTransactionID> userTxnIds = new IntIndexHashMap<UserTransactionID>(UserTransactionID::getId);
+
+    private final RemoteTransactionContext transactionContext;
 
     EJBClientChannel(final Channel channel, final int version) {
         this.channel = channel;
@@ -116,7 +138,9 @@ class EJBClientChannel {
             configuration.setClassTable(ProtocolV3ClassTable.INSTANCE);
             configuration.setObjectTable(ProtocolV3ObjectTable.INSTANCE);
             configuration.setVersion(4);
+            // server does not present v3 unless the transaction service is also present
         }
+        transactionContext = RemoteTransactionContext.getInstance();
         this.serviceRegistry = REGISTRY_SUPPLIER.get();
         this.configuration = configuration;
         invocationTracker = new InvocationTracker(this.channel, channel.getOption(RemotingOptions.MAX_OUTBOUND_MESSAGES).intValue(), EJBClientChannel::mask);
@@ -157,6 +181,7 @@ class EJBClientChannel {
         try {
             final int msg = message.readUnsignedByte();
             switch (msg) {
+                case Protocol.TXN_RESPONSE:
                 case Protocol.INVOCATION_RESPONSE:
                 case Protocol.OPEN_SESSION_RESPONSE:
                 case Protocol.APPLICATION_EXCEPTION:
@@ -243,7 +268,8 @@ class EJBClientChannel {
         } catch (AuthenticationException e) {
             receiverContext.resultReady(new EJBReceiverInvocationContext.ResultProducer.Failed(e));
             return;
-        } else {
+        }
+        else {
             peerIdentityId = 0; // unused
         }
         try (MessageOutputStream out = invocationTracker.allocateMessage()) {
@@ -292,7 +318,7 @@ class EJBClientChannel {
                     marshaller.writeInt(peerIdentityId);
 
                     // write txn context
-                    marshaller.writeShort(0);
+                    invocation.setOutflowHandle(writeTransaction(invocationContext.getTransaction(), marshaller));
                 }
                 // write the invocation locator itself
                 marshaller.writeObject(locator);
@@ -312,39 +338,48 @@ class EJBClientChannel {
 
                 // write the attachment count which is the sum of invocation context data + 1 (since we write
                 // out the private attachments under a single key with the value being the entire attachment map)
-                int totalAttachments = contextData.size();
+                int totalContextData = contextData.size();
                 if (version >= 3) {
                     // Just write the attachments.
-                    PackedInteger.writePackedInteger(marshaller, totalAttachments);
+                    PackedInteger.writePackedInteger(marshaller, totalContextData);
 
                     for (Map.Entry<String, Object> invocationContextData : contextData.entrySet()) {
                         marshaller.writeObject(invocationContextData.getKey());
                         marshaller.writeObject(invocationContextData.getValue());
                     }
                 } else {
+                    final Transaction transaction = invocationContext.getTransaction();
+
                     // We are only marshalling those attachments whose keys are present in the object table
                     final Map<AttachmentKey<?>, Object> marshalledPrivateAttachments = new HashMap<>();
-                    for(final Map.Entry<AttachmentKey<?>, ?> entry: privateAttachments.entrySet()){
-                        if(ProtocolV1ObjectTable.INSTANCE.getObjectWriter(entry.getKey()) != null){
-                            marshalledPrivateAttachments.put(entry.getKey(), entry.getValue());
+                    for (final Map.Entry<AttachmentKey<?>, ?> entry : privateAttachments.entrySet()) {
+                        final AttachmentKey<?> key = entry.getKey();
+                        if (key == AttachmentKeys.TRANSACTION_ID_KEY) {
+                            // skip!
+                        } else if (ProtocolV1ObjectTable.INSTANCE.getObjectWriter(key) != null) {
+                            marshalledPrivateAttachments.put(key, entry.getValue());
                         }
                     }
-                    final boolean hasPrivateAttachments = !marshalledPrivateAttachments.isEmpty();
+
+                    if (transaction != null) {
+                        marshalledPrivateAttachments.put(AttachmentKeys.TRANSACTION_ID_KEY, calculateTransactionId(transaction));
+                    }
+
+                    final boolean hasPrivateAttachments = ! marshalledPrivateAttachments.isEmpty();
                     if (hasPrivateAttachments) {
-                        totalAttachments++;
+                        totalContextData++;
                     }
                     // Note: The code here is just for backward compatibility of 1.x and 2.x versions of EJB client project.
                     // Attach legacy transaction ID, if there is an active txn.
 
-                    final boolean txIdAttachmentPresent = privateAttachments.containsKey(AttachmentKeys.TRANSACTION_ID_KEY);
-                    if (txIdAttachmentPresent) {
+                    if (transaction != null) {
                         // we additionally add/duplicate the transaction id under a different attachment key
                         // to preserve backward compatibility. This is here just for 1.0.x backward compatibility
-                        totalAttachments++;
+                        totalContextData++;
                     }
                     // backward compatibility code block for transaction id ends here.
 
-                    PackedInteger.writePackedInteger(marshaller, totalAttachments);
+                    PackedInteger.writePackedInteger(marshaller, totalContextData);
                     // write out public (application specific) context data
                     for (Map.Entry<String, Object> invocationContextData : contextData.entrySet()) {
                         marshaller.writeObject(invocationContextData.getKey());
@@ -359,14 +394,14 @@ class EJBClientChannel {
 
                     // Note: The code here is just for backward compatibility of 1.0.x version of EJB client project
                     // against AS7 7.1.x releases. Discussion here https://github.com/jbossas/jboss-ejb-client/pull/11#issuecomment-6573863
-                    if (txIdAttachmentPresent) {
+                    if (transaction != null) {
                         // we additionally add/duplicate the transaction id under a different attachment key
                         // to preserve backward compatibility. This is here just for 1.0.x backward compatibility
                         marshaller.writeObject(TransactionID.PRIVATE_DATA_KEY);
                         // This transaction id attachment duplication *won't* cause increase in EJB protocol message payload
                         // since we rely on JBoss Marshalling to use back references for the same transaction id object being
                         // written out
-                        marshaller.writeObject(privateAttachments.get(AttachmentKeys.TRANSACTION_ID_KEY));
+                        marshaller.writeObject(marshalledPrivateAttachments.get(AttachmentKeys.TRANSACTION_ID_KEY));
                     }
                     // backward compatibility code block for transaction id ends here.
                 }
@@ -377,9 +412,60 @@ class EJBClientChannel {
                 out.cancel();
                 throw e;
             }
-        } catch (IOException e) {
+        } catch (IOException | RollbackException | SystemException | RuntimeException e) {
             receiverContext.resultReady(new EJBReceiverInvocationContext.ResultProducer.Failed(new EJBException(e.getMessage(), e)));
             return;
+        }
+    }
+
+    private TransactionID calculateTransactionId(final Transaction transaction) throws RollbackException, SystemException, InvalidTransactionException {
+        final URI location = channel.getConnection().getPeerURI();
+        Assert.assertNotNull(transaction);
+        if (transaction instanceof RemoteTransaction) {
+            final SimpleIdResolver ir = ((RemoteTransaction) transaction).getProviderInterface(SimpleIdResolver.class);
+            if (ir == null) throw Logs.TXN.cannotEnlistTx();
+            return new UserTransactionID(channel.getConnection().getRemoteEndpointName(), ir.getTransactionId(channel.getConnection()));
+        } else if (transaction instanceof LocalTransaction) {
+            final LocalTransaction localTransaction = (LocalTransaction) transaction;
+            final XAOutflowHandle outflowHandle = transactionContext.outflowTransaction(location, localTransaction);
+            // always verify V1/2 outflows
+            outflowHandle.verifyEnlistment();
+            return new XidTransactionID(outflowHandle.getXid());
+        } else {
+            throw Logs.TXN.cannotEnlistTx();
+        }
+    }
+
+    private XAOutflowHandle writeTransaction(final Transaction transaction, final DataOutput dataOutput) throws IOException, RollbackException, SystemException {
+        final URI location = channel.getConnection().getPeerURI();
+        if (transaction == null) {
+            dataOutput.writeByte(0);
+            return null;
+        } else if (transaction instanceof RemoteTransaction) {
+            dataOutput.writeByte(1);
+            final SimpleIdResolver ir = ((RemoteTransaction) transaction).getProviderInterface(SimpleIdResolver.class);
+            if (ir == null) throw Logs.TXN.cannotEnlistTx();
+            final int id = ir.getTransactionId(channel.getConnection());
+            dataOutput.writeInt(id);
+            PackedInteger.writePackedInteger(dataOutput, ((RemoteTransaction) transaction).getRemainingTime());
+            return null;
+        } else if (transaction instanceof LocalTransaction) {
+            final LocalTransaction localTransaction = (LocalTransaction) transaction;
+            final XAOutflowHandle outflowHandle = transactionContext.outflowTransaction(location, localTransaction);
+            final Xid xid = outflowHandle.getXid();
+            dataOutput.writeByte(2);
+            PackedInteger.writePackedInteger(dataOutput, xid.getFormatId());
+            final byte[] gtid = xid.getGlobalTransactionId();
+            dataOutput.writeByte(gtid.length);
+            dataOutput.write(gtid);
+            final byte[] bq = xid.getBranchQualifier();
+            // this will normally be zero, but write it anyway just in case we need to change it later
+            dataOutput.writeByte(bq.length);
+            dataOutput.write(bq);
+            PackedInteger.writePackedInteger(dataOutput, outflowHandle.getRemainingTime());
+            return outflowHandle;
+        } else {
+            throw Logs.TXN.cannotEnlistTx();
         }
     }
 
@@ -415,7 +501,7 @@ class EJBClientChannel {
                 //TODO Elytron
                 final int peerIdentityId = 0; //channel.getConnection().getPeerIdentityId();
                 out.writeInt(peerIdentityId);
-                out.writeShort(0);
+                writeTransaction(ContextTransactionManager.getInstance().getTransaction(), out);
             }
         } catch (IOException e) {
             CreateException createException = new CreateException(e.getMessage());
@@ -510,11 +596,16 @@ class EJBClientChannel {
         }
     }
 
+    InvocationTracker getInvocationTracker() {
+        return invocationTracker;
+    }
+
     final class SessionOpenInvocation<T> extends Invocation {
 
         private final StatelessEJBLocator<T> statelessLocator;
         private int id;
         private MessageInputStream inputStream;
+        private XAOutflowHandle outflowHandle;
 
         protected SessionOpenInvocation(final int index, final StatelessEJBLocator<T> statelessLocator) {
             super(index);
@@ -535,6 +626,14 @@ class EJBClientChannel {
             }
         }
 
+        void setOutflowHandle(final XAOutflowHandle outflowHandle) {
+            this.outflowHandle = outflowHandle;
+        }
+
+        XAOutflowHandle getOutflowHandle() {
+            return outflowHandle;
+        }
+
         StatefulEJBLocator<T> getResult() throws Exception {
             Exception e;
             try (ResponseMessageInputStream response = removeInvocationResult()) {
@@ -553,6 +652,21 @@ class EJBClientChannel {
                             }
                         } else {
                             affinity = statelessLocator.getAffinity();
+                            final int cmd = response.readUnsignedByte();
+                            final XAOutflowHandle outflowHandle = getOutflowHandle();
+                            if (outflowHandle != null) {
+                                if (cmd == 0) {
+                                    outflowHandle.forgetEnlistment();
+                                } else if (cmd == 1) {
+                                    try {
+                                        outflowHandle.verifyEnlistment();
+                                    } catch (RollbackException | SystemException e1) {
+                                        throw new EJBException(e1);
+                                    }
+                                } else if (cmd == 2) {
+                                    outflowHandle.nonMasterEnlistment();
+                                }
+                            }
                         }
                         return new StatefulEJBLocator<>(statelessLocator, SessionID.createSessionID(bytes), affinity);
                     }
@@ -590,6 +704,9 @@ class EJBClientChannel {
             } catch (ClassNotFoundException | IOException ex) {
                 throw new EJBException("Failed to read session create response", ex);
             }
+            if (e == null) {
+                throw new EJBException("Null exception response");
+            }
             // throw the application exception outside of the try block
             throw e;
         }
@@ -620,13 +737,50 @@ class EJBClientChannel {
         }
     }
 
-    private Unmarshaller createUnmarshaller() throws IOException {
+    Unmarshaller createUnmarshaller() throws IOException {
         return marshallerFactory.createUnmarshaller(configuration);
+    }
+
+    Channel getChannel() {
+        return channel;
+    }
+
+    UserTransactionID allocateUserTransactionID() {
+        final ThreadLocalRandom random = ThreadLocalRandom.current();
+        final String nodeName = getChannel().getConnection().getRemoteEndpointName();
+        final byte[] nameBytes;
+        try {
+            nameBytes = nodeName.getBytes("UTF-8");
+        } catch (UnsupportedEncodingException e) {
+            throw Assert.unreachableCode();
+        }
+        final int length = nameBytes.length;
+        if (length > 255) {
+            throw Assert.unreachableCode();
+        }
+        final byte[] target = new byte[6 + length];
+        target[0] = 0x01;
+        target[1] = (byte) length;
+        System.arraycopy(nameBytes, 0, target, 2, length);
+        for (;;) {
+            int id = random.nextInt();
+            if (! userTxnIds.containsKey(id)) {
+                target[2 + length] = (byte) (id >> 24);
+                target[3 + length] = (byte) (id >> 16);
+                target[4 + length] = (byte) (id >> 8);
+                target[5 + length] = (byte) id;
+                final UserTransactionID uti = (UserTransactionID) TransactionID.createTransactionID(target);
+                if (userTxnIds.putIfAbsent(uti) == null) {
+                    return uti;
+                }
+            }
+        }
     }
 
     final class MethodInvocation extends Invocation {
         private final EJBReceiverInvocationContext receiverInvocationContext;
         private final AtomicInteger refCounter = new AtomicInteger(1);
+        private XAOutflowHandle outflowHandle;
 
         MethodInvocation(final int index, final EJBReceiverInvocationContext receiverInvocationContext) {
             super(index);
@@ -662,6 +816,23 @@ class EJBClientChannel {
                 }
                 case Protocol.INVOCATION_RESPONSE: {
                     free();
+                    if (version >= 3) try {
+                        final int cmd = inputStream.readUnsignedByte();
+                        final XAOutflowHandle outflowHandle = getOutflowHandle();
+                        if (outflowHandle != null) {
+                            if (cmd == 0) {
+                                outflowHandle.forgetEnlistment();
+                            } else if (cmd == 1) {
+                                outflowHandle.verifyEnlistment();
+                            } else if (cmd == 2) {
+                                outflowHandle.nonMasterEnlistment();
+                            }
+                        }
+                    } catch (IOException | RollbackException | SystemException e) {
+                        receiverInvocationContext.resultReady(new EJBReceiverInvocationContext.ResultProducer.Failed(new EJBException(e)));
+                        safeClose(inputStream);
+                        break;
+                    }
                     receiverInvocationContext.resultReady(new MethodCallResultProducer(inputStream, id));
                     break;
                 }
@@ -742,6 +913,14 @@ class EJBClientChannel {
         public void handleClosed() {
         }
 
+        XAOutflowHandle getOutflowHandle() {
+            return outflowHandle;
+        }
+
+        void setOutflowHandle(final XAOutflowHandle outflowHandle) {
+            this.outflowHandle = outflowHandle;
+        }
+
         class MethodCallResultProducer implements EJBReceiverInvocationContext.ResultProducer {
 
             private final InputStream inputStream;
@@ -807,6 +986,9 @@ class EJBClientChannel {
                     unmarshaller.finish();
                 } catch (IOException | ClassNotFoundException ex) {
                     throw new EJBException("Failed to read response", ex);
+                }
+                if (e == null) {
+                    throw new EJBException("Null exception response");
                 }
                 // todo: glue stack traces
                 throw e;

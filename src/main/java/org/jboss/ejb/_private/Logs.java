@@ -39,6 +39,7 @@ import javax.naming.Name;
 import javax.naming.NamingException;
 import javax.transaction.NotSupportedException;
 
+import java.io.IOException;
 import java.io.InvalidObjectException;
 import java.util.Set;
 import java.util.concurrent.CancellationException;
@@ -297,4 +298,10 @@ public interface Logs extends BasicLogger {
     @LogMessage(level = DEBUG)
     @Message(id = 501, value = "Protocol error: invalid message ID %02x received")
     void invalidMessageReceived(int code);
+
+    @Message(id = 502, value = "Protocol error: invalid transaction type %02x received")
+    IOException invalidTransactionType(int type);
+
+    @Message(id = 503, value = "Protocol error: unable to inflow remote transaction")
+    IOException unableToInflowTxn(@Cause Exception e);
 }

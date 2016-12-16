@@ -34,7 +34,8 @@ public final class UserTransactionID extends TransactionID {
 
     private static final long serialVersionUID = -791647046784989955L;
 
-    private final transient String nodeName;
+    private final String nodeName;
+    private final int id;
 
     UserTransactionID(final byte[] encodedForm) {
         super(encodedForm);
@@ -58,9 +59,14 @@ public final class UserTransactionID extends TransactionID {
             throw wrongFormat();
         }
         // the rest is the unique ID
+        //noinspection NumericOverflow
+        this.id = (encodedForm[nodeNameLength] & 0xff) << 24
+                | (encodedForm[nodeNameLength + 1] & 0xff) << 16
+                | (encodedForm[nodeNameLength + 2] & 0xff) << 8
+                | encodedForm[nodeNameLength + 3] & 0xff;
     }
 
-    UserTransactionID(final String name, final int uniqueId) {
+    public UserTransactionID(final String name, final int uniqueId) {
         this(encode(name, uniqueId));
     }
 
@@ -87,7 +93,7 @@ public final class UserTransactionID extends TransactionID {
     }
 
     private static IllegalArgumentException wrongFormat() {
-        return new IllegalArgumentException("Wrong session ID format");
+        return new IllegalArgumentException("Wrong transaction ID format");
     }
 
     /**
@@ -97,5 +103,14 @@ public final class UserTransactionID extends TransactionID {
      */
     public String getNodeName() {
         return nodeName;
+    }
+
+    /**
+     * Get the unique ID.
+     *
+     * @return the unique ID
+     */
+    public int getId() {
+        return id;
     }
 }
