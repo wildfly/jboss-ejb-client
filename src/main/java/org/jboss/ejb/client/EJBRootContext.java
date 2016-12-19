@@ -61,15 +61,15 @@ class EJBRootContext extends AbstractContext {
 
     protected Object lookupNative(final Name name) throws NamingException {
         final int size = name.size();
-        if (size < 4) {
+        if (size < 3) {
             return new RelativeContext(new FastHashtable<>(getEnvironment()), this, SimpleName.of(name));
         } else if (size > 4) {
             throw nameNotFound(name);
         }
         String appName = name.get(0);
         String moduleName = name.get(1);
-        String distinctName = name.get(2);
-        String lastPart = name.get(3);
+        String distinctName;
+        String lastPart = name.get(size - 1);
         int cp;
         String beanName = null;
         for (int i = 0; i < lastPart.length(); i = lastPart.offsetByCodePoints(i, 1)) {
@@ -83,9 +83,15 @@ class EJBRootContext extends AbstractContext {
             }
         }
         if (beanName == null) {
+            if (size == 3) {
+                // name is of the form appName/moduleName/distinctName
+                return new RelativeContext(new FastHashtable<>(getEnvironment()), this, SimpleName.of(name));
+            }
             // no view type given; invalid
             throw nameNotFound(name);
         }
+        // name is of the form appName/moduleName/distinctName/lastPart or appName/moduleName/lastPart
+        distinctName = size == 4 ? name.get(2) : "";
         String viewType = null;
         for (int i = 0; i < lastPart.length(); i = lastPart.offsetByCodePoints(i, 1)) {
             cp = lastPart.codePointAt(i);
