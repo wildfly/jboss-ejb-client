@@ -46,7 +46,7 @@ class EJBRootContext extends AbstractContext {
     EJBRootContext(final NamingProvider namingProvider, final FastHashtable<String, Object> env) {
         super(env);
         this.namingProvider = namingProvider;
-        final URI providerUri = namingProvider.getProviderUri();
+        final URI providerUri = namingProvider == null ? null : namingProvider.getProviderUri();
         if (providerUri == null) {
             affinity = Affinity.NONE;
         } else {
