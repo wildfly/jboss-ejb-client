@@ -28,7 +28,6 @@ import javax.naming.NamingException;
 import org.kohsuke.MetaInfServices;
 import org.wildfly.naming.client.NamingContextFactory;
 import org.wildfly.naming.client.NamingProvider;
-import org.wildfly.naming.client.remote.RemoteNamingProvider;
 import org.wildfly.naming.client.util.FastHashtable;
 
 /**
@@ -39,7 +38,7 @@ import org.wildfly.naming.client.util.FastHashtable;
 @MetaInfServices
 public final class EJBNamingContextFactory implements NamingContextFactory {
     public boolean supportsUriScheme(final NamingProvider namingProvider, final String nameScheme) {
-        return namingProvider instanceof RemoteNamingProvider && "ejb".equals(nameScheme);
+        return "ejb".equals(nameScheme);
     }
 
     public Context createRootContext(final NamingProvider namingProvider, final String nameScheme, final FastHashtable<String, Object> env) throws NamingException {
