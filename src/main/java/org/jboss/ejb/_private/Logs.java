@@ -38,6 +38,7 @@ import javax.naming.CommunicationException;
 import javax.naming.Name;
 import javax.naming.NamingException;
 import javax.transaction.NotSupportedException;
+import javax.transaction.SystemException;
 
 import java.io.IOException;
 import java.io.InvalidObjectException;
@@ -285,6 +286,9 @@ public interface Logs extends BasicLogger {
     @Message(id = 403, value = "Timed out")
     TimeoutException timedOut();
 
+    @Message(id = 408, value = "Inflowed transaction is no longer active")
+    SystemException transactionNoLongerActive();
+
     // @Message(id = 404, value = "Operation not allowed since this EJB client context %s has been closed")
     // @Message(id = 405, value = "An EJB client context is already registered for EJB client context identifier %s")
     // @Message(id = 406, value = "Unexpected exception when discarding invocation result")
@@ -304,4 +308,7 @@ public interface Logs extends BasicLogger {
 
     @Message(id = 503, value = "Protocol error: unable to inflow remote transaction")
     IOException unableToInflowTxn(@Cause Exception e);
+
+    @Message(id = 504, value = "Server error: no session was created")
+    IllegalStateException noSessionCreated();
 }

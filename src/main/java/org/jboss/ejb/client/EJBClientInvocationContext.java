@@ -50,6 +50,7 @@ public final class EJBClientInvocationContext extends Attachable {
     private static final Logs log = Logs.MAIN;
 
     public static final String PRIVATE_ATTACHMENTS_KEY = "org.jboss.ejb.client.invocation.attachments";
+    private static final EJBReceiverInvocationContext.ResultProducer.Immediate NULL_RESPONSE = new EJBReceiverInvocationContext.ResultProducer.Immediate(null);
 
     // Contextual stuff
     private final EJBInvocationHandler<?> invocationHandler;
@@ -486,7 +487,11 @@ public final class EJBClientInvocationContext extends Attachable {
         synchronized (lock) {
             if (asyncState == AsyncState.SYNCHRONOUS) {
                 blockingCaller = false;
-                asyncState = AsyncState.ASYNCHRONOUS;
+                if (getInvokedMethod().getReturnType() == void.class) {
+                    asyncState = AsyncState.ONE_WAY;
+                } else {
+                    asyncState = AsyncState.ASYNCHRONOUS;
+                }
                 lock.notifyAll();
             }
         }
@@ -528,7 +533,7 @@ public final class EJBClientInvocationContext extends Attachable {
                     if (asyncState == AsyncState.ASYNCHRONOUS) {
                         return PROCEED_ASYNC;
                     } else if (asyncState == AsyncState.ONE_WAY) {
-                        throw log.oneWayInvocation();
+                        this.resultReady(NULL_RESPONSE);
                     }
                     long remainingWaitTimeout = TimeUnit.MILLISECONDS.toNanos(invocationTimeout);
                     long waitStartTime = System.nanoTime();
@@ -565,7 +570,7 @@ public final class EJBClientInvocationContext extends Attachable {
                             // It's an asynchronous invocation; proceed asynchronously.
                             return PROCEED_ASYNC;
                         } else if (asyncState == AsyncState.ONE_WAY) {
-                            throw log.oneWayInvocation();
+                            this.resultReady(NULL_RESPONSE);
                         }
                         // If the state is still waiting and the invocation timeout was specified,
                         // then it indicates that the Object.wait(timeout) returned due to a timeout.
@@ -651,10 +656,6 @@ public final class EJBClientInvocationContext extends Attachable {
             assert !holdsLock(lock);
             synchronized (lock) {
                 if (state != State.WAITING) {
-                    return false;
-                }
-                // if we aren't allowed to interrupt a running task, then skip the cancellation
-                if (!mayInterruptIfRunning) {
                     return false;
                 }
                 // at this point the task is running and we are allowed to interrupt it. So issue

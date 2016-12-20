@@ -191,7 +191,7 @@ This message is sent when the server notifies the client that a method invocatio
 
 Note.  The client may already be unblocked if it can determine that the method invocation must be asynchronous (because it returns a java.util.concurrent.Future) or if the user utilized some API-specific mechanism to deliberately force an asynchronous execution (in which case the method is most likely a void method).  There is no way for a client to know in advance if a method which returns void is asynchronous due to the generally stateless nature of this protocol.  The client will generally propagate transactional context regardless of the method; the server may opt to not use the transactional context in the event that the method is asynchronous.
 
-Note.  As of protocol V3, this message is no longer used.
+Note.  As of protocol V3, this message is no longer used.  Asynchronous void methods will simply complete immediately from the client perspective.
 
 3.2. Invocation Response (server → client)
 
@@ -204,6 +204,13 @@ Note.  As of protocol V3, this message is no longer used.
     │               │
     └───────┬───────┴───────┐
             │  Enlistment   │ V3+: 0 = Forget tx enlistment, 1 = commit enlistment, 2 = not master, 3 = unknown
+            ├───────────────┤
+            │  SessionFix   │ V3+: 0 = Invocation OK, 1 = stateless → stateful conversion happened, Session ID follows
+            ├───────────────┤
+            │    ID Size    │  Variable length integer (if 1 above)
+            ├───────────────┤
+            │   Session ID  │  Variable length bytes
+            ┊               ┊
     ┌───────┴───────┬───────┘
     │    Result     │  Variable length
     ┊     Data      ┊
@@ -339,7 +346,7 @@ If a session open request is sent for a bean which is not a stateful bean, then 
 
 4. Clustering messages
 
-4.1 (New) Cluster topology (command code = 0x15). Sent from server to client
+4.1 (New) Cluster topology (command code = 0x15). Sent from server to client, additive
 
      7 6 5 4 3 2 1 0 
     ┌─┬─┬─┬─┬─┬─┬─┬─┐
@@ -360,9 +367,9 @@ If a session open request is sent for a bean which is not a stateful bean, then 
     │││mapping count  │
     ││├───────────────┤
     │││┌──────────────┴─┐ - for each mapping count  
-    ││││Client Source IP│ - ip6 bytes (ip4 = ffff ip6)
+    ││││Client Netmask  │ - packed integer, LSB 0 = ipv6, 1 = ipv4; bits 4-n are the netmask bits (only bits 1-8 are used)
     │││├────────────────┤
-    ││││Client Netmask  │ - single byte, number of bits
+    ││││Client Source IP│ - IP bytes
     │││├────────────────┤
     ││││Destination Addr│ - Variable length UTF8Z host/ip string
     │││├────────────────┤

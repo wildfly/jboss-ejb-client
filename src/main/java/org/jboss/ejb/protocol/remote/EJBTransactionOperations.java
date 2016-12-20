@@ -153,13 +153,13 @@ class EJBTransactionOperations implements RemotingOperations {
         }
     }
 
-    public Xid[] recover(final int flag) throws XAException {
+    public Xid[] recover(final int flag, final String parentName) throws XAException {
         final InvocationTracker invocationTracker = channel.getInvocationTracker();
         final PlainTransactionInvocation invocation = invocationTracker.addInvocation(PlainTransactionInvocation::new);
         try (MessageOutputStream os = invocationTracker.allocateMessage(invocation)) {
             os.writeByte(Protocol.TXN_RECOVERY_REQUEST);
             os.writeShort(invocation.getIndex());
-            os.writeUTF(channel.getChannel().getConnection().getEndpoint().getName());
+            os.writeUTF(parentName);
             os.writeInt(flag);
         } catch (IOException e) {
             throw new XAException(XAException.XAER_RMERR);

@@ -20,32 +20,29 @@
  * 02110-1301 USA, or see the FSF site: http://www.fsf.org.
  */
 
-package org.jboss.ejb.client;
+package org.jboss.ejb.server;
 
 /**
- * @author <a href="mailto:tadamski@redhat.com">Tomasz Adamski</a>
+ * A handle which may be used to request the cancellation an invocation request.  A cancel request may or may not be
+ * honored by the server implementation.
+ *
+ * @author <a href="mailto:david.lloyd@redhat.com">David M. Lloyd</a>
  */
-public class InvocationInformation {
-    //TODO add the protocol
-    private final String peerAddress;
-    private final int invocationId;
+@FunctionalInterface
+public interface CancelHandle {
 
-    public InvocationInformation(final String peerAddress, final int invocationId){
-        this.peerAddress = peerAddress;
-        this.invocationId = invocationId;
-    }
+    /**
+     * Attempt to cancel the in-progress invocation.  If the invocation is past the point where cancellation is
+     * possible, the method has no effect.  The invocation may not support cancellation, in which case the method
+     * has no effect.
+     *
+     * @param aggressiveCancelRequested {@code false} to only cancel if the method invocation has not yet begun, {@code true} to
+     * attempt to cancel even if the method is running
+     */
+    void cancel(boolean aggressiveCancelRequested);
 
-
-    public String getPeerAddress() {
-        return peerAddress;
-    }
-
-    public int getInvocationId() {
-        return invocationId;
-    }
-
-    @Override
-    public String toString() {
-        return "[" + peerAddress + ", invocation id:" + invocationId + "]";
-    }
+    /**
+     * A null cancel handle which does nothing.
+     */
+    CancelHandle NULL = ignored -> {};
 }

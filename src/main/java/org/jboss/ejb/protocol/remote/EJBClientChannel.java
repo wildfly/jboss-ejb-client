@@ -57,6 +57,7 @@ import org.jboss.ejb._private.Logs;
 import org.jboss.ejb.client.Affinity;
 import org.jboss.ejb.client.AttachmentKey;
 import org.jboss.ejb.client.AttachmentKeys;
+import org.jboss.ejb.client.EJBClient;
 import org.jboss.ejb.client.EJBClientInvocationContext;
 import org.jboss.ejb.client.EJBLocator;
 import org.jboss.ejb.client.EJBReceiverInvocationContext;
@@ -470,6 +471,10 @@ class EJBClientChannel {
     }
 
     boolean cancelInvocation(final EJBReceiverInvocationContext receiverContext, boolean cancelIfRunning) {
+        if (version < 3 && ! cancelIfRunning) {
+            // keep legacy behavior
+            return false;
+        }
         final MethodInvocation invocation = receiverContext.getClientInvocationContext().getAttachment(INV_KEY);
         if (invocation.alloc()) try {
             final int index = invocation.getIndex();
@@ -477,7 +482,7 @@ class EJBClientChannel {
                 out.write(Protocol.CANCEL_REQUEST);
                 out.writeShort(index);
                 if (version >= 3) {
-                    out.writeByte(cancelIfRunning ? 1 : 0);
+                    out.writeBoolean(cancelIfRunning);
                 }
             } catch (IOException ignored) {}
         } finally {
@@ -828,7 +833,14 @@ class EJBClientChannel {
                                 outflowHandle.nonMasterEnlistment();
                             }
                         }
-                    } catch (IOException | RollbackException | SystemException e) {
+                        if (inputStream.readBoolean()) {
+                            byte[] encoded = new byte[PackedInteger.readPackedInteger(inputStream)];
+                            inputStream.read(encoded);
+                            final SessionID sessionID = SessionID.createSessionID(encoded);
+                            final EJBClientInvocationContext context = receiverInvocationContext.getClientInvocationContext();
+                            EJBClient.convertToStateful(context.getInvokedProxy(), sessionID);
+                        }
+                    } catch (RuntimeException | IOException | RollbackException | SystemException e) {
                         receiverInvocationContext.resultReady(new EJBReceiverInvocationContext.ResultProducer.Failed(new EJBException(e)));
                         safeClose(inputStream);
                         break;

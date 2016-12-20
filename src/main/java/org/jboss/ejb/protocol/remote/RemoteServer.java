@@ -29,9 +29,11 @@ import java.io.DataInput;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.net.SocketAddress;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CancellationException;
 import java.util.function.Function;
 import java.util.zip.Deflater;
 import java.util.zip.DeflaterOutputStream;
@@ -45,7 +47,6 @@ import javax.transaction.Transaction;
 import javax.transaction.xa.XAException;
 import javax.transaction.xa.Xid;
 
-import org.jboss.ejb.client.InvocationInformation;
 import org.jboss.ejb._private.Logs;
 import org.jboss.ejb.client.Affinity;
 import org.jboss.ejb.client.AttachmentKeys;
@@ -55,10 +56,15 @@ import org.jboss.ejb.client.EJBLocator;
 import org.jboss.ejb.client.EJBMethodLocator;
 import org.jboss.ejb.client.RequestSendFailedException;
 import org.jboss.ejb.client.SessionID;
+import org.jboss.ejb.client.StatelessEJBLocator;
 import org.jboss.ejb.client.TransactionID;
 import org.jboss.ejb.client.UserTransactionID;
 import org.jboss.ejb.client.XidTransactionID;
-import org.jboss.invocation.AsynchronousInterceptor;
+import org.jboss.ejb.server.Association;
+import org.jboss.ejb.server.CancelHandle;
+import org.jboss.ejb.server.InvocationRequest;
+import org.jboss.ejb.server.Request;
+import org.jboss.ejb.server.SessionOpenRequest;
 import org.jboss.marshalling.AbstractClassResolver;
 import org.jboss.marshalling.Marshaller;
 import org.jboss.marshalling.MarshallerFactory;
@@ -77,6 +83,8 @@ import org.jboss.remoting3._private.IntIndexHashMap;
 import org.jboss.remoting3.util.MessageTracker;
 import org.jboss.remoting3.util.StreamUtils;
 import org.wildfly.common.Assert;
+import org.wildfly.common.annotation.NotNull;
+import org.wildfly.common.function.ExceptionRunnable;
 import org.wildfly.common.function.ExceptionSupplier;
 import org.wildfly.security.auth.server.SecurityIdentity;
 import org.wildfly.transaction.client.ImportResult;
@@ -90,6 +98,7 @@ import org.wildfly.transaction.client.spi.SubordinateTransactionControl;
  * @author <a href="mailto:david.lloyd@redhat.com">David M. Lloyd</a>
  * @author <a href="mailto:tadamski@redhat.com">Tomasz Adamski</a>
  */
+@SuppressWarnings("deprecation")
 public final class RemoteServer {
 
     private final RemotingTransactionServer transactionServer;
@@ -176,23 +185,6 @@ public final class RemoteServer {
     }
 
 
-    public interface Association {
-        /**
-         * Map the class loader for the given EJB application and module.
-         *
-         * @param appName the application name
-         * @param moduleName the module name
-         * @return the class loader
-         */
-        ClassLoader mapClassLoader(String appName, String moduleName);
-
-        AsynchronousInterceptor.CancellationHandle receiveInvocationRequest(IncomingInvocation incomingInvocation);
-
-        void receiveSessionOpenRequest(IncomingSessionOpen incomingSessionOpen);
-
-        void closed();
-    }
-
     class ReceiverImpl implements Channel.Receiver {
         private final Association association;
 
@@ -201,11 +193,9 @@ public final class RemoteServer {
         }
 
         public void handleError(final Channel channel, final IOException error) {
-            association.closed();
         }
 
         public void handleEnd(final Channel channel) {
-            association.closed();
         }
 
         public void handleMessage(final Channel channel, final MessageInputStream message) {
@@ -215,10 +205,9 @@ public final class RemoteServer {
                     case Protocol.COMPRESSED_INVOCATION_MESSAGE:
                     case Protocol.INVOCATION_REQUEST: {
                         final int invId = message.readUnsignedShort();
-                        final InvocationInformation invocationInformation = new InvocationInformation(channel.getConnection().getPeerAddress().toString(),invId);
                         // now if we get an error, we can respond.
                         try (InputStream input = code == Protocol.COMPRESSED_INVOCATION_MESSAGE ? new InflaterInputStream(message) : message) {
-                            handleInvocationRequest(invocationInformation, input);
+                            handleInvocationRequest(invId, input);
                         } catch (IOException | ClassNotFoundException e) {
                             // write response back to client
                             writeFailedResponse(invId, e);
@@ -228,8 +217,7 @@ public final class RemoteServer {
                     case Protocol.OPEN_SESSION_REQUEST: {
                         final int invId = message.readUnsignedShort();
                         try {
-                            final InvocationInformation invocationInformation = new InvocationInformation(channel.getConnection().getPeerAddress().toString(), invId);
-                            handleSessionOpenRequest(invocationInformation, message);
+                            handleSessionOpenRequest(invId, message);
                         } catch (IOException e) {
                             // write response back to client
                             writeFailedResponse(invId, e);
@@ -399,11 +387,11 @@ public final class RemoteServer {
             final boolean cancelIfRunning = version >= 3 && message.readBoolean();
             final InProgress inProgress = invocations.get(invId);
             if (inProgress != null) {
-                inProgress.getCancellationHandle().cancel(cancelIfRunning);
+                inProgress.getCancelHandle().cancel(cancelIfRunning);
             }
         }
 
-        private ExceptionSupplier<ImportResult, SystemException> readTransaction(final DataInput input) throws IOException {
+        private ExceptionSupplier<ImportResult<?>, SystemException> readTransaction(final DataInput input) throws IOException {
             final int type = input.readUnsignedByte();
             if (type == 0) {
                 return null;
@@ -411,7 +399,7 @@ public final class RemoteServer {
                 // remote user transaction
                 final int id = input.readInt();
                 final int timeout = PackedInteger.readPackedInteger(input);
-                return () -> new ImportResult(transactionServer.getOrBeginTransaction(id, timeout), SubordinateTransactionControl.EMPTY, false);
+                return () -> new ImportResult<Transaction>(transactionServer.getOrBeginTransaction(id, timeout), SubordinateTransactionControl.EMPTY, false);
             } else if (type == 2) {
                 final int fmt = PackedInteger.readPackedInteger(input);
                 final byte[] gtid = new byte[input.readUnsignedByte()];
@@ -431,14 +419,14 @@ public final class RemoteServer {
             }
         }
 
-        void handleSessionOpenRequest(final InvocationInformation invocationInformation, final MessageInputStream inputStream) throws IOException {
+        void handleSessionOpenRequest(final int invId, final MessageInputStream inputStream) throws IOException {
             final String appName = inputStream.readUTF();
             final String moduleName = inputStream.readUTF();
             final String distName = inputStream.readUTF();
             final String beanName = inputStream.readUTF();
             final int securityContext;
             final int transactionContext;
-            final ExceptionSupplier<ImportResult, SystemException> transactionSupplier;
+            final ExceptionSupplier<ImportResult<?>, SystemException> transactionSupplier;
             if (version >= 3) {
                 securityContext = inputStream.readInt();
                 transactionSupplier = readTransaction(inputStream);
@@ -447,17 +435,18 @@ public final class RemoteServer {
                 transactionSupplier = null;
             }
             final Connection connection = channel.getConnection();
+            final EJBIdentifier identifier = new EJBIdentifier(appName, moduleName, beanName, distName);
 
-            association.receiveSessionOpenRequest(new IncomingSessionOpen(
-                invocationInformation,
+            association.receiveSessionOpenRequest(new RemotingSessionOpenRequest<Object>(
+                invId,
+                identifier,
                 Affinity.NONE,
                 connection.getLocalIdentity(securityContext),
-                transactionSupplier,
-                new EJBIdentifier(appName, moduleName, beanName, distName)
+                transactionSupplier
             ));
         }
 
-        void handleInvocationRequest(final InvocationInformation invocationInformation, final InputStream input) throws IOException, ClassNotFoundException {
+        void handleInvocationRequest(final int invId, final InputStream input) throws IOException, ClassNotFoundException {
             final MarshallingConfiguration configuration = RemoteServer.this.configuration.clone();
             final ServerClassResolver classResolver = new ServerClassResolver();
             configuration.setClassResolver(classResolver);
@@ -469,7 +458,7 @@ public final class RemoteServer {
             Affinity weakAffinity = Affinity.NONE;
             int responseCompressLevel = -1;
             SecurityIdentity identity;
-            ExceptionSupplier<ImportResult, SystemException> transactionSupplier = null;
+            ExceptionSupplier<ImportResult<?>, SystemException> transactionSupplier = null;
 
             final Connection connection = channel.getConnection();
             if (version >= 3) {
@@ -548,7 +537,7 @@ public final class RemoteServer {
                             final TransactionID transactionId = (TransactionID) transactionIdObject;
                             // look up the transaction
                             if (transactionId instanceof UserTransactionID) {
-                                transactionSupplier = () -> new ImportResult(transactionServer.getOrBeginTransaction(((UserTransactionID) transactionId).getId(), 0), SubordinateTransactionControl.EMPTY, false);
+                                transactionSupplier = () -> new ImportResult<Transaction>(transactionServer.getOrBeginTransaction(((UserTransactionID) transactionId).getId(), 0), SubordinateTransactionControl.EMPTY, false);
                             } else if (transactionId instanceof XidTransactionID) {
                                 transactionSupplier = () -> {
                                     try {
@@ -576,8 +565,18 @@ public final class RemoteServer {
                 }
             }
             unmarshaller.finish();
-            final IncomingInvocation incomingInvocation = new IncomingInvocation(invocationInformation, weakAffinity, identity, transactionSupplier, locator, attachments, methodLocator, parameters, responseCompressLevel);
-            final AsynchronousInterceptor.CancellationHandle handle = association.receiveInvocationRequest(incomingInvocation);
+            final RemotingInvocationRequest<?> incomingInvocation = constructRequest(
+                invId,
+                locator,
+                weakAffinity,
+                identity,
+                transactionSupplier,
+                attachments,
+                methodLocator,
+                parameters,
+                responseCompressLevel
+            );
+            final CancelHandle handle = association.receiveInvocationRequest(incomingInvocation);
             invocations.put(new InProgress(incomingInvocation, handle));
         }
     }
@@ -597,38 +596,52 @@ public final class RemoteServer {
         }
     }
 
-    abstract class Incoming {
-        private final InvocationInformation invocationInformation;
-        private final Affinity weakAffinity;
-        private final SecurityIdentity identity;
-        private final ExceptionSupplier<ImportResult, SystemException> transactionSupplier;
+    abstract class RemotingRequest implements Request {
+        final int invId;
+        final Affinity weakAffinity;
+        final SecurityIdentity identity;
+        final ExceptionSupplier<ImportResult<?>, SystemException> transactionSupplier;
         int txnCmd = 0; // assume nobody will ask about the transaction
+        SessionID sessionId;
 
-        Incoming(final InvocationInformation invocationInformation, final Affinity weakAffinity, final SecurityIdentity identity, final ExceptionSupplier<ImportResult, SystemException> transactionSupplier) {
-            this.invocationInformation = invocationInformation;
+        RemotingRequest(final int invId, final Affinity weakAffinity, final SecurityIdentity identity, final ExceptionSupplier<ImportResult<?>, SystemException> transactionSupplier) {
+            this.invId = invId;
             this.weakAffinity = weakAffinity;
             this.identity = identity;
             this.transactionSupplier = transactionSupplier;
         }
 
-        public InvocationInformation getInvocationInformation() {
-            return invocationInformation;
+        public SocketAddress getPeerAddress() {
+            return channel.getConnection().getPeerAddress();
         }
 
+        public SocketAddress getLocalAddress() {
+            return channel.getConnection().getLocalAddress();
+        }
+
+        @NotNull
         public Affinity getWeakAffinity() {
             return weakAffinity;
         }
 
+        @NotNull
         public SecurityIdentity getIdentity() {
             return identity;
         }
 
-        public Transaction getTransaction() throws SystemException {
-            final ExceptionSupplier<ImportResult, SystemException> transactionSupplier = this.transactionSupplier;
+        public boolean hasTransaction() {
+            return transactionSupplier != null;
+        }
+
+        public Transaction getTransaction() throws SystemException, IllegalStateException {
+            final ExceptionSupplier<ImportResult<?>, SystemException> transactionSupplier = this.transactionSupplier;
             if (transactionSupplier == null) {
                 return null;
             }
-            final ImportResult importResult = transactionSupplier.get();
+            if (txnCmd != 0) {
+                throw new IllegalStateException();
+            }
+            final ImportResult<?> importResult = transactionSupplier.get();
             if (importResult.isNew()) {
                 txnCmd = 1;
             } else {
@@ -637,68 +650,70 @@ public final class RemoteServer {
             return importResult.getTransaction();
         }
 
-        public void writeNoSuchEJBFailureMessage() {
-            final StringBuffer sb = new StringBuffer("No such EJB[");
-            sb.append(formatEJBString());
-            sb.append("]");
-            writeInvocationFailure(Protocol.NO_SUCH_EJB, sb.toString());
-        }
-
-        abstract String formatEJBString();
-
-        protected void writeInvocationFailure(final int commandCode, final String message) {
-            try (MessageOutputStream os = messageTracker.openMessageUninterruptibly()) {
-                os.writeByte(commandCode);
-                os.writeShort(getInvocationInformation().getInvocationId());
-                if(message != null) {
-                    os.writeUTF(message);
+        public void convertToStateful(@NotNull final SessionID sessionId) throws IllegalArgumentException, IllegalStateException {
+            Assert.checkNotNullParam("sessionId", sessionId);
+            final SessionID ourSessionId = this.sessionId;
+            if (ourSessionId != null) {
+                if (! sessionId.equals(ourSessionId)) {
+                    throw new IllegalStateException();
                 }
-            } catch (IOException e) {
-                // nothing to do at this point; the client doesn't want the response
-                Logs.REMOTING.trace("Invocation failure write failed", e);
+            } else {
+                this.sessionId = sessionId;
             }
         }
 
-        public void writeException(final Exception response) {
+        protected void writeFailure(Exception reason) {
             try (MessageOutputStream os = messageTracker.openMessageUninterruptibly()) {
                 os.writeByte(Protocol.APPLICATION_EXCEPTION);
-                os.writeShort(getInvocationInformation().getInvocationId());
+                os.writeShort(invId);
                 final Marshaller marshaller = marshallerFactory.createMarshaller(configuration);
                 marshaller.start(Marshalling.createByteOutput(os));
-                marshaller.writeObject(response);
+                marshaller.writeObject(reason);
                 marshaller.writeByte(0);
                 marshaller.finish();
             } catch (IOException e) {
                 // nothing to do at this point; the client doesn't want the response
                 Logs.REMOTING.trace("EJB response write failed", e);
             } finally {
-                invocations.removeKey(getInvocationInformation().getInvocationId());
+                invocations.removeKey(invId);
             }
         }
-
     }
 
-    public final class IncomingSessionOpen extends Incoming {
-
+    final class RemotingSessionOpenRequest<T> extends RemotingRequest implements SessionOpenRequest {
         private final EJBIdentifier identifier;
 
-        IncomingSessionOpen(final InvocationInformation invocationInformation, final Affinity weakAffinity, final SecurityIdentity identity, final ExceptionSupplier<ImportResult, SystemException> transactionSupplier, final EJBIdentifier identifier) {
-            super(invocationInformation, weakAffinity, identity, transactionSupplier);
+        RemotingSessionOpenRequest(final int invId, final EJBIdentifier identifier, final Affinity weakAffinity, final SecurityIdentity identity, final ExceptionSupplier<ImportResult<?>, SystemException> transactionSupplier) {
+            super(invId, weakAffinity, identity, transactionSupplier);
             this.identifier = identifier;
         }
 
-        public EJBIdentifier getIdentifier() {
+        @NotNull
+        public EJBIdentifier getEJBIdentifier() {
             return identifier;
         }
 
-        public Transaction getTransaction() throws SystemException {
-            return super.getTransaction();
+        public void execute(@NotNull final ExceptionRunnable<Exception> resultRunnable) {
+            try {
+                resultRunnable.run();
+            } catch (Exception e) {
+                writeFailure(e);
+                return;
+            }
+            final SessionID sessionId = this.sessionId;
+            if (sessionId == null) {
+                final IllegalStateException e = Logs.REMOTING.noSessionCreated();
+                writeFailure(e);
+                //noinspection ConstantConditions
+                throw e;
+            }
+            writeResponse(sessionId);
         }
 
-        public void writeResponse(SessionID sessionID) {
+        void writeResponse(SessionID sessionID) {
             try (MessageOutputStream os = messageTracker.openMessageUninterruptibly()) {
                 os.writeByte(Protocol.OPEN_SESSION_RESPONSE);
-                os.writeShort(getInvocationInformation().getInvocationId());
+                os.writeShort(invId);
                 final byte[] encodedForm = sessionID.getEncodedForm();
                 PackedInteger.writePackedInteger(os, encodedForm.length);
                 os.write(encodedForm);
@@ -716,48 +731,32 @@ public final class RemoteServer {
                 Logs.REMOTING.trace("EJB session open response write failed", e);
             }
         }
-
-        public void writeNotStatefulSessionBean(){
-            final StringBuffer sb = new StringBuffer("EJB[");
-            sb.append(formatEJBString());
-            sb.append("] is not stateful");
-            writeInvocationFailure(Protocol.EJB_NOT_STATEFUL, sb.toString());
-        }
-
-
-
-        @Override
-        protected String formatEJBString() {
-            final StringBuilder sb = new StringBuilder();
-            sb.append("appname=").append(identifier.getAppName()).append(",");
-            sb.append("modulename=").append(identifier.getModuleName()).append(",");
-            sb.append("distinctname=").append(identifier.getDistinctName()).append(",");
-            sb.append("beanname=").append(identifier.getBeanName()).append(",");
-            return sb.toString();
-        }
     }
 
-    public final class IncomingInvocation extends Incoming {
-        private final EJBLocator<?> ejbLocator;
-        private final Map<String, Object> attachments;
-        private final EJBMethodLocator methodLocator;
-        private final Object[] parameters;
-        private final int responseCompressLevel;
+    <T> RemotingInvocationRequest<T> constructRequest(int invId, final EJBLocator<T> locator, final Affinity weakAffinity, final SecurityIdentity identity, final ExceptionSupplier<ImportResult<?>, SystemException> transactionSupplier, final Map<String, Object> attachments, final EJBMethodLocator methodLocator, final Object[] parameters, final int responseCompressLevel) {
+        return new RemotingInvocationRequest<T>(invId, locator, weakAffinity, identity, transactionSupplier, attachments, methodLocator, parameters, responseCompressLevel);
+    }
 
-        IncomingInvocation(final InvocationInformation invocationInformation, final Affinity weakAffinity, final SecurityIdentity identity, final ExceptionSupplier<ImportResult, SystemException> transactionSupplier, final EJBLocator<?> ejbLocator, final Map<String, Object> attachments, final EJBMethodLocator methodLocator, final Object[] parameters, final int responseCompressLevel) {
-            super(invocationInformation, weakAffinity, identity, transactionSupplier);
-            this.ejbLocator = ejbLocator;
+    final class RemotingInvocationRequest<T> extends RemotingRequest implements InvocationRequest<T> {
+        final Map<String, Object> attachments;
+        final EJBLocator<T> locator;
+        final EJBMethodLocator methodLocator;
+        final Object[] parameters;
+        final int responseCompressLevel;
+
+        RemotingInvocationRequest(final int invId, final EJBLocator<T> locator, final Affinity weakAffinity, final SecurityIdentity identity, final ExceptionSupplier<ImportResult<?>, SystemException> transactionSupplier, final Map<String, Object> attachments, final EJBMethodLocator methodLocator, final Object[] parameters, final int responseCompressLevel) {
+            super(invId, weakAffinity, identity, transactionSupplier);
+            this.locator = locator;
             this.attachments = attachments;
             this.methodLocator = methodLocator;
             this.parameters = parameters;
             this.responseCompressLevel = responseCompressLevel;
         }
 
-        public Transaction getTransaction() throws SystemException {
-            return super.getTransaction();
+        @NotNull
+        public EJBLocator<T> getEJBLocator() {
+            return locator;
         }
-
-        public EJBLocator<?> getEjbLocator() {return ejbLocator;}
 
         public Map<String, Object> getAttachments() {
             return attachments;
@@ -771,15 +770,46 @@ public final class RemoteServer {
             return parameters;
         }
 
-        public int getResponseCompressLevel() {
-            return responseCompressLevel;
+        public void execute(@NotNull final ExceptionSupplier<?, Exception> resultSupplier) {
+            final Object result;
+            try {
+                result = resultSupplier.get();
+            } catch (CancellationException e) {
+                if (version >= 3) {
+                    writeCancellation();
+                } else {
+                    writeFailure(e);
+                }
+                return;
+            } catch (Exception e) {
+                writeFailure(e);
+                return;
+            }
+            writeResponse(result);
         }
 
-        public void writeResponse(final Object response) {
+        public void convertToStateful(@NotNull final SessionID sessionId) throws IllegalArgumentException, IllegalStateException {
+            if (! (locator instanceof StatelessEJBLocator<?>)) {
+                throw new IllegalArgumentException();
+            }
+            super.convertToStateful(sessionId);
+        }
+
+        void writeResponse(final Object response) {
             try (MessageOutputStream os = messageTracker.openMessageUninterruptibly()) {
                 os.writeByte(responseCompressLevel > 0 ? Protocol.COMPRESSED_INVOCATION_MESSAGE : Protocol.INVOCATION_RESPONSE);
-                os.writeShort(getInvocationInformation().getInvocationId());
-                if (version >= 3) os.writeByte(txnCmd);
+                os.writeShort(invId);
+                if (version >= 3) {
+                    os.writeByte(txnCmd);
+                    if (sessionId == null) {
+                        os.writeBoolean(false);
+                    } else {
+                        os.writeBoolean(true);
+                        final byte[] bytes = sessionId.getEncodedForm();
+                        PackedInteger.writePackedInteger(os, bytes.length);
+                        os.write(bytes);
+                    }
+                }
                 try (OutputStream output = responseCompressLevel > 0 ? new DeflaterOutputStream(os, new Deflater(responseCompressLevel, false)) : os) {
                     final Marshaller marshaller = marshallerFactory.createMarshaller(configuration);
                     marshaller.start(Marshalling.createByteOutput(output));
@@ -804,73 +834,40 @@ public final class RemoteServer {
                 // nothing to do at this point; the client doesn't want the response
                 Logs.REMOTING.trace("EJB response write failed", e);
             } finally {
-                invocations.removeKey(getInvocationInformation().getInvocationId());
+                invocations.removeKey(invId);
             }
         }
 
-        @Override
-        protected String formatEJBString() {
-            final StringBuilder sb = new StringBuilder();
-            sb.append("appname=").append(",");
-            sb.append("modulename=").append(ejbLocator.getModuleName()).append(",");
-            sb.append("distinctname=").append(ejbLocator.getDistinctName()).append(",");
-            sb.append("beanname=").append(ejbLocator.getBeanName()).append(",");
-            final String viewClassName = ejbLocator.getViewType().getName();
-            if (viewClassName != null) {
-                sb.append(",").append("viewclassname=").append(ejbLocator.getViewType().getName());
-            }
-            return sb.toString();
-        }
-
-        public void writeCancellation() {
+        void writeCancellation() {
             if (version >= 3) try (MessageOutputStream os = messageTracker.openMessageUninterruptibly()) {
                 os.writeByte(Protocol.CANCEL_RESPONSE);
-                os.writeShort(getInvocationInformation().getInvocationId());
+                os.writeShort(invId);
             } catch (IOException e) {
                 // nothing to do at this point; the client doesn't want the response
                 Logs.REMOTING.trace("EJB response write failed", e);
             } finally {
-                invocations.removeKey(getInvocationInformation().getInvocationId());
+                invocations.removeKey(invId);
             } else {
-                writeException(Logs.REMOTING.requestCancelled());
+                writeFailure(Logs.REMOTING.requestCancelled());
             }
-        }
-
-        public void writeNoSuchEJBMethodFailureMessage() {
-            final StringBuilder sb = new StringBuilder("No such method ");
-            sb.append(methodLocator.getMethodName()).append("(");
-            for (int i = 0; i < methodLocator.getParameterCount(); i++) {
-                if (i != 0) {
-                    sb.append(",");
-                }
-                sb.append(methodLocator.getParameterTypeName(i));
-            }
-            sb.append(") on EJB[");
-            sb.append(formatEJBString());
-            sb.append("]");
-            this.writeInvocationFailure(Protocol.NO_SUCH_METHOD, sb.toString());
-        }
-
-        public void writeAsyncMethodNotification(){
-            writeInvocationFailure(Protocol.PROCEED_ASYNC_RESPONSE, null);
         }
     }
 
     static final class InProgress {
-        private final IncomingInvocation incomingInvocation;
-        private final AsynchronousInterceptor.CancellationHandle cancellationHandle;
+        private final RemotingInvocationRequest<?> incomingInvocation;
+        private final CancelHandle cancelHandle;
 
-        InProgress(final IncomingInvocation incomingInvocation, final AsynchronousInterceptor.CancellationHandle cancellationHandle) {
+        InProgress(final RemotingInvocationRequest<?> incomingInvocation, final CancelHandle cancelHandle) {
             this.incomingInvocation = incomingInvocation;
-            this.cancellationHandle = cancellationHandle;
+            this.cancelHandle = cancelHandle;
         }
 
         int getInvId() {
-            return incomingInvocation.getInvocationInformation().getInvocationId();
+            return incomingInvocation.invId;
         }
 
-        AsynchronousInterceptor.CancellationHandle getCancellationHandle() {
-            return cancellationHandle;
+        CancelHandle getCancelHandle() {
+            return cancelHandle;
         }
     }
 
