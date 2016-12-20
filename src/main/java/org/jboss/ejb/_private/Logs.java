@@ -255,6 +255,10 @@ public interface Logs extends BasicLogger {
     @Message(id = 63, value = "EJB proxy is already stateful")
     IllegalArgumentException ejbIsAlreadyStateful();
 
+    @LogMessage(level = Logger.Level.INFO)
+    @Message(id = 64, value = "org.jboss.ejb.client.naming.ejb.ejbURLContextFactory is deprecated; new applications should use org.wildfly.naming.client.WildFlyInitialContextFactory instead")
+    void ejbURLContextFactoryDeprecated();
+
     // Proxy API errors
 
     @Message(id = 100, value = "Object '%s' is not a valid proxy object")
