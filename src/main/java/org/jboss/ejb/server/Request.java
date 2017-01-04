@@ -60,6 +60,13 @@ public interface Request {
     }
 
     /**
+     * Get the protocol of this request.
+     *
+     * @return the protocol of this request (must not be {@code null})
+     */
+    String getProtocol();
+
+    /**
      * Get the weak affinity of the request.
      *
      * @return the weak affinity of the request (must not be {@code null})
