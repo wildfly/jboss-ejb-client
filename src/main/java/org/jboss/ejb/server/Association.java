@@ -62,4 +62,22 @@ public interface Association {
      */
     @NotNull
     CancelHandle receiveSessionOpenRequest(@NotNull SessionOpenRequest sessionOpenRequest);
+
+    /**
+     * Register a cluster topology listener.  This is used by legacy protocols to transmit cluster updates to old clients.
+     *
+     * @param clusterTopologyListener the cluster topology listener (not {@code null})
+     * @return a handle which may be used to cancel the topology listener registration (must not be {@code null})
+     */
+    @NotNull
+    ListenerHandle registerClusterTopologyListener(@NotNull ClusterTopologyListener clusterTopologyListener);
+
+    /**
+     * Register a module availability listener.  This is used by legacy clients which use no-affinity EJB locators.
+     *
+     * @param moduleAvailabilityListener the module availability listener (not {@code null})
+     * @return a handle which may be used to cancel the availability listener registration (must not be {@code null})
+     */
+    @NotNull
+    ListenerHandle registerModuleAvailabilityListener(@NotNull ModuleAvailabilityListener moduleAvailabilityListener);
 }

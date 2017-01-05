@@ -244,6 +244,22 @@ class EJBClientChannel {
                     }
                     break;
                 }
+                case Protocol.CLUSTER_TOPOLOGY_COMPLETE: {
+                    // TODO read message
+                    break;
+                }
+                case Protocol.CLUSTER_TOPOLOGY_REMOVAL: {
+                    // TODO read message
+                    break;
+                }
+                case Protocol.CLUSTER_TOPOLOGY_ADDITION: {
+                    // TODO read message
+                    break;
+                }
+                case Protocol.CLUSTER_TOPOLOGY_NODE_REMOVAL: {
+                    // TODO read message
+                    break;
+                }
                 default: {
                     // ignore message
                 }

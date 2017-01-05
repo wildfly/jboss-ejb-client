@@ -160,12 +160,14 @@ When the client connects to the server, and from then on, the server will provid
     ┌─┬─┬─┬─┬─┬─┬─┬─┐
     │ 0x08 or 0x09  │  Command = Module Availability (0x08) or Unavailability (0x09) Report
     ├───────────────┤
-    │     Count     │  Variable length packed integer; number of applications described
+    │     Count     │  Variable length packed integer; number of modules described
     ├───────────────┤ - For each count:
     │┌─┬─┬─┬─┬─┬─┬─┬┴┐
-    ││     Type      │ Type - application or top-level module
+    ││   App. Name   │ Application name UTF8Z string
     │├───────────────┤
-    ││     Name      │ Variable length UTF8Z app or module name
+    ││  Module Name  │ Module name UTF8Z string
+    │├───────────────┤
+    ││ Distinct Name │ Distinct name UTF8Z string
     │└──────────────┬┘
     │        :      │
     │        :      │
@@ -346,7 +348,7 @@ If a session open request is sent for a bean which is not a stateful bean, then 
 
 4. Clustering messages
 
-4.1 (New) Cluster topology (command code = 0x15). Sent from server to client, additive
+4.1. Complete cluster topology (command code = 0x15). Sent from server to client
 
      7 6 5 4 3 2 1 0 
     ┌─┬─┬─┬─┬─┬─┬─┬─┐
@@ -383,7 +385,7 @@ If a session open request is sent for a bean which is not a stateful bean, then 
     │        :      │
     └───────────────┘
 
-4.2 Cluster removal notification (command code = 0x16) sent from server to client
+4.2. Cluster removal notification (command code = 0x16) sent from server to client
 
      7 6 5 4 3 2 1 0 
     ┌─┬─┬─┬─┬─┬─┬─┬─┐
@@ -397,6 +399,65 @@ If a session open request is sent for a bean which is not a stateful bean, then 
     │├───────────────┤
     ││      :        │
     │└──────────────┬┘
+    └───────────────┘
+
+4.3. Cluster new nodes added (command code = 0x17) sent from server to client
+
+     7 6 5 4 3 2 1 0
+    ┌─┬─┬─┬─┬─┬─┬─┬─┐
+    │     0x17      │
+    ├───────────────┤
+    │     Cluster   │
+    │      count    │  Variable length packed integer; number of cluster topologies (always 1 in practice for this type)
+    ├───────────────┤ - For each count:
+    │┌─┬─┬─┬─┬─┬─┬─┬┴┐
+    ││     Name      │ Variable length UTF8Z cluster name
+    │├───────────────┤
+    ││     member    │
+    ││     count     │ Variable length packed integer; number of members in the cluster
+    │├───────────────┤  - for each count:
+    ││┌─┬─┬─┬─┬─┬─┬─┬┴┐
+    │││   Node Name   │ Variable length UTF8Z cluster node name
+    ││├───────────────┤
+    │││mapping count  │
+    ││├───────────────┤
+    │││┌──────────────┴─┐ - for each mapping count
+    ││││Client Netmask  │ - packed integer, LSB 0 = ipv6, 1 = ipv4; bits 4-n are the netmask bits (only bits 1-8 are used)
+    │││├────────────────┤
+    ││││Client Source IP│ - IP bytes
+    │││├────────────────┤
+    ││││Destination Addr│ - Variable length UTF8Z host/ip string
+    │││├────────────────┤
+    ││││                │
+    │││├ Dest Port      ┤ - short
+    ││││                │
+    │││└──────────────┬─┘
+    ││└──────────────┬┘
+    │└──────────────┬┘
+    │        :      │
+    │        :      │
+    └───────────────┘
+
+4.4. Cluster nodes removed (command code = 0x18) sent from server to client
+
+     7 6 5 4 3 2 1 0
+    ┌─┬─┬─┬─┬─┬─┬─┬─┐
+    │     0x18      │
+    ├───────────────┤
+    │     Cluster   │
+    │      count    │  Variable length packed integer; number of clusters
+    ├───────────────┤ - For each count:
+    │┌─┬─┬─┬─┬─┬─┬─┬┴┐
+    ││     Name      │ Variable length UTF8Z cluster name
+    │├───────────────┤
+    ││     member    │
+    ││     count     │ Variable length packed integer; number of nodes removed from the cluster
+    │├───────────────┤  - for each count:
+    ││┌─┬─┬─┬─┬─┬─┬─┬┴┐
+    │││   Node Name   │ Variable length UTF8Z cluster node name
+    ││└──────────────┬┘
+    │└──────────────┬┘
+    │        :      │
     └───────────────┘
 
 5. Transaction messages (V1/2 only, normally; V3 allowed but not recommended)

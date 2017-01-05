@@ -22,19 +22,18 @@
 
 package org.jboss.ejb.protocol.remote;
 
-import static java.lang.Math.min;
 import static org.xnio.IoUtils.safeClose;
 
 import java.io.DataInput;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.net.Inet6Address;
 import java.net.SocketAddress;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CancellationException;
-import java.util.function.Function;
 import java.util.zip.Deflater;
 import java.util.zip.DeflaterOutputStream;
 import java.util.zip.InflaterInputStream;
@@ -62,7 +61,10 @@ import org.jboss.ejb.client.UserTransactionID;
 import org.jboss.ejb.client.XidTransactionID;
 import org.jboss.ejb.server.Association;
 import org.jboss.ejb.server.CancelHandle;
+import org.jboss.ejb.server.ClusterTopologyListener;
 import org.jboss.ejb.server.InvocationRequest;
+import org.jboss.ejb.server.ListenerHandle;
+import org.jboss.ejb.server.ModuleAvailabilityListener;
 import org.jboss.ejb.server.Request;
 import org.jboss.ejb.server.SessionOpenRequest;
 import org.jboss.marshalling.AbstractClassResolver;
@@ -77,11 +79,8 @@ import org.jboss.remoting3.Channel;
 import org.jboss.remoting3.Connection;
 import org.jboss.remoting3.MessageInputStream;
 import org.jboss.remoting3.MessageOutputStream;
-import org.jboss.remoting3.OpenListener;
-import org.jboss.remoting3.RemotingOptions;
 import org.jboss.remoting3._private.IntIndexHashMap;
 import org.jboss.remoting3.util.MessageTracker;
-import org.jboss.remoting3.util.StreamUtils;
 import org.wildfly.common.Assert;
 import org.wildfly.common.annotation.NotNull;
 import org.wildfly.common.function.ExceptionRunnable;
@@ -99,7 +98,7 @@ import org.wildfly.transaction.client.spi.SubordinateTransactionControl;
  * @author <a href="mailto:tadamski@redhat.com">Tomasz Adamski</a>
  */
 @SuppressWarnings("deprecation")
-public final class RemoteServer {
+final class EJBServerChannel {
 
     private final RemotingTransactionServer transactionServer;
     private final Channel channel;
@@ -109,7 +108,7 @@ public final class RemoteServer {
     private final MarshallingConfiguration configuration;
     private final IntIndexHashMap<InProgress> invocations = new IntIndexHashMap<>(InProgress::getInvId);
 
-    RemoteServer(final RemotingTransactionServer transactionServer, final Channel channel, final int version, final MessageTracker messageTracker) {
+    EJBServerChannel(final RemotingTransactionServer transactionServer, final Channel channel, final int version, final MessageTracker messageTracker) {
         this.transactionServer = transactionServer;
         this.channel = channel;
         this.version = version;
@@ -128,74 +127,37 @@ public final class RemoteServer {
         this.configuration = configuration;
     }
 
-    public static OpenListener createOpenListener(Function<RemoteServer, Association> associationFactory, RemotingTransactionServer transactionServer) {
-        return new OpenListener() {
-            public void channelOpened(final Channel channel) {
-                final MessageTracker messageTracker = new MessageTracker(channel, channel.getOption(RemotingOptions.MAX_OUTBOUND_MESSAGES).intValue());
-                channel.receiveMessage(new Channel.Receiver() {
-                    public void handleError(final Channel channel, final IOException error) {
-                    }
-
-                    public void handleEnd(final Channel channel) {
-                    }
-
-                    public void handleMessage(final Channel channel, final MessageInputStream message) {
-                        final int version;
-                        try {
-                            version = min(3, StreamUtils.readInt8(message));
-                            // drain the rest of the message because it's just garbage really
-                            while (message.read() != -1) {
-                                message.skip(Long.MAX_VALUE);
-                            }
-                        } catch (IOException e) {
-                            safeClose(channel);
-                            return;
-                        }
-                        final RemoteServer remoteServer = new RemoteServer(transactionServer, channel, version, messageTracker);
-                        final Association association = associationFactory.apply(remoteServer);
-                        channel.receiveMessage(remoteServer.getReceiver(association));
-                    }
-                });
-                try (MessageOutputStream mos = messageTracker.openMessage()) {
-                    mos.writeByte(Protocol.LATEST_VERSION);
-                    mos.write(Protocol.RIVER_BYTES);
-                } catch (InterruptedException e) {
-                    Thread.currentThread().interrupt();
-                    safeClose(channel);
-                } catch (IOException e) {
-                    safeClose(channel);
-                }
-            }
-
-            public void registrationTerminated() {
-            }
-        };
+    Channel.Receiver getReceiver(final Association association, final ListenerHandle handle1, final ListenerHandle handle2) {
+        return new ReceiverImpl(association, handle1, handle2);
     }
 
-    Channel.Receiver getReceiver(final Association association) {
-        return new ReceiverImpl(association);
+    ClusterTopologyListener createTopologyListener() {
+        return new ClusterTopologyWriter();
     }
 
-    public void writeClusterTopologyUpdate(Object topology) throws IOException {
-
+    ModuleAvailabilityListener createModuleListener() {
+        return new ModuleAvailabilityWriter();
     }
-
-    public void writeClusterRemoval(List<String> nodeNames) throws IOException {
-
-    }
-
 
     class ReceiverImpl implements Channel.Receiver {
         private final Association association;
+        private final ListenerHandle handle1;
+        private final ListenerHandle handle2;
 
-        ReceiverImpl(final Association association) {
+        ReceiverImpl(final Association association, final ListenerHandle handle1, final ListenerHandle handle2) {
             this.association = association;
+            this.handle1 = handle1;
+            this.handle2 = handle2;
         }
 
         public void handleError(final Channel channel, final IOException error) {
+            handle1.close();
+            handle2.close();
         }
 
         public void handleEnd(final Channel channel) {
+            handle1.close();
+            handle2.close();
         }
 
         public void handleMessage(final Channel channel, final MessageInputStream message) {
@@ -447,7 +409,7 @@ public final class RemoteServer {
         }
 
         void handleInvocationRequest(final int invId, final InputStream input) throws IOException, ClassNotFoundException {
-            final MarshallingConfiguration configuration = RemoteServer.this.configuration.clone();
+            final MarshallingConfiguration configuration = EJBServerChannel.this.configuration.clone();
             final ServerClassResolver classResolver = new ServerClassResolver();
             configuration.setClassResolver(classResolver);
             Unmarshaller unmarshaller = marshallerFactory.createUnmarshaller(configuration);
@@ -617,6 +579,10 @@ public final class RemoteServer {
 
         public SocketAddress getLocalAddress() {
             return channel.getConnection().getLocalAddress();
+        }
+
+        public String getProtocol() {
+            return channel.getConnection().getProtocol();
         }
 
         @NotNull
@@ -885,6 +851,133 @@ public final class RemoteServer {
 
         void setClassLoader(final ClassLoader classLoader) {
             this.classLoader = classLoader == null ? getClass().getClassLoader() : classLoader;
+        }
+    }
+
+    final class ClusterTopologyWriter implements ClusterTopologyListener {
+        ClusterTopologyWriter() {
+        }
+
+        public void clusterTopology(final List<ClusterInfo> clusterInfoList) {
+            try (MessageOutputStream os = messageTracker.openMessageUninterruptibly()) {
+                os.writeByte(Protocol.CLUSTER_TOPOLOGY_COMPLETE);
+                PackedInteger.writePackedInteger(os, clusterInfoList.size());
+                for (ClusterInfo clusterInfo : clusterInfoList) {
+                    os.writeUTF(clusterInfo.getClusterName());
+                    final List<NodeInfo> nodeInfoList = clusterInfo.getNodeInfoList();
+                    PackedInteger.writePackedInteger(os, nodeInfoList.size());
+                    for (NodeInfo nodeInfo : nodeInfoList) {
+                        os.writeUTF(nodeInfo.getNodeName());
+                        final List<MappingInfo> mappingInfoList = nodeInfo.getMappingInfoList();
+                        PackedInteger.writePackedInteger(os, mappingInfoList.size());
+                        for (MappingInfo mappingInfo : mappingInfoList) {
+                            boolean is6 = mappingInfo.getSourceAddress() instanceof Inet6Address;
+                            if (is6) {
+                                PackedInteger.writePackedInteger(os, mappingInfo.getNetmaskBits() << 1);
+                            } else {
+                                PackedInteger.writePackedInteger(os, mappingInfo.getNetmaskBits() << 1 | 1);
+                            }
+                            os.write(mappingInfo.getSourceAddress().getAddress());
+                            os.writeUTF(mappingInfo.getDestinationAddress());
+                            os.writeShort(mappingInfo.getDestinationPort());
+                        }
+                    }
+                }
+            } catch (IOException e) {
+                // nothing to do at this point; the client doesn't want the response
+                Logs.REMOTING.trace("EJB cluster message write failed", e);
+            }
+        }
+
+        public void clusterRemoval(final List<String> clusterNames) {
+            try (MessageOutputStream os = messageTracker.openMessageUninterruptibly()) {
+                os.writeByte(Protocol.CLUSTER_TOPOLOGY_REMOVAL);
+                PackedInteger.writePackedInteger(os, clusterNames.size());
+                for (String clusterName : clusterNames) {
+                    os.writeUTF(clusterName);
+                }
+            } catch (IOException e) {
+                // nothing to do at this point; the client doesn't want the response
+                Logs.REMOTING.trace("EJB cluster message write failed", e);
+            }
+        }
+
+        public void clusterNewNodesAdded(final ClusterInfo clusterInfo) {
+            try (MessageOutputStream os = messageTracker.openMessageUninterruptibly()) {
+                os.writeByte(Protocol.CLUSTER_TOPOLOGY_ADDITION);
+                PackedInteger.writePackedInteger(os, 1);
+                os.writeUTF(clusterInfo.getClusterName());
+                final List<NodeInfo> nodeInfoList = clusterInfo.getNodeInfoList();
+                PackedInteger.writePackedInteger(os, nodeInfoList.size());
+                for (NodeInfo nodeInfo : nodeInfoList) {
+                    os.writeUTF(nodeInfo.getNodeName());
+                    final List<MappingInfo> mappingInfoList = nodeInfo.getMappingInfoList();
+                    PackedInteger.writePackedInteger(os, mappingInfoList.size());
+                    for (MappingInfo mappingInfo : mappingInfoList) {
+                        boolean is6 = mappingInfo.getSourceAddress() instanceof Inet6Address;
+                        if (is6) {
+                            PackedInteger.writePackedInteger(os, mappingInfo.getNetmaskBits() << 1);
+                        } else {
+                            PackedInteger.writePackedInteger(os, mappingInfo.getNetmaskBits() << 1 | 1);
+                        }
+                        os.write(mappingInfo.getSourceAddress().getAddress());
+                        os.writeUTF(mappingInfo.getDestinationAddress());
+                        os.writeShort(mappingInfo.getDestinationPort());
+                    }
+                }
+            } catch (IOException e) {
+                // nothing to do at this point; the client doesn't want the response
+                Logs.REMOTING.trace("EJB cluster message write failed", e);
+            }
+        }
+
+        public void clusterNodesRemoved(final List<ClusterRemovalInfo> clusterRemovalInfoList) {
+            try (MessageOutputStream os = messageTracker.openMessageUninterruptibly()) {
+                os.writeByte(Protocol.CLUSTER_TOPOLOGY_NODE_REMOVAL);
+                PackedInteger.writePackedInteger(os, clusterRemovalInfoList.size());
+                for (ClusterRemovalInfo removalInfo : clusterRemovalInfoList) {
+                    os.writeUTF(removalInfo.getClusterName());
+                    final List<String> nodeNamesList = removalInfo.getNodeNames();
+                    PackedInteger.writePackedInteger(os, nodeNamesList.size());
+                    for (String name : nodeNamesList) {
+                        os.writeUTF(name);
+                    }
+                }
+            } catch (IOException e) {
+                // nothing to do at this point; the client doesn't want the response
+                Logs.REMOTING.trace("EJB cluster message write failed", e);
+            }
+        }
+    }
+
+    final class ModuleAvailabilityWriter implements ModuleAvailabilityListener {
+        ModuleAvailabilityWriter() {
+        }
+
+        public void moduleAvailable(final List<ModuleIdentifier> modules) {
+            doWrite(true, modules);
+        }
+
+        public void moduleUnavailable(final List<ModuleIdentifier> modules) {
+            doWrite(false, modules);
+        }
+
+        private void doWrite(final boolean available, final List<ModuleIdentifier> modules) {
+            try (MessageOutputStream os = messageTracker.openMessageUninterruptibly()) {
+                os.writeByte(available ? Protocol.MODULE_AVAILABLE : Protocol.MODULE_UNAVAILABLE);
+                PackedInteger.writePackedInteger(os, modules.size());
+                for (ModuleIdentifier module : modules) {
+                    final String appName = module.getAppName();
+                    os.writeUTF(appName == null ? "" : appName);
+                    final String moduleName = module.getModuleName();
+                    os.writeUTF(moduleName == null ? "" : moduleName);
+                    final String distinctName = module.getDistinctName();
+                    os.writeUTF(distinctName == null ? "" : distinctName);
+                }
+            } catch (IOException e) {
+                // nothing to do at this point; the client doesn't want the response
+                Logs.REMOTING.trace("EJB availability message write failed", e);
+            }
         }
     }
 }
