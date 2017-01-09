@@ -34,6 +34,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CancellationException;
+import java.util.concurrent.Executor;
 import java.util.zip.Deflater;
 import java.util.zip.DeflaterOutputStream;
 import java.util.zip.InflaterInputStream;
@@ -571,6 +572,10 @@ final class EJBServerChannel {
             this.weakAffinity = weakAffinity;
             this.identity = identity;
             this.transactionSupplier = transactionSupplier;
+        }
+
+        public Executor getRequestExecutor() {
+            return channel.getConnection().getEndpoint().getXnioWorker();
         }
 
         public SocketAddress getPeerAddress() {

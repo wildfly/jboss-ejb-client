@@ -23,6 +23,7 @@
 package org.jboss.ejb.server;
 
 import java.net.SocketAddress;
+import java.util.concurrent.Executor;
 
 import javax.transaction.SystemException;
 import javax.transaction.Transaction;
@@ -41,6 +42,14 @@ import org.wildfly.security.auth.server.SecurityIdentity;
  * @author <a href="mailto:david.lloyd@redhat.com">David M. Lloyd</a>
  */
 public interface Request {
+    /**
+     * Get the request executor.  This is an executor which is associated with the transport provider which may be
+     * used to execute requests.
+     *
+     * @return the request executor
+     */
+    Executor getRequestExecutor();
+
     /**
      * Get the peer address that the request was received from, if known.
      *
