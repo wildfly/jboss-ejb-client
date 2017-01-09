@@ -33,7 +33,7 @@ import org.jboss.remoting3.RemotingOptions;
 import org.jboss.remoting3.util.MessageTracker;
 import org.jboss.remoting3.util.StreamUtils;
 import org.wildfly.common.Assert;
-import org.wildfly.transaction.client.provider.remoting.RemotingTransactionServer;
+import org.wildfly.transaction.client.provider.remoting.RemotingTransactionService;
 
 /**
  * The remote EJB service.
@@ -42,12 +42,12 @@ import org.wildfly.transaction.client.provider.remoting.RemotingTransactionServe
  */
 public final class RemoteEJBService {
     private final Association association;
-    private final RemotingTransactionServer transactionServer;
+    private final RemotingTransactionService transactionService;
     private final OpenListener openListener;
 
-    private RemoteEJBService(final Association association, final RemotingTransactionServer transactionServer) {
+    private RemoteEJBService(final Association association, final RemotingTransactionService transactionService) {
         this.association = association;
-        this.transactionServer = transactionServer;
+        this.transactionService = transactionService;
         openListener = new OpenListener() {
             public void channelOpened(final Channel channel) {
                 final MessageTracker messageTracker = new MessageTracker(channel, channel.getOption(RemotingOptions.MAX_OUTBOUND_MESSAGES).intValue());
@@ -70,7 +70,7 @@ public final class RemoteEJBService {
                             safeClose(channel);
                             return;
                         }
-                        final EJBServerChannel serverChannel = new EJBServerChannel(transactionServer, channel, version, messageTracker);
+                        final EJBServerChannel serverChannel = new EJBServerChannel(transactionService.getServerForConnection(channel.getConnection()), channel, version, messageTracker);
                         final ListenerHandle handle1 = association.registerClusterTopologyListener(serverChannel.createTopologyListener());
                         final ListenerHandle handle2 = association.registerModuleAvailabilityListener(serverChannel.createModuleListener());
                         channel.receiveMessage(serverChannel.getReceiver(association, handle1, handle2));
@@ -96,13 +96,13 @@ public final class RemoteEJBService {
      * Create a new remote EJB service instance.
      *
      * @param association the association to use (must not be {@code null})
-     * @param transactionServer the Remoting transaction server to use (must not be {@code null})
+     * @param transactionService the Remoting transaction server to use (must not be {@code null})
      * @return the remote EJB service instance (not {@code null})
      */
-    public static RemoteEJBService create(final Association association, final RemotingTransactionServer transactionServer) {
+    public static RemoteEJBService create(final Association association, final RemotingTransactionService transactionService) {
         Assert.checkNotNullParam("association", association);
-        Assert.checkNotNullParam("transactionServer", transactionServer);
-        return new RemoteEJBService(association, transactionServer);
+        Assert.checkNotNullParam("transactionService", transactionService);
+        return new RemoteEJBService(association, transactionService);
     }
 
     /**
