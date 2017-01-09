@@ -23,7 +23,9 @@
 package org.jboss.ejb._private;
 
 import org.jboss.ejb.client.EJBClientInvocationContext;
+import org.jboss.ejb.client.EJBIdentifier;
 import org.jboss.ejb.client.EJBLocator;
+import org.jboss.ejb.client.EJBMethodLocator;
 import org.jboss.ejb.client.EJBReceiver;
 import org.jboss.logging.BasicLogger;
 import org.jboss.logging.annotations.Cause;
@@ -311,4 +313,18 @@ public interface Logs extends BasicLogger {
 
     @Message(id = 504, value = "Server error: no session was created")
     IllegalStateException noSessionCreated();
+
+    // Remote messages; no ID for brevity but should be translated
+
+    @Message(value = "No such EJB: %s")
+    String remoteMessageNoSuchEJB(EJBIdentifier ejbIdentifier);
+
+    @Message(value = "EJB is not stateful: %s")
+    String remoteMessageEJBNotStateful(EJBIdentifier ejbIdentifier);
+
+    @Message(value = "No such EJB method %s found on %s")
+    String remoteMessageNoSuchMethod(EJBMethodLocator methodLocator, EJBLocator<?> ejbIdentifier);
+
+    @Message(value = "Session is not active for invocation of method %s on %s")
+    String remoteMessageSessionNotActive(EJBMethodLocator methodLocator, EJBLocator<?> locator);
 }

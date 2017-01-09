@@ -84,6 +84,18 @@ public interface InvocationRequest<T> extends Request {
     EJBLocator<T> getEJBLocator();
 
     /**
+     * Write a message indicating that the method is not found on the EJB.  The request should be abandoned after
+     * invoking this method.
+     */
+    void writeNoSuchMethod();
+
+    /**
+     * Write a message indicating that the session is inactive.  The request should be abandoned after
+     * invoking this method.
+     */
+    void writeSessionNotActive();
+
+    /**
      * Safely narrow the invocation's generic type to the given type.  This is a convenience method and does not
      * create any new objects; it simply tests the argument and re-casts this instance as the narrowed type.
      *

@@ -127,6 +127,23 @@ public interface Request {
     void execute(@NotNull ExceptionSupplier<?, Exception> resultSupplier);
 
     /**
+     * Write a message indicating that the EJB is not found on this server.  The request should be abandoned after
+     * invoking this method.
+     */
+    void writeNoSuchEJB();
+
+    /**
+     * Write a response indicating that the request was successfully cancelled.
+     */
+    void writeCancelResponse();
+
+    /**
+     * Write a message indicating that given EJB is not actually stateful.  The request should be abandoned after
+     * invoking this method.
+     */
+    void writeNotStateful();
+
+    /**
      * Attempt to convert the current invocation into a stateful invocation.  For session creation requests, this method
      * <em>must</em> be called.  For regular method invocations, this method <em>may</em> be called if the invoked EJB
      * is stateful but the locator is stateless, in order to auto-create the session.

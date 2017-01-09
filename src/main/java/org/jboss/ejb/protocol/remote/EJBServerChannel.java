@@ -616,6 +616,46 @@ final class EJBServerChannel {
             return importResult.getTransaction();
         }
 
+        public void writeNoSuchEJB() {
+            final String message = Logs.REMOTING.remoteMessageNoSuchEJB(getEJBIdentifier());
+            try (MessageOutputStream os = messageTracker.openMessageUninterruptibly()) {
+                os.writeByte(Protocol.NO_SUCH_EJB);
+                os.writeShort(invId);
+                os.writeUTF(message);
+            } catch (IOException e) {
+                // nothing to do at this point; the client doesn't want the response
+                Logs.REMOTING.trace("EJB response write failed", e);
+            } finally {
+                invocations.removeKey(invId);
+            }
+        }
+
+        public void writeCancelResponse() {
+            try (MessageOutputStream os = messageTracker.openMessageUninterruptibly()) {
+                os.writeByte(Protocol.CANCEL_RESPONSE);
+                os.writeShort(invId);
+            } catch (IOException e) {
+                // nothing to do at this point; the client doesn't want the response
+                Logs.REMOTING.trace("EJB response write failed", e);
+            } finally {
+                invocations.removeKey(invId);
+            }
+        }
+
+        public void writeNotStateful() {
+            final String message = Logs.REMOTING.remoteMessageEJBNotStateful(getEJBIdentifier());
+            try (MessageOutputStream os = messageTracker.openMessageUninterruptibly()) {
+                os.writeByte(Protocol.EJB_NOT_STATEFUL);
+                os.writeShort(invId);
+                os.writeUTF(message);
+            } catch (IOException e) {
+                // nothing to do at this point; the client doesn't want the response
+                Logs.REMOTING.trace("EJB response write failed", e);
+            } finally {
+                invocations.removeKey(invId);
+            }
+        }
+
         public void convertToStateful(@NotNull final SessionID sessionId) throws IllegalArgumentException, IllegalStateException {
             Assert.checkNotNullParam("sessionId", sessionId);
             final SessionID ourSessionId = this.sessionId;
@@ -722,6 +762,34 @@ final class EJBServerChannel {
         @NotNull
         public EJBLocator<T> getEJBLocator() {
             return locator;
+        }
+
+        public void writeNoSuchMethod() {
+            final String message = Logs.REMOTING.remoteMessageNoSuchMethod(methodLocator, locator);
+            try (MessageOutputStream os = messageTracker.openMessageUninterruptibly()) {
+                os.writeByte(Protocol.NO_SUCH_METHOD);
+                os.writeShort(invId);
+                os.writeUTF(message);
+            } catch (IOException e) {
+                // nothing to do at this point; the client doesn't want the response
+                Logs.REMOTING.trace("EJB response write failed", e);
+            } finally {
+                invocations.removeKey(invId);
+            }
+        }
+
+        public void writeSessionNotActive() {
+            final String message = Logs.REMOTING.remoteMessageSessionNotActive(methodLocator, locator);
+            try (MessageOutputStream os = messageTracker.openMessageUninterruptibly()) {
+                os.writeByte(Protocol.NO_SUCH_METHOD);
+                os.writeShort(invId);
+                os.writeUTF(message);
+            } catch (IOException e) {
+                // nothing to do at this point; the client doesn't want the response
+                Logs.REMOTING.trace("EJB response write failed", e);
+            } finally {
+                invocations.removeKey(invId);
+            }
         }
 
         public Map<String, Object> getAttachments() {
