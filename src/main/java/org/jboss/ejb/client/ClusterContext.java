@@ -408,6 +408,39 @@ public final class ClusterContext implements EJBClientContext.EJBReceiverContext
         }
     }
 
+    /**
+     * Unregister a {@link EJBReceiver} with this cluster context
+     *
+     * @param receiver The EJB receiver for that node
+     */
+    @Deprecated
+    public void unregisterEJBReceiver(final EJBReceiver receiver) {
+        if (receiver == null) {
+            throw Logs.MAIN.paramCannotBeNull("EJB receiver");
+        }
+
+        final String nodeName = receiver.getNodeName();
+        if (this.connectedNodes.contains(nodeName)) {
+            // nothing to do
+            return;
+        }
+
+        // now let's get back the receiver context that got associated, so that we too can keep a track of those
+        // receiver contexts
+        final EJBReceiverContext ejbReceiverContext = this.clientContext.getNodeEJBReceiverContext(nodeName);
+        // it's possible that while associating a receiver context to a receiver, there were problems (like
+        // version handshake not being completed) which might have resulted in the receiver context not being
+        // created for this node. So let's do a null check here
+        if (ejbReceiverContext != null) {
+            // add it to our connected nodes
+            this.connectedNodes.remove(nodeName);
+            logger.debug(this + " Removed a new EJB receiver in cluster context " + clusterName + " for node " + nodeName + ". Total nodes in cluster context = " + this.connectedNodes.size());
+        }
+
+        // let the client context manage the unregistering
+        this.clientContext.unregisterEJBReceiver(receiver);
+    }
+
     private void setupClusterSpecificConfigurations(final EJBClientConfiguration.ClusterConfiguration clusterConfiguration) {
         final long maxLimit = clusterConfiguration.getMaximumAllowedConnectedNodes();
         // don't use 0 or negative values
