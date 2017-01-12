@@ -22,13 +22,14 @@
 
 package org.jboss.ejb.client.remoting;
 
-import org.jboss.ejb.client.EJBClientConfiguration;
-import org.jboss.ejb.client.EJBClientContext;
-import org.jboss.ejb.client.EJBReceiver;
 import org.jboss.remoting3.Connection;
 import org.jboss.remoting3.Endpoint;
 
 import java.io.IOException;
+import org.jboss.ejb.client.EJBClientConfiguration;
+import org.jboss.ejb.client.EJBClientContext;
+import org.jboss.ejb.client.EJBReceiver;
+import org.jboss.logging.Logger;
 
 /**
  * A {@link MaxAttemptsReconnectHandler} which creates a {@link RemotingConnectionEJBReceiver} out of the
@@ -41,6 +42,7 @@ class EJBClientContextConnectionReconnectHandler extends MaxAttemptsReconnectHan
     private final EJBClientContext ejbClientContext;
     private final RemotingCleanupHandler remotingCleanupHandler = new RemotingCleanupHandler();
     private EJBReceiver ejbReceiver = null;
+    private static final Logger logger = Logger.getLogger(EJBClientContextConnectionReconnectHandler.class);
 
     EJBClientContextConnectionReconnectHandler(final EJBClientContext clientContext, final Endpoint endpoint, final String protocol, final String host, final int port, final EJBClientConfiguration.CommonConnectionCreationConfiguration connectionConfiguration, final int maxReconnectAttempts) {
         super(endpoint, protocol, host, port, connectionConfiguration, maxReconnectAttempts);
@@ -60,14 +62,9 @@ class EJBClientContextConnectionReconnectHandler extends MaxAttemptsReconnectHan
             }
             // keep track of this connection so that we can close it when the EJB client context is closed
             this.remotingCleanupHandler.addConnection(connection);
-
-            if(this.ejbReceiver != null) {
-                // remove it before registering a new one
-                this.ejbClientContext.unregisterEJBReceiver(this.ejbReceiver);
-                this.ejbReceiver = null;
-            }
             this.ejbReceiver = new RemotingConnectionEJBReceiver(connection, this, connectionConfiguration.getChannelCreationOptions(), protocol);
-            this.ejbClientContext.registerEJBReceiver(this.ejbReceiver);
+
+            this.ejbClientContext.registerEJBReceiver(this.ejbReceiver, true);
         } finally {
             // if we successfully re-connected or if no more attempts are allowed for re-connecting
             // then unregister this ReconnectHandler from the EJBClientContext
