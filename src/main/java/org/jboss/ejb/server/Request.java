@@ -86,14 +86,6 @@ public interface Request {
     }
 
     /**
-     * Get the inflowed identity of the request.
-     *
-     * @return the inflowed identity of the request (must not be {@code null})
-     */
-    @NotNull
-    SecurityIdentity getIdentity();
-
-    /**
      * Determine if the request has a transaction.
      *
      * @return {@code true} if there is a transaction context with this request
@@ -119,6 +111,13 @@ public interface Request {
     Transaction getTransaction() throws SystemException, IllegalStateException;
 
     /**
+     * Determine if this request is blocking a local thread.
+     *
+     * @return {@code true} if the request is blocking the caller thread, {@code false} otherwise
+     */
+    boolean isBlockingCaller();
+
+    /**
      * Get the identifier of the target EJB.
      *
      * @return the identifier of the target EJB (must not be {@code null})
@@ -127,13 +126,11 @@ public interface Request {
     EJBIdentifier getEJBIdentifier();
 
     /**
-     * Set the result supplier and execute the invocation.  The result supplier is called to get the result or the
-     * exception and can generally be coupled directly to an interceptor's {@code proceed()} method.  The result
-     * supplier is called from the same thread that calls this method.
+     * Write a message indicating that an exception was thrown by the operation.
      *
-     * @param resultSupplier the result supplier (must not be {@code null})
+     * @param exception the exception that was thrown (must not be {@code null})
      */
-    void execute(@NotNull ExceptionSupplier<?, Exception> resultSupplier);
+    void writeException(@NotNull Exception exception);
 
     /**
      * Write a message indicating that the EJB is not found on this server.  The request should be abandoned after

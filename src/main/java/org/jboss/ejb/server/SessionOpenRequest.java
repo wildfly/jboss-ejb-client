@@ -22,32 +22,10 @@
 
 package org.jboss.ejb.server;
 
-import org.jboss.ejb.client.SessionID;
-import org.wildfly.common.annotation.NotNull;
-import org.wildfly.common.function.ExceptionRunnable;
-import org.wildfly.common.function.ExceptionSupplier;
-
 /**
  * An EJB session-open request.
  *
  * @author <a href="mailto:david.lloyd@redhat.com">David M. Lloyd</a>
  */
 public interface SessionOpenRequest extends Request {
-    /**
-     * Execute the session open request.  The given exception supplier is called as per normal, but the result must be
-     * {@code null}.  Use {@link #convertToStateful(SessionID)} to establish the new EJB session.  The default implementation
-     * delegates to {@link #execute(ExceptionRunnable)} and ignores the return value.
-     *
-     * @param resultSupplier the result supplier (must not be {@code null})
-     */
-    default void execute(@NotNull ExceptionSupplier<?, Exception> resultSupplier) {
-        execute((ExceptionRunnable<Exception>) resultSupplier::get);
-    }
-
-    /**
-     * Execute the session open request.  Use {@link #convertToStateful(SessionID)} to establish the new EJB session.
-     *
-     * @param resultRunnable the result runnable which executes any session create method (must not be {@code null})
-     */
-    void execute(@NotNull ExceptionRunnable<Exception> resultRunnable);
 }

@@ -59,7 +59,14 @@ public final class TransactionInterceptor implements EJBClientInterceptor {
         if (transactionPolicy.propagate()) {
             context.setTransaction(transaction);
         }
-        context.sendRequest();
+        if (transaction != null) {
+            transactionManager.suspend();
+            try {
+                context.sendRequest();
+            } finally {
+                transactionManager.resume(transaction);
+            }
+        }
     }
 
     public Object handleInvocationResult(final EJBClientInvocationContext context) throws Exception {

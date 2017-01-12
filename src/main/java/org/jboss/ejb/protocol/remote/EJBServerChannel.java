@@ -30,6 +30,7 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.Inet6Address;
 import java.net.SocketAddress;
+import java.security.PrivilegedAction;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -84,12 +85,10 @@ import org.jboss.remoting3._private.IntIndexHashMap;
 import org.jboss.remoting3.util.MessageTracker;
 import org.wildfly.common.Assert;
 import org.wildfly.common.annotation.NotNull;
-import org.wildfly.common.function.ExceptionRunnable;
 import org.wildfly.common.function.ExceptionSupplier;
 import org.wildfly.security.auth.server.SecurityIdentity;
 import org.wildfly.transaction.client.ImportResult;
 import org.wildfly.transaction.client.LocalTransaction;
-import org.wildfly.transaction.client.LocalTransactionContext;
 import org.wildfly.transaction.client.SimpleXid;
 import org.wildfly.transaction.client.provider.remoting.RemotingTransactionServer;
 import org.wildfly.transaction.client.spi.SubordinateTransactionControl;
@@ -400,13 +399,14 @@ final class EJBServerChannel {
             final Connection connection = channel.getConnection();
             final EJBIdentifier identifier = new EJBIdentifier(appName, moduleName, beanName, distName);
 
-            association.receiveSessionOpenRequest(new RemotingSessionOpenRequest<Object>(
-                invId,
-                identifier,
-                Affinity.NONE,
-                connection.getLocalIdentity(securityContext),
-                transactionSupplier
-            ));
+            connection.getLocalIdentity(securityContext).runAs((Runnable) () ->
+                association.receiveSessionOpenRequest(new RemotingSessionOpenRequest<Object>(
+                    invId,
+                    identifier,
+                    Affinity.NONE,
+                    transactionSupplier
+                ))
+            );
         }
 
         void handleInvocationRequest(final int invId, final InputStream input) throws IOException, ClassNotFoundException {
@@ -532,14 +532,13 @@ final class EJBServerChannel {
                 invId,
                 locator,
                 weakAffinity,
-                identity,
                 transactionSupplier,
                 attachments,
                 methodLocator,
                 parameters,
                 responseCompressLevel
             );
-            final CancelHandle handle = association.receiveInvocationRequest(incomingInvocation);
+            final CancelHandle handle = identity.runAs((PrivilegedAction<CancelHandle>) () -> association.receiveInvocationRequest(incomingInvocation));
             invocations.put(new InProgress(incomingInvocation, handle));
         }
     }
@@ -562,15 +561,13 @@ final class EJBServerChannel {
     abstract class RemotingRequest implements Request {
         final int invId;
         final Affinity weakAffinity;
-        final SecurityIdentity identity;
         final ExceptionSupplier<ImportResult<?>, SystemException> transactionSupplier;
         int txnCmd = 0; // assume nobody will ask about the transaction
         SessionID sessionId;
 
-        RemotingRequest(final int invId, final Affinity weakAffinity, final SecurityIdentity identity, final ExceptionSupplier<ImportResult<?>, SystemException> transactionSupplier) {
+        RemotingRequest(final int invId, final Affinity weakAffinity, final ExceptionSupplier<ImportResult<?>, SystemException> transactionSupplier) {
             this.invId = invId;
             this.weakAffinity = weakAffinity;
-            this.identity = identity;
             this.transactionSupplier = transactionSupplier;
         }
 
@@ -595,9 +592,8 @@ final class EJBServerChannel {
             return weakAffinity;
         }
 
-        @NotNull
-        public SecurityIdentity getIdentity() {
-            return identity;
+        public boolean isBlockingCaller() {
+            return false;
         }
 
         public boolean hasTransaction() {
@@ -694,8 +690,8 @@ final class EJBServerChannel {
     final class RemotingSessionOpenRequest<T> extends RemotingRequest implements SessionOpenRequest {
         private final EJBIdentifier identifier;
 
-        RemotingSessionOpenRequest(final int invId, final EJBIdentifier identifier, final Affinity weakAffinity, final SecurityIdentity identity, final ExceptionSupplier<ImportResult<?>, SystemException> transactionSupplier) {
-            super(invId, weakAffinity, identity, transactionSupplier);
+        RemotingSessionOpenRequest(final int invId, final EJBIdentifier identifier, final Affinity weakAffinity, final ExceptionSupplier<ImportResult<?>, SystemException> transactionSupplier) {
+            super(invId, weakAffinity, transactionSupplier);
             this.identifier = identifier;
         }
 
@@ -704,28 +700,17 @@ final class EJBServerChannel {
             return identifier;
         }
 
-        public void execute(@NotNull final ExceptionRunnable<Exception> resultRunnable) {
-            try {
-                resultRunnable.run();
-            } catch (Exception e) {
-                writeFailure(e);
-                return;
-            }
-            final SessionID sessionId = this.sessionId;
-            if (sessionId == null) {
-                final IllegalStateException e = Logs.REMOTING.noSessionCreated();
-                writeFailure(e);
-                //noinspection ConstantConditions
-                throw e;
-            }
-            writeResponse(sessionId);
+        public void writeException(@NotNull final Exception exception) {
+            Assert.checkNotNullParam("exception", exception);
+            writeFailure(exception);
         }
 
-        void writeResponse(SessionID sessionID) {
+        public void convertToStateful(@NotNull final SessionID sessionId) throws IllegalArgumentException, IllegalStateException {
+            super.convertToStateful(sessionId);
             try (MessageOutputStream os = messageTracker.openMessageUninterruptibly()) {
                 os.writeByte(Protocol.OPEN_SESSION_RESPONSE);
                 os.writeShort(invId);
-                final byte[] encodedForm = sessionID.getEncodedForm();
+                final byte[] encodedForm = sessionId.getEncodedForm();
                 PackedInteger.writePackedInteger(os, encodedForm.length);
                 os.write(encodedForm);
                 if (1 <= version && version <= 2) {
@@ -744,8 +729,8 @@ final class EJBServerChannel {
         }
     }
 
-    <T> RemotingInvocationRequest<T> constructRequest(int invId, final EJBLocator<T> locator, final Affinity weakAffinity, final SecurityIdentity identity, final ExceptionSupplier<ImportResult<?>, SystemException> transactionSupplier, final Map<String, Object> attachments, final EJBMethodLocator methodLocator, final Object[] parameters, final int responseCompressLevel) {
-        return new RemotingInvocationRequest<T>(invId, locator, weakAffinity, identity, transactionSupplier, attachments, methodLocator, parameters, responseCompressLevel);
+    <T> RemotingInvocationRequest<T> constructRequest(int invId, final EJBLocator<T> locator, final Affinity weakAffinity, final ExceptionSupplier<ImportResult<?>, SystemException> transactionSupplier, final Map<String, Object> attachments, final EJBMethodLocator methodLocator, final Object[] parameters, final int responseCompressLevel) {
+        return new RemotingInvocationRequest<T>(invId, locator, weakAffinity, transactionSupplier, attachments, methodLocator, parameters, responseCompressLevel);
     }
 
     final class RemotingInvocationRequest<T> extends RemotingRequest implements InvocationRequest<T> {
@@ -755,8 +740,8 @@ final class EJBServerChannel {
         final Object[] parameters;
         final int responseCompressLevel;
 
-        RemotingInvocationRequest(final int invId, final EJBLocator<T> locator, final Affinity weakAffinity, final SecurityIdentity identity, final ExceptionSupplier<ImportResult<?>, SystemException> transactionSupplier, final Map<String, Object> attachments, final EJBMethodLocator methodLocator, final Object[] parameters, final int responseCompressLevel) {
-            super(invId, weakAffinity, identity, transactionSupplier);
+        RemotingInvocationRequest(final int invId, final EJBLocator<T> locator, final Affinity weakAffinity, final ExceptionSupplier<ImportResult<?>, SystemException> transactionSupplier, final Map<String, Object> attachments, final EJBMethodLocator methodLocator, final Object[] parameters, final int responseCompressLevel) {
+            super(invId, weakAffinity, transactionSupplier);
             this.locator = locator;
             this.attachments = attachments;
             this.methodLocator = methodLocator;
@@ -797,6 +782,19 @@ final class EJBServerChannel {
             }
         }
 
+        public void writeInvocationResult(final Object result) {
+            writeResponse(result);
+        }
+
+        public void writeException(@NotNull final Exception exception) {
+            Assert.checkNotNullParam("exception", exception);
+            if (exception instanceof CancellationException && version >= 3) {
+                writeCancellation();
+            } else {
+                writeFailure(exception);
+            }
+        }
+
         public Map<String, Object> getAttachments() {
             return attachments;
         }
@@ -807,24 +805,6 @@ final class EJBServerChannel {
 
         public Object[] getParameters() {
             return parameters;
-        }
-
-        public void execute(@NotNull final ExceptionSupplier<?, Exception> resultSupplier) {
-            final Object result;
-            try {
-                result = resultSupplier.get();
-            } catch (CancellationException e) {
-                if (version >= 3) {
-                    writeCancellation();
-                } else {
-                    writeFailure(e);
-                }
-                return;
-            } catch (Exception e) {
-                writeFailure(e);
-                return;
-            }
-            writeResponse(result);
         }
 
         public void convertToStateful(@NotNull final SessionID sessionId) throws IllegalArgumentException, IllegalStateException {

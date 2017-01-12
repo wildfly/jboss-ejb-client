@@ -96,6 +96,13 @@ public interface InvocationRequest<T> extends Request {
     void writeSessionNotActive();
 
     /**
+     * Write the invocation result message.
+     *
+     * @param result the invocation result
+     */
+    void writeInvocationResult(Object result);
+
+    /**
      * Safely narrow the invocation's generic type to the given type.  This is a convenience method and does not
      * create any new objects; it simply tests the argument and re-casts this instance as the narrowed type.
      *
