@@ -121,6 +121,17 @@ public final class StatelessEJBLocator<T> extends EJBLocator<T> {
         return getAffinity().equals(affinity) ? this : new StatelessEJBLocator<T>(this, affinity);
     }
 
+    /**
+     * Create a copy of this locator, but with the given stateful session ID.
+     *
+     * @param sessionId the stateful session ID (must not be {@code null})
+     * @return the new locator (not {@code null})
+     */
+    public StatefulEJBLocator<T> withSessionId(final SessionID sessionId) {
+        Assert.checkNotNullParam("sessionId", sessionId);
+        return new StatefulEJBLocator<T>(this, sessionId);
+    }
+
     @SuppressWarnings("unchecked")
     public <S> StatelessEJBLocator<? extends S> narrowTo(final Class<S> type) {
         return (StatelessEJBLocator<? extends S>) super.narrowTo(type);

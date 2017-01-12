@@ -23,7 +23,9 @@
 package org.jboss.ejb._private;
 
 import org.jboss.ejb.client.EJBClientInvocationContext;
+import org.jboss.ejb.client.EJBIdentifier;
 import org.jboss.ejb.client.EJBLocator;
+import org.jboss.ejb.client.EJBMethodLocator;
 import org.jboss.ejb.client.EJBReceiver;
 import org.jboss.logging.BasicLogger;
 import org.jboss.logging.annotations.Cause;
@@ -38,7 +40,9 @@ import javax.naming.CommunicationException;
 import javax.naming.Name;
 import javax.naming.NamingException;
 import javax.transaction.NotSupportedException;
+import javax.transaction.SystemException;
 
+import java.io.IOException;
 import java.io.InvalidObjectException;
 import java.util.Set;
 import java.util.concurrent.CancellationException;
@@ -284,6 +288,9 @@ public interface Logs extends BasicLogger {
     @Message(id = 403, value = "Timed out")
     TimeoutException timedOut();
 
+    @Message(id = 408, value = "Inflowed transaction is no longer active")
+    SystemException transactionNoLongerActive();
+
     // @Message(id = 404, value = "Operation not allowed since this EJB client context %s has been closed")
     // @Message(id = 405, value = "An EJB client context is already registered for EJB client context identifier %s")
     // @Message(id = 406, value = "Unexpected exception when discarding invocation result")
@@ -297,4 +304,27 @@ public interface Logs extends BasicLogger {
     @LogMessage(level = DEBUG)
     @Message(id = 501, value = "Protocol error: invalid message ID %02x received")
     void invalidMessageReceived(int code);
+
+    @Message(id = 502, value = "Protocol error: invalid transaction type %02x received")
+    IOException invalidTransactionType(int type);
+
+    @Message(id = 503, value = "Protocol error: unable to inflow remote transaction")
+    IOException unableToInflowTxn(@Cause Exception e);
+
+    @Message(id = 504, value = "Server error: no session was created")
+    IllegalStateException noSessionCreated();
+
+    // Remote messages; no ID for brevity but should be translated
+
+    @Message(value = "No such EJB: %s")
+    String remoteMessageNoSuchEJB(EJBIdentifier ejbIdentifier);
+
+    @Message(value = "EJB is not stateful: %s")
+    String remoteMessageEJBNotStateful(EJBIdentifier ejbIdentifier);
+
+    @Message(value = "No such EJB method %s found on %s")
+    String remoteMessageNoSuchMethod(EJBMethodLocator methodLocator, EJBLocator<?> ejbIdentifier);
+
+    @Message(value = "Session is not active for invocation of method %s on %s")
+    String remoteMessageSessionNotActive(EJBMethodLocator methodLocator, EJBLocator<?> locator);
 }

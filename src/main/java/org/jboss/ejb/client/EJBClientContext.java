@@ -55,18 +55,47 @@ public final class EJBClientContext extends Attachable implements Contextual<EJB
 
     private static final Supplier<Discovery> DISCOVERY_SUPPLIER = doPrivileged((PrivilegedAction<Supplier<Discovery>>) Discovery.getContextManager()::getPrivilegedSupplier);
 
-    static final Supplier<EJBClientContext> GETTER = doPrivileged((PrivilegedAction<Supplier<EJBClientContext>>) CONTEXT_MANAGER::getPrivilegedSupplier);
+    private static final Supplier<EJBClientContext> GETTER = doPrivileged((PrivilegedAction<Supplier<EJBClientContext>>) CONTEXT_MANAGER::getPrivilegedSupplier);
 
     private static final EJBClientInterceptor[] NO_INTERCEPTORS = new EJBClientInterceptor[0];
     private static final EJBTransportProvider[] NO_TRANSPORT_PROVIDERS = new EJBTransportProvider[0];
 
-    static final String FILTER_ATTR_EJB_APP = "ejb-app";
-    static final String FILTER_ATTR_EJB_MODULE = "ejb-module";
-    static final String FILTER_ATTR_EJB_BEAN = "ejb-bean";
-    static final String FILTER_ATTR_EJB_DISTINCT = "ejb-distinct";
-    static final String FILTER_ATTR_EJB_APP_DISTINCT = "ejb-app-distinct";
-    static final String FILTER_ATTR_EJB_MODULE_DISTINCT = "ejb-module-distinct";
-    static final String FILTER_ATTR_EJB_BEAN_DISTINCT = "ejb-bean-distinct";
+    /**
+     * The discovery attribute name which contains the application name of the located EJB.
+     */
+    public static final String FILTER_ATTR_EJB_APP = "ejb-app";
+    /**
+     * The discovery attribute name which contains the application and module name of the located EJB.
+     */
+    public static final String FILTER_ATTR_EJB_MODULE = "ejb-module";
+    /**
+     * The discovery attribute name which contains the application, module, and bean name of the located EJB.
+     */
+    public static final String FILTER_ATTR_EJB_BEAN = "ejb-bean";
+    /**
+     * The discovery attribute name which contains the distinct name of the located EJB.
+     */
+    public static final String FILTER_ATTR_EJB_DISTINCT = "ejb-distinct";
+    /**
+     * The discovery attribute name which contains the application name with the distinct name of the located EJB.
+     */
+    public static final String FILTER_ATTR_EJB_APP_DISTINCT = "ejb-app-distinct";
+    /**
+     * The discovery attribute name which contains the application and module name with the distinct name of the located EJB.
+     */
+    public static final String FILTER_ATTR_EJB_MODULE_DISTINCT = "ejb-module-distinct";
+    /**
+     * The discovery attribute name which contains the application, module, and bean name with the distinct name of the located EJB.
+     */
+    public static final String FILTER_ATTR_EJB_BEAN_DISTINCT = "ejb-bean-distinct";
+    /**
+     * The discovery attribute name which contains a node name.
+     */
+    public static final String FILTER_ATTR_NODE = "node";
+    /**
+     * The discovery attribute name which contains a cluster name.
+     */
+    public static final String FILTER_ATTR_CLUSTER = "cluster";
 
     static {
         CONTEXT_MANAGER.setGlobalDefaultSupplier(new ConfigurationBasedEJBClientContextSelector());
@@ -285,7 +314,7 @@ public final class EJBClientContext extends Attachable implements Contextual<EJB
         } else if (affinity == Affinity.LOCAL) {
             scheme = "local";
         } else if (affinity instanceof URIAffinity) {
-            scheme = ((URIAffinity) affinity).getUri().getScheme();
+            scheme = affinity.getUri().getScheme();
         } else {
             assert affinity == Affinity.NONE;
             return discoverFirst(locator, locatedAction);
@@ -324,9 +353,9 @@ public final class EJBClientContext extends Attachable implements Contextual<EJB
                 );
             }
         } else if (affinity instanceof NodeAffinity) {
-            filterSpec = FilterSpec.equal("node", ((NodeAffinity) affinity).getNodeName());
+            filterSpec = FilterSpec.equal(FILTER_ATTR_NODE, ((NodeAffinity) affinity).getNodeName());
         } else if (affinity instanceof ClusterAffinity) {
-            filterSpec = FilterSpec.equal("cluster", ((ClusterAffinity) affinity).getClusterName());
+            filterSpec = FilterSpec.equal(FILTER_ATTR_CLUSTER, ((ClusterAffinity) affinity).getClusterName());
         } else {
             return performLocatedAction(locator, locatedAction);
         }

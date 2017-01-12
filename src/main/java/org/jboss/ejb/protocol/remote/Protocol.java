@@ -67,8 +67,7 @@ final class Protocol {
     public static final int CLUSTER_TOPOLOGY_ADDITION     = 0x17; // s → c
     public static final int CLUSTER_TOPOLOGY_NODE_REMOVAL = 0x18; // s → c
 
-    // unused                                     = 0x19
-
+    public static final int TXN_RECOVERY_REQUEST  = 0x19; // c → s
     public static final int TXN_RECOVERY_RESPONSE = 0x1A; // s → c
 
     public static final int COMPRESSED_INVOCATION_MESSAGE = 0x1B; // s → c & c → s

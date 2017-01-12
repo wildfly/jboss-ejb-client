@@ -47,6 +47,11 @@ import org.xnio.IoFuture;
  * @author <a href="mailto:david.lloyd@redhat.com">David M. Lloyd</a>
  */
 class RemoteEJBReceiver extends EJBReceiver {
+    private final RemoteTransportProvider remoteTransportProvider;
+
+    RemoteEJBReceiver(final RemoteTransportProvider remoteTransportProvider) {
+        this.remoteTransportProvider = remoteTransportProvider;
+    }
 
     static final IoFuture.HandlingNotifier<Connection, EJBReceiverInvocationContext> NOTIFIER = new IoFuture.HandlingNotifier<Connection, EJBReceiverInvocationContext>() {
         public void handleDone(final Connection connection, final EJBReceiverInvocationContext attachment) {

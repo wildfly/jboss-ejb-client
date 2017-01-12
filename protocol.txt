@@ -58,29 +58,29 @@ Version is 0x01 or 0x02 or 0x03. 0x00 is reserved for test purposes.
     └───────┬───────┴───────┐
             │  Sec. Context │ V3: SecurityIdentity ID (4 bytes, 0 = none)
             ├───────────────┤
-            │ Txn. Context  │ V3: Transaction ID (2 bytes, 0 = none)
-            └───────────────┘
+            │   Txn. Type   │ V3: Transaction Type; 0 = none, 1 = remote, 2 = xa
+            ├───────────────┤
+            │    Txn. Id    │ V3: Transaction ID; if "none", 0 bytes; if "remote", 4 bytes + packed timeout; if "xa", length + global XID + packed timeout:
+            └───────────────┘    XID format: packed format ID + one byte gtid length + gtid bytes + one byte bqid length + bqid bytes
 
 2.2½. Session Open Response
 
-     7 6 5 4 3 2 1 0 
-    ┌─┬─┬─┬─┬─┬─┬─┬─┐
-    │      0x02     │  Command = Session Open Response
-    ├───────────────┤
-    │ Invocation ID │  Fixed length, two bytes
-    ├ ─ ─ ─ ─ ─ ─ ─ ┤
-    │               │
-    ├───────────────┤
-    │    ID Size    │  Variable length integer
-    ├───────────────┤
-    │   Session ID  │  Variable length bytes
-    ┊               ┊
-    │               │
-    ├───────────────┤
-    │   Affinity    │  Marshalled Affinity object (V1-2 only)
-    ┊               ┊
-    │               │
-    └───────────────┘
+         7 6 5 4 3 2 1 0
+        ┌─┬─┬─┬─┬─┬─┬─┬─┐
+        │      0x02     │  Command = Session Open Response
+        ├───────────────┤
+        │ Invocation ID │  Fixed length, two bytes
+        ├ ─ ─ ─ ─ ─ ─ ─ ┤
+        │               │
+        ├───────────────┤
+        │    ID Size    │  Variable length integer
+        ├───────────────┤
+        │   Session ID  │  Variable length bytes
+        ┊               ┊
+ V1 & 2 │               │  V3
+┌───────┴───────┬───────┴───────┐ V1-2: Marshalled Affinity object
+│   Affinity    │  Enlistment   │ V3+: 0 = Forget tx enlistment, 1 = commit enlistment, 2 = not master, 3 = unknown or no txn
+└───────────────┴───────────────┘
 
 2.2¾. EJB Verify Request
 
@@ -116,8 +116,10 @@ Version is 0x01 or 0x02 or 0x03. 0x00 is reserved for test purposes.
 ├───────────────┼─┴─┴─┴─┴───────┤
 │   Bean Name   │  Sec. Context │ V1,2: Marshalled String object; V3: SecurityIdentity ID (4 bytes)
 └───────────────┼───────────────┤
-                │ Txn. Context  │ V3: Transaction ID (2 bytes, 0 = none)
-        ┌───────┴───────┬───────┘
+                │   Txn. Type   │ V3: Transaction Type; 0 = none, 1 = remote, 2 = xa
+                ├───────────────┤
+                │    Txn. Id    │ V3: Transaction ID; if "none", 0 bytes; if "remote", 4 bytes + packed timeout; if "xa", length + global XID + packed timeout:
+        ┌───────┴───────┬───────┘     XID format: packed format ID + one byte gtid length + gtid bytes + one byte bqid length + bqid bytes
         │  EJB Locator  │  Marshalled EJBLocator object
         ├───────────────┤
         │   Parameter   │  Variable length marshalled objects
@@ -158,12 +160,14 @@ When the client connects to the server, and from then on, the server will provid
     ┌─┬─┬─┬─┬─┬─┬─┬─┐
     │ 0x08 or 0x09  │  Command = Module Availability (0x08) or Unavailability (0x09) Report
     ├───────────────┤
-    │     Count     │  Variable length packed integer; number of applications described
+    │     Count     │  Variable length packed integer; number of modules described
     ├───────────────┤ - For each count:
     │┌─┬─┬─┬─┬─┬─┬─┬┴┐
-    ││     Type      │ Type - application or top-level module
+    ││   App. Name   │ Application name UTF8Z string
     │├───────────────┤
-    ││     Name      │ Variable length UTF8Z app or module name
+    ││  Module Name  │ Module name UTF8Z string
+    │├───────────────┤
+    ││ Distinct Name │ Distinct name UTF8Z string
     │└──────────────┬┘
     │        :      │
     │        :      │
@@ -189,7 +193,7 @@ This message is sent when the server notifies the client that a method invocatio
 
 Note.  The client may already be unblocked if it can determine that the method invocation must be asynchronous (because it returns a java.util.concurrent.Future) or if the user utilized some API-specific mechanism to deliberately force an asynchronous execution (in which case the method is most likely a void method).  There is no way for a client to know in advance if a method which returns void is asynchronous due to the generally stateless nature of this protocol.  The client will generally propagate transactional context regardless of the method; the server may opt to not use the transactional context in the event that the method is asynchronous.
 
-Note.  As of protocol V3, this message is no longer used.
+Note.  As of protocol V3, this message is no longer used.  Asynchronous void methods will simply complete immediately from the client perspective.
 
 3.2. Invocation Response (server → client)
 
@@ -200,7 +204,16 @@ Note.  As of protocol V3, this message is no longer used.
     │ Invocation ID │  Fixed length, two bytes
     ├ ─ ─ ─ ─ ─ ─ ─ ┤
     │               │
-    ├───────────────┤
+    └───────┬───────┴───────┐
+            │  Enlistment   │ V3+: 0 = Forget tx enlistment, 1 = commit enlistment, 2 = not master, 3 = unknown
+            ├───────────────┤
+            │  SessionFix   │ V3+: 0 = Invocation OK, 1 = stateless → stateful conversion happened, Session ID follows
+            ├───────────────┤
+            │    ID Size    │  Variable length integer (if 1 above)
+            ├───────────────┤
+            │   Session ID  │  Variable length bytes
+            ┊               ┊
+    ┌───────┴───────┬───────┘
     │    Result     │  Variable length
     ┊     Data      ┊
     │               │
@@ -335,7 +348,7 @@ If a session open request is sent for a bean which is not a stateful bean, then 
 
 4. Clustering messages
 
-4.1 (New) Cluster topology (command code = 0x15). Sent from server to client
+4.1. Complete cluster topology (command code = 0x15). Sent from server to client
 
      7 6 5 4 3 2 1 0 
     ┌─┬─┬─┬─┬─┬─┬─┬─┐
@@ -356,9 +369,9 @@ If a session open request is sent for a bean which is not a stateful bean, then 
     │││mapping count  │
     ││├───────────────┤
     │││┌──────────────┴─┐ - for each mapping count  
-    ││││Client Source IP│ - ip6 bytes (ip4 = ffff ip6)
+    ││││Client Netmask  │ - packed integer, LSB 0 = ipv6, 1 = ipv4; bits 4-n are the netmask bits (only bits 1-8 are used)
     │││├────────────────┤
-    ││││Client Netmask  │ - single byte, number of bits
+    ││││Client Source IP│ - IP bytes
     │││├────────────────┤
     ││││Destination Addr│ - Variable length UTF8Z host/ip string
     │││├────────────────┤
@@ -372,7 +385,7 @@ If a session open request is sent for a bean which is not a stateful bean, then 
     │        :      │
     └───────────────┘
 
-4.2 Cluster removal notification (command code = 0x16) sent from server to client
+4.2. Cluster removal notification (command code = 0x16) sent from server to client
 
      7 6 5 4 3 2 1 0 
     ┌─┬─┬─┬─┬─┬─┬─┬─┐
@@ -388,7 +401,66 @@ If a session open request is sent for a bean which is not a stateful bean, then 
     │└──────────────┬┘
     └───────────────┘
 
-5. Transaction messages (V1/2 only)
+4.3. Cluster new nodes added (command code = 0x17) sent from server to client
+
+     7 6 5 4 3 2 1 0
+    ┌─┬─┬─┬─┬─┬─┬─┬─┐
+    │     0x17      │
+    ├───────────────┤
+    │     Cluster   │
+    │      count    │  Variable length packed integer; number of cluster topologies (always 1 in practice for this type)
+    ├───────────────┤ - For each count:
+    │┌─┬─┬─┬─┬─┬─┬─┬┴┐
+    ││     Name      │ Variable length UTF8Z cluster name
+    │├───────────────┤
+    ││     member    │
+    ││     count     │ Variable length packed integer; number of members in the cluster
+    │├───────────────┤  - for each count:
+    ││┌─┬─┬─┬─┬─┬─┬─┬┴┐
+    │││   Node Name   │ Variable length UTF8Z cluster node name
+    ││├───────────────┤
+    │││mapping count  │
+    ││├───────────────┤
+    │││┌──────────────┴─┐ - for each mapping count
+    ││││Client Netmask  │ - packed integer, LSB 0 = ipv6, 1 = ipv4; bits 4-n are the netmask bits (only bits 1-8 are used)
+    │││├────────────────┤
+    ││││Client Source IP│ - IP bytes
+    │││├────────────────┤
+    ││││Destination Addr│ - Variable length UTF8Z host/ip string
+    │││├────────────────┤
+    ││││                │
+    │││├ Dest Port      ┤ - short
+    ││││                │
+    │││└──────────────┬─┘
+    ││└──────────────┬┘
+    │└──────────────┬┘
+    │        :      │
+    │        :      │
+    └───────────────┘
+
+4.4. Cluster nodes removed (command code = 0x18) sent from server to client
+
+     7 6 5 4 3 2 1 0
+    ┌─┬─┬─┬─┬─┬─┬─┬─┐
+    │     0x18      │
+    ├───────────────┤
+    │     Cluster   │
+    │      count    │  Variable length packed integer; number of clusters
+    ├───────────────┤ - For each count:
+    │┌─┬─┬─┬─┬─┬─┬─┬┴┐
+    ││     Name      │ Variable length UTF8Z cluster name
+    │├───────────────┤
+    ││     member    │
+    ││     count     │ Variable length packed integer; number of nodes removed from the cluster
+    │├───────────────┤  - for each count:
+    ││┌─┬─┬─┬─┬─┬─┬─┬┴┐
+    │││   Node Name   │ Variable length UTF8Z cluster node name
+    ││└──────────────┬┘
+    │└──────────────┬┘
+    │        :      │
+    └───────────────┘
+
+5. Transaction messages (V1/2 only, normally; V3 allowed but not recommended)
 
 5.1. Commit request (command code = 0x0F) (client → server)
 
@@ -406,7 +478,7 @@ If a session open request is sent for a bean which is not a stateful bean, then 
     │    Txn ID     │  [length] bytes
     │     bytes     │
     ├───────────────┤
-    │      OPC      │  One phase commit; 1 = one phase, 0 = two phase
+    │      OPC      │  One phase commit; 1 = one phase, 0 = two phase (single byte)
     └───────────────┘
 
 5.2. Rollback request (command code = 0x10) (client → server)
@@ -477,7 +549,7 @@ If a session open request is sent for a bean which is not a stateful bean, then 
     │     bytes     │
     └───────────────┘
 
-5.6. Recover request (command code = 0x19) (client → server)
+5.6. Recover request (command code = 0x19) (client → server) (V2+)
 
      7 6 5 4 3 2 1 0
     ┌─┬─┬─┬─┬─┬─┬─┬─┐
@@ -523,7 +595,7 @@ If a session open request is sent for a bean which is not a stateful bean, then 
     ├───────────────┤  - For each:
     │┌─┬─┬─┬─┬─┬─┬─┬┴┐
     ││               │
-    ││    XID Obj.   │ Marshalled XID object; each XID gets a new marshalling context
+    ││    XID Obj.   │ Marshalled XID object simple sequence
     ││               │ - Type class is org.jboss.ejb.client.XidTransactionID
     │└──────────────┬┘
     │        :      │

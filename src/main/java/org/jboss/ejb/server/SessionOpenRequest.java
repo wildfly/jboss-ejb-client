@@ -20,32 +20,12 @@
  * 02110-1301 USA, or see the FSF site: http://www.fsf.org.
  */
 
-package org.jboss.ejb.client;
+package org.jboss.ejb.server;
 
 /**
- * @author <a href="mailto:tadamski@redhat.com">Tomasz Adamski</a>
+ * An EJB session-open request.
+ *
+ * @author <a href="mailto:david.lloyd@redhat.com">David M. Lloyd</a>
  */
-public class InvocationInformation {
-    //TODO add the protocol
-    private final String peerAddress;
-    private final int invocationId;
-
-    public InvocationInformation(final String peerAddress, final int invocationId){
-        this.peerAddress = peerAddress;
-        this.invocationId = invocationId;
-    }
-
-
-    public String getPeerAddress() {
-        return peerAddress;
-    }
-
-    public int getInvocationId() {
-        return invocationId;
-    }
-
-    @Override
-    public String toString() {
-        return "[" + peerAddress + ", invocation id:" + invocationId + "]";
-    }
+public interface SessionOpenRequest extends Request {
 }
