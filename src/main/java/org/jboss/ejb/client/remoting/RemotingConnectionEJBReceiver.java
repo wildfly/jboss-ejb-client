@@ -157,6 +157,15 @@ public final class RemotingConnectionEJBReceiver extends EJBReceiver {
         }
     }
 
+    protected ReconnectHandler getReconnectHandler(){
+        return this.getReconnectHandler();
+    }
+
+    @Override
+    protected String getNodeName() {
+        return super.getNodeName();
+    }
+
     @Override
     public void associate(final EJBReceiverContext context) {
         // a latch for waiting a version handshake

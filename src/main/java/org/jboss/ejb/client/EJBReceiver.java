@@ -214,7 +214,7 @@ public abstract class EJBReceiver extends Attachable {
      *
      * @return
      */
-    protected final String getNodeName() {
+    protected String getNodeName() {
         return this.nodeName;
     }
 
