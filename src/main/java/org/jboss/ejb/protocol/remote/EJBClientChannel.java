@@ -41,6 +41,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Supplier;
 import java.util.zip.InflaterInputStream;
 
@@ -125,8 +126,9 @@ class EJBClientChannel {
     private final IntIndexMap<UserTransactionID> userTxnIds = new IntIndexHashMap<UserTransactionID>(UserTransactionID::getId);
 
     private final RemoteTransactionContext transactionContext;
+    private final AtomicReference<FutureResult<EJBClientChannel>> futureResultRef;
 
-    EJBClientChannel(final Channel channel, final int version) {
+    EJBClientChannel(final Channel channel, final int version, final FutureResult<EJBClientChannel> futureResult) {
         this.channel = channel;
         this.version = version;
         marshallerFactory = Marshalling.getProvidedMarshallerFactory("river");
@@ -145,6 +147,7 @@ class EJBClientChannel {
         this.serviceRegistry = REGISTRY_SUPPLIER.get();
         this.configuration = configuration;
         invocationTracker = new InvocationTracker(this.channel, channel.getOption(RemotingOptions.MAX_OUTBOUND_MESSAGES).intValue(), EJBClientChannel::mask);
+        futureResultRef = new AtomicReference<>(futureResult);
     }
 
     static int mask(int original) {
@@ -225,6 +228,11 @@ class EJBClientChannel {
                         if (old != null) {
                             old.close();
                         }
+                    }
+                    final FutureResult<EJBClientChannel> futureResult = futureResultRef.get();
+                    if (futureResult != null && futureResultRef.compareAndSet(futureResult, null)) {
+                        // done!
+                        futureResult.setResult(this);
                     }
                     break;
                 }
@@ -571,9 +579,8 @@ class EJBClientChannel {
                         out.write(version);
                         out.write(Protocol.RIVER_BYTES);
                     }
-                    final EJBClientChannel ejbClientChannel = new EJBClientChannel(channel, version);
-                    futureResult.setResult(ejbClientChannel);
-                    // done!
+                    // almost done; wait for initial module available report
+                    final EJBClientChannel ejbClientChannel = new EJBClientChannel(channel, version, futureResult);
                     channel.receiveMessage(new Channel.Receiver() {
                         public void handleError(final Channel channel, final IOException error) {
                             safeClose(channel);
