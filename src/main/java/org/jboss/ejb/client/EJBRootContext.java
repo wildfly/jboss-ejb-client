@@ -141,6 +141,9 @@ class EJBRootContext extends AbstractContext {
             } catch (Exception e) {
                 throw Logs.MAIN.lookupFailed(name, name, e);
             }
+            if (locator == null) {
+                throw Logs.MAIN.nullSessionCreated(name, name, affinity, new EJBIdentifier(appName, moduleName, beanName, distinctName));
+            }
         } else {
             locator = createLocator(view, appName, moduleName, beanName, distinctName);
         }

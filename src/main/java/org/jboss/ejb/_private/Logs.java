@@ -22,6 +22,7 @@
 
 package org.jboss.ejb._private;
 
+import org.jboss.ejb.client.Affinity;
 import org.jboss.ejb.client.EJBClientInvocationContext;
 import org.jboss.ejb.client.EJBIdentifier;
 import org.jboss.ejb.client.EJBLocator;
@@ -36,6 +37,7 @@ import org.jboss.logging.annotations.MessageLogger;
 import org.jboss.logging.annotations.Property;
 import org.jboss.remoting3.Channel;
 
+import javax.ejb.EJBException;
 import javax.naming.CommunicationException;
 import javax.naming.Name;
 import javax.naming.NamingException;
@@ -262,6 +264,12 @@ public interface Logs extends BasicLogger {
     @LogMessage(level = Logger.Level.INFO)
     @Message(id = 64, value = "org.jboss.ejb.client.naming.ejb.ejbURLContextFactory is deprecated; new applications should use org.wildfly.naming.client.WildFlyInitialContextFactory instead")
     void ejbURLContextFactoryDeprecated();
+
+    @Message(id = 65, value = "Null session was created for \"%s\", affinity %s, identifier %s")
+    CommunicationException nullSessionCreated(@Property Name resolvedName, Name name, Affinity affinity, EJBIdentifier identifier);
+
+    @Message(id = 66, value = "Operation interrupted")
+    EJBException operationInterrupted();
 
     // Proxy API errors
 

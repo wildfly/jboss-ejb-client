@@ -367,10 +367,10 @@ public final class EJBClientContext extends Attachable implements Contextual<EJB
                     uri = servicesQueue.take();
                 } catch (InterruptedException e) {
                     Thread.currentThread().interrupt();
-                    return null;
+                    throw Logs.MAIN.operationInterrupted();
                 }
                 if (uri == null) {
-                    return null;
+                    throw Logs.MAIN.noEJBReceiverAvailable(locator);
                 }
                 final EJBReceiver receiver = getTransportProvider(uri.getScheme());
                 if (receiver != null) {
