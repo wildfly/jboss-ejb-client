@@ -22,7 +22,10 @@
 
 package org.jboss.ejb.protocol.remote;
 
+import org.jboss.ejb.client.AttachmentKey;
+import org.jboss.ejb.client.EJBClientContext;
 import org.jboss.ejb.client.EJBReceiver;
+import org.jboss.ejb.client.EJBReceiverContext;
 import org.jboss.ejb.client.EJBTransportProvider;
 import org.kohsuke.MetaInfServices;
 
@@ -34,7 +37,12 @@ import org.kohsuke.MetaInfServices;
 @MetaInfServices
 public final class RemoteTransportProvider implements EJBTransportProvider {
 
-    private final RemoteEJBReceiver receiver = new RemoteEJBReceiver(this);
+    static final AttachmentKey<RemoteEJBReceiver> ATTACHMENT_KEY = new AttachmentKey<>();
+
+    public void notifyRegistered(final EJBReceiverContext receiverContext) {
+        final EJBClientContext clientContext = receiverContext.getClientContext();
+        clientContext.putAttachmentIfAbsent(ATTACHMENT_KEY, new RemoteEJBReceiver(this, receiverContext));
+    }
 
     public boolean supportsProtocol(final String uriScheme) {
         switch (uriScheme) {
@@ -53,7 +61,7 @@ public final class RemoteTransportProvider implements EJBTransportProvider {
         }
     }
 
-    public EJBReceiver getReceiver(final String uriScheme) throws IllegalArgumentException {
+    public EJBReceiver getReceiver(final EJBReceiverContext receiverContext, final String uriScheme) throws IllegalArgumentException {
         switch (uriScheme) {
             case "remote":
             case "remote+http":
@@ -62,12 +70,15 @@ public final class RemoteTransportProvider implements EJBTransportProvider {
             case "remoting":
             case "http-remoting":
             case "https-remoting": {
-                break;
+                final RemoteEJBReceiver receiver = receiverContext.getClientContext().getAttachment(ATTACHMENT_KEY);
+                if (receiver != null) {
+                    return receiver;
+                }
+                // else fall through
             }
             default: {
                 throw new IllegalArgumentException("Unsupported EJB receiver protocol " + uriScheme);
             }
         }
-        return receiver;
     }
 }

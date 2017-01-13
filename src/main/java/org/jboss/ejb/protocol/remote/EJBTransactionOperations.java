@@ -28,6 +28,8 @@ import javax.transaction.SystemException;
 import javax.transaction.xa.XAException;
 import javax.transaction.xa.Xid;
 
+import org.jboss.ejb._private.Logs;
+import org.jboss.ejb.client.EJBClientContext;
 import org.jboss.ejb.client.TransactionID;
 import org.jboss.ejb.client.XidTransactionID;
 import org.jboss.marshalling.Marshalling;
@@ -48,7 +50,13 @@ class EJBTransactionOperations implements RemotingOperations {
     private final EJBClientChannel channel;
 
     EJBTransactionOperations(final Connection connection) throws IOException {
-        this.channel = EJBClientChannel.from(connection);
+        final EJBClientContext ejbClientContext = EJBClientContext.getCurrent();
+        final RemoteEJBReceiver receiver = ejbClientContext.getAttachment(RemoteTransportProvider.ATTACHMENT_KEY);
+        if (receiver != null) {
+            this.channel = receiver.getClientChannel(connection);
+        } else {
+            throw Logs.REMOTING.noRemoteTransportOnEJBContext();
+        }
     }
 
     public void rollback(final Xid xid) throws XAException {

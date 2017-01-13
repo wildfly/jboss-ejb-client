@@ -23,6 +23,7 @@
 package org.jboss.ejb.protocol.remote;
 
 import java.io.IOException;
+import java.io.InterruptedIOException;
 import java.net.URI;
 
 import javax.ejb.CreateException;
@@ -31,33 +32,40 @@ import org.jboss.ejb.client.Affinity;
 import org.jboss.ejb.client.EJBClientInvocationContext;
 import org.jboss.ejb.client.EJBLocator;
 import org.jboss.ejb.client.EJBReceiver;
+import org.jboss.ejb.client.EJBReceiverContext;
 import org.jboss.ejb.client.EJBReceiverInvocationContext;
 import org.jboss.ejb.client.RequestSendFailedException;
 import org.jboss.ejb.client.StatefulEJBLocator;
 import org.jboss.ejb.client.StatelessEJBLocator;
 import org.jboss.ejb.client.URIAffinity;
+import org.jboss.remoting3.ClientServiceHandle;
 import org.jboss.remoting3.Connection;
 import org.jboss.remoting3.Endpoint;
 import org.wildfly.naming.client.NamingProvider;
 import org.wildfly.naming.client.remote.RemoteNamingProvider;
 import org.xnio.FinishedIoFuture;
 import org.xnio.IoFuture;
+import org.xnio.OptionMap;
 
 /**
  * @author <a href="mailto:david.lloyd@redhat.com">David M. Lloyd</a>
  */
 class RemoteEJBReceiver extends EJBReceiver {
     private final RemoteTransportProvider remoteTransportProvider;
+    private final EJBReceiverContext receiverContext;
 
-    RemoteEJBReceiver(final RemoteTransportProvider remoteTransportProvider) {
+    final ClientServiceHandle<EJBClientChannel> serviceHandle = new ClientServiceHandle<>("jboss.ejb", channel -> EJBClientChannel.construct(channel, this));
+
+    RemoteEJBReceiver(final RemoteTransportProvider remoteTransportProvider, final EJBReceiverContext receiverContext) {
         this.remoteTransportProvider = remoteTransportProvider;
+        this.receiverContext = receiverContext;
     }
 
-    static final IoFuture.HandlingNotifier<Connection, EJBReceiverInvocationContext> NOTIFIER = new IoFuture.HandlingNotifier<Connection, EJBReceiverInvocationContext>() {
+    final IoFuture.HandlingNotifier<Connection, EJBReceiverInvocationContext> notifier = new IoFuture.HandlingNotifier<Connection, EJBReceiverInvocationContext>() {
         public void handleDone(final Connection connection, final EJBReceiverInvocationContext attachment) {
             final EJBClientChannel ejbClientChannel;
             try {
-                ejbClientChannel = EJBClientChannel.from(connection);
+                ejbClientChannel = getClientChannel(connection);
             } catch (IOException e) {
                 // should generally not be possible but we should handle it cleanly regardless
                 attachment.resultReady(new EJBReceiverInvocationContext.ResultProducer.Failed(new RequestSendFailedException(e)));
@@ -75,13 +83,30 @@ class RemoteEJBReceiver extends EJBReceiver {
         }
     };
 
+    RemoteTransportProvider getRemoteTransportProvider() {
+        return remoteTransportProvider;
+    }
+
+    EJBReceiverContext getReceiverContext() {
+        return receiverContext;
+    }
+
+    EJBClientChannel getClientChannel(final Connection connection) throws IOException {
+        try {
+            return serviceHandle.getClientService(connection, OptionMap.EMPTY).getInterruptibly();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new InterruptedIOException();
+        }
+    }
+
     protected void processInvocation(final EJBReceiverInvocationContext receiverContext) throws Exception {
         final EJBClientInvocationContext clientInvocationContext = receiverContext.getClientInvocationContext();
         final EJBLocator<?> locator = clientInvocationContext.getLocator();
         final NamingProvider namingProvider = receiverContext.getNamingProvider();
         final IoFuture<Connection> futureConnection = getConnection(locator, namingProvider);
         // this actually causes the invocation to move forward
-        futureConnection.addNotifier(NOTIFIER, receiverContext);
+        futureConnection.addNotifier(notifier, receiverContext);
     }
 
     protected boolean cancelInvocation(final EJBReceiverInvocationContext receiverContext, final boolean cancelIfRunning) {
@@ -91,7 +116,7 @@ class RemoteEJBReceiver extends EJBReceiver {
         try {
             final IoFuture<Connection> futureConnection = getConnection(locator, namingProvider);
             final Connection connection = futureConnection.get();
-            final EJBClientChannel channel = EJBClientChannel.from(connection);
+            final EJBClientChannel channel = getClientChannel(connection);
             return channel.cancelInvocation(receiverContext, cancelIfRunning);
         } catch (Exception e) {
             return false;
@@ -101,7 +126,7 @@ class RemoteEJBReceiver extends EJBReceiver {
     protected <T> StatefulEJBLocator<T> createSession(final StatelessEJBLocator<T> statelessLocator) throws Exception {
         try {
             IoFuture<Connection> futureConnection = getConnection(statelessLocator, null);
-            final EJBClientChannel ejbClientChannel = EJBClientChannel.from(futureConnection.getInterruptibly());
+            final EJBClientChannel ejbClientChannel = getClientChannel(futureConnection.getInterruptibly());
             return ejbClientChannel.openSession(statelessLocator);
         } catch (IOException e) {
             final CreateException createException = new CreateException("Failed to create stateful EJB: " + e.getMessage());
@@ -118,7 +143,7 @@ class RemoteEJBReceiver extends EJBReceiver {
         final Affinity affinity = locator.getAffinity();
         final URI target;
         if (affinity instanceof URIAffinity) {
-            target = ((URIAffinity) affinity).getUri();
+            target = affinity.getUri();
             if (namingConnection != null && target.equals(namingConnection.getPeerURI())) {
                 return new FinishedIoFuture<>(namingConnection);
             }

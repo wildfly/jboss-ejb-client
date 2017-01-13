@@ -322,6 +322,9 @@ public interface Logs extends BasicLogger {
     @Message(id = 504, value = "Server error: no session was created")
     IllegalStateException noSessionCreated();
 
+    @Message(id = 505, value = "No remote transport is present on the current EJB client context")
+    IllegalStateException noRemoteTransportOnEJBContext();
+
     // Remote messages; no ID for brevity but should be translated
 
     @Message(value = "No such EJB: %s")

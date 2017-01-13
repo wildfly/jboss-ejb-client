@@ -32,10 +32,12 @@ import java.util.List;
 import java.util.function.Supplier;
 
 import org.jboss.ejb._private.Logs;
+import org.wildfly.common.Assert;
 import org.wildfly.common.context.ContextManager;
 import org.wildfly.common.context.Contextual;
 import org.wildfly.discovery.Discovery;
 import org.wildfly.discovery.FilterSpec;
+import org.wildfly.discovery.ServiceRegistry;
 import org.wildfly.discovery.ServiceType;
 import org.wildfly.discovery.ServicesQueue;
 
@@ -104,6 +106,8 @@ public final class EJBClientContext extends Attachable implements Contextual<EJB
     private final EJBClientInterceptor[] interceptors;
     private final EJBTransportProvider[] transportProviders;
     private final long invocationTimeout;
+    private final ServiceRegistry serviceRegistry;
+    private final EJBReceiverContext receiverContext;
 
     EJBClientContext(Builder builder) {
         final List<EJBClientInterceptor> builderInterceptors = builder.interceptors;
@@ -118,7 +122,9 @@ public final class EJBClientContext extends Attachable implements Contextual<EJB
         } else {
             transportProviders = builderTransportProviders.toArray(new EJBTransportProvider[builderTransportProviders.size()]);
         }
+        serviceRegistry = builder.serviceRegistry;
         invocationTimeout = 0;
+        receiverContext = new EJBReceiverContext(this);
     }
 
     /**
@@ -203,7 +209,7 @@ public final class EJBClientContext extends Attachable implements Contextual<EJB
     EJBReceiver getTransportProvider(final String scheme) {
         for (EJBTransportProvider transportProvider : transportProviders) {
             if (transportProvider.supportsProtocol(scheme)) {
-                return transportProvider.getReceiver(scheme);
+                return transportProvider.getReceiver(receiverContext, scheme);
             }
         }
         return null;
@@ -221,6 +227,10 @@ public final class EJBClientContext extends Attachable implements Contextual<EJB
         return DISCOVERY_SUPPLIER.get();
     }
 
+    ServiceRegistry getServiceRegistry() {
+        return serviceRegistry;
+    }
+
     /**
      * A builder for EJB client contexts.
      */
@@ -228,6 +238,7 @@ public final class EJBClientContext extends Attachable implements Contextual<EJB
 
         List<EJBClientInterceptor> interceptors;
         List<EJBTransportProvider> transportProviders;
+        ServiceRegistry serviceRegistry = doPrivileged((PrivilegedAction<ServiceRegistry>) ServiceRegistry.getContextManager()::get);
 
         /**
          * Construct a new instance.
@@ -247,9 +258,7 @@ public final class EJBClientContext extends Attachable implements Contextual<EJB
         }
 
         public void addInterceptor(EJBClientInterceptor interceptor) {
-            if (interceptor == null) {
-                throw new IllegalArgumentException("interceptor is null");
-            }
+            Assert.checkNotNullParam("interceptor", interceptor);
             if (interceptors == null) {
                 interceptors = new ArrayList<>();
             }
@@ -257,13 +266,16 @@ public final class EJBClientContext extends Attachable implements Contextual<EJB
         }
 
         public void addTransportProvider(EJBTransportProvider provider) {
-            if (provider == null) {
-                throw new IllegalArgumentException("provider is null");
-            }
+            Assert.checkNotNullParam("provider", provider);
             if (transportProviders == null) {
                 transportProviders = new ArrayList<>();
             }
             transportProviders.add(provider);
+        }
+
+        public void setServiceRegistry(final ServiceRegistry serviceRegistry) {
+            Assert.checkNotNullParam("serviceRegistry", serviceRegistry);
+            this.serviceRegistry = serviceRegistry;
         }
 
         public EJBClientContext build() {

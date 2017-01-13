@@ -29,7 +29,6 @@ import static org.xnio.IoUtils.safeClose;
 import java.io.DataOutput;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.InterruptedIOException;
 import java.io.UnsupportedEncodingException;
 import java.lang.reflect.Method;
 import java.net.URI;
@@ -75,7 +74,6 @@ import org.jboss.marshalling.Marshalling;
 import org.jboss.marshalling.MarshallingConfiguration;
 import org.jboss.marshalling.Unmarshaller;
 import org.jboss.remoting3.Channel;
-import org.jboss.remoting3.ClientServiceHandle;
 import org.jboss.remoting3.Connection;
 import org.jboss.remoting3.MessageInputStream;
 import org.jboss.remoting3.MessageOutputStream;
@@ -91,16 +89,15 @@ import org.wildfly.discovery.ServiceRegistration;
 import org.wildfly.discovery.ServiceRegistry;
 import org.wildfly.discovery.ServiceURL;
 import org.wildfly.security.auth.AuthenticationException;
-import org.wildfly.transaction.client.LocalTransaction;
 import org.wildfly.transaction.client.ContextTransactionManager;
-import org.wildfly.transaction.client.XAOutflowHandle;
+import org.wildfly.transaction.client.LocalTransaction;
 import org.wildfly.transaction.client.RemoteTransaction;
 import org.wildfly.transaction.client.RemoteTransactionContext;
+import org.wildfly.transaction.client.XAOutflowHandle;
 import org.wildfly.transaction.client.provider.remoting.SimpleIdResolver;
 import org.xnio.Cancellable;
 import org.xnio.FutureResult;
 import org.xnio.IoFuture;
-import org.xnio.OptionMap;
 
 /**
  * @author <a href="mailto:david.lloyd@redhat.com">David M. Lloyd</a>
@@ -108,8 +105,6 @@ import org.xnio.OptionMap;
  */
 @SuppressWarnings("deprecation")
 class EJBClientChannel {
-
-    static final ClientServiceHandle<EJBClientChannel> SERVICE_HANDLE = new ClientServiceHandle<>("jboss.ejb", EJBClientChannel::construct);
 
     private static final Supplier<ServiceRegistry> REGISTRY_SUPPLIER = doPrivileged((PrivilegedAction<Supplier<ServiceRegistry>>) ServiceRegistry.getContextManager()::getPrivilegedSupplier);
 
@@ -550,11 +545,7 @@ class EJBClientChannel {
         out.writeUTF(statelessLocator.getBeanName());
     }
 
-    public static IoFuture<EJBClientChannel> fromFuture(final Connection connection) {
-        return SERVICE_HANDLE.getClientService(connection, OptionMap.EMPTY);
-    }
-
-    private static IoFuture<EJBClientChannel> construct(final Channel channel) {
+    static IoFuture<EJBClientChannel> construct(final Channel channel, final RemoteEJBReceiver remoteEJBReceiver) {
         FutureResult<EJBClientChannel> futureResult = new FutureResult<>();
         // now perform opening negotiation: receive server greeting
         channel.receiveMessage(new Channel.Receiver() {
@@ -613,15 +604,6 @@ class EJBClientChannel {
             }
         });
         return futureResult.getIoFuture();
-    }
-
-    public static EJBClientChannel from(final Connection connection) throws IOException {
-        try {
-            return fromFuture(connection).getInterruptibly();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new InterruptedIOException();
-        }
     }
 
     InvocationTracker getInvocationTracker() {

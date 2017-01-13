@@ -30,6 +30,13 @@ package org.jboss.ejb.client;
 public interface EJBTransportProvider {
 
     /**
+     * Notify the provider instance that it has been registered with the given client context.
+     *
+     * @param receiverContext the EJB receiver context (not {@code null})
+     */
+    default void notifyRegistered(EJBReceiverContext receiverContext) {}
+
+    /**
      * Determine whether this transport provider supports the protocol identified by the given URI scheme.
      *
      * @param uriScheme the URI scheme
@@ -40,9 +47,10 @@ public interface EJBTransportProvider {
     /**
      * Get an EJB receiver for the protocol identified by the given URI scheme.
      *
+     * @param receiverContext the receiver context
      * @param uriScheme the URI scheme
      * @return the non-{@code null} EJB receiver
      * @throws IllegalArgumentException if the protocol is not supported
      */
-    EJBReceiver getReceiver(String uriScheme) throws IllegalArgumentException;
+    EJBReceiver getReceiver(EJBReceiverContext receiverContext, String uriScheme) throws IllegalArgumentException;
 }
