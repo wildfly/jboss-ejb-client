@@ -211,11 +211,15 @@ class EJBClientChannel {
                         builder.setUri(peerURI);
                         builder.setAbstractType("ejb");
                         builder.setAbstractTypeAuthority("jboss");
-                        builder.addAttribute("ejb-app", AttributeValue.fromString(appName));
+                        if (! appName.isEmpty()) {
+                            builder.addAttribute("ejb-app", AttributeValue.fromString(appName));
+                        }
                         builder.addAttribute("ejb-module", AttributeValue.fromString(appName + "/" + moduleName));
                         if (! distinctName.isEmpty()) {
                             builder.addAttribute("ejb-distinct", AttributeValue.fromString(distinctName));
-                            builder.addAttribute("ejb-app-distinct", AttributeValue.fromString(appName + "/" + distinctName));
+                            if (! appName.isEmpty()) {
+                                builder.addAttribute("ejb-app-distinct", AttributeValue.fromString(appName + "/" + distinctName));
+                            }
                             builder.addAttribute("ejb-module-distinct", AttributeValue.fromString(appName + "/" + moduleName + "/" + distinctName));
                         }
                         final ServiceRegistration registration = serviceRegistry.registerService(builder.create());
