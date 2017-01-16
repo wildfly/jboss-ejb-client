@@ -22,8 +22,11 @@
 
 package org.jboss.ejb.client;
 
+import static java.security.AccessController.doPrivileged;
+
 import java.io.Closeable;
 import java.io.IOException;
+import java.security.PrivilegedAction;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -69,7 +72,7 @@ public final class EJBClientContext extends Attachable implements Closeable {
     private static final RuntimePermission SET_SELECTOR_PERMISSION = new RuntimePermission("setEJBClientContextSelector");
     private static final RuntimePermission ADD_INTERCEPTOR_PERMISSION = new RuntimePermission("registerInterceptor");
     private static final RuntimePermission CREATE_CONTEXT_PERMISSION = new RuntimePermission("createEJBClientContext");
-    private static final AtomicReferenceFieldUpdater<EJBClientContext, EJBClientInterceptor.Registration[]> registrationsUpdater = AtomicReferenceFieldUpdater.newUpdater(EJBClientContext.class, EJBClientInterceptor.Registration[].class, "registrations");
+    private static final AtomicReferenceFieldUpdater<EJBClientContext, EJBClientInterceptor.Registration[]> registrationsUpdater;
 
     private static final EJBClientInterceptor.Registration[] NO_INTERCEPTORS = new EJBClientInterceptor.Registration[0];
 
@@ -79,6 +82,16 @@ public final class EJBClientContext extends Attachable implements Closeable {
     private static volatile ContextSelector<EJBClientContext> SELECTOR;
 
     static {
+        if (System.getSecurityManager() == null) {
+            registrationsUpdater = AtomicReferenceFieldUpdater.newUpdater(EJBClientContext.class, EJBClientInterceptor.Registration[].class, "registrations");
+        } else {
+            registrationsUpdater = doPrivileged(new PrivilegedAction<AtomicReferenceFieldUpdater<EJBClientContext, EJBClientInterceptor.Registration[]>>() {
+                @Override
+                public AtomicReferenceFieldUpdater<EJBClientContext,EJBClientInterceptor.Registration[]> run() {
+                    return newUpdater();
+                }
+            });
+        }
         final Properties ejbClientProperties = EJBClientPropertiesLoader.loadEJBClientProperties();
         if (ejbClientProperties == null) {
             SELECTOR = new ConfigBasedEJBClientContextSelector(null);
@@ -86,6 +99,11 @@ public final class EJBClientContext extends Attachable implements Closeable {
             final EJBClientConfiguration clientConfiguration = new PropertiesBasedEJBClientConfiguration(ejbClientProperties);
             SELECTOR = new ConfigBasedEJBClientContextSelector(clientConfiguration);
         }
+    }
+
+    private static AtomicReferenceFieldUpdater<EJBClientContext,EJBClientInterceptor.Registration[]> newUpdater() {
+        // must be created within the class having the private field
+        return AtomicReferenceFieldUpdater.newUpdater(EJBClientContext.class, EJBClientInterceptor.Registration[].class, "registrations");
     }
 
     private static volatile boolean SELECTOR_LOCKED;

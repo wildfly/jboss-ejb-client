@@ -22,6 +22,7 @@
 
 package org.jboss.ejb.client.test.client;
 
+import org.jboss.beach.priv.runner.PrivilegedSetupRunner;
 import org.jboss.ejb.client.ContextSelector;
 import org.jboss.ejb.client.EJBClient;
 import org.jboss.ejb.client.EJBClientContext;
@@ -41,6 +42,7 @@ import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Test;
+import org.junit.runner.RunWith;
 import org.xnio.IoFuture;
 import org.xnio.OptionMap;
 import org.xnio.Options;
@@ -55,6 +57,7 @@ import static org.jboss.ejb.client.remoting.IoFutureHelper.get;
  *
  * @author Jaikiran Pai
  */
+@RunWith(PrivilegedSetupRunner.class)
 public class EJBClientAPIUsageTestCase {
 
     private static final Logger logger = Logger.getLogger(EJBClientAPIUsageTestCase.class);

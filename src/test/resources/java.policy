@@ -1,0 +1,55 @@
+// for Maven
+grant codeBase "file:${maven.repo.local}/-" {
+    permission java.security.AllPermission;
+};
+
+grant codeBase "file:target/classes/-" {
+    permission java.security.AllPermission;
+};
+
+grant codeBase "file:target/test-classes/-" {
+//    permission java.security.AllPermission;
+    permission java.io.FilePermission "target/classes/META-INF/services/org.jboss.ejb.client.EJBClientContextInitializer", "read";
+    permission java.lang.RuntimePermission "createClassLoader"; // org.jboss.ejb.client.test.common.ResourceSwitchingClassLoader
+    permission java.lang.RuntimePermission "createEJBClientContext";
+    permission java.lang.RuntimePermission "registerInterceptor";
+    permission java.lang.RuntimePermission "setClientTransactionContextSelector"; // TODO: should this really be a RuntimePermission?
+    permission java.lang.RuntimePermission "setEJBClientContextSelector"; // TODO: should this really be a RuntimePermission?
+    permission java.util.PropertyPermission "jboss-ejb-client.expandPasswords", "read";
+    permission java.util.PropertyPermission "jboss.ejb.client.properties.file.path", "write";
+
+    permission org.jboss.remoting3.security.RemotingPermission "addConnectionProvider";
+    permission org.jboss.remoting3.security.RemotingPermission "connect";
+    permission org.jboss.remoting3.security.RemotingPermission "createEndpoint";
+
+    // used in test cases
+
+    permission java.net.SocketPermission "127.0.0.1:6999", "connect,resolve"; // used in tests
+    permission java.net.SocketPermission "127.0.0.1:7999", "connect,resolve"; // used in tests
+    permission java.util.PropertyPermission "system.prop.foo", "read,write"; // org.jboss.ejb.client.test.properties.PropertiesBasedEJBClientConfigurationTestCase.testPropertiesParsing
+    permission java.util.PropertyPermission "non.existant.prop", "read"; // org.jboss.ejb.client.test.properties.PropertiesBasedEJBClientConfigurationTestCase.testPropertiesParsing
+    permission java.util.PropertyPermission "org.jboss.ejb.client.view.annotation.scan.enabled", "write";
+
+    permission java.security.SecurityPermission "createAccessControlContext";
+    permission javax.security.auth.AuthPermission "doAsPrivileged";
+    permission javax.security.auth.AuthPermission "modifyPrincipals"; // to setup a Subject
+
+    // bugs and work-arounds
+
+    permission java.io.FilePermission "${maven.repo.local}/org/jboss/xnio/xnio-nio/3.0.4.GA/xnio-nio-3.0.4.GA.jar", "read"; // bug in xnio
+    permission java.lang.RuntimePermission "modifyThread"; // either xnio or remoting3 bug
+
+    permission java.lang.RuntimePermission "accessDeclaredMembers"; // at org.xnio.nio.AbstractNioStreamChannel.<clinit>(AbstractNioStreamChannel.java:72)
+    permission java.lang.RuntimePermission "getClassLoader"; // at org.xnio.sasl.SaslUtils.getFactories(SaslUtils.java:125)
+    permission java.io.FilePermission "${maven.repo.local}/org/jboss/sasl/jboss-sasl/1.0.1.Final/jboss-sasl-1.0.1.Final.jar", "read"; // at org.xnio.sasl.SaslUtils.getFactories(SaslUtils.java:116)
+    permission java.lang.reflect.ReflectPermission "suppressAccessChecks"; // at org.jboss.marshalling.river.Protocol.<clinit>(Protocol.java:211)
+    permission java.io.SerializablePermission "creator"; // at org.jboss.marshalling.reflect.ReflectiveCreator.<init>(ReflectiveCreator.java:44)
+};
+
+grant codeBase "file:target/test-classes/-" principal org.jboss.ejb.client.test.SimplePrincipal "org.jboss.ejb.client.EjbNamespaceTestCase" {
+    permission java.security.AllPermission;
+};
+
+grant codeBase "file:target/test-classes/-" principal org.jboss.ejb.client.test.SimplePrincipal "org.jboss.ejb.client.test.reconnect.ReconnectTestCase" {
+    permission java.security.AllPermission;
+};

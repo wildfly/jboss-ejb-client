@@ -5,6 +5,7 @@ import java.io.InputStream;
 import java.util.Properties;
 
 import junit.framework.Assert;
+import org.jboss.beach.priv.runner.PrivilegedSetupRunner;
 import org.jboss.ejb.client.ContextSelector;
 import org.jboss.ejb.client.EJBClient;
 import org.jboss.ejb.client.EJBClientConfiguration;
@@ -17,12 +18,14 @@ import org.jboss.logging.Logger;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
+import org.junit.runner.RunWith;
 
 /**
  * Tests that the {@link org.jboss.ejb.client.annotation.CompressionHint} on view classes and the view methods is taken into account during EJB invocations
  *
  * @author: Jaikiran Pai
  */
+@RunWith(PrivilegedSetupRunner.class)
 public class CompressionTestCase {
 
     private static final Logger logger = Logger.getLogger(CompressionTestCase.class);
@@ -104,7 +107,7 @@ public class CompressionTestCase {
 
         } finally {
             // remove the system property which enables annotation scan on the client view
-            System.getProperties().remove("org.jboss.ejb.client.view.annotation.scan.enabled");
+            System.clearProperty("org.jboss.ejb.client.view.annotation.scan.enabled");
         }
 
     }
@@ -161,7 +164,7 @@ public class CompressionTestCase {
             Assert.assertEquals("Unexpected response for invocation with compression disabled", message, echoWithRequestAndResponseCompressed);
         } finally {
             // remove the system property which enables annotation scan on the client view
-            System.getProperties().remove("org.jboss.ejb.client.view.annotation.scan.enabled");
+            System.clearProperty("org.jboss.ejb.client.view.annotation.scan.enabled");
         }
 
     }
@@ -182,7 +185,7 @@ public class CompressionTestCase {
 
         } finally {
             // remove the system property which enables annotation scan on the client view
-            System.getProperties().remove("org.jboss.ejb.client.view.annotation.scan.enabled");
+            System.clearProperty("org.jboss.ejb.client.view.annotation.scan.enabled");
         }
 
     }
@@ -203,7 +206,7 @@ public class CompressionTestCase {
 
         } finally {
             // remove the system property which enables annotation scan on the client view
-            System.getProperties().remove("org.jboss.ejb.client.view.annotation.scan.enabled");
+            System.clearProperty("org.jboss.ejb.client.view.annotation.scan.enabled");
         }
 
     }
@@ -224,7 +227,7 @@ public class CompressionTestCase {
 
         } finally {
             // remove the system property which enables annotation scan on the client view
-            System.getProperties().remove("org.jboss.ejb.client.view.annotation.scan.enabled");
+            System.clearProperty("org.jboss.ejb.client.view.annotation.scan.enabled");
         }
 
     }
@@ -253,7 +256,7 @@ public class CompressionTestCase {
 
         } finally {
             // remove the system property which enables annotation scan on the client view
-            System.getProperties().remove("org.jboss.ejb.client.view.annotation.scan.enabled");
+            System.clearProperty("org.jboss.ejb.client.view.annotation.scan.enabled");
         }
     }
 }

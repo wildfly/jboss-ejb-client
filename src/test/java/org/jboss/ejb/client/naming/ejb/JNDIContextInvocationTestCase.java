@@ -23,6 +23,7 @@
 package org.jboss.ejb.client.naming.ejb;
 
 import junit.framework.Assert;
+import org.jboss.beach.priv.runner.PrivilegedSetupRunner;
 import org.jboss.ejb.client.ContextSelector;
 import org.jboss.ejb.client.EJBClientContext;
 import org.jboss.ejb.client.EJBReceiver;
@@ -40,6 +41,7 @@ import org.jboss.remoting3.remote.RemoteConnectionProviderFactory;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
+import org.junit.runner.RunWith;
 import org.xnio.IoFuture;
 import org.xnio.OptionMap;
 import org.xnio.Options;
@@ -64,6 +66,7 @@ import static org.jboss.ejb.client.remoting.IoFutureHelper.get;
  * @author Jaikiran Pai
  * @see https://issues.jboss.org/browse/EJBCLIENT-34
  */
+@RunWith(PrivilegedSetupRunner.class)
 public class JNDIContextInvocationTestCase {
 
     private static final Logger logger = Logger.getLogger(JNDIContextInvocationTestCase.class);
