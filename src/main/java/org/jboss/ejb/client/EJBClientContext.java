@@ -125,6 +125,10 @@ public final class EJBClientContext extends Attachable implements Contextual<EJB
         serviceRegistry = builder.serviceRegistry;
         invocationTimeout = 0;
         receiverContext = new EJBReceiverContext(this);
+        // this must be last
+        for (EJBTransportProvider transportProvider : transportProviders) {
+            transportProvider.notifyRegistered(receiverContext);
+        }
     }
 
     /**
