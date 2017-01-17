@@ -134,6 +134,7 @@ class EJBClientChannel {
         if (version < 3) {
             configuration.setClassTable(ProtocolV1ClassTable.INSTANCE);
             configuration.setObjectTable(ProtocolV1ObjectTable.INSTANCE);
+            configuration.setObjectResolver(ProtocolV1ObjectResolver.INSTANCE);
             configuration.setVersion(2);
         } else {
             configuration.setClassTable(ProtocolV3ClassTable.INSTANCE);

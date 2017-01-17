@@ -28,6 +28,7 @@ import java.io.ObjectInput;
 import java.io.ObjectOutput;
 
 import org.wildfly.common.Assert;
+import org.wildfly.naming.client.NamingProvider;
 
 /**
  * A serialized EJB invocation handler.
@@ -133,6 +134,15 @@ public final class SerializedEJBInvocationHandler implements Externalizable {
      * @return the invocation handler
      */
     private static <T> EJBInvocationHandler<T> readResolve(EJBLocator<T> locator) {
-        return new EJBInvocationHandler<T>(null, locator);
+        NamingProvider namingProvider = NamingProvider.getCurrentNamingProvider();
+        if (namingProvider != null) {
+            if (locator.getAffinity() == Affinity.LOCAL) {
+                return new EJBInvocationHandler<T>(namingProvider, locator.withNewAffinity(Affinity.forUri(namingProvider.getProviderUri())));
+            } else {
+                return new EJBInvocationHandler<T>(namingProvider, locator);
+            }
+        } else {
+            return new EJBInvocationHandler<T>(null, locator);
+        }
     }
 }
