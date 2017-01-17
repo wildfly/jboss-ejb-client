@@ -18,8 +18,6 @@
 
 package org.jboss.ejb.client;
 
-import org.wildfly.discovery.ServiceRegistry;
-
 /**
  * A context which is provided to EJB receiver implementations in order to perform operations on the client context.
  *
@@ -30,15 +28,6 @@ public final class EJBReceiverContext {
 
     EJBReceiverContext(final EJBClientContext clientContext) {
         this.clientContext = clientContext;
-    }
-
-    /**
-     * Get the discovery service registry to use for server discovery events.
-     *
-     * @return the discovery service registry
-     */
-    public ServiceRegistry getServiceRegistry() {
-        return clientContext.getServiceRegistry();
     }
 
     /**

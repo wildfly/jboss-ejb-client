@@ -88,6 +88,8 @@ import org.wildfly.discovery.AttributeValue;
 import org.wildfly.discovery.ServiceRegistration;
 import org.wildfly.discovery.ServiceRegistry;
 import org.wildfly.discovery.ServiceURL;
+import org.wildfly.discovery.impl.LocalRegistryAndDiscoveryProvider;
+import org.wildfly.discovery.spi.DiscoveryProvider;
 import org.wildfly.security.auth.AuthenticationException;
 import org.wildfly.transaction.client.ContextTransactionManager;
 import org.wildfly.transaction.client.LocalTransaction;
@@ -122,6 +124,7 @@ class EJBClientChannel {
 
     private final RemoteTransactionContext transactionContext;
     private final AtomicReference<FutureResult<EJBClientChannel>> futureResultRef;
+    private final LocalRegistryAndDiscoveryProvider discoveryProvider = new LocalRegistryAndDiscoveryProvider();
 
     EJBClientChannel(final Channel channel, final int version, final FutureResult<EJBClientChannel> futureResult) {
         this.channel = channel;
@@ -139,7 +142,7 @@ class EJBClientChannel {
             // server does not present v3 unless the transaction service is also present
         }
         transactionContext = RemoteTransactionContext.getInstance();
-        this.serviceRegistry = REGISTRY_SUPPLIER.get();
+        this.serviceRegistry = ServiceRegistry.create(discoveryProvider);
         this.configuration = configuration;
         invocationTracker = new InvocationTracker(this.channel, channel.getOption(RemotingOptions.MAX_OUTBOUND_MESSAGES).intValue(), EJBClientChannel::mask);
         futureResultRef = new AtomicReference<>(futureResult);
@@ -789,6 +792,10 @@ class EJBClientChannel {
                 }
             }
         }
+    }
+
+    DiscoveryProvider getDiscoveryProvider() {
+        return discoveryProvider;
     }
 
     final class MethodInvocation extends Invocation {
