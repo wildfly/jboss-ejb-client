@@ -100,4 +100,13 @@ public abstract class AbstractEJBMetaData<T extends EJBObject, H extends EJBHome
     public boolean isStatelessSession() {
         return false;
     }
+
+    /**
+     * Get the home locator for this metadata instance.
+     *
+     * @return the home locator for this metadata instance (not {@code null})
+     */
+    public EJBHomeLocator<H> getHomeLocator() {
+        return homeLocator;
+    }
 }
