@@ -26,6 +26,7 @@ import java.io.Serializable;
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
+import java.net.URI;
 import java.rmi.RemoteException;
 import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicReference;
@@ -216,7 +217,18 @@ final class EJBInvocationHandler<T> extends Attachable implements InvocationHand
 
     @SuppressWarnings("unused")
     protected Object writeReplace() {
-        return new SerializedEJBInvocationHandler(locatorRef.get(), async);
+        final NamingProvider namingProvider = this.namingProvider;
+        final EJBLocator<T> locator = locatorRef.get();
+        if (namingProvider != null) {
+            final Affinity affinity = locator.getAffinity();
+            if (affinity instanceof URIAffinity) {
+                final URI affinityUri = affinity.getUri();
+                if (namingProvider == NamingProvider.getCurrentNamingProvider() && namingProvider.getProviderUri().equals(affinityUri)) {
+                    return new SerializedEJBInvocationHandler(locator.withNewAffinity(Affinity.LOCAL), async);
+                }
+            }
+        }
+        return new SerializedEJBInvocationHandler(locator, async);
     }
 
     EJBInvocationHandler<T> getAsyncHandler() {
