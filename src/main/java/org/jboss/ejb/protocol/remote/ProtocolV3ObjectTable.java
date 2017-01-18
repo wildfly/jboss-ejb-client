@@ -24,14 +24,63 @@ package org.jboss.ejb.protocol.remote;
 
 import java.io.IOException;
 import java.io.InvalidObjectException;
+import java.rmi.RemoteException;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.Future;
 
+import javax.ejb.AsyncResult;
+import javax.ejb.CreateException;
+import javax.ejb.DuplicateKeyException;
+import javax.ejb.EJBAccessException;
+import javax.ejb.EJBException;
+import javax.ejb.EJBHome;
+import javax.ejb.EJBMetaData;
+import javax.ejb.EJBObject;
+import javax.ejb.EJBTransactionRequiredException;
+import javax.ejb.EJBTransactionRolledbackException;
+import javax.ejb.FinderException;
+import javax.ejb.Handle;
+import javax.ejb.HomeHandle;
+import javax.ejb.NoSuchEJBException;
+import javax.ejb.NoSuchEntityException;
+import javax.ejb.ObjectNotFoundException;
+import javax.ejb.RemoveException;
+import javax.transaction.InvalidTransactionException;
+import javax.transaction.NotSupportedException;
+import javax.transaction.RollbackException;
+import javax.transaction.SystemException;
+import javax.transaction.TransactionRequiredException;
+import javax.transaction.TransactionRolledbackException;
+
+import org.jboss.ejb.client.AbstractEJBMetaData;
 import org.jboss.ejb.client.Affinity;
+import org.jboss.ejb.client.AttachmentKey;
 import org.jboss.ejb.client.AttachmentKeys;
+import org.jboss.ejb.client.BasicSessionID;
+import org.jboss.ejb.client.ClusterAffinity;
 import org.jboss.ejb.client.EJBClientInvocationContext;
+import org.jboss.ejb.client.EJBClientPermission;
+import org.jboss.ejb.client.EJBHandle;
+import org.jboss.ejb.client.EJBHomeHandle;
+import org.jboss.ejb.client.EJBHomeLocator;
+import org.jboss.ejb.client.EJBLocator;
+import org.jboss.ejb.client.EJBMethodLocator;
+import org.jboss.ejb.client.EntityEJBLocator;
+import org.jboss.ejb.client.EntityEJBMetaData;
+import org.jboss.ejb.client.NodeAffinity;
+import org.jboss.ejb.client.SerializedEJBInvocationHandler;
+import org.jboss.ejb.client.SessionID;
+import org.jboss.ejb.client.StatefulEJBLocator;
+import org.jboss.ejb.client.StatefulEJBMetaData;
+import org.jboss.ejb.client.StatelessEJBLocator;
+import org.jboss.ejb.client.StatelessEJBMetaData;
 import org.jboss.ejb.client.TransactionID;
+import org.jboss.ejb.client.URIAffinity;
+import org.jboss.ejb.client.UnknownSessionID;
+import org.jboss.ejb.client.UserTransactionID;
+import org.jboss.ejb.client.XidTransactionID;
 import org.jboss.marshalling.ObjectTable;
 import org.jboss.marshalling.Unmarshaller;
 
@@ -65,6 +114,59 @@ final class ProtocolV3ObjectTable implements ObjectTable {
             Throwable.class.getName(),
             Exception.class.getName(),
             RuntimeException.class.getName(),
+            EJBLocator.class.getName(),
+            EJBHomeLocator.class.getName(),
+            StatelessEJBLocator.class.getName(),
+            StatefulEJBLocator.class.getName(),
+            EntityEJBLocator.class.getName(),
+            EJBHandle.class.getName(),
+            EJBHomeHandle.class.getName(),
+            SerializedEJBInvocationHandler.class.getName(),
+            SessionID.class.getName(),
+            UnknownSessionID.class.getName(),
+            BasicSessionID.class.getName(),
+            UserTransactionID.class.getName(),
+            XidTransactionID.class.getName(),
+            EJBHome.class.getName(),
+            EJBObject.class.getName(),
+            Handle.class.getName(),
+            HomeHandle.class.getName(),
+            EJBMetaData.class.getName(),
+            RemoteException.class.getName(),
+            NoSuchEJBException.class.getName(),
+            NoSuchEntityException.class.getName(),
+            CreateException.class.getName(),
+            DuplicateKeyException.class.getName(),
+            EJBAccessException.class.getName(),
+            EJBException.class.getName(),
+            EJBTransactionRequiredException.class.getName(),
+            EJBTransactionRolledbackException.class.getName(),
+            FinderException.class.getName(),
+            RemoveException.class.getName(),
+            ObjectNotFoundException.class.getName(),
+            Future.class.getName(),
+            SystemException.class.getName(),
+            RollbackException.class.getName(),
+            TransactionRequiredException.class.getName(),
+            TransactionRolledbackException.class.getName(),
+            NotSupportedException.class.getName(),
+            InvalidTransactionException.class.getName(),
+            StackTraceElement.class.getName(),
+            SessionID.Serialized.class.getName(),
+            TransactionID.class.getName(),
+            TransactionID.Serialized.class.getName(),
+            Affinity.class.getName(),
+            NodeAffinity.class.getName(),
+            ClusterAffinity.class.getName(),
+            URIAffinity.class.getName(),
+            EJBMethodLocator.class.getName(),
+            AbstractEJBMetaData.class.getName(),
+            StatelessEJBMetaData.class.getName(),
+            StatefulEJBMetaData.class.getName(),
+            EntityEJBMetaData.class.getName(),
+            AttachmentKey.class.getName(),
+            EJBClientPermission.class.getName(),
+            AsyncResult.class.getName(),
             "detailMessage",
             "cause",
             "stackTrace",

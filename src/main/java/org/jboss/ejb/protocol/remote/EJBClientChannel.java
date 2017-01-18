@@ -137,7 +137,6 @@ class EJBClientChannel {
             configuration.setObjectResolver(ProtocolV1ObjectResolver.INSTANCE);
             configuration.setVersion(2);
         } else {
-            configuration.setClassTable(ProtocolV3ClassTable.INSTANCE);
             configuration.setObjectTable(ProtocolV3ObjectTable.INSTANCE);
             configuration.setVersion(4);
             // server does not present v3 unless the transaction service is also present
