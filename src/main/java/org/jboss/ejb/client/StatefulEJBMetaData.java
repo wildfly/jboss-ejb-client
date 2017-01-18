@@ -43,7 +43,7 @@ public final class StatefulEJBMetaData<T extends EJBObject, H extends EJBHome> e
      * @param remoteInterfaceClass the remote interface class
      * @param homeLocator the EJB home locator
      */
-    StatefulEJBMetaData(final Class<T> remoteInterfaceClass, final EJBHomeLocator<H> homeLocator) {
+    public StatefulEJBMetaData(final Class<T> remoteInterfaceClass, final EJBHomeLocator<H> homeLocator) {
         super(remoteInterfaceClass, homeLocator);
     }
 }
