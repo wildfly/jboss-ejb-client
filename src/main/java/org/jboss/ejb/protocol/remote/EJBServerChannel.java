@@ -119,7 +119,6 @@ final class EJBServerChannel {
             configuration.setObjectTable(ProtocolV1ObjectTable.INSTANCE);
             configuration.setVersion(2);
         } else {
-            configuration.setClassTable(ProtocolV3ClassTable.INSTANCE);
             configuration.setObjectTable(ProtocolV3ObjectTable.INSTANCE);
             configuration.setVersion(4);
         }
