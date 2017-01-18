@@ -51,7 +51,14 @@ public final class EJBHandle<T extends EJBObject> implements Handle {
         this.locator = locator;
     }
 
-    static <T extends EJBObject> EJBHandle<T> handleFor(EJBLocator<T> locator) {
+    /**
+     * Construct a new instance.
+     *
+     * @param locator the locator for the EJB instance (must not be {@code null})
+     * @param <T> the EJB object type
+     * @return the handle (not {@code null})
+     */
+    public static <T extends EJBObject> EJBHandle<T> create(EJBLocator<T> locator) {
         return new EJBHandle<>(locator);
     }
 

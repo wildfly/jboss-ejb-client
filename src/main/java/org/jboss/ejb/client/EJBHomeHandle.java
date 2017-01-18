@@ -51,7 +51,14 @@ public final class EJBHomeHandle<T extends EJBHome> implements HomeHandle {
         this.locator = locator;
     }
 
-    static <T extends EJBHome> EJBHomeHandle<T> handleFor(EJBHomeLocator<T> locator) {
+    /**
+     * Construct a new instance.
+     *
+     * @param locator the locator for the home interface (must not be {@code null})
+     * @param <T> the EJB home type
+     * @return the handle (not {@code null})
+     */
+    public static <T extends EJBHome> EJBHomeHandle<T> create(EJBHomeLocator<T> locator) {
         return new EJBHomeHandle<>(locator);
     }
 

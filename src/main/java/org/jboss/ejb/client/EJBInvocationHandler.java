@@ -134,12 +134,12 @@ final class EJBInvocationHandler<T> extends Attachable implements InvocationHand
             }
             case EJBProxyInformation.MT_GET_HANDLE: {
                 // TODO: cache instance
-                return EJBHandle.handleFor(locatorRef.get().narrowTo(EJBObject.class));
+                return EJBHandle.create(locatorRef.get().narrowTo(EJBObject.class));
             }
             case EJBProxyInformation.MT_GET_HOME_HANDLE: {
                 if (locatorRef.get() instanceof EJBHomeLocator) {
                     // TODO: cache instance
-                    return EJBHomeHandle.handleFor(locatorRef.get().narrowAsHome(EJBHome.class));
+                    return EJBHomeHandle.create(locatorRef.get().narrowAsHome(EJBHome.class));
                 }
                 throw new RemoteException("Cannot invoke getHomeHandle() on " + proxy);
             }
