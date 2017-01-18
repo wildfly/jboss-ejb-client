@@ -104,20 +104,18 @@ Version is 0x01 or 0x02 or 0x03. 0x00 is reserved for test purposes.
         ├ ─ ─ ─ ─ ─ ─ ─ ┤
  V1 & 2 │               │  V3
 ┌───────┴───────┬───────┴───────┐
-│  Method Name  │   App. Name   │ V1,2: Variable length UTF-8Z string; V3: Marshalled String object
-├───────────────┼───────────────┤
-│   MethodSig   │   Mod. Name   │ V1,2: Variable length UTF-8Z string; V3: Marshalled String object
+│  Method Name  │ EJBIdentifier │ V1,2: Variable length UTF-8Z string; V3: Marshalled EJBIdentifier object
 ├───────────────┼───────────────┤ ← V3: switch class loader here
-│   App. Name   │ Method Locator│ V1,2: Marshalled String object; V3: Marshalled EJBMethodLocator object
+│   MethodSig   │ Method Locator│ V1,2: Variable length UTF-8Z string; V3: Marshalled EJBMethodLocator object
 ├───────────────┼───────────────┤
-│   Mod. Name   │ Weak Affinity │ V1,2: Marshalled String object; V3: Marshalled Affinity object
-├───────────────┼─┬─┬─┬─┬───────┤ ← V2: switch class loader here
-│  Dist. Name   │0│0│0│0│ Level │ V1,2: Marshalled String object; V3: Response Compression level 0 = no compression
+│   App. Name   │ Weak Affinity │ V1,2: Marshalled String object; V3: Marshalled Affinity object
+├───────────────┼─┬─┬─┬─┬───────┤
+│   Mod. Name   │0│0│0│0│ Level │ V1,2: Marshalled String object; V3: Response Compression level 0 = no compression
 ├───────────────┼─┴─┴─┴─┴───────┤
-│   Bean Name   │  Sec. Context │ V1,2: Marshalled String object; V3: SecurityIdentity ID (4 bytes)
-└───────────────┼───────────────┤
-                │   Txn. Type   │ V3: Transaction Type; 0 = none, 1 = remote, 2 = xa
-                ├───────────────┤
+│  Dist. Name   │  Sec. Context │ V1,2: Marshalled String object; V3: SecurityIdentity ID (4 bytes)
+├───────────────┼───────────────┤
+│   Bean Name   │   Txn. Type   │ V1,2: Marshalled String object; V3: Transaction Type; 0 = none, 1 = remote, 2 = xa
+└───────────────┼───────────────┤ ← V2: switch class loader here
                 │    Txn. Id    │ V3: Transaction ID; if "none", 0 bytes; if "remote", 4 bytes + packed timeout; if "xa", length + global XID + packed timeout:
         ┌───────┴───────┬───────┘     XID format: packed format ID + one byte gtid length + gtid bytes + one byte bqid length + bqid bytes
         │  EJB Locator  │  Marshalled EJBLocator object
