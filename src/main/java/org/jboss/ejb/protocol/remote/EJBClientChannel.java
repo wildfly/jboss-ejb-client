@@ -685,7 +685,7 @@ class EJBClientChannel {
                                 }
                             }
                         }
-                        return new StatefulEJBLocator<>(statelessLocator, SessionID.createSessionID(bytes), affinity);
+                        return statelessLocator.withSessionAndAffinity(SessionID.createSessionID(bytes), affinity);
                     }
                     case Protocol.APPLICATION_EXCEPTION: {
                         try (final Unmarshaller unmarshaller = createUnmarshaller()) {

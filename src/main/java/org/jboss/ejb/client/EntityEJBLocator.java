@@ -131,6 +131,20 @@ public final class EntityEJBLocator<T extends EJBObject> extends EJBLocator<T> {
         this.primaryKey = original.primaryKey;
     }
 
+    /**
+     * Construct a new instance.
+     *
+     * @param viewType the view type (must not be {@code null})
+     * @param identifier the EJB identifier (must not be {@code null})
+     * @param primaryKey the entity primary key (must not be {@code null})
+     * @param affinity the affinity
+     * @param <T> the remote view type
+     * @return the new instance (not {@code null})
+     */
+    public static <T extends EJBObject> EntityEJBLocator<T> create(final Class<T> viewType, final EJBIdentifier identifier, final Object primaryKey, final Affinity affinity) {
+        return new EntityEJBLocator<T>(viewType, identifier, primaryKey, affinity);
+    }
+
     public EntityEJBLocator<T> withNewAffinity(final Affinity affinity) {
         Assert.checkNotNullParam("affinity", affinity);
         return getAffinity().equals(affinity) ? this : new EntityEJBLocator<T>(this, affinity);

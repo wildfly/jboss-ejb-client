@@ -47,6 +47,19 @@ public final class StatelessEJBMetaData<T extends EJBObject, H extends EJBHome> 
         super(remoteInterfaceClass, homeLocator);
     }
 
+    /**
+     * Construct a new instance.
+     *
+     * @param remoteInterfaceClass the remote interface class (must not be {@code null})
+     * @param homeLocator the EJB home locator (must not be {@code null})
+     * @param <T> the remote interface type
+     * @param <H> the home interface type
+     * @return the new instance (not {@code null})
+     */
+    public static <T extends EJBObject, H extends EJBHome> StatelessEJBMetaData<T, H> create(final Class<T> remoteInterfaceClass, final EJBHomeLocator<H> homeLocator) {
+        return new StatelessEJBMetaData<>(remoteInterfaceClass, homeLocator);
+    }
+
     public boolean isStatelessSession() {
         return true;
     }

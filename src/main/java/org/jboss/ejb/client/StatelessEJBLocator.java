@@ -116,20 +116,50 @@ public final class StatelessEJBLocator<T> extends EJBLocator<T> {
         super(original, newAffinity);
     }
 
+    StatelessEJBLocator(final EJBLocator<T> original, final Affinity newAffinity) {
+        super(original, newAffinity);
+    }
+
+    /**
+     * Construct a new instance.
+     *
+     * @param viewType the view type (must not be {@code null})
+     * @param identifier the EJB identifier (must not be {@code null})
+     * @param affinity the {@link Affinity} for this stateful bean locator
+     * @param <T> the remote view type
+     * @return the new instance (not {@code null})
+     */
+    public static <T> StatelessEJBLocator<T> create(final Class<T> viewType, final EJBIdentifier identifier, final Affinity affinity) {
+        return new StatelessEJBLocator<T>(viewType, identifier, affinity);
+    }
+
+    /**
+     * Construct a new instance.  This method uses the location from the original locator, but with the given
+     * session ID and affinity.
+     *
+     * @param original the original locator (must not be {@code null})
+     * @param newAffinity the new affinity
+     * @param <T> the remote view type
+     * @return the new instance (not {@code null})
+     */
+    public static <T> StatelessEJBLocator<T> create(final EJBLocator<T> original, final Affinity newAffinity) {
+        return new StatelessEJBLocator<T>(original, newAffinity);
+    }
+
     public StatelessEJBLocator<T> withNewAffinity(final Affinity affinity) {
         Assert.checkNotNullParam("affinity", affinity);
         return getAffinity().equals(affinity) ? this : new StatelessEJBLocator<T>(this, affinity);
     }
 
-    /**
-     * Create a copy of this locator, but with the given stateful session ID.
-     *
-     * @param sessionId the stateful session ID (must not be {@code null})
-     * @return the new locator (not {@code null})
-     */
-    public StatefulEJBLocator<T> withSessionId(final SessionID sessionId) {
+    public StatefulEJBLocator<T> withSession(final SessionID sessionId) {
         Assert.checkNotNullParam("sessionId", sessionId);
         return new StatefulEJBLocator<T>(this, sessionId);
+    }
+
+    public StatefulEJBLocator<T> withSessionAndAffinity(final SessionID sessionId, final Affinity affinity) {
+        Assert.checkNotNullParam("sessionId", sessionId);
+        Assert.checkNotNullParam("affinity", affinity);
+        return new StatefulEJBLocator<T>(this, sessionId, affinity);
     }
 
     @SuppressWarnings("unchecked")
