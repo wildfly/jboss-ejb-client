@@ -39,6 +39,7 @@ import java.util.Objects;
 import javax.ejb.EJBHome;
 import javax.ejb.EJBObject;
 
+import org.jboss.ejb._private.Logs;
 import org.wildfly.common.Assert;
 
 /**
@@ -113,6 +114,29 @@ public abstract class EJBLocator<T> implements Serializable {
      * @return the new locator
      */
     public abstract EJBLocator<T> withNewAffinity(Affinity affinity);
+
+    /**
+     * Create a copy of this locator, but with the given stateful session ID.  If this locator cannot be converted,
+     * an exception is thrown.
+     *
+     * @param sessionId the stateful session ID (must not be {@code null})
+     * @return the new locator (not {@code null})
+     */
+    public StatefulEJBLocator<T> withSession(SessionID sessionId) {
+        throw Logs.MAIN.cannotConvertToStateful(this);
+    }
+
+    /**
+     * Create a copy of this locator, but with the given affinity and stateful session ID.  If this locator cannot be converted,
+     * an exception is thrown.
+     *
+     * @param sessionId the stateful session ID (must not be {@code null})
+     * @param affinity the new affinity (must not be {@code null})
+     * @return the new locator (not {@code null})
+     */
+    public StatefulEJBLocator<T> withSessionAndAffinity(SessionID sessionId, Affinity affinity) {
+        throw Logs.MAIN.cannotConvertToStateful(this);
+    }
 
     /**
      * Determine whether a {@link #narrowTo(Class)} operation would succeed.

@@ -135,17 +135,18 @@ class EJBRootContext extends AbstractContext {
             throw Logs.MAIN.lookupFailed(name, name, e);
         }
         EJBLocator<?> locator;
+        final EJBIdentifier identifier = new EJBIdentifier(appName, moduleName, beanName, distinctName);
         if (stateful) {
             try {
-                locator = EJBClient.createSession(affinity, view, appName, moduleName, beanName, distinctName);
+                locator = EJBClient.createSession(StatelessEJBLocator.create(view, identifier, affinity));
             } catch (Exception e) {
                 throw Logs.MAIN.lookupFailed(name, name, e);
             }
             if (locator == null) {
-                throw Logs.MAIN.nullSessionCreated(name, name, affinity, new EJBIdentifier(appName, moduleName, beanName, distinctName));
+                throw Logs.MAIN.nullSessionCreated(name, name, affinity, identifier);
             }
         } else {
-            locator = createLocator(view, appName, moduleName, beanName, distinctName);
+            locator = StatelessEJBLocator.create(view, identifier, affinity);
         }
         return EJBClient.createProxy(namingProvider, locator);
     }
@@ -163,10 +164,6 @@ class EJBRootContext extends AbstractContext {
 
     private static ClassLoader doGetContextClassLoader() {
         return Thread.currentThread().getContextClassLoader();
-    }
-
-    private <T> StatelessEJBLocator<T> createLocator(Class<T> viewType, String appName, String moduleName, String beanName, String distinctName) {
-        return new StatelessEJBLocator<T>(viewType, appName, moduleName, beanName, distinctName, affinity);
     }
 
     protected Object lookupLinkNative(final Name name) throws NamingException {

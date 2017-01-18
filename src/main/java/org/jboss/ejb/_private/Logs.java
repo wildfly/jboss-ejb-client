@@ -271,6 +271,9 @@ public interface Logs extends BasicLogger {
     @Message(id = 66, value = "Operation interrupted")
     EJBException operationInterrupted();
 
+    @Message(id = 67, value = "Cannot convert %s to stateful")
+    IllegalArgumentException cannotConvertToStateful(EJBLocator<?> locator);
+
     // Proxy API errors
 
     @Message(id = 100, value = "Object '%s' is not a valid proxy object")

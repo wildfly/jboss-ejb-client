@@ -322,7 +322,7 @@ final class EJBInvocationHandler<T> extends Attachable implements InvocationHand
                 }
                 throw Logs.MAIN.ejbIsAlreadyStateful();
             }
-            newVal = new StatefulEJBLocator<T>(oldVal, sessionID);
+            newVal = oldVal.withSession(sessionID);
         } while (! locatorRef.compareAndSet(oldVal, newVal));
     }
 

@@ -156,9 +156,47 @@ public final class StatefulEJBLocator<T> extends EJBLocator<T> {
         this.sessionId = sessionId;
     }
 
+    /**
+     * Construct a new instance.
+     *
+     * @param viewType the view type (must not be {@code null})
+     * @param identifier the EJB identifier (must not be {@code null})
+     * @param sessionId the stateful session ID (must not be {@code null})
+     * @param affinity the {@link Affinity} for this stateful bean locator
+     * @param <T> the remote view type
+     * @return the new instance (not {@code null})
+     */
+    public static <T> StatefulEJBLocator<T> create(final Class<T> viewType, final EJBIdentifier identifier, final SessionID sessionId, final Affinity affinity) {
+        return new StatefulEJBLocator<T>(viewType, identifier, sessionId, affinity);
+    }
+
+    /**
+     * Get a copy of this stateful EJB locator, but without any session ID.
+     *
+     * @return the stateless EJB locator (not {@code null})
+     */
+    public StatelessEJBLocator<T> withoutSession() {
+        return new StatelessEJBLocator<T>(this, getAffinity());
+    }
+
+    public StatefulEJBLocator<T> withSession(final SessionID sessionId) {
+        Assert.checkNotNullParam("sessionId", sessionId);
+        if (sessionId.equals(this.sessionId)) {
+            return this;
+        } else {
+            return new StatefulEJBLocator<T>(this, sessionId);
+        }
+    }
+
     public StatefulEJBLocator<T> withNewAffinity(final Affinity affinity) {
         Assert.checkNotNullParam("affinity", affinity);
         return getAffinity().equals(affinity) ? this : new StatefulEJBLocator<T>(this, affinity);
+    }
+
+    public StatefulEJBLocator<T> withSessionAndAffinity(final SessionID sessionId, final Affinity affinity) {
+        Assert.checkNotNullParam("sessionId", sessionId);
+        Assert.checkNotNullParam("affinity", affinity);
+        return getAffinity().equals(affinity) && getSessionId().equals(sessionId) ? this : new StatefulEJBLocator<T>(this, sessionId, affinity);
     }
 
     @SuppressWarnings("unchecked")

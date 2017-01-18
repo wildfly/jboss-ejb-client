@@ -118,6 +118,19 @@ public final class EJBHomeLocator<T extends EJBHome> extends EJBLocator<T> {
         super(original, newAffinity);
     }
 
+    /**
+     * Construct a new instance.
+     *
+     * @param viewType the view type (must not be {@code null})
+     * @param identifier the EJB identifier (must not be {@code null})
+     * @param affinity the affinity
+     * @param <T> the remote view type
+     * @return the new instance (not {@code null})
+     */
+    public static <T extends EJBHome> EJBHomeLocator<T> create(final Class<T> viewType, final EJBIdentifier identifier, final Affinity affinity) {
+        return new EJBHomeLocator<T>(viewType, identifier, affinity);
+    }
+
     public EJBHomeLocator<T> withNewAffinity(final Affinity affinity) {
         Assert.checkNotNullParam("affinity", affinity);
         return getAffinity().equals(affinity) ? this : new EJBHomeLocator<T>(this, affinity);
