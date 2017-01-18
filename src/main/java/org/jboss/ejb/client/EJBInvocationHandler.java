@@ -153,6 +153,7 @@ final class EJBInvocationHandler<T> extends Attachable implements InvocationHand
             invocationContext.setLocator(locatorRef.get().withNewAffinity(newAffinity));
             invocationContext.setBlockingCaller(true);
             invocationContext.setNamingProvider(namingProvider);
+            invocationContext.setWeakAffinity(getWeakAffinity());
 
             try {
                 // send the request

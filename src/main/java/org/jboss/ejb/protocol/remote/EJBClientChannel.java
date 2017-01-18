@@ -324,15 +324,17 @@ class EJBClientChannel {
                     marshaller.writeObject(locator.getBeanName());
                 } else {
 
-                    // write app & module to allow the peer to find the class loader
-                    marshaller.writeObject(locator.getAppName());
-                    marshaller.writeObject(locator.getModuleName());
+                    // write identifier to allow the peer to find the class loader
+                    marshaller.writeObject(locator.getIdentifier());
 
                     // write method locator
                     marshaller.writeObject(invocationContext.getMethodLocator());
 
+                    // write sec context
+                    marshaller.writeInt(peerIdentityId);
+
                     // write weak affinity
-                    marshaller.writeObject(null); // todo
+                    marshaller.writeObject(invocationContext.getWeakAffinity());
 
                     // write response compression info
                     if (invocationContext.isCompressResponse()) {
@@ -340,9 +342,6 @@ class EJBClientChannel {
                     } else {
                         marshaller.writeByte(0);
                     }
-
-                    // write sec context
-                    marshaller.writeInt(peerIdentityId);
 
                     // write txn context
                     invocation.setOutflowHandle(writeTransaction(invocationContext.getTransaction(), marshaller));

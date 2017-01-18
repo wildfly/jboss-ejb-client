@@ -37,6 +37,7 @@ import javax.transaction.Transaction;
 
 import org.jboss.ejb._private.Logs;
 import org.jboss.ejb.client.annotation.ClientTransactionPolicy;
+import org.wildfly.common.Assert;
 import org.wildfly.naming.client.NamingProvider;
 
 /**
@@ -79,6 +80,7 @@ public final class EJBClientInvocationContext extends Attachable {
     private boolean blockingCaller;
     private Transaction transaction;
     private NamingProvider namingProvider;
+    private Affinity weakAffinity = Affinity.NONE;
 
     EJBClientInvocationContext(final EJBInvocationHandler<?> invocationHandler, final EJBClientContext ejbClientContext, final Object invokedProxy, final Object[] parameters, final EJBProxyInformation.ProxyMethodInfo methodInfo) {
         this.invocationHandler = invocationHandler;
@@ -474,6 +476,25 @@ public final class EJBClientInvocationContext extends Attachable {
      */
     public void setTransaction(final Transaction transaction) {
         this.transaction = transaction;
+    }
+
+    /**
+     * Get the invocation weak affinity.
+     *
+     * @return the invocation weak affinity, or {@link Affinity#NONE} if none (not {@code null})
+     */
+    public Affinity getWeakAffinity() {
+        return weakAffinity;
+    }
+
+    /**
+     * Set the invocation weak affinity.
+     *
+     * @param weakAffinity the invocation weak affinity (must not be {@code null})
+     */
+    public void setWeakAffinity(final Affinity weakAffinity) {
+        Assert.checkNotNullParam("weakAffinity", weakAffinity);
+        this.weakAffinity = weakAffinity;
     }
 
     Future<?> getFutureResponse() {
