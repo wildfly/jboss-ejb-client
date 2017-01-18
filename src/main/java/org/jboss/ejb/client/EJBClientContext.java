@@ -310,17 +310,7 @@ public final class EJBClientContext extends Attachable implements Contextual<EJB
      * @return the current client context
      */
     public static EJBClientContext getCurrent() {
-        return GETTER.get();
-    }
-
-    /**
-     * Get the current client context for this thread, throwing an exception if none is set.
-     *
-     * @return the current client context
-     * @throws IllegalStateException if the current client context is not set
-     */
-    public static EJBClientContext requireCurrent() throws IllegalStateException {
-        final EJBClientContext clientContext = getCurrent();
+        final EJBClientContext clientContext = GETTER.get();
         if (clientContext == null) {
             throw Logs.MAIN.noEJBClientContextAvailable();
         }
