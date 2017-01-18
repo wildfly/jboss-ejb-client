@@ -55,9 +55,9 @@ import org.jboss.ejb.client.EJBClientInvocationContext;
 import org.jboss.ejb.client.EJBIdentifier;
 import org.jboss.ejb.client.EJBLocator;
 import org.jboss.ejb.client.EJBMethodLocator;
+import org.jboss.ejb.client.NodeAffinity;
 import org.jboss.ejb.client.RequestSendFailedException;
 import org.jboss.ejb.client.SessionID;
-import org.jboss.ejb.client.StatelessEJBLocator;
 import org.jboss.ejb.client.TransactionID;
 import org.jboss.ejb.client.UserTransactionID;
 import org.jboss.ejb.client.XidTransactionID;
@@ -352,34 +352,6 @@ final class EJBServerChannel {
             }
         }
 
-        private ExceptionSupplier<ImportResult<?>, SystemException> readTransaction(final DataInput input) throws IOException {
-            final int type = input.readUnsignedByte();
-            if (type == 0) {
-                return null;
-            } else if (type == 1) {
-                // remote user transaction
-                final int id = input.readInt();
-                final int timeout = PackedInteger.readPackedInteger(input);
-                return () -> new ImportResult<Transaction>(transactionServer.getOrBeginTransaction(id, timeout), SubordinateTransactionControl.EMPTY, false);
-            } else if (type == 2) {
-                final int fmt = PackedInteger.readPackedInteger(input);
-                final byte[] gtid = new byte[input.readUnsignedByte()];
-                input.readFully(gtid);
-                final byte[] bq = new byte[input.readUnsignedByte()];
-                input.readFully(bq);
-                final int timeout = PackedInteger.readPackedInteger(input);
-                return () -> {
-                    try {
-                        return transactionServer.getTransactionService().getTransactionContext().findOrImportTransaction(new SimpleXid(fmt, gtid, bq), timeout);
-                    } catch (XAException e) {
-                        throw new SystemException(e.getMessage());
-                    }
-                };
-            } else {
-                throw Logs.REMOTING.invalidTransactionType(type);
-            }
-        }
-
         void handleSessionOpenRequest(final int invId, final MessageInputStream inputStream) throws IOException {
             final String appName = inputStream.readUTF();
             final String moduleName = inputStream.readUTF();
@@ -402,7 +374,6 @@ final class EJBServerChannel {
                 association.receiveSessionOpenRequest(new RemotingSessionOpenRequest<Object>(
                     invId,
                     identifier,
-                    Affinity.NONE,
                     transactionSupplier
                 ))
             );
@@ -414,52 +385,22 @@ final class EJBServerChannel {
             configuration.setClassResolver(classResolver);
             Unmarshaller unmarshaller = marshallerFactory.createUnmarshaller(configuration);
             unmarshaller.start(Marshalling.createByteInput(input));
-            EJBMethodLocator methodLocator;
-            EJBLocator<?> locator;
-            Map<String, Object> attachments;
-            Affinity weakAffinity = Affinity.NONE;
-            int responseCompressLevel = -1;
-            SecurityIdentity identity;
-            ExceptionSupplier<ImportResult<?>, SystemException> transactionSupplier = null;
+
+            final EJBIdentifier identifier;
+            final EJBMethodLocator methodLocator;
 
             final Connection connection = channel.getConnection();
             if (version >= 3) {
-                // read MethodLocator
-                String appName = unmarshaller.readObject(String.class);
-                String moduleName = unmarshaller.readObject(String.class);
-                classResolver.setClassLoader(association.mapClassLoader(appName, moduleName));
+                identifier = unmarshaller.readObject(EJBIdentifier.class);
                 methodLocator = unmarshaller.readObject(EJBMethodLocator.class);
-                weakAffinity = unmarshaller.readObject(Affinity.class);
-                if (weakAffinity == null) weakAffinity = Affinity.NONE;
-                int flags = unmarshaller.readUnsignedByte();
-                responseCompressLevel = flags & Protocol.COMPRESS_RESPONSE;
-                int identityId = unmarshaller.readInt();
-                transactionSupplier = readTransaction(unmarshaller);
-                identity = identityId == 0 ? connection.getLocalIdentity() : connection.getLocalIdentity(identityId);
-                locator = unmarshaller.readObject(EJBLocator.class);
-                // do identity checks for these strings to guarantee integrity.
-                // noinspection StringEquality
-                if (appName != locator.getAppName() || moduleName != locator.getModuleName()) {
-                    throw Logs.REMOTING.mismatchedMethodLocation();
-                }
             } else {
                 assert version <= 2;
                 String sigString = UTFUtils.readUTFZBytes(unmarshaller);
                 String appName = unmarshaller.readObject(String.class);
                 String moduleName = unmarshaller.readObject(String.class);
-                classResolver.setClassLoader(association.mapClassLoader(appName, moduleName));
                 String distinctName = unmarshaller.readObject(String.class);
                 String beanName = unmarshaller.readObject(String.class);
-
-                // always use connection identity
-                identity = connection.getLocalIdentity();
-
-                locator = unmarshaller.readObject(EJBLocator.class);
-                // do identity checks for these strings to guarantee integrity.
-                //noinspection StringEquality
-                if (appName != locator.getAppName() || moduleName != locator.getModuleName() || beanName != locator.getBeanName() || distinctName != locator.getDistinctName()) {
-                    throw Logs.REMOTING.mismatchedMethodLocation();
-                }
+                identifier = new EJBIdentifier(appName, moduleName, beanName, distinctName);
 
                 // parse out the signature string
                 String methodName = "";
@@ -481,64 +422,38 @@ final class EJBServerChannel {
                 }
                 methodLocator = EJBMethodLocator.create(methodName, parameterTypeNames);
             }
-            Object[] parameters = new Object[methodLocator.getParameterCount()];
-            for (int i = 0; i < parameters.length; i ++) {
-                parameters[i] = unmarshaller.readObject();
-            }
-            int attachmentCount = PackedInteger.readPackedInteger(unmarshaller);
-            attachments = new HashMap<>(attachmentCount);
-            for (int i = 0; i < attachmentCount; i ++) {
-                String attName = unmarshaller.readObject(String.class);
-                if (attName.equals(EJBClientInvocationContext.PRIVATE_ATTACHMENTS_KEY)) {
-                    if (version <= 2) {
-                        // only supported for protocol v1/2 - read out transaction ID
-                        Map<?, ?> map = unmarshaller.readObject(Map.class);
-                        final Object transactionIdObject = map.get(AttachmentKeys.TRANSACTION_ID_KEY);
-                        if (transactionIdObject != null) {
-                            // attach it
-                            final TransactionID transactionId = (TransactionID) transactionIdObject;
-                            // look up the transaction
-                            if (transactionId instanceof UserTransactionID) {
-                                transactionSupplier = () -> new ImportResult<Transaction>(transactionServer.getOrBeginTransaction(((UserTransactionID) transactionId).getId(), 0), SubordinateTransactionControl.EMPTY, false);
-                            } else if (transactionId instanceof XidTransactionID) {
-                                transactionSupplier = () -> {
-                                    try {
-                                        return transactionServer.getTransactionService().getTransactionContext().findOrImportTransaction(((XidTransactionID) transactionId).getXid(), 0);
-                                    } catch (XAException e) {
-                                        throw new SystemException(e.getMessage());
-                                    }
-                                };
-                            } else {
-                                throw Assert.impossibleSwitchCase(transactionId);
-                            }
-                        }
-                        weakAffinity = (Affinity) map.get(AttachmentKeys.WEAK_AFFINITY);
-                        if (weakAffinity == null) {
-                            weakAffinity = Affinity.NONE;
-                        }
 
+            association.receiveInvocationRequest(new RemotingInvocationRequest(
+                invId, connection, association, identifier, methodLocator, classResolver, unmarshaller
+            ));
+        }
+    }
 
-                    } else {
-                        // discard content for v3
-                        unmarshaller.readObject();
-                    }
-                } else {
-                    attachments.put(attName, unmarshaller.readObject());
+    ExceptionSupplier<ImportResult<?>, SystemException> readTransaction(final DataInput input) throws IOException {
+        final int type = input.readUnsignedByte();
+        if (type == 0) {
+            return null;
+        } else if (type == 1) {
+            // remote user transaction
+            final int id = input.readInt();
+            final int timeout = PackedInteger.readPackedInteger(input);
+            return () -> new ImportResult<Transaction>(transactionServer.getOrBeginTransaction(id, timeout), SubordinateTransactionControl.EMPTY, false);
+        } else if (type == 2) {
+            final int fmt = PackedInteger.readPackedInteger(input);
+            final byte[] gtid = new byte[input.readUnsignedByte()];
+            input.readFully(gtid);
+            final byte[] bq = new byte[input.readUnsignedByte()];
+            input.readFully(bq);
+            final int timeout = PackedInteger.readPackedInteger(input);
+            return () -> {
+                try {
+                    return transactionServer.getTransactionService().getTransactionContext().findOrImportTransaction(new SimpleXid(fmt, gtid, bq), timeout);
+                } catch (XAException e) {
+                    throw new SystemException(e.getMessage());
                 }
-            }
-            unmarshaller.finish();
-            final RemotingInvocationRequest<?> incomingInvocation = constructRequest(
-                invId,
-                locator,
-                weakAffinity,
-                transactionSupplier,
-                attachments,
-                methodLocator,
-                parameters,
-                responseCompressLevel
-            );
-            final CancelHandle handle = identity.runAs((PrivilegedAction<CancelHandle>) () -> association.receiveInvocationRequest(incomingInvocation));
-            invocations.put(new InProgress(incomingInvocation, handle));
+            };
+        } else {
+            throw Logs.REMOTING.invalidTransactionType(type);
         }
     }
 
@@ -559,15 +474,10 @@ final class EJBServerChannel {
 
     abstract class RemotingRequest implements Request {
         final int invId;
-        final Affinity weakAffinity;
-        final ExceptionSupplier<ImportResult<?>, SystemException> transactionSupplier;
-        int txnCmd = 0; // assume nobody will ask about the transaction
         SessionID sessionId;
 
-        RemotingRequest(final int invId, final Affinity weakAffinity, final ExceptionSupplier<ImportResult<?>, SystemException> transactionSupplier) {
+        protected RemotingRequest(final int invId) {
             this.invId = invId;
-            this.weakAffinity = weakAffinity;
-            this.transactionSupplier = transactionSupplier;
         }
 
         public Executor getRequestExecutor() {
@@ -586,34 +496,8 @@ final class EJBServerChannel {
             return channel.getConnection().getProtocol();
         }
 
-        @NotNull
-        public Affinity getWeakAffinity() {
-            return weakAffinity;
-        }
-
         public boolean isBlockingCaller() {
             return false;
-        }
-
-        public boolean hasTransaction() {
-            return transactionSupplier != null;
-        }
-
-        public Transaction getTransaction() throws SystemException, IllegalStateException {
-            final ExceptionSupplier<ImportResult<?>, SystemException> transactionSupplier = this.transactionSupplier;
-            if (transactionSupplier == null) {
-                return null;
-            }
-            if (txnCmd != 0) {
-                throw new IllegalStateException();
-            }
-            final ImportResult<?> importResult = transactionSupplier.get();
-            if (importResult.isNew()) {
-                txnCmd = 1;
-            } else {
-                txnCmd = 2;
-            }
-            return importResult.getTransaction();
         }
 
         public void writeNoSuchEJB() {
@@ -688,15 +572,39 @@ final class EJBServerChannel {
 
     final class RemotingSessionOpenRequest<T> extends RemotingRequest implements SessionOpenRequest {
         private final EJBIdentifier identifier;
+        final ExceptionSupplier<ImportResult<?>, SystemException> transactionSupplier;
+        int txnCmd = 0; // assume nobody will ask about the transaction
 
-        RemotingSessionOpenRequest(final int invId, final EJBIdentifier identifier, final Affinity weakAffinity, final ExceptionSupplier<ImportResult<?>, SystemException> transactionSupplier) {
-            super(invId, weakAffinity, transactionSupplier);
+        RemotingSessionOpenRequest(final int invId, final EJBIdentifier identifier, final ExceptionSupplier<ImportResult<?>, SystemException> transactionSupplier) {
+            super(invId);
+            this.transactionSupplier = transactionSupplier;
             this.identifier = identifier;
         }
 
         @NotNull
         public EJBIdentifier getEJBIdentifier() {
             return identifier;
+        }
+
+        public boolean hasTransaction() {
+            return transactionSupplier != null;
+        }
+
+        public Transaction getTransaction() throws SystemException, IllegalStateException {
+            final ExceptionSupplier<ImportResult<?>, SystemException> transactionSupplier = this.transactionSupplier;
+            if (transactionSupplier == null) {
+                return null;
+            }
+            if (txnCmd != 0) {
+                throw new IllegalStateException();
+            }
+            final ImportResult<?> importResult = transactionSupplier.get();
+            if (importResult.isNew()) {
+                txnCmd = 1;
+            } else {
+                txnCmd = 2;
+            }
+            return importResult.getTransaction();
         }
 
         public void writeException(@NotNull final Exception exception) {
@@ -715,7 +623,8 @@ final class EJBServerChannel {
                 if (1 <= version && version <= 2) {
                     final Marshaller marshaller = marshallerFactory.createMarshaller(configuration);
                     marshaller.start(Marshalling.createByteOutput(os));
-                    marshaller.writeObject(getWeakAffinity());
+                    // V2 needs weak affinity to the current node
+                    marshaller.writeObject(new NodeAffinity(channel.getConnection().getEndpoint().getName()));
                     marshaller.finish();
                 } else {
                     assert version >= 3;
@@ -728,33 +637,206 @@ final class EJBServerChannel {
         }
     }
 
-    <T> RemotingInvocationRequest<T> constructRequest(int invId, final EJBLocator<T> locator, final Affinity weakAffinity, final ExceptionSupplier<ImportResult<?>, SystemException> transactionSupplier, final Map<String, Object> attachments, final EJBMethodLocator methodLocator, final Object[] parameters, final int responseCompressLevel) {
-        return new RemotingInvocationRequest<T>(invId, locator, weakAffinity, transactionSupplier, attachments, methodLocator, parameters, responseCompressLevel);
-    }
-
-    final class RemotingInvocationRequest<T> extends RemotingRequest implements InvocationRequest<T> {
-        final Map<String, Object> attachments;
-        final EJBLocator<T> locator;
+    final class RemotingInvocationRequest extends RemotingRequest implements InvocationRequest {
+        final Connection connection;
+        final Association association;
+        final EJBIdentifier identifier;
         final EJBMethodLocator methodLocator;
-        final Object[] parameters;
-        final int responseCompressLevel;
+        final ServerClassResolver classResolver;
+        final Unmarshaller remaining;
+        int txnCmd = 0; // assume nobody will ask about the transaction
 
-        RemotingInvocationRequest(final int invId, final EJBLocator<T> locator, final Affinity weakAffinity, final ExceptionSupplier<ImportResult<?>, SystemException> transactionSupplier, final Map<String, Object> attachments, final EJBMethodLocator methodLocator, final Object[] parameters, final int responseCompressLevel) {
-            super(invId, weakAffinity, transactionSupplier);
-            this.locator = locator;
-            this.attachments = attachments;
+        RemotingInvocationRequest(final int invId, final Connection connection, final Association association, final EJBIdentifier identifier, final EJBMethodLocator methodLocator, final ServerClassResolver classResolver, final Unmarshaller remaining) {
+            super(invId);
+            this.connection = connection;
+            this.association = association;
+            this.identifier = identifier;
             this.methodLocator = methodLocator;
-            this.parameters = parameters;
-            this.responseCompressLevel = responseCompressLevel;
+            this.classResolver = classResolver;
+            this.remaining = remaining;
+        }
+
+        public Resolved getRequestContent(final ClassLoader classLoader) throws IOException, ClassNotFoundException {
+            classResolver.setClassLoader(classLoader);
+            int responseCompressLevel = 0;
+            // resolve the rest of everything here
+            try (Unmarshaller unmarshaller = remaining) {
+                Affinity weakAffinity = Affinity.NONE;
+                ExceptionSupplier<ImportResult<?>, SystemException> transactionSupplier = null;
+                final SecurityIdentity identity;
+                final EJBLocator<?> locator;
+                if (version >= 3) {
+                    weakAffinity = unmarshaller.readObject(Affinity.class);
+                    if (weakAffinity == null) weakAffinity = Affinity.NONE;
+                    int flags = unmarshaller.readUnsignedByte();
+                    responseCompressLevel = flags & Protocol.COMPRESS_RESPONSE;
+                    int identityId = unmarshaller.readInt();
+                    transactionSupplier = readTransaction(unmarshaller);
+                    identity = identityId == 0 ? connection.getLocalIdentity() : connection.getLocalIdentity(identityId);
+                    locator = unmarshaller.readObject(EJBLocator.class);
+                    // do identity checks for these strings to guarantee integrity.
+                    // noinspection StringEquality
+                    if (identifier != locator.getIdentifier()) {
+                        throw Logs.REMOTING.mismatchedMethodLocation();
+                    }
+
+                } else {
+                    assert version <= 2;
+
+                    // always use connection identity
+                    identity = connection.getLocalIdentity();
+
+                    locator = unmarshaller.readObject(EJBLocator.class);
+                    // do identity checks for these strings to guarantee integrity.  can't check identifier because that class didn't exist in V2
+                    //noinspection StringEquality
+                    if (identifier.getAppName() != locator.getAppName() ||
+                        identifier.getModuleName() != locator.getModuleName() ||
+                        identifier.getBeanName() != locator.getBeanName() ||
+                        identifier.getDistinctName() != locator.getDistinctName()) {
+
+                        throw Logs.REMOTING.mismatchedMethodLocation();
+                    }
+                }
+                Object[] parameters = new Object[methodLocator.getParameterCount()];
+                for (int i = 0; i < parameters.length; i ++) {
+                    parameters[i] = unmarshaller.readObject();
+                }
+                int attachmentCount = PackedInteger.readPackedInteger(unmarshaller);
+                final Map<String, Object> attachments = new HashMap<>(attachmentCount);
+                for (int i = 0; i < attachmentCount; i ++) {
+                    String attName = unmarshaller.readObject(String.class);
+                    if (attName.equals(EJBClientInvocationContext.PRIVATE_ATTACHMENTS_KEY)) {
+                        if (version <= 2) {
+                            // only supported for protocol v1/2 - read out transaction ID
+                            Map<Object, Object> map = (Map<Object, Object>) unmarshaller.readObject();
+                            final Object transactionIdObject = map.get(AttachmentKeys.TRANSACTION_ID_KEY);
+                            if (transactionIdObject != null) {
+                                // attach it
+                                final TransactionID transactionId = (TransactionID) transactionIdObject;
+                                // look up the transaction
+                                if (transactionId instanceof UserTransactionID) {
+                                    transactionSupplier = () -> new ImportResult<Transaction>(transactionServer.getOrBeginTransaction(((UserTransactionID) transactionId).getId(), 0), SubordinateTransactionControl.EMPTY, false);
+                                } else if (transactionId instanceof XidTransactionID) {
+                                    transactionSupplier = () -> {
+                                        try {
+                                            return transactionServer.getTransactionService().getTransactionContext().findOrImportTransaction(((XidTransactionID) transactionId).getXid(), 0);
+                                        } catch (XAException e) {
+                                            throw new SystemException(e.getMessage());
+                                        }
+                                    };
+                                } else {
+                                    throw Assert.impossibleSwitchCase(transactionId);
+                                }
+                            }
+                            weakAffinity = (Affinity) map.getOrDefault(AttachmentKeys.WEAK_AFFINITY, weakAffinity);
+
+
+                        } else {
+                            // discard content for v3
+                            unmarshaller.readObject();
+                        }
+                    } else {
+                        attachments.put(attName, unmarshaller.readObject());
+                    }
+                }
+                unmarshaller.finish();
+
+                final CancelHandle handle = identity.runAs((PrivilegedAction<CancelHandle>) () -> association.receiveInvocationRequest(this));
+                invocations.put(new InProgress(this, handle));
+
+                final ExceptionSupplier<ImportResult<?>, SystemException> finalTransactionSupplier = transactionSupplier;
+                final int finalResponseCompressLevel = responseCompressLevel;
+                return new Resolved() {
+
+                    @NotNull
+                    public Map<String, Object> getAttachments() {
+                        return attachments;
+                    }
+
+                    @NotNull
+                    public Object[] getParameters() {
+                        return parameters;
+                    }
+
+                    @NotNull
+                    public EJBLocator<?> getEJBLocator() {
+                        return locator;
+                    }
+
+                    public boolean hasTransaction() {
+                        return finalTransactionSupplier != null;
+                    }
+
+                    public Transaction getTransaction() throws SystemException, IllegalStateException {
+                        if (finalTransactionSupplier == null) {
+                            return null;
+                        }
+                        if (txnCmd != 0) {
+                            throw new IllegalStateException();
+                        }
+                        final ImportResult<?> importResult = finalTransactionSupplier.get();
+                        if (importResult.isNew()) {
+                            txnCmd = 1;
+                        } else {
+                            txnCmd = 2;
+                        }
+                        return importResult.getTransaction();
+                    }
+
+                    public void writeInvocationResult(final Object result) {
+                        try (MessageOutputStream os = messageTracker.openMessageUninterruptibly()) {
+                            os.writeByte(finalResponseCompressLevel > 0 ? Protocol.COMPRESSED_INVOCATION_MESSAGE : Protocol.INVOCATION_RESPONSE);
+                            os.writeShort(invId);
+                            if (version >= 3) {
+                                os.writeByte(txnCmd);
+                                if (sessionId == null) {
+                                    os.writeBoolean(false);
+                                } else {
+                                    os.writeBoolean(true);
+                                    final byte[] bytes = sessionId.getEncodedForm();
+                                    PackedInteger.writePackedInteger(os, bytes.length);
+                                    os.write(bytes);
+                                }
+                            }
+                            try (OutputStream output = finalResponseCompressLevel > 0 ? new DeflaterOutputStream(os, new Deflater(finalResponseCompressLevel, false)) : os) {
+                                final Marshaller marshaller = marshallerFactory.createMarshaller(configuration);
+                                marshaller.start(Marshalling.createByteOutput(output));
+                                marshaller.writeObject(result);
+                                int count = attachments.size();
+                                if (count > 255) {
+                                    marshaller.writeByte(255);
+                                } else {
+                                    marshaller.writeByte(count);
+                                }
+                                int i = 0;
+                                for (Map.Entry<String, Object> entry : attachments.entrySet()) {
+                                    marshaller.writeObject(entry.getKey());
+                                    marshaller.writeObject(entry.getValue());
+                                    if (i ++ == 255) {
+                                        break;
+                                    }
+                                }
+                                marshaller.finish();
+                            }
+                        } catch (IOException e) {
+                            // nothing to do at this point; the client doesn't want the response
+                            Logs.REMOTING.trace("EJB response write failed", e);
+                        } finally {
+                            invocations.removeKey(invId);
+                        }
+                    }
+
+                };
+            }
         }
 
         @NotNull
-        public EJBLocator<T> getEJBLocator() {
-            return locator;
+        public EJBIdentifier getEJBIdentifier() {
+            return identifier;
         }
 
         public void writeNoSuchMethod() {
-            final String message = Logs.REMOTING.remoteMessageNoSuchMethod(methodLocator, locator);
+            final String message = Logs.REMOTING.remoteMessageNoSuchMethod(methodLocator, identifier);
             try (MessageOutputStream os = messageTracker.openMessageUninterruptibly()) {
                 os.writeByte(Protocol.NO_SUCH_METHOD);
                 os.writeShort(invId);
@@ -768,7 +850,7 @@ final class EJBServerChannel {
         }
 
         public void writeSessionNotActive() {
-            final String message = Logs.REMOTING.remoteMessageSessionNotActive(methodLocator, locator);
+            final String message = Logs.REMOTING.remoteMessageSessionNotActive(methodLocator, identifier);
             try (MessageOutputStream os = messageTracker.openMessageUninterruptibly()) {
                 os.writeByte(Protocol.NO_SUCH_METHOD);
                 os.writeShort(invId);
@@ -781,10 +863,6 @@ final class EJBServerChannel {
             }
         }
 
-        public void writeInvocationResult(final Object result) {
-            writeResponse(result);
-        }
-
         public void writeException(@NotNull final Exception exception) {
             Assert.checkNotNullParam("exception", exception);
             if (exception instanceof CancellationException && version >= 3) {
@@ -794,66 +872,8 @@ final class EJBServerChannel {
             }
         }
 
-        public Map<String, Object> getAttachments() {
-            return attachments;
-        }
-
         public EJBMethodLocator getMethodLocator() {
             return methodLocator;
-        }
-
-        public Object[] getParameters() {
-            return parameters;
-        }
-
-        public void convertToStateful(@NotNull final SessionID sessionId) throws IllegalArgumentException, IllegalStateException {
-            if (! (locator instanceof StatelessEJBLocator<?>)) {
-                throw new IllegalArgumentException();
-            }
-            super.convertToStateful(sessionId);
-        }
-
-        void writeResponse(final Object response) {
-            try (MessageOutputStream os = messageTracker.openMessageUninterruptibly()) {
-                os.writeByte(responseCompressLevel > 0 ? Protocol.COMPRESSED_INVOCATION_MESSAGE : Protocol.INVOCATION_RESPONSE);
-                os.writeShort(invId);
-                if (version >= 3) {
-                    os.writeByte(txnCmd);
-                    if (sessionId == null) {
-                        os.writeBoolean(false);
-                    } else {
-                        os.writeBoolean(true);
-                        final byte[] bytes = sessionId.getEncodedForm();
-                        PackedInteger.writePackedInteger(os, bytes.length);
-                        os.write(bytes);
-                    }
-                }
-                try (OutputStream output = responseCompressLevel > 0 ? new DeflaterOutputStream(os, new Deflater(responseCompressLevel, false)) : os) {
-                    final Marshaller marshaller = marshallerFactory.createMarshaller(configuration);
-                    marshaller.start(Marshalling.createByteOutput(output));
-                    marshaller.writeObject(response);
-                    int count = attachments.size();
-                    if (count > 255) {
-                        marshaller.writeByte(255);
-                    } else {
-                        marshaller.writeByte(count);
-                    }
-                    int i = 0;
-                    for (Map.Entry<String, Object> entry : attachments.entrySet()) {
-                        marshaller.writeObject(entry.getKey());
-                        marshaller.writeObject(entry.getValue());
-                        if (i ++ == 255) {
-                            break;
-                        }
-                    }
-                    marshaller.finish();
-                }
-            } catch (IOException e) {
-                // nothing to do at this point; the client doesn't want the response
-                Logs.REMOTING.trace("EJB response write failed", e);
-            } finally {
-                invocations.removeKey(invId);
-            }
         }
 
         void writeCancellation() {
@@ -872,10 +892,10 @@ final class EJBServerChannel {
     }
 
     static final class InProgress {
-        private final RemotingInvocationRequest<?> incomingInvocation;
+        private final RemotingInvocationRequest incomingInvocation;
         private final CancelHandle cancelHandle;
 
-        InProgress(final RemotingInvocationRequest<?> incomingInvocation, final CancelHandle cancelHandle) {
+        InProgress(final RemotingInvocationRequest incomingInvocation, final CancelHandle cancelHandle) {
             this.incomingInvocation = incomingInvocation;
             this.cancelHandle = cancelHandle;
         }

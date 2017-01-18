@@ -337,8 +337,8 @@ public interface Logs extends BasicLogger {
     String remoteMessageEJBNotStateful(EJBIdentifier ejbIdentifier);
 
     @Message(value = "No such EJB method %s found on %s")
-    String remoteMessageNoSuchMethod(EJBMethodLocator methodLocator, EJBLocator<?> ejbIdentifier);
+    String remoteMessageNoSuchMethod(EJBMethodLocator methodLocator, EJBIdentifier ejbIdentifier);
 
     @Message(value = "Session is not active for invocation of method %s on %s")
-    String remoteMessageSessionNotActive(EJBMethodLocator methodLocator, EJBLocator<?> locator);
+    String remoteMessageSessionNotActive(EJBMethodLocator methodLocator, EJBIdentifier locator);
 }

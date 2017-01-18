@@ -34,15 +34,6 @@ import org.wildfly.common.annotation.NotNull;
 public interface Association {
 
     /**
-     * Map the class loader for the given EJB application and module.
-     *
-     * @param appName the application name (not {@code null})
-     * @param moduleName the module name (not {@code null})
-     * @return the class loader containing the EJB application
-     */
-    ClassLoader mapClassLoader(String appName, String moduleName);
-
-    /**
      * Receive and execute an invocation request.  An invocation may be cancelled; the returned handle may be used
      * by the protocol implementation when a cancellation request is received by the server.
      *
@@ -51,7 +42,7 @@ public interface Association {
      * @return a handle which may be used to request cancellation of the invocation (must not be {@code null})
      */
     @NotNull
-    <T> CancelHandle receiveInvocationRequest(@NotNull InvocationRequest<T> invocationRequest);
+    <T> CancelHandle receiveInvocationRequest(@NotNull InvocationRequest invocationRequest);
 
     /**
      * Receive and execute a session open request.  An invocation may be cancelled; the returned handle may be used

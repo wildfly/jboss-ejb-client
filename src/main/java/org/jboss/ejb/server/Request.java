@@ -25,15 +25,9 @@ package org.jboss.ejb.server;
 import java.net.SocketAddress;
 import java.util.concurrent.Executor;
 
-import javax.transaction.SystemException;
-import javax.transaction.Transaction;
-
-import org.jboss.ejb.client.Affinity;
 import org.jboss.ejb.client.EJBIdentifier;
 import org.jboss.ejb.client.SessionID;
 import org.wildfly.common.annotation.NotNull;
-import org.wildfly.common.function.ExceptionSupplier;
-import org.wildfly.security.auth.server.SecurityIdentity;
 
 /**
  * The base type of any EJB server request.  This type is implemented by protocol implementations and consumed by
@@ -74,41 +68,6 @@ public interface Request {
      * @return the protocol of this request (must not be {@code null})
      */
     String getProtocol();
-
-    /**
-     * Get the weak affinity of the request.
-     *
-     * @return the weak affinity of the request (must not be {@code null})
-     */
-    @NotNull
-    default Affinity getWeakAffinity() {
-        return Affinity.NONE;
-    }
-
-    /**
-     * Determine if the request has a transaction.
-     *
-     * @return {@code true} if there is a transaction context with this request
-     */
-    boolean hasTransaction();
-
-    /**
-     * Get the inflowed transaction of the request.  This should not be called unless it is desired to actually inflow
-     * the transaction; doing so without using the transaction will cause needless work for the transaction coordinator.
-     * To perform transaction checks, use {@link #hasTransaction()} first.  This method should only be called one time
-     * as it will inflow the transaction when called.
-     * <p>
-     * If a transaction is present but transaction inflow has failed, a {@link SystemException} is thrown.  In this case,
-     * the invocation should fail.
-     * <p>
-     * It is the caller's responsibility to check the status of the returned transaction to ensure that it is in an
-     * active state; failure to do so can result in undesirable behavior.
-     *
-     * @return the transaction, or {@code null} if there is none for the request
-     * @throws SystemException if inflowing the transaction failed
-     * @throws IllegalStateException if this method is called more than one time
-     */
-    Transaction getTransaction() throws SystemException, IllegalStateException;
 
     /**
      * Determine if this request is blocking a local thread.
