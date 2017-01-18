@@ -16,26 +16,18 @@
  * limitations under the License.
  */
 
-package org.jboss.ejb.client;
+package org.jboss.ejb.protocol.remote;
 
-/**
- * A context which is provided to EJB receiver implementations in order to perform operations on the client context.
- *
- * @author <a href="mailto:david.lloyd@redhat.com">David M. Lloyd</a>
- */
-public final class EJBReceiverContext {
-    private final EJBClientContext clientContext;
+import java.util.function.Consumer;
 
-    EJBReceiverContext(final EJBClientContext clientContext) {
-        this.clientContext = clientContext;
-    }
+import org.kohsuke.MetaInfServices;
+import org.wildfly.discovery.spi.DiscoveryProvider;
+import org.wildfly.discovery.spi.ExternalDiscoveryConfigurator;
+import org.wildfly.discovery.spi.RegistryProvider;
 
-    /**
-     * Get the client context that corresponds to this receiver context.
-     *
-     * @return the client context
-     */
-    public EJBClientContext getClientContext() {
-        return clientContext;
+@MetaInfServices
+public final class RemoteEJBDiscoveryConfigurator implements ExternalDiscoveryConfigurator {
+    public void configure(final Consumer<DiscoveryProvider> discoveryProviderConsumer, final Consumer<RegistryProvider> registryProviderConsumer) {
+        discoveryProviderConsumer.accept(RemotingEJBDiscoveryProvider.INSTANCE);
     }
 }

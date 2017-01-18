@@ -41,11 +41,11 @@ import org.wildfly.client.config.ConfigurationXMLStreamReader;
 import org.wildfly.common.Assert;
 
 /**
- * A one-time, configuration-based EJB client context selector.
+ * A one-time, configuration-based EJB client context configurator.
  *
  * @author <a href="mailto:david.lloyd@redhat.com">David M. Lloyd</a>
  */
-public final class ConfigurationBasedEJBClientContextSelector implements Supplier<EJBClientContext> {
+final class ConfigurationBasedEJBClientContextSelector implements Supplier<EJBClientContext> {
     private static final EJBClientContext configuredContext;
 
     private static final String NS_EJB_CLIENT_3_0 = "urn:jboss:ejb-client:3.0";
@@ -67,6 +67,7 @@ public final class ConfigurationBasedEJBClientContextSelector implements Supplie
         } catch (ConfigXMLParseException e) {
             throw new IllegalStateException(e);
         }
+        // TODO: parse ejb-client.properties instead right here
         // build a generic config instead
         final EJBClientContext.Builder builder = new EJBClientContext.Builder();
         loadTransportProviders(builder, classLoader);
@@ -228,6 +229,9 @@ public final class ConfigurationBasedEJBClientContextSelector implements Supplie
                 streamReader.skipContent();
             }
         } else if (next == END_ELEMENT) {
+            final EJBClientConnection.Builder connBuilder = new EJBClientConnection.Builder();
+            connBuilder.setDestination(uri);
+            builder.addClientConnection(connBuilder.build());
             return;
         } else {
             throw Assert.unreachableCode();

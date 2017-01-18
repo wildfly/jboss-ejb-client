@@ -28,6 +28,7 @@ import java.net.URI;
 import java.security.PrivilegedAction;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.function.Supplier;
 
@@ -37,7 +38,6 @@ import org.wildfly.common.context.ContextManager;
 import org.wildfly.common.context.Contextual;
 import org.wildfly.discovery.Discovery;
 import org.wildfly.discovery.FilterSpec;
-import org.wildfly.discovery.ServiceRegistry;
 import org.wildfly.discovery.ServiceType;
 import org.wildfly.discovery.ServicesQueue;
 
@@ -106,8 +106,8 @@ public final class EJBClientContext extends Attachable implements Contextual<EJB
     private final EJBClientInterceptor[] interceptors;
     private final EJBTransportProvider[] transportProviders;
     private final long invocationTimeout;
-    private final ServiceRegistry serviceRegistry;
     private final EJBReceiverContext receiverContext;
+    private final List<EJBClientConnection> configuredConnections;
 
     EJBClientContext(Builder builder) {
         final List<EJBClientInterceptor> builderInterceptors = builder.interceptors;
@@ -122,9 +122,16 @@ public final class EJBClientContext extends Attachable implements Contextual<EJB
         } else {
             transportProviders = builderTransportProviders.toArray(new EJBTransportProvider[builderTransportProviders.size()]);
         }
-        serviceRegistry = builder.serviceRegistry;
         invocationTimeout = 0;
         receiverContext = new EJBReceiverContext(this);
+        final List<EJBClientConnection> clientConnections = builder.clientConnections;
+        if (clientConnections == null || clientConnections.isEmpty()) {
+            configuredConnections = Collections.emptyList();
+        } else if (clientConnections.size() == 1) {
+            configuredConnections = Collections.singletonList(clientConnections.get(0));
+        } else {
+            configuredConnections = Collections.unmodifiableList(new ArrayList<>(clientConnections));
+        }
         // this must be last
         for (EJBTransportProvider transportProvider : transportProviders) {
             transportProvider.notifyRegistered(receiverContext);
@@ -156,6 +163,16 @@ public final class EJBClientContext extends Attachable implements Contextual<EJB
      */
     public long getInvocationTimeout() {
         return invocationTimeout;
+    }
+
+    /**
+     * Get the pre-configured connections for this context.  This information may not be used by some transport providers
+     * and mainly exists for legacy compatibility purposes.
+     *
+     * @return the pre-configured connections for this context (not {@code null})
+     */
+    public List<EJBClientConnection> getConfiguredConnections() {
+        return configuredConnections;
     }
 
     /**
@@ -231,10 +248,6 @@ public final class EJBClientContext extends Attachable implements Contextual<EJB
         return DISCOVERY_SUPPLIER.get();
     }
 
-    ServiceRegistry getServiceRegistry() {
-        return serviceRegistry;
-    }
-
     /**
      * A builder for EJB client contexts.
      */
@@ -242,7 +255,7 @@ public final class EJBClientContext extends Attachable implements Contextual<EJB
 
         List<EJBClientInterceptor> interceptors;
         List<EJBTransportProvider> transportProviders;
-        ServiceRegistry serviceRegistry = doPrivileged((PrivilegedAction<ServiceRegistry>) ServiceRegistry.getContextManager()::get);
+        List<EJBClientConnection> clientConnections;
 
         /**
          * Construct a new instance.
@@ -259,6 +272,7 @@ public final class EJBClientContext extends Attachable implements Contextual<EJB
             if (transportProviders.length > 0) {
                 this.transportProviders = new ArrayList<>(Arrays.asList(transportProviders));
             }
+            clientConnections = new ArrayList<>(ejbClientContext.getConfiguredConnections());
         }
 
         public void addInterceptor(EJBClientInterceptor interceptor) {
@@ -277,9 +291,12 @@ public final class EJBClientContext extends Attachable implements Contextual<EJB
             transportProviders.add(provider);
         }
 
-        public void setServiceRegistry(final ServiceRegistry serviceRegistry) {
-            Assert.checkNotNullParam("serviceRegistry", serviceRegistry);
-            this.serviceRegistry = serviceRegistry;
+        public void addClientConnection(EJBClientConnection connection) {
+            Assert.checkNotNullParam("connection", connection);
+            if (clientConnections == null) {
+                clientConnections = new ArrayList<>();
+            }
+            clientConnections.add(connection);
         }
 
         public EJBClientContext build() {
