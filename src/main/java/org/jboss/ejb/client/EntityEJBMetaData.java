@@ -25,6 +25,8 @@ package org.jboss.ejb.client;
 import javax.ejb.EJBHome;
 import javax.ejb.EJBObject;
 
+import org.wildfly.common.Assert;
+
 /**
  * EJB metadata for entity EJBs.
  *
@@ -48,7 +50,22 @@ public final class EntityEJBMetaData<T extends EJBObject, H extends EJBHome> ext
      */
     public EntityEJBMetaData(final Class<T> remoteInterfaceClass, final EJBHomeLocator<H> homeLocator, final Class<?> primaryKeyClass) {
         super(remoteInterfaceClass, homeLocator);
+        Assert.checkNotNullParam("primaryKeyClass", primaryKeyClass);
         this.primaryKeyClass = primaryKeyClass;
+    }
+
+    /**
+     * Construct a new instance.
+     *
+     * @param remoteInterfaceClass the remote interface class (must not be {@code null})
+     * @param homeLocator the EJB home locator (must not be {@code null})
+     * @param primaryKeyClass the primary key class (must not be {@code null})
+     * @param <T> the remote interface type
+     * @param <H> the home interface type
+     * @return the new instance (not {@code null})
+     */
+    public static <T extends EJBObject, H extends EJBHome> EntityEJBMetaData<T, H> create(final Class<T> remoteInterfaceClass, final EJBHomeLocator<H> homeLocator, final Class<?> primaryKeyClass) {
+        return new EntityEJBMetaData<T, H>(remoteInterfaceClass, homeLocator, primaryKeyClass);
     }
 
     public boolean isSession() {

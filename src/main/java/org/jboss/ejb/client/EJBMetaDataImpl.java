@@ -75,26 +75,16 @@ public final class EJBMetaDataImpl implements EJBMetaData, Serializable {
     }
 
     public AbstractEJBMetaData<?, ?> toAbstractEJBMetaData() {
+        final EJBHomeLocator<? extends EJBHome> homeLocator = EJBClient.getLocatorFor(home).narrowAsHome(homeClass);
+        final Class<? extends EJBObject> ejbObjectClass = remoteClass.asSubclass(EJBObject.class);
         if (session || statelessSession) {
             if (statelessSession) {
-                return createStatelessMetaData(remoteClass.asSubclass(EJBObject.class), homeClass, home);
+                return StatelessEJBMetaData.create(ejbObjectClass, homeLocator);
             }
-            return createStatefulMetaData(remoteClass.asSubclass(EJBObject.class), homeClass, home);
+            return StatefulEJBMetaData.create(ejbObjectClass, homeLocator);
         } else {
-            return createEntityMetaData(remoteClass.asSubclass(EJBObject.class), homeClass, home, pkClass);
+            return EntityEJBMetaData.create(ejbObjectClass, homeLocator, pkClass);
         }
-    }
-
-    private static <T extends EJBObject, H extends EJBHome> StatelessEJBMetaData<T, ? extends H> createStatelessMetaData(Class<T> remoteClass, Class<H> homeClass, EJBHome home) {
-        return new StatelessEJBMetaData<>(remoteClass, EJBClient.getLocatorFor(home).<H>narrowAsHome(homeClass));
-    }
-
-    private static <T extends EJBObject, H extends EJBHome> StatefulEJBMetaData<T, ? extends H> createStatefulMetaData(Class<T> remoteClass, Class<H> homeClass, EJBHome home) {
-        return new StatefulEJBMetaData<>(remoteClass, EJBClient.getLocatorFor(home).<H>narrowAsHome(homeClass));
-    }
-
-    private static <T extends EJBObject, H extends EJBHome> EntityEJBMetaData<T, ? extends H> createEntityMetaData(Class<T> remoteClass, Class<H> homeClass, EJBHome home, Class<?> pkClass) {
-        return new EntityEJBMetaData<>(remoteClass, EJBClient.getLocatorFor(home).<H>narrowAsHome(homeClass), pkClass);
     }
 
     /**

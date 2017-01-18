@@ -29,6 +29,7 @@ import javax.ejb.EJBMetaData;
 import javax.ejb.EJBObject;
 
 import org.jboss.ejb._private.Logs;
+import org.wildfly.common.Assert;
 
 /**
  * Abstract base class for all EJB metadata.
@@ -43,6 +44,8 @@ public abstract class AbstractEJBMetaData<T extends EJBObject, H extends EJBHome
     private final EJBHomeLocator<H> homeLocator;
 
     AbstractEJBMetaData(final Class<T> remoteInterfaceClass, final EJBHomeLocator<H> homeLocator) {
+        Assert.checkNotNullParam("remoteInterfaceClass", remoteInterfaceClass);
+        Assert.checkNotNullParam("homeLocator", homeLocator);
         this.remoteInterfaceClass = remoteInterfaceClass;
         this.homeLocator = homeLocator;
     }
