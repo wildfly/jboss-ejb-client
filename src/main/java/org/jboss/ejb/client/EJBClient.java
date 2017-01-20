@@ -510,6 +510,9 @@ public final class EJBClient {
             Thread.currentThread().interrupt();
             throw new IllegalStateException(e);
         }
+        if (uri == null) {
+            throw Logs.MAIN.userTxNotSupportedByTxContext();
+        }
         return RemoteTransactionContext.getInstance().getUserTransaction(uri);
     }
 }

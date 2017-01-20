@@ -340,15 +340,15 @@ public final class EJBClientContext extends Attachable implements Contextual<EJB
             final String distinctName = locator.getDistinctName();
             if (distinctName != null && ! distinctName.isEmpty()) {
                 if (appName.isEmpty()) {
-                    filterSpec = FilterSpec.equal(FILTER_ATTR_EJB_MODULE_DISTINCT, moduleName + '/' + distinctName);
+                    filterSpec = FilterSpec.equal(FILTER_ATTR_EJB_MODULE_DISTINCT, '"' + moduleName + '/' + distinctName + '"');
                 } else {
-                    filterSpec = FilterSpec.equal(FILTER_ATTR_EJB_MODULE_DISTINCT, appName + '/' + moduleName + '/' + distinctName);
+                    filterSpec = FilterSpec.equal(FILTER_ATTR_EJB_MODULE_DISTINCT, '"' + appName + '/' + moduleName + '/' + distinctName + '"');
                 }
             } else {
                 if (appName.isEmpty()) {
-                    filterSpec = FilterSpec.equal(FILTER_ATTR_EJB_MODULE, moduleName);
+                    filterSpec = FilterSpec.equal(FILTER_ATTR_EJB_MODULE, '"' + moduleName + '"');
                 } else {
-                    filterSpec = FilterSpec.equal(FILTER_ATTR_EJB_MODULE, appName + '/' + moduleName);
+                    filterSpec = FilterSpec.equal(FILTER_ATTR_EJB_MODULE, '"' + appName + '/' + moduleName + '"');
                 }
             }
         } else if (affinity instanceof NodeAffinity) {
