@@ -34,7 +34,10 @@ import javax.transaction.UserTransaction;
 
 import org.jboss.ejb._private.Logs;
 import org.wildfly.common.Assert;
+import org.wildfly.discovery.FilterSpec;
+import org.wildfly.discovery.ServicesQueue;
 import org.wildfly.naming.client.NamingProvider;
+import org.wildfly.transaction.client.RemoteTransactionContext;
 
 /**
  * The main EJB client API class.  This class contains helper methods which may be used to create proxies, open sessions,
@@ -498,7 +501,15 @@ public final class EJBClient {
     @Deprecated
     @SuppressWarnings("unused")
     public static UserTransaction getUserTransaction(String targetNodeName) {
-        // TODO: use tx API with a specific URI
-        throw new UnsupportedOperationException("Not re-implemented until txn client API is settled");
+        final URI uri;
+        try (final ServicesQueue queue = EJBClientContext.getCurrent().getDiscovery().discover(
+            EJBClientContext.EJB_SERVICE_TYPE, FilterSpec.equal(EJBClientContext.FILTER_ATTR_NODE, targetNodeName)
+        )) {
+            uri = queue.take();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new IllegalStateException(e);
+        }
+        return RemoteTransactionContext.getInstance().getUserTransaction(uri);
     }
 }
