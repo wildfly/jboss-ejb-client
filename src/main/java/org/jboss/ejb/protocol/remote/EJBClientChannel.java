@@ -58,6 +58,7 @@ import org.jboss.ejb.client.Affinity;
 import org.jboss.ejb.client.AttachmentKey;
 import org.jboss.ejb.client.AttachmentKeys;
 import org.jboss.ejb.client.EJBClient;
+import org.jboss.ejb.client.EJBClientContext;
 import org.jboss.ejb.client.EJBClientInvocationContext;
 import org.jboss.ejb.client.EJBLocator;
 import org.jboss.ejb.client.EJBReceiverInvocationContext;
@@ -205,25 +206,26 @@ class EJBClientChannel {
                     final ServiceRegistry serviceRegistry = this.serviceRegistry;
                     final ConcurrentMap<DiscKey, ServiceRegistration> registrationsMap = this.registrationsMap;
                     for (int i = 0; i < count; i ++) {
-                        String appName = message.readUTF();
+                        final String appName = message.readUTF();
                         final String moduleName = message.readUTF();
-                        if (appName.isEmpty()) appName = moduleName;
                         final String distinctName = message.readUTF();
                         final DiscKey key = new DiscKey(appName, moduleName, distinctName);
                         final ServiceURL.Builder builder = new ServiceURL.Builder();
                         builder.setUri(peerURI);
                         builder.setAbstractType("ejb");
                         builder.setAbstractTypeAuthority("jboss");
-                        if (! appName.isEmpty()) {
-                            builder.addAttribute("ejb-app", AttributeValue.fromString(appName));
-                        }
-                        builder.addAttribute("ejb-module", AttributeValue.fromString(appName + "/" + moduleName));
-                        if (! distinctName.isEmpty()) {
-                            builder.addAttribute("ejb-distinct", AttributeValue.fromString(distinctName));
-                            if (! appName.isEmpty()) {
-                                builder.addAttribute("ejb-app-distinct", AttributeValue.fromString(appName + "/" + distinctName));
+                        if (distinctName.isEmpty()) {
+                            if (appName.isEmpty()) {
+                                builder.addAttribute(EJBClientContext.FILTER_ATTR_EJB_MODULE, AttributeValue.fromString(moduleName));
+                            } else {
+                                builder.addAttribute(EJBClientContext.FILTER_ATTR_EJB_MODULE, AttributeValue.fromString(appName + "/" + moduleName));
                             }
-                            builder.addAttribute("ejb-module-distinct", AttributeValue.fromString(appName + "/" + moduleName + "/" + distinctName));
+                        } else {
+                            if (appName.isEmpty()) {
+                                builder.addAttribute(EJBClientContext.FILTER_ATTR_EJB_MODULE_DISTINCT, AttributeValue.fromString(moduleName + "/" + distinctName));
+                            } else {
+                                builder.addAttribute(EJBClientContext.FILTER_ATTR_EJB_MODULE_DISTINCT, AttributeValue.fromString(appName + "/" + moduleName + "/" + distinctName));
+                            }
                         }
                         final ServiceRegistration registration = serviceRegistry.registerService(builder.create());
                         final ServiceRegistration old = registrationsMap.put(key, registration);

@@ -63,33 +63,13 @@ public final class EJBClientContext extends Attachable implements Contextual<EJB
     private static final EJBTransportProvider[] NO_TRANSPORT_PROVIDERS = new EJBTransportProvider[0];
 
     /**
-     * The discovery attribute name which contains the application name of the located EJB.
-     */
-    public static final String FILTER_ATTR_EJB_APP = "ejb-app";
-    /**
      * The discovery attribute name which contains the application and module name of the located EJB.
      */
     public static final String FILTER_ATTR_EJB_MODULE = "ejb-module";
     /**
-     * The discovery attribute name which contains the application, module, and bean name of the located EJB.
-     */
-    public static final String FILTER_ATTR_EJB_BEAN = "ejb-bean";
-    /**
-     * The discovery attribute name which contains the distinct name of the located EJB.
-     */
-    public static final String FILTER_ATTR_EJB_DISTINCT = "ejb-distinct";
-    /**
-     * The discovery attribute name which contains the application name with the distinct name of the located EJB.
-     */
-    public static final String FILTER_ATTR_EJB_APP_DISTINCT = "ejb-app-distinct";
-    /**
      * The discovery attribute name which contains the application and module name with the distinct name of the located EJB.
      */
     public static final String FILTER_ATTR_EJB_MODULE_DISTINCT = "ejb-module-distinct";
-    /**
-     * The discovery attribute name which contains the application, module, and bean name with the distinct name of the located EJB.
-     */
-    public static final String FILTER_ATTR_EJB_BEAN_DISTINCT = "ejb-bean-distinct";
     /**
      * The discovery attribute name which contains a node name.
      */
@@ -359,21 +339,17 @@ public final class EJBClientContext extends Attachable implements Contextual<EJB
             final String beanName = locator.getBeanName();
             final String distinctName = locator.getDistinctName();
             if (distinctName != null && ! distinctName.isEmpty()) {
-                filterSpec = FilterSpec.any(
-                    FilterSpec.equal(FILTER_ATTR_EJB_APP, appName),
-                    FilterSpec.equal(FILTER_ATTR_EJB_MODULE, appName + '/' + moduleName),
-                    FilterSpec.equal(FILTER_ATTR_EJB_BEAN, appName + '/' + moduleName + '/' + beanName),
-                    FilterSpec.equal(FILTER_ATTR_EJB_DISTINCT, distinctName),
-                    FilterSpec.equal(FILTER_ATTR_EJB_APP_DISTINCT, appName + '/' + distinctName),
-                    FilterSpec.equal(FILTER_ATTR_EJB_MODULE_DISTINCT, appName + '/' + moduleName + '/' + distinctName),
-                    FilterSpec.equal(FILTER_ATTR_EJB_BEAN_DISTINCT, appName + '/' + moduleName + '/' + beanName + '/' + distinctName)
-                );
+                if (appName.isEmpty()) {
+                    filterSpec = FilterSpec.equal(FILTER_ATTR_EJB_MODULE_DISTINCT, moduleName + '/' + distinctName);
+                } else {
+                    filterSpec = FilterSpec.equal(FILTER_ATTR_EJB_MODULE_DISTINCT, appName + '/' + moduleName + '/' + distinctName);
+                }
             } else {
-                filterSpec = FilterSpec.any(
-                    FilterSpec.equal(FILTER_ATTR_EJB_APP, appName),
-                    FilterSpec.equal(FILTER_ATTR_EJB_MODULE, appName + '/' + moduleName),
-                    FilterSpec.equal(FILTER_ATTR_EJB_BEAN, appName + '/' + moduleName + '/' + beanName)
-                );
+                if (appName.isEmpty()) {
+                    filterSpec = FilterSpec.equal(FILTER_ATTR_EJB_MODULE, moduleName);
+                } else {
+                    filterSpec = FilterSpec.equal(FILTER_ATTR_EJB_MODULE, appName + '/' + moduleName);
+                }
             }
         } else if (affinity instanceof NodeAffinity) {
             filterSpec = FilterSpec.equal(FILTER_ATTR_NODE, ((NodeAffinity) affinity).getNodeName());
