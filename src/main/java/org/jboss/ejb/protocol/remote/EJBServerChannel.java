@@ -104,15 +104,17 @@ final class EJBServerChannel {
     private final Channel channel;
     private final int version;
     private final MessageTracker messageTracker;
+    private final CallbackBuffer callbackBuffer;
     private final MarshallerFactory marshallerFactory;
     private final MarshallingConfiguration configuration;
     private final IntIndexHashMap<InProgress> invocations = new IntIndexHashMap<>(InProgress::getInvId);
 
-    EJBServerChannel(final RemotingTransactionServer transactionServer, final Channel channel, final int version, final MessageTracker messageTracker) {
+    EJBServerChannel(final RemotingTransactionServer transactionServer, final Channel channel, final int version, final MessageTracker messageTracker, final CallbackBuffer callbackBuffer) {
         this.transactionServer = transactionServer;
         this.channel = channel;
         this.version = version;
         this.messageTracker = messageTracker;
+        this.callbackBuffer = callbackBuffer;
         final MarshallingConfiguration configuration = new MarshallingConfiguration();
         if (version < 3) {
             configuration.setClassTable(ProtocolV1ClassTable.INSTANCE);

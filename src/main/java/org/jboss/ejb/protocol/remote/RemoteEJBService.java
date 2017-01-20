@@ -44,6 +44,7 @@ public final class RemoteEJBService {
     private final Association association;
     private final RemotingTransactionService transactionService;
     private final OpenListener openListener;
+    private final CallbackBuffer callbackBuffer = new CallbackBuffer();
 
     private RemoteEJBService(final Association association, final RemotingTransactionService transactionService) {
         this.association = association;
@@ -70,10 +71,12 @@ public final class RemoteEJBService {
                             safeClose(channel);
                             return;
                         }
-                        final EJBServerChannel serverChannel = new EJBServerChannel(transactionService.getServerForConnection(channel.getConnection()), channel, version, messageTracker);
-                        final ListenerHandle handle1 = association.registerClusterTopologyListener(serverChannel.createTopologyListener());
-                        final ListenerHandle handle2 = association.registerModuleAvailabilityListener(serverChannel.createModuleListener());
-                        channel.receiveMessage(serverChannel.getReceiver(association, handle1, handle2));
+                        final EJBServerChannel serverChannel = new EJBServerChannel(transactionService.getServerForConnection(channel.getConnection()), channel, version, messageTracker, callbackBuffer);
+                        callbackBuffer.addListener((sc, a) -> {
+                            final ListenerHandle handle1 = a.registerClusterTopologyListener(sc.createTopologyListener());
+                            final ListenerHandle handle2 = a.registerModuleAvailabilityListener(sc.createModuleListener());
+                            channel.receiveMessage(sc.getReceiver(a, handle1, handle2));
+                        }, serverChannel, association);
                     }
                 });
                 try (MessageOutputStream mos = messageTracker.openMessage()) {
@@ -112,5 +115,13 @@ public final class RemoteEJBService {
      */
     public OpenListener getOpenListener() {
         return openListener;
+    }
+
+    /**
+     * Indicate that the server is up, which will allow client invocations to proceed.  This method must be called
+     * in order for invocations to flow through the server.
+     */
+    public void serverUp() {
+        callbackBuffer.activate();
     }
 }
