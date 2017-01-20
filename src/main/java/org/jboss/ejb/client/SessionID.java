@@ -108,6 +108,8 @@ public abstract class SessionID implements Serializable, Comparable<SessionID> {
         final int length = encoded.length;
         if (length >= 19 && encoded[0] == 0x07) {
             return new BasicSessionID(encoded.clone());
+        } else if (length == 17 && encoded[0] == 0x09) {
+            return new UUIDSessionID(encoded.clone());
         }
         return new UnknownSessionID(encoded.clone());
     }
