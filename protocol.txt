@@ -112,7 +112,7 @@ Version is 0x01 or 0x02 or 0x03. 0x00 is reserved for test purposes.
 ├───────────────┼───────────────┤
 │   Mod. Name   │ Weak Affinity │ V1,2: Marshalled String object; V3: Marshalled Affinity object
 ├───────────────┼─┬─┬─┬─┬───────┤
-│  Dist. Name   │0│0│0│0│ Level │ V1,2: Marshalled String object; V3: Response Compression level 0 = no compression
+│  Dist. Name   │0│0│0│0│ Level │ V1,2: Marshalled String object; V3: Response Compression level 0 = no compression, 15 = default compression
 ├───────────────┼─┴─┴─┴─┴───────┤
 │   Bean Name   │   Txn. Type   │ V1,2: Marshalled String object; V3: Transaction Type; 0 = none, 1 = remote, 2 = xa
 └───────────────┼───────────────┤ ← V2: switch class loader here

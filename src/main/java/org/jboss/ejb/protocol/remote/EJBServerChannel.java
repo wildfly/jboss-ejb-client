@@ -22,6 +22,7 @@
 
 package org.jboss.ejb.protocol.remote;
 
+import static java.lang.Math.min;
 import static org.xnio.IoUtils.safeClose;
 
 import java.io.DataInput;
@@ -739,7 +740,7 @@ final class EJBServerChannel {
                 }
 
                 final ExceptionSupplier<ImportResult<?>, SystemException> finalTransactionSupplier = transactionSupplier;
-                final int finalResponseCompressLevel = responseCompressLevel;
+                final int finalResponseCompressLevel = responseCompressLevel == 15 ? Deflater.DEFAULT_COMPRESSION : min(responseCompressLevel, 9);
                 return new Resolved() {
 
                     @NotNull
