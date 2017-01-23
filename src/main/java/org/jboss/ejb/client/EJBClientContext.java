@@ -297,6 +297,15 @@ public final class EJBClientContext extends Attachable implements Contextual<EJB
         return clientContext;
     }
 
+    /**
+     * Get the current client context for this thread.  Delegates to {@link #getCurrent()}.
+     *
+     * @return the current client context for this thread
+     */
+    public static EJBClientContext requireCurrent() {
+        return getCurrent();
+    }
+
     <T> StatefulEJBLocator<T> createSession(final StatelessEJBLocator<T> statelessLocator) throws Exception {
         final LocatedAction<StatefulEJBLocator<T>, StatelessEJBLocator<T>, T> action =
             (receiver, originalLocator, newAffinity) -> receiver.createSession(originalLocator.withNewAffinity(newAffinity));
