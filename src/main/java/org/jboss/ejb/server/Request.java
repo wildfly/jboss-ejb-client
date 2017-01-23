@@ -27,6 +27,7 @@ import java.util.concurrent.Executor;
 
 import org.jboss.ejb.client.EJBIdentifier;
 import org.jboss.ejb.client.SessionID;
+import org.jboss.remoting3.Connection;
 import org.wildfly.common.annotation.NotNull;
 
 /**
@@ -68,6 +69,15 @@ public interface Request {
      * @return the protocol of this request (must not be {@code null})
      */
     String getProtocol();
+
+    /**
+     * Get the connection associated with the request, if known.
+     *
+     * @return the connection, or {@code null} if it is not known
+     */
+    default Connection getConnection() {
+        return null;
+    }
 
     /**
      * Determine if this request is blocking a local thread.

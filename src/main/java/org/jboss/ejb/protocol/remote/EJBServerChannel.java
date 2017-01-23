@@ -503,6 +503,10 @@ final class EJBServerChannel {
             return channel.getConnection().getProtocol();
         }
 
+        public Connection getConnection() {
+            return channel.getConnection();
+        }
+
         public boolean isBlockingCaller() {
             return false;
         }
