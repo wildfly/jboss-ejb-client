@@ -22,21 +22,18 @@
 
 package org.jboss.ejb.client;
 
-import static javax.xml.stream.XMLStreamConstants.*;
+import static javax.xml.stream.XMLStreamConstants.END_ELEMENT;
+import static javax.xml.stream.XMLStreamConstants.START_ELEMENT;
 
 import java.net.URI;
-import java.net.URISyntaxException;
 import java.util.Collections;
 import java.util.Iterator;
-import java.util.Properties;
 import java.util.ServiceConfigurationError;
 import java.util.ServiceLoader;
 import java.util.function.Supplier;
 
 import org.jboss.ejb._private.Logs;
 import org.jboss.ejb.client.legacy.LegacyPropertiesConfiguration;
-import org.jboss.ejb.client.legacy.LegacyPropertiesLoader;
-import org.jboss.ejb.client.legacy.RemotingConnectionConfiguration;
 import org.jboss.modules.Module;
 import org.jboss.modules.ModuleIdentifier;
 import org.jboss.modules.ModuleLoadException;
@@ -63,27 +60,15 @@ final class ConfigurationBasedEJBClientContextSelector implements Supplier<EJBCl
         final ClientConfiguration clientConfiguration = ClientConfiguration.getInstance();
         final ClassLoader classLoader = ConfigurationBasedEJBClientContextSelector.class.getClassLoader();
         final EJBClientContext.Builder builder = new EJBClientContext.Builder();
+        loadTransportProviders(builder, classLoader);
         if (clientConfiguration != null) try {
             try (final ConfigurationXMLStreamReader streamReader = clientConfiguration.readConfiguration(Collections.singleton(NS_EJB_CLIENT_3_0))) {
                 parseEJBClientConfiguration(streamReader, builder);
             }
-            loadTransportProviders(builder, classLoader);
         } catch (ConfigXMLParseException e) {
             throw new IllegalStateException(e);
         }
-        final Properties props = LegacyPropertiesLoader.loadEJBClientProperties();
-        final LegacyPropertiesConfiguration configuration = new LegacyPropertiesConfiguration(props);
-        for (RemotingConnectionConfiguration connectionConfiguration : configuration.getConnectionConfigurations()) {
-            final String uriString = connectionConfiguration.getProtocol() + "://" + connectionConfiguration.getHost() + ":" + connectionConfiguration.getPort();
-            try {
-                URI uri = new URI(uriString);
-                final EJBClientConnection.Builder connectionBuilder = new EJBClientConnection.Builder();
-                connectionBuilder.setDestination(uri);
-                builder.addClientConnection(connectionBuilder.build());
-            } catch (URISyntaxException e) {
-                new IllegalStateException(e);
-            }
-        }
+        LegacyPropertiesConfiguration.configure(builder);
         return builder.build();
     }
 

@@ -34,6 +34,7 @@ import org.jboss.logging.annotations.LogMessage;
 import org.jboss.logging.Logger;
 import org.jboss.logging.annotations.Message;
 import org.jboss.logging.annotations.MessageLogger;
+import org.jboss.logging.annotations.Once;
 import org.jboss.logging.annotations.Property;
 import org.jboss.remoting3.Channel;
 
@@ -242,7 +243,9 @@ public interface Logs extends BasicLogger {
     IllegalStateException cannotSpecifyBothPlainTextAndEncodedPassword();
 
     // @Message(id = 57, value = "%s not of type org.jboss.ejb.client.DeploymentNodeSelector")
-    // @Message(id = 58, value = "Could not create the deployment node selector")
+
+    @Message(id = 58, value = "Failed to instantiate deployment node selector class \"%s\"")
+    IllegalArgumentException cannotInstantiateDeploymentNodeSelector(String name, @Cause ReflectiveOperationException e);
 
     @LogMessage(level = WARN)
     @Message(id = 59, value = "Could not send a message over remoting channel, to cancel invocation for invocation id %s")
@@ -273,6 +276,32 @@ public interface Logs extends BasicLogger {
 
     @Message(id = 67, value = "Cannot convert %s to stateful")
     IllegalArgumentException cannotConvertToStateful(EJBLocator<?> locator);
+
+    @Message(id = 68, value = "Failed to instantiate callback handler class \"%s\"")
+    IllegalArgumentException cannotInstantiateCallbackHandler(String name, @Cause ReflectiveOperationException e);
+
+    @Once
+    @LogMessage
+    @Message(id = 69, value = "Using legacy jboss-ejb-client.properties security configuration")
+    void legacyEJBPropertiesSecurityConfigurationInUse();
+
+    @Once
+    @LogMessage
+    @Message(id = 70, value = "Using legacy jboss-ejb-client.properties Remoting configuration")
+    void legacyEJBPropertiesRemotingConfigurationInUse();
+
+    @Once
+    @LogMessage
+    @Message(id = 71, value = "Using legacy jboss-ejb-client.properties discovery configuration")
+    void legacyEJBPropertiesDiscoveryConfigurationInUse();
+
+    @Once
+    @LogMessage
+    @Message(id = 72, value = "Using legacy jboss-ejb-client.properties EJB client configuration")
+    void legacyEJBPropertiesEJBConfigurationInUse();
+
+    @Message(id = 73, value = "Failed to construct Remoting endpoint")
+    IllegalStateException failedToConstructEndpoint(@Cause IOException e);
 
     // Proxy API errors
 
