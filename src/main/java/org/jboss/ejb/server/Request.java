@@ -119,4 +119,15 @@ public interface Request {
      * @throws IllegalStateException if the invocation was already converted to be stateful with a different session ID
      */
     void convertToStateful(@NotNull SessionID sessionId) throws IllegalArgumentException, IllegalStateException;
+
+    /**
+     * Get the provider interface associated with the request.
+     *
+     * @param providerInterfaceType the provider interface type class (must not be {@code null})
+     * @param <C> the provider interface type
+     * @return the provider interface, or {@code null} if it is not known
+     */
+    default <C> C getProviderInterface(Class<C> providerInterfaceType) {
+        return null;
+    }
 }
