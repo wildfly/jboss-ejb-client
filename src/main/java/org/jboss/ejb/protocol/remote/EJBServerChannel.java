@@ -559,6 +559,11 @@ final class EJBServerChannel {
             }
         }
 
+        public <C> C getProviderInterface(Class<C> providerInterfaceType) {
+            final Connection connection = channel.getConnection();
+            return providerInterfaceType.isInstance(connection) ? providerInterfaceType.cast(connection) : null;
+        }
+
         protected void writeFailure(Exception reason) {
             try (MessageOutputStream os = messageTracker.openMessageUninterruptibly()) {
                 os.writeByte(Protocol.APPLICATION_EXCEPTION);
