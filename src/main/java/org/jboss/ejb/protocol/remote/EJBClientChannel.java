@@ -24,6 +24,8 @@ package org.jboss.ejb.protocol.remote;
 
 import static java.lang.Math.min;
 import static java.security.AccessController.doPrivileged;
+import static org.wildfly.common.math.HashMath.multiHashOrdered;
+import static org.xnio.Bits.allAreSet;
 import static org.xnio.IoUtils.safeClose;
 
 import java.io.DataOutput;
@@ -31,9 +33,13 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.UnsupportedEncodingException;
 import java.lang.reflect.Method;
+import java.net.InetAddress;
 import java.net.URI;
+import java.net.URISyntaxException;
 import java.security.PrivilegedAction;
+import java.util.Arrays;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
@@ -53,7 +59,7 @@ import javax.transaction.SystemException;
 import javax.transaction.Transaction;
 import javax.transaction.xa.Xid;
 
-import org.jboss.ejb._private.Logs;
+import org.jboss.ejb._private.*;
 import org.jboss.ejb.client.Affinity;
 import org.jboss.ejb.client.AttachmentKey;
 import org.jboss.ejb.client.AttachmentKeys;
@@ -120,10 +126,13 @@ class EJBClientChannel {
 
     private final ServiceRegistry serviceRegistry;
     private final MarshallingConfiguration configuration;
+    private final ServiceRegistration nodeRegistration;
     private final ConcurrentMap<DiscKey, ServiceRegistration> registrationsMap = new ConcurrentHashMap<>();
+    private final ConcurrentMap<String, ConcurrentMap<String, ConcurrentMap<ClusterDiscKey, ServiceRegistration>>> clusterRegistrationsMap = new ConcurrentHashMap<>();
     private final IntIndexMap<UserTransactionID> userTxnIds = new IntIndexHashMap<UserTransactionID>(UserTransactionID::getId);
 
     private final RemoteTransactionContext transactionContext;
+    private final AtomicInteger finishedParts = new AtomicInteger(0);
     private final AtomicReference<FutureResult<EJBClientChannel>> futureResultRef;
     private final LocalRegistryAndDiscoveryProvider discoveryProvider = new LocalRegistryAndDiscoveryProvider();
 
@@ -147,6 +156,36 @@ class EJBClientChannel {
         this.configuration = configuration;
         invocationTracker = new InvocationTracker(this.channel, channel.getOption(RemotingOptions.MAX_OUTBOUND_MESSAGES).intValue(), EJBClientChannel::mask);
         futureResultRef = new AtomicReference<>(futureResult);
+        final ServiceURL.Builder builder = new ServiceURL.Builder();
+        builder.setUri(channel.getConnection().getPeerURI());
+        builder.setAbstractType("ejb").setAbstractTypeAuthority("jboss");
+        builder.addAttribute(EJBClientContext.FILTER_ATTR_NODE, AttributeValue.fromString(channel.getConnection().getRemoteEndpointName()));
+        nodeRegistration = serviceRegistry.registerService(builder.create());
+        channel.addCloseHandler((c, e) -> {
+            nodeRegistration.close();
+            Iterator<Map.Entry<DiscKey, ServiceRegistration>> i1 = registrationsMap.entrySet().iterator();
+            while (i1.hasNext()) {
+                final Map.Entry<DiscKey, ServiceRegistration> entry = i1.next();
+                i1.remove();
+                entry.getValue().close();
+            }
+            final Iterator<Map.Entry<String, ConcurrentMap<String, ConcurrentMap<ClusterDiscKey, ServiceRegistration>>>> i2 = clusterRegistrationsMap.entrySet().iterator();
+            while (i2.hasNext()) {
+                final Map.Entry<String, ConcurrentMap<String, ConcurrentMap<ClusterDiscKey, ServiceRegistration>>> entry1 = i2.next();
+                i2.remove();
+                final Iterator<Map.Entry<String, ConcurrentMap<ClusterDiscKey, ServiceRegistration>>> i3 = entry1.getValue().entrySet().iterator();
+                while (i3.hasNext()) {
+                    final Map.Entry<String, ConcurrentMap<ClusterDiscKey, ServiceRegistration>> entry2 = i3.next();
+                    i3.remove();
+                    Iterator<ServiceRegistration> i4 = entry2.getValue().values().iterator();
+                    while (i4.hasNext()) {
+                        final ServiceRegistration registration = i4.next();
+                        i4.remove();
+                        registration.close();
+                    }
+                }
+            }
+        });
     }
 
     static int mask(int original) {
@@ -172,6 +211,34 @@ class EJBClientChannel {
 
         private boolean equals(final DiscKey other) {
             return other == this || appName.equals(other.appName) && moduleName.equals(other.moduleName) && distinctName.equals(other.distinctName);
+        }
+
+        public int hashCode() {
+            return hashCode;
+        }
+    }
+
+    static class ClusterDiscKey {
+        private final String clusterName;
+        private final String nodeName;
+        private final byte[] ipBytes;
+        private final int maskBits;
+        private final int hashCode;
+
+        ClusterDiscKey(final String clusterName, final String nodeName, final byte[] ipBytes, final int maskBits) {
+            this.clusterName = clusterName;
+            this.nodeName = nodeName;
+            this.ipBytes = ipBytes;
+            this.maskBits = maskBits;
+            hashCode = multiHashOrdered(multiHashOrdered(multiHashOrdered(maskBits, Arrays.hashCode(ipBytes)), nodeName.hashCode()), clusterName.hashCode());
+        }
+
+        public boolean equals(final Object obj) {
+            return obj instanceof ClusterDiscKey && equals((ClusterDiscKey) obj);
+        }
+
+        private boolean equals(final ClusterDiscKey other) {
+            return other == this || clusterName.equals(other.clusterName) && nodeName.equals(other.nodeName) && Arrays.equals(ipBytes, other.ipBytes) && maskBits == other.maskBits;
         }
 
         public int hashCode() {
@@ -233,20 +300,15 @@ class EJBClientChannel {
                             old.close();
                         }
                     }
-                    final FutureResult<EJBClientChannel> futureResult = futureResultRef.get();
-                    if (futureResult != null && futureResultRef.compareAndSet(futureResult, null)) {
-                        // done!
-                        futureResult.setResult(this);
-                    }
+                    finishPart(0b01);
                     break;
                 }
                 case Protocol.MODULE_UNAVAILABLE: {
                     int count = StreamUtils.readPackedSignedInt32(message);
                     final ConcurrentMap<DiscKey, ServiceRegistration> registrationsMap = this.registrationsMap;
                     for (int i = 0; i < count; i ++) {
-                        String appName = message.readUTF();
+                        final String appName = message.readUTF();
                         final String moduleName = message.readUTF();
-                        if (appName.isEmpty()) appName = moduleName;
                         final String distinctName = message.readUTF();
                         final DiscKey key = new DiscKey(appName, moduleName, distinctName);
                         final ServiceRegistration old = registrationsMap.remove(key);
@@ -256,20 +318,97 @@ class EJBClientChannel {
                     }
                     break;
                 }
+                case Protocol.CLUSTER_TOPOLOGY_ADDITION:
                 case Protocol.CLUSTER_TOPOLOGY_COMPLETE: {
-                    // TODO read message
+                    int clusterCount = StreamUtils.readPackedSignedInt32(message);
+                    final Connection connection = channel.getConnection();
+                    final URI peerURI = connection.getPeerURI();
+                    final String scheme = peerURI.getScheme();
+                    for (int i = 0; i < clusterCount; i ++) {
+                        final String clusterName = message.readUTF();
+                        final AttributeValue clusterValue = AttributeValue.fromString(clusterName);
+                        int memberCount = StreamUtils.readPackedSignedInt32(message);
+                        for (int j = 0; j < memberCount; j ++) {
+                            final String nodeName = message.readUTF();
+                            final AttributeValue nodeValue = AttributeValue.fromString(nodeName);
+
+                            int mappingCount = StreamUtils.readPackedSignedInt32(message);
+                            for (int k = 0; k < mappingCount; k ++) {
+                                int b = message.readUnsignedByte();
+                                final boolean ip6 = allAreSet(b, 1);
+                                int netmaskBits = b >>> 1;
+                                final byte[] sourceIpBytes = new byte[ip6 ? 16 : 4];
+                                message.readFully(sourceIpBytes);
+                                final String destHost = message.readUTF();
+                                final int destPort = message.readUnsignedShort();
+
+                                final ServiceURL.Builder builder = new ServiceURL.Builder();
+                                builder.setAbstractType("ejb");
+                                builder.setAbstractTypeAuthority("jboss");
+                                builder.addAttribute(EJBClientContext.FILTER_ATTR_NODE, nodeValue);
+                                builder.addAttribute(EJBClientContext.FILTER_ATTR_CLUSTER, clusterValue);
+                                if (netmaskBits != 0) {
+                                    // do not match all
+                                    builder.addAttribute(EJBClientContext.FILTER_ATTR_SOURCE_IP, AttributeValue.fromString("[" + InetAddress.getByAddress(sourceIpBytes).getHostAddress() + "]/" + netmaskBits));
+                                }
+
+                                try {
+                                    builder.setUri(new URI(
+                                        scheme,
+                                        null,
+                                        NetworkUtil.formatPossibleIpv6Address(destHost),
+                                        destPort,
+                                        null,
+                                        null,
+                                        null
+                                    ));
+                                } catch (URISyntaxException e) {
+                                    Logs.REMOTING.trace("Ignoring cluster node because the URI failed to be built", e);
+                                    continue;
+                                }
+                                final ServiceRegistration registration = serviceRegistry.registerService(builder.create());
+                                final ClusterDiscKey key = new ClusterDiscKey(clusterName, nodeName, sourceIpBytes, netmaskBits);
+                                final ServiceRegistration old = clusterRegistrationsMap.computeIfAbsent(clusterName, x -> new ConcurrentHashMap<>()).computeIfAbsent(nodeName, x -> new ConcurrentHashMap<>()).put(key, registration);
+                                if (old != null) {
+                                    old.close();
+                                }
+                            }
+                        }
+                    }
+                    finishPart(0b10);
                     break;
                 }
                 case Protocol.CLUSTER_TOPOLOGY_REMOVAL: {
-                    // TODO read message
-                    break;
-                }
-                case Protocol.CLUSTER_TOPOLOGY_ADDITION: {
-                    // TODO read message
+                    int clusterCount = StreamUtils.readPackedSignedInt32(message);
+                    for (int i = 0; i < clusterCount; i ++) {
+                        String clusterName = message.readUTF();
+                        final ConcurrentMap<String, ConcurrentMap<ClusterDiscKey, ServiceRegistration>> subMap = clusterRegistrationsMap.remove(clusterName);
+                        if (subMap != null) {
+                            for (ConcurrentMap<ClusterDiscKey, ServiceRegistration> subSubMap : subMap.values()) {
+                                for (ServiceRegistration registration : subSubMap.values()) {
+                                    registration.close();
+                                }
+                            }
+                        }
+                    }
                     break;
                 }
                 case Protocol.CLUSTER_TOPOLOGY_NODE_REMOVAL: {
-                    // TODO read message
+                    int clusterCount = StreamUtils.readPackedSignedInt32(message);
+                    for (int i = 0; i < clusterCount; i ++) {
+                        String clusterName = message.readUTF();
+                        final ConcurrentMap<String, ConcurrentMap<ClusterDiscKey, ServiceRegistration>> subMap = clusterRegistrationsMap.get(clusterName);
+                        int memberCount = StreamUtils.readPackedSignedInt32(message);
+                        for (int j = 0; j < memberCount; j ++) {
+                            String nodeName = message.readUTF();
+                            if (subMap != null) {
+                                final ConcurrentMap<ClusterDiscKey, ServiceRegistration> subSubMap = subMap.remove(nodeName);
+                                if (subSubMap != null) for (ServiceRegistration registration : subSubMap.values()) {
+                                    registration.close();
+                                }
+                            }
+                        }
+                    }
                     break;
                 }
                 default: {
@@ -797,6 +936,24 @@ class EJBClientChannel {
 
     DiscoveryProvider getDiscoveryProvider() {
         return discoveryProvider;
+    }
+
+    void finishPart(int bit) {
+        int oldVal, newVal;
+        do {
+            oldVal = finishedParts.get();
+            if (allAreSet(oldVal, bit)) {
+                return;
+            }
+            newVal = oldVal | bit;
+        } while (! finishedParts.compareAndSet(oldVal, newVal));
+        if (newVal == 0b11) {
+            final FutureResult<EJBClientChannel> futureResult = futureResultRef.get();
+            if (futureResult != null && futureResultRef.compareAndSet(futureResult, null)) {
+                // done!
+                futureResult.setResult(this);
+            }
+        }
     }
 
     final class MethodInvocation extends Invocation {

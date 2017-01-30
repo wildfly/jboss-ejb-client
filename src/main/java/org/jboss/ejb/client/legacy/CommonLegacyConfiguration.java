@@ -21,6 +21,7 @@ package org.jboss.ejb.client.legacy;
 import java.net.URI;
 import java.net.URISyntaxException;
 
+import org.jboss.ejb._private.NetworkUtil;
 import org.xnio.OptionMap;
 import org.xnio.Options;
 
@@ -47,7 +48,7 @@ final class CommonLegacyConfiguration {
             protocol = "remote+http";
         }
         try {
-            return new URI(protocol, null, host, port, null, null, null);
+            return new URI(protocol, null, NetworkUtil.formatPossibleIpv6Address(host), port, null, null, null);
         } catch (URISyntaxException e) {
             return null;
         }

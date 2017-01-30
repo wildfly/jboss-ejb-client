@@ -22,6 +22,9 @@
 
 package org.jboss.ejb.client;
 
+import java.net.SocketAddress;
+import java.net.URI;
+
 /**
  * A receiver for EJB invocations.  Receivers can be associated with one or more client contexts.  This interface is
  * implemented by providers for EJB invocation services.
@@ -71,4 +74,14 @@ public abstract class EJBReceiver extends Attachable {
      *                                  session bean
      */
     protected abstract <T> StatefulEJBLocator<T> createSession(final StatelessEJBLocator<T> statelessLocator) throws Exception;
+
+    /**
+     * Query the expected or actual source IP address configured for the given target URI.
+     *
+     * @param uri the supported URI of the peer (not {@code null})
+     * @return the socket address, or {@code null} if none is known
+     */
+    protected SocketAddress getSourceAddress(final URI uri) {
+        return null;
+    }
 }

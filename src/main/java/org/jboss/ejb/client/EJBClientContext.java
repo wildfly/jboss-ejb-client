@@ -24,6 +24,11 @@ package org.jboss.ejb.client;
 
 import static java.security.AccessController.doPrivileged;
 
+import java.net.Inet4Address;
+import java.net.Inet6Address;
+import java.net.InetAddress;
+import java.net.InetSocketAddress;
+import java.net.SocketAddress;
 import java.net.URI;
 import java.security.PrivilegedAction;
 import java.util.ArrayList;
@@ -33,12 +38,15 @@ import java.util.List;
 import java.util.function.Supplier;
 
 import org.jboss.ejb._private.Logs;
+import org.jboss.ejb._private.NetworkUtil;
 import org.wildfly.common.Assert;
 import org.wildfly.common.context.ContextManager;
 import org.wildfly.common.context.Contextual;
+import org.wildfly.discovery.AttributeValue;
 import org.wildfly.discovery.Discovery;
 import org.wildfly.discovery.FilterSpec;
 import org.wildfly.discovery.ServiceType;
+import org.wildfly.discovery.ServiceURL;
 import org.wildfly.discovery.ServicesQueue;
 
 /**
@@ -78,6 +86,10 @@ public final class EJBClientContext extends Attachable implements Contextual<EJB
      * The discovery attribute name which contains a cluster name.
      */
     public static final String FILTER_ATTR_CLUSTER = "cluster";
+    /**
+     * The discovery attribute name for when a rule only applies to a specific source IP address range.
+     */
+    public static final String FILTER_ATTR_SOURCE_IP = "source-ip";
 
     static {
         CONTEXT_MANAGER.setGlobalDefaultSupplier(new ConfigurationBasedEJBClientContextSelector());
@@ -368,27 +380,103 @@ public final class EJBClientContext extends Attachable implements Contextual<EJB
             return performLocatedAction(locator, locatedAction);
         }
 
+        ServiceURL serviceURL;
         try (final ServicesQueue servicesQueue = discover(filterSpec)) {
             for (;;) {
-                final URI uri;
                 try {
-                    uri = servicesQueue.take();
+                    serviceURL = servicesQueue.takeService();
                 } catch (InterruptedException e) {
                     Thread.currentThread().interrupt();
                     throw Logs.MAIN.operationInterrupted();
                 }
-                if (uri == null) {
+                if (serviceURL == null) {
                     throw Logs.MAIN.noEJBReceiverAvailable(locator);
                 }
+                // check that we support the URI scheme
+                final URI uri = serviceURL.getLocationURI();
                 final EJBReceiver receiver = getTransportProvider(uri.getScheme());
-                if (receiver != null) {
-                    return locatedAction.execute(receiver, locator, Affinity.forUri(uri));
+                if (receiver == null) {
+                    // unsupported, skip it
+                    continue;
+                }
+                // check that we satisfy the service URL
+                final List<AttributeValue> values = serviceURL.getAttributeValues(FILTER_ATTR_SOURCE_IP);
+                boolean matches = values.isEmpty();
+                if (matches) {
+                    // we got one!
+                    break;
+                } else {
+                    SocketAddress sourceAddress = receiver.getSourceAddress(uri);
+                    InetAddress inetAddress;
+                    if (sourceAddress instanceof InetSocketAddress) {
+                        inetAddress = ((InetSocketAddress) sourceAddress).getAddress();
+                    } else {
+                        inetAddress = null;
+                    }
+                    int bestNetmask;
+                    for (AttributeValue value : values) try {
+                        if (! value.isString()) {
+                            continue;
+                        }
+                        final String string = value.toString();
+                        if (string.codePointAt(0) != '[') {
+                            continue;
+                        }
+                        int closeBrace = string.indexOf(']', 1);
+                        if (closeBrace == -1) {
+                            continue;
+                        }
+                        final InetAddress matchAddress = InetAddress.getByName(string.substring(1, closeBrace));
+                        if (string.codePointAt(closeBrace + 1) != '/') {
+                            continue;
+                        }
+                        final int mask = Integer.parseInt(string.substring(closeBrace + 2));
+
+                        // now do the test
+                        if (inetAddress == null) {
+                            if (mask == 0) {
+                                // it's zero, so we can just break out now because we have the only match we're gonna get
+                                break;
+                            }
+                            // else fall out because we have no source address to test
+                        } else if (NetworkUtil.belongsToNetwork(inetAddress, matchAddress, mask)) {
+                            // matched!
+                            break;
+                        }
+                    } catch (RuntimeException ignored) {
+                        // it's not a valid entry, so ignore it
+                    }
+
+                    // try again
                 }
             }
+        }
+        final URI uri = serviceURL.getLocationURI();
+        final EJBReceiver receiver = getTransportProvider(uri.getScheme());
+        if (receiver != null) {
+            return locatedAction.execute(receiver, locator, Affinity.forUri(uri));
+        } else {
+            throw Logs.MAIN.noEJBReceiverAvailable(locator);
         }
     }
 
     EJBClientInterceptor[] getInterceptors() {
         return interceptors;
+    }
+
+    private static int getInt(byte[] b, int offs) {
+        return (b[offs] & 0xff) << 24 | (b[offs + 1] & 0xff) << 16 | (b[offs + 2] & 0xff) << 8 | b[offs + 3] & 0xff;
+    }
+
+    private static long getLong(byte[] b, int offs) {
+        return (getInt(b, offs) & 0xFFFFFFFFL) << 32 | getInt(b, offs + 4) & 0xFFFFFFFFL;
+    }
+
+    private static int nwsl(int arg, int places) {
+        return places <= 0 ? arg : places >= 32 ? 0 : arg << places;
+    }
+
+    private static long nwsl(long arg, int places) {
+        return places <= 0 ? arg : places >= 64 ? 0L : arg << places;
     }
 }

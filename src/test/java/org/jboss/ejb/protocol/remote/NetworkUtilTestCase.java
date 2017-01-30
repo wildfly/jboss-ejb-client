@@ -27,6 +27,7 @@ import static org.junit.Assert.*;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 
+import org.jboss.ejb._private.NetworkUtil;
 import org.junit.Test;
 
 /**

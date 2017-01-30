@@ -420,7 +420,7 @@ If a session open request is sent for a bean which is not a stateful bean, then 
     │││mapping count  │
     ││├───────────────┤
     │││┌──────────────┴─┐ - for each mapping count
-    ││││Client Netmask  │ - packed integer, LSB 0 = ipv6, 1 = ipv4; bits 4-n are the netmask bits (only bits 1-8 are used)
+    ││││Client Netmask  │ - packed integer, LSB 0 = ipv6, 1 = ipv4; bits 1-n are the netmask bits (only bits 1-8 are used)
     │││├────────────────┤
     ││││Client Source IP│ - IP bytes
     │││├────────────────┤
