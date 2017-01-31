@@ -24,7 +24,9 @@ import java.util.Map;
 import java.util.function.Consumer;
 
 import org.jboss.ejb._private.Logs;
+import org.jboss.ejb.client.ClusterNodeSelector;
 import org.kohsuke.MetaInfServices;
+import org.wildfly.common.function.ExceptionSupplier;
 import org.wildfly.discovery.ServiceURL;
 import org.wildfly.discovery.impl.StaticDiscoveryProvider;
 import org.wildfly.discovery.spi.DiscoveryProvider;
@@ -49,7 +51,13 @@ public final class DiscoveryLegacyConfiguration implements ExternalDiscoveryConf
         for (Map.Entry<String, JBossEJBProperties.ClusterConfiguration> entry : ejbProperties.getClusterConfigurations().entrySet()) {
             final String name = entry.getKey();
             final JBossEJBProperties.ClusterConfiguration configuration = entry.getValue();
+            final ExceptionSupplier<ClusterNodeSelector, ReflectiveOperationException> clusterNodeSelectorSupplier = configuration.getClusterNodeSelectorSupplier();
+            final long maximumAllowedConnectedNodes = configuration.getMaximumAllowedConnectedNodes();
 
+            for (JBossEJBProperties.ClusterNodeConfiguration nodeConfiguration : configuration.getNodeConfigurations()) {
+                final String nodeName = nodeConfiguration.getNodeName();
+
+            }
             // todo: construct URI and map cluster:name to it
         }
 

@@ -23,7 +23,6 @@ import java.net.URI;
 import java.util.List;
 
 import org.jboss.ejb._private.Logs;
-import org.jboss.remoting3.ConnectionBuilder;
 import org.jboss.remoting3.Endpoint;
 import org.jboss.remoting3.EndpointBuilder;
 import org.jboss.remoting3.spi.EndpointConfigurator;
@@ -63,6 +62,12 @@ public final class RemotingLegacyConfiguration implements EndpointConfigurator {
 
         // we ignore the connection provider options
 
+        final Endpoint endpoint;
+        try {
+            endpoint = endpointBuilder.build();
+        } catch (IOException e) {
+            throw Logs.MAIN.failedToConstructEndpoint(e);
+        }
         final List<JBossEJBProperties.ConnectionConfiguration> connectionList = properties.getConnectionList();
         for (JBossEJBProperties.ConnectionConfiguration connectionConfiguration : connectionList) {
             final OptionMap connectionOptions = connectionConfiguration.getConnectionOptions();
@@ -71,17 +76,10 @@ public final class RemotingLegacyConfiguration implements EndpointConfigurator {
             if (uri == null) {
                 continue;
             }
-
-            final ConnectionBuilder connectionBuilder = endpointBuilder.addConnection(uri);
-            connectionBuilder.addAllOptions(connectionOptions);
-            connectionBuilder.setImmediate(connectionConfiguration.isConnectEagerly());
-            connectionBuilder.setAbstractType("ejb");
-            connectionBuilder.setAbstractTypeAuthority("jboss");
+            if (connectionConfiguration.isConnectEagerly()) {
+                endpoint.getConnection(uri, "ejb", "jboss");
+            }
         }
-        try {
-            return endpointBuilder.build();
-        } catch (IOException e) {
-            throw Logs.MAIN.failedToConstructEndpoint(e);
-        }
+        return endpoint;
     }
 }

@@ -53,7 +53,6 @@ public class LegacyPropertiesConfiguration {
                 if (port == -1) {
                     continue;
                 }
-                final String protocol;
                 final OptionMap connectionOptions = connectionConfiguration.getConnectionOptions();
                 final URI uri = CommonLegacyConfiguration.getUri(connectionConfiguration, connectionOptions);
                 if (uri == null) {
