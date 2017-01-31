@@ -98,6 +98,12 @@ public interface Request {
     void writeNoSuchEJB();
 
     /**
+     * Write a message indicating that the EJB exists but the locator does not refer to a remote view.  The request
+     * should be abandoned after invoking this method.
+     */
+    void writeWrongViewType();
+
+    /**
      * Write a response indicating that the request was successfully cancelled.
      */
     void writeCancelResponse();

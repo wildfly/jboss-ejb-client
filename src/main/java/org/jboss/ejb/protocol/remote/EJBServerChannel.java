@@ -40,6 +40,7 @@ import java.util.zip.Deflater;
 import java.util.zip.DeflaterOutputStream;
 import java.util.zip.InflaterInputStream;
 
+import javax.ejb.EJBException;
 import javax.transaction.HeuristicMixedException;
 import javax.transaction.HeuristicRollbackException;
 import javax.transaction.RollbackException;
@@ -513,6 +514,30 @@ final class EJBServerChannel {
                 os.writeByte(Protocol.NO_SUCH_EJB);
                 os.writeShort(invId);
                 os.writeUTF(message);
+            } catch (IOException e) {
+                // nothing to do at this point; the client doesn't want the response
+                Logs.REMOTING.trace("EJB response write failed", e);
+            } finally {
+                invocations.removeKey(invId);
+            }
+        }
+
+        public void writeWrongViewType() {
+            final String message = Logs.REMOTING.remoteMessageBadViewType(getEJBIdentifier());
+            try (MessageOutputStream os = messageTracker.openMessageUninterruptibly()) {
+                if (version >= 3) {
+                    os.writeByte(Protocol.BAD_VIEW_TYPE);
+                    os.writeShort(invId);
+                    os.writeUTF(message);
+                } else {
+                    os.writeByte(Protocol.APPLICATION_EXCEPTION);
+                    os.writeShort(invId);
+                    final Marshaller marshaller = marshallerFactory.createMarshaller(configuration);
+                    marshaller.start(Marshalling.createByteOutput(os));
+                    marshaller.writeObject(Logs.REMOTING.invalidViewTypeForInvocation(message));
+                    marshaller.writeByte(0);
+                    marshaller.finish();
+                }
             } catch (IOException e) {
                 // nothing to do at this point; the client doesn't want the response
                 Logs.REMOTING.trace("EJB response write failed", e);

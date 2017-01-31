@@ -260,6 +260,7 @@ class EJBClientChannel {
                 case Protocol.NO_SUCH_METHOD:
                 case Protocol.SESSION_NOT_ACTIVE:
                 case Protocol.EJB_NOT_STATEFUL:
+                case Protocol.BAD_VIEW_TYPE:
                 case Protocol.PROCEED_ASYNC_RESPONSE: {
                     final int invId = message.readUnsignedShort();
                     leaveOpen = invocationTracker.signalResponse(invId, msg, message, false);
@@ -849,6 +850,10 @@ class EJBClientChannel {
                         final String message = response.readUTF();
                         throw new NoSuchEJBException(message);
                     }
+                    case Protocol.BAD_VIEW_TYPE: {
+                        final String message = response.readUTF();
+                        throw Logs.REMOTING.invalidViewTypeForInvocation(message);
+                    }
                     case Protocol.EJB_NOT_STATEFUL: {
                         final String message = response.readUTF();
                         // todo: I don't think this is the best exception type for this case...
@@ -1039,6 +1044,18 @@ class EJBClientChannel {
                         receiverInvocationContext.resultReady(new EJBReceiverInvocationContext.ResultProducer.Failed(new NoSuchEJBException(message)));
                     } catch (IOException e) {
                         receiverInvocationContext.resultReady(new EJBReceiverInvocationContext.ResultProducer.Failed(new EJBException("Failed to read 'No such EJB' response", e)));
+                    } finally {
+                        safeClose(inputStream);
+                    }
+                    break;
+                }
+                case Protocol.BAD_VIEW_TYPE: {
+                    free();
+                    try {
+                        final String message = inputStream.readUTF();
+                        receiverInvocationContext.resultReady(new EJBReceiverInvocationContext.ResultProducer.Failed(Logs.REMOTING.invalidViewTypeForInvocation(message)));
+                    } catch (IOException e) {
+                        receiverInvocationContext.resultReady(new EJBReceiverInvocationContext.ResultProducer.Failed(new EJBException("Failed to read 'Bad EJB view type' response", e)));
                     } finally {
                         safeClose(inputStream);
                     }

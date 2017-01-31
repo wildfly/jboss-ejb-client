@@ -72,6 +72,9 @@ final class Protocol {
 
     public static final int COMPRESSED_INVOCATION_MESSAGE = 0x1B; // s → c & c → s
 
+    // v3 and up
+    public static final int BAD_VIEW_TYPE         = 0x1C; // s → c
+
     private Protocol() {
     }
 }

@@ -326,9 +326,18 @@ If a stateful bean was invoked without a prior (successful) session open request
 
 (deleted)
 
-3.3.6 The requested interface isn't a remote interface.
+3.3.6. The requested interface isn't a remote interface (command code = 0x1C; v3 and up only)
 
-(deleted)
+     7 6 5 4 3 2 1 0
+    ┌─┬─┬─┬─┬─┬─┬─┬─┐
+    │      0x1C     │  Command code
+    ├───────────────┤
+    │ Invocation ID │  Fixed length, two bytes
+    ├ ─ ─ ─ ─ ─ ─ ─ ┤
+    │               │
+    ├───────────────┤
+    │    Message    │  Variable length Modified UTF8
+    └───────────────┘
 
 3.3.7 EJB is not stateful (Command code = 0x0D)
 If a session open request is sent for a bean which is not a stateful bean, then the server responds with an invocation failure message with this header

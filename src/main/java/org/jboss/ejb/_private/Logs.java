@@ -357,6 +357,9 @@ public interface Logs extends BasicLogger {
     @Message(id = 505, value = "No remote transport is present on the current EJB client context")
     IllegalStateException noRemoteTransportOnEJBContext();
 
+    @Message(id = 506, value = "Server error (invalid view): %s")
+    EJBException invalidViewTypeForInvocation(String serverMessage);
+
     // Remote messages; no ID for brevity but should be translated
 
     @Message(value = "No such EJB: %s")
@@ -370,4 +373,7 @@ public interface Logs extends BasicLogger {
 
     @Message(value = "Session is not active for invocation of method %s on %s")
     String remoteMessageSessionNotActive(EJBMethodLocator methodLocator, EJBIdentifier locator);
+
+    @Message(value = "EJB view is not remote: %s")
+    String remoteMessageBadViewType(EJBIdentifier ejbIdentifier);
 }
