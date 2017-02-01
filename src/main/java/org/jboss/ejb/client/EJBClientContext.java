@@ -381,6 +381,7 @@ public final class EJBClientContext extends Attachable implements Contextual<EJB
         }
 
         ServiceURL serviceURL;
+        EJBReceiver receiver;
         try (final ServicesQueue servicesQueue = discover(filterSpec)) {
             for (;;) {
                 try {
@@ -394,7 +395,7 @@ public final class EJBClientContext extends Attachable implements Contextual<EJB
                 }
                 // check that we support the URI scheme
                 final URI uri = serviceURL.getLocationURI();
-                final EJBReceiver receiver = getTransportProvider(uri.getScheme());
+                receiver = getTransportProvider(uri.getScheme());
                 if (receiver == null) {
                     // unsupported, skip it
                     continue;
@@ -452,12 +453,7 @@ public final class EJBClientContext extends Attachable implements Contextual<EJB
             }
         }
         final URI uri = serviceURL.getLocationURI();
-        final EJBReceiver receiver = getTransportProvider(uri.getScheme());
-        if (receiver != null) {
-            return locatedAction.execute(receiver, locator, Affinity.forUri(uri));
-        } else {
-            throw Logs.MAIN.noEJBReceiverAvailable(locator);
-        }
+        return locatedAction.execute(receiver, locator, Affinity.forUri(uri));
     }
 
     EJBClientInterceptor[] getInterceptors() {
