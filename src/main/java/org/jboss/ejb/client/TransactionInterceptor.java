@@ -66,6 +66,8 @@ public final class TransactionInterceptor implements EJBClientInterceptor {
             } finally {
                 transactionManager.resume(transaction);
             }
+        } else {
+            context.sendRequest();
         }
     }
 
