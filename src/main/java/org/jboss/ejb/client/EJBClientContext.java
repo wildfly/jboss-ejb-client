@@ -104,7 +104,7 @@ public final class EJBClientContext extends Attachable implements Contextual<EJB
         if (builderInterceptors == null || builderInterceptors.isEmpty()) {
             interceptors = NO_INTERCEPTORS;
         } else {
-            interceptors = builderInterceptors.toArray(new EJBClientInterceptor[builderInterceptors.size()]);
+            interceptors = builderInterceptors.toArray(NO_INTERCEPTORS);
         }
         final List<EJBTransportProvider> builderTransportProviders = builder.transportProviders;
         if (builderTransportProviders == null || builderTransportProviders.isEmpty()) {
@@ -251,6 +251,8 @@ public final class EJBClientContext extends Attachable implements Contextual<EJB
          * Construct a new instance.
          */
         public Builder() {
+            interceptors = new ArrayList<>();
+            interceptors.add(new TransactionInterceptor());
         }
 
         Builder(final EJBClientContext ejbClientContext) {
