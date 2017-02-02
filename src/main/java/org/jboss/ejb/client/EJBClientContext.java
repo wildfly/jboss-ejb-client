@@ -112,7 +112,7 @@ public final class EJBClientContext extends Attachable implements Contextual<EJB
         } else {
             transportProviders = builderTransportProviders.toArray(new EJBTransportProvider[builderTransportProviders.size()]);
         }
-        invocationTimeout = 0;
+        invocationTimeout = builder.invocationTimeout;
         receiverContext = new EJBReceiverContext(this);
         final List<EJBClientConnection> clientConnections = builder.clientConnections;
         if (clientConnections == null || clientConnections.isEmpty()) {
@@ -246,6 +246,7 @@ public final class EJBClientContext extends Attachable implements Contextual<EJB
         List<EJBClientInterceptor> interceptors;
         List<EJBTransportProvider> transportProviders;
         List<EJBClientConnection> clientConnections;
+        long invocationTimeout;
 
         /**
          * Construct a new instance.
@@ -289,6 +290,10 @@ public final class EJBClientContext extends Attachable implements Contextual<EJB
                 clientConnections = new ArrayList<>();
             }
             clientConnections.add(connection);
+        }
+
+        public void setInvocationTimeout(final long invocationTimeout) {
+            this.invocationTimeout = invocationTimeout;
         }
 
         public EJBClientContext build() {
