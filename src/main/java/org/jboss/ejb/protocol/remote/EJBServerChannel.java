@@ -52,6 +52,7 @@ import javax.transaction.xa.Xid;
 import org.jboss.ejb._private.Logs;
 import org.jboss.ejb.client.Affinity;
 import org.jboss.ejb.client.AttachmentKeys;
+import org.jboss.ejb.client.EJBClient;
 import org.jboss.ejb.client.EJBClientInvocationContext;
 import org.jboss.ejb.client.EJBIdentifier;
 import org.jboss.ejb.client.EJBLocator;
@@ -811,6 +812,13 @@ final class EJBServerChannel {
                     }
 
                     public void writeInvocationResult(final Object result) {
+                        //TODO: this kinda sucks, because it does not work if the EJB is embedded in some other object
+                        if(EJBClient.isEJBProxy(result)) {
+                            EJBLocator<?> ejbLocator = EJBClient.getLocatorFor(result);
+                            if(ejbLocator.getAffinity() == Affinity.LOCAL) {
+                                EJBClient.compareAndSetStrongAffinity(result, Affinity.LOCAL, locator.getAffinity());
+                            }
+                        }
                         try (MessageOutputStream os = messageTracker.openMessageUninterruptibly()) {
                             os.writeByte(finalResponseCompressLevel > 0 ? Protocol.COMPRESSED_INVOCATION_MESSAGE : Protocol.INVOCATION_RESPONSE);
                             os.writeShort(invId);
