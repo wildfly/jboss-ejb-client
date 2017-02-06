@@ -147,7 +147,7 @@ public interface Logs extends BasicLogger {
 
     // @Message(id = 23, value = "EJB client interceptor %s is already registered")
 
-    @Message(id = 24, value = "No EJB receiver available for \"%s\"")
+    @Message(id = 24, value = "Not able to find EJB matching \"%s\"")
     IllegalStateException noEJBReceiverAvailable(final EJBLocator<?> locator);
 
     // @Message(id = 25, value = "No EJB receiver available for handling %s")
