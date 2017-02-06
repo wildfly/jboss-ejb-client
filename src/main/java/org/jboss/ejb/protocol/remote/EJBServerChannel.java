@@ -40,7 +40,6 @@ import java.util.zip.Deflater;
 import java.util.zip.DeflaterOutputStream;
 import java.util.zip.InflaterInputStream;
 
-import javax.ejb.EJBException;
 import javax.transaction.HeuristicMixedException;
 import javax.transaction.HeuristicRollbackException;
 import javax.transaction.RollbackException;
@@ -892,11 +891,7 @@ final class EJBServerChannel {
 
         public void writeException(@NotNull final Exception exception) {
             Assert.checkNotNullParam("exception", exception);
-            if (exception instanceof CancellationException && version >= 3) {
-                writeCancellation();
-            } else {
-                writeFailure(exception);
-            }
+            writeFailure(exception);
         }
 
         public EJBMethodLocator getMethodLocator() {
