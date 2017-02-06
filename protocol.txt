@@ -254,7 +254,9 @@ Invocation failure messages follow various formats.
     │ Invocation ID │  Fixed length, two bytes
     ├ ─ ─ ─ ─ ─ ─ ─ ┤
     │               │
-    ├───────────────┤
+    └───────┬───────┴───────┐
+            │  Enlistment   │ V3+: 0 = Forget tx enlistment, 1 = commit enlistment, 2 = not master, 3 = unknown
+    ┌───────┴───────┬───────┘
     │    Result     │  Variable length marshalled Throwable
     ┊     Data      ┊
     │               │

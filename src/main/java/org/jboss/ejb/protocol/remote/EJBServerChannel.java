@@ -34,7 +34,6 @@ import java.net.SocketAddress;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.CancellationException;
 import java.util.concurrent.Executor;
 import java.util.zip.Deflater;
 import java.util.zip.DeflaterOutputStream;
@@ -588,10 +587,13 @@ final class EJBServerChannel {
             return providerInterfaceType.isInstance(connection) ? providerInterfaceType.cast(connection) : null;
         }
 
+        abstract int getEnlistmentStatus();
+
         protected void writeFailure(Exception reason) {
             try (MessageOutputStream os = messageTracker.openMessageUninterruptibly()) {
                 os.writeByte(Protocol.APPLICATION_EXCEPTION);
                 os.writeShort(invId);
+                if (version >= 3) os.writeByte(getEnlistmentStatus());
                 final Marshaller marshaller = marshallerFactory.createMarshaller(configuration);
                 marshaller.start(Marshalling.createByteOutput(os));
                 marshaller.writeObject(reason);
@@ -641,6 +643,10 @@ final class EJBServerChannel {
                 txnCmd = 2;
             }
             return importResult.getTransaction();
+        }
+
+        int getEnlistmentStatus() {
+            return txnCmd;
         }
 
         public void writeException(@NotNull final Exception exception) {
@@ -887,6 +893,10 @@ final class EJBServerChannel {
             } finally {
                 invocations.removeKey(invId);
             }
+        }
+
+        int getEnlistmentStatus() {
+            return txnCmd;
         }
 
         public void writeException(@NotNull final Exception exception) {

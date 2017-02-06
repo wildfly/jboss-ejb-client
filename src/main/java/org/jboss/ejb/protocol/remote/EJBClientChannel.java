@@ -829,6 +829,23 @@ class EJBClientChannel {
                         return statelessLocator.withSessionAndAffinity(SessionID.createSessionID(bytes), affinity);
                     }
                     case Protocol.APPLICATION_EXCEPTION: {
+                        if (version >= 3) {
+                            final int cmd = response.readUnsignedByte();
+                            final XAOutflowHandle outflowHandle = getOutflowHandle();
+                            if (outflowHandle != null) {
+                                if (cmd == 0) {
+                                    outflowHandle.forgetEnlistment();
+                                } else if (cmd == 1) {
+                                    try {
+                                        outflowHandle.verifyEnlistment();
+                                    } catch (RollbackException | SystemException e1) {
+                                        throw new EJBException(e1);
+                                    }
+                                } else if (cmd == 2) {
+                                    outflowHandle.nonMasterEnlistment();
+                                }
+                            }
+                        }
                         try (final Unmarshaller unmarshaller = createUnmarshaller()) {
                             unmarshaller.start(response);
                             e = unmarshaller.readObject(Exception.class);
@@ -1173,20 +1190,38 @@ class EJBClientChannel {
             }
 
             public Object getResult() throws Exception {
-                final ResponseMessageInputStream response = new ResponseMessageInputStream(inputStream, id);
                 Exception e;
-                try (final Unmarshaller unmarshaller = createUnmarshaller()) {
-                    unmarshaller.start(response);
-                    e = unmarshaller.readObject(Exception.class);
-                    if (version < 3) {
-                        // discard attachment data, if any
-                        int attachments = unmarshaller.readUnsignedByte();
-                        for (int i = 0; i < attachments; i ++) {
-                            unmarshaller.readObject();
-                            unmarshaller.readObject();
+                try (final ResponseMessageInputStream response = new ResponseMessageInputStream(inputStream, id)) {
+                    if (version >= 3) {
+                        final int cmd = response.readUnsignedByte();
+                        final XAOutflowHandle outflowHandle = getOutflowHandle();
+                        if (outflowHandle != null) {
+                            if (cmd == 0) {
+                                outflowHandle.forgetEnlistment();
+                            } else if (cmd == 1) {
+                                try {
+                                    outflowHandle.verifyEnlistment();
+                                } catch (RollbackException | SystemException e1) {
+                                    throw new EJBException(e1);
+                                }
+                            } else if (cmd == 2) {
+                                outflowHandle.nonMasterEnlistment();
+                            }
                         }
                     }
-                    unmarshaller.finish();
+                    try (final Unmarshaller unmarshaller = createUnmarshaller()) {
+                        unmarshaller.start(response);
+                        e = unmarshaller.readObject(Exception.class);
+                        if (version < 3) {
+                            // discard attachment data, if any
+                            int attachments = unmarshaller.readUnsignedByte();
+                            for (int i = 0; i < attachments; i ++) {
+                                unmarshaller.readObject();
+                                unmarshaller.readObject();
+                            }
+                        }
+                        unmarshaller.finish();
+                    }
                 } catch (IOException | ClassNotFoundException ex) {
                     throw new EJBException("Failed to read response", ex);
                 }
