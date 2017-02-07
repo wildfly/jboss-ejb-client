@@ -643,6 +643,10 @@ class EJBClientChannel {
             return false;
         }
         final MethodInvocation invocation = receiverContext.getClientInvocationContext().getAttachment(INV_KEY);
+        if (invocation == null) {
+            // lost it somehow
+            return false;
+        }
         if (invocation.alloc()) try {
             final int index = invocation.getIndex();
             try (MessageOutputStream out = invocationTracker.allocateMessage()) {

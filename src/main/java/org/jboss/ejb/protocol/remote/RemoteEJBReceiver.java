@@ -29,6 +29,7 @@ import java.net.URI;
 import javax.ejb.CreateException;
 
 import org.jboss.ejb.client.Affinity;
+import org.jboss.ejb.client.AttachmentKey;
 import org.jboss.ejb.client.EJBClientInvocationContext;
 import org.jboss.ejb.client.EJBLocator;
 import org.jboss.ejb.client.EJBReceiver;
@@ -51,6 +52,8 @@ import org.xnio.OptionMap;
  * @author <a href="mailto:david.lloyd@redhat.com">David M. Lloyd</a>
  */
 class RemoteEJBReceiver extends EJBReceiver {
+    static final AttachmentKey<EJBClientChannel> EJBCC_KEY = new AttachmentKey<>();
+
     private final RemoteTransportProvider remoteTransportProvider;
     private final EJBReceiverContext receiverContext;
 
@@ -71,6 +74,7 @@ class RemoteEJBReceiver extends EJBReceiver {
                 attachment.resultReady(new EJBReceiverInvocationContext.ResultProducer.Failed(new RequestSendFailedException(e)));
                 return;
             }
+            attachment.getClientInvocationContext().putAttachment(EJBCC_KEY, ejbClientChannel);
             ejbClientChannel.processInvocation(attachment);
         }
 
@@ -114,10 +118,8 @@ class RemoteEJBReceiver extends EJBReceiver {
         final EJBClientInvocationContext clientInvocationContext = receiverContext.getClientInvocationContext();
         final EJBLocator<?> locator = clientInvocationContext.getLocator();
         try {
-            final IoFuture<Connection> futureConnection = getConnection(locator, namingProvider);
-            final Connection connection = futureConnection.get();
-            final EJBClientChannel channel = getClientChannel(connection);
-            return channel.cancelInvocation(receiverContext, cancelIfRunning);
+            final EJBClientChannel channel = receiverContext.getClientInvocationContext().getAttachment(EJBCC_KEY);
+            return channel != null && channel.cancelInvocation(receiverContext, cancelIfRunning);
         } catch (Exception e) {
             return false;
         }
