@@ -100,7 +100,6 @@ final class ProtocolV3ObjectTable implements ObjectTable {
         final Object[] simpleObjects = {
             TransactionID.PRIVATE_DATA_KEY,
             Affinity.NONE,
-            Affinity.LOCAL,
             Affinity.WEAK_AFFINITY_CONTEXT_KEY,
             EJBClientInvocationContext.PRIVATE_ATTACHMENTS_KEY,
             AttachmentKeys.TRANSACTION_ID_KEY,
