@@ -347,7 +347,7 @@ final class EJBServerChannel {
         }
 
         void handleCancelRequest(final int invId, final MessageInputStream message) throws IOException {
-            final boolean cancelIfRunning = version >= 3 && message.readBoolean();
+            final boolean cancelIfRunning = version < 3 || message.readBoolean();
             final InProgress inProgress = invocations.get(invId);
             if (inProgress != null) {
                 inProgress.getCancelHandle().cancel(cancelIfRunning);
