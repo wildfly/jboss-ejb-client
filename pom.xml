@@ -51,7 +51,7 @@
         <version.org.kohsuke.metainf-services>1.7</version.org.kohsuke.metainf-services>
         <version.org.wildfly.common>1.2.0.Beta5</version.org.wildfly.common>
         <version.org.wildfly.naming.client>1.0.0.Beta8</version.org.wildfly.naming.client>
-        <version.org.wildfly.discovery>1.0.0.Beta5</version.org.wildfly.discovery>
+        <version.org.wildfly.discovery>1.0.0.Beta7</version.org.wildfly.discovery>
         <version.org.wildfly.security.elytron>1.1.0.Beta17</version.org.wildfly.security.elytron>
         <version.org.wildfly.transaction-client>1.0.0.Beta9</version.org.wildfly.transaction-client>
 
