@@ -21,6 +21,7 @@ package org.jboss.ejb.protocol.remote;
 import org.jboss.ejb.client.AbstractEJBMetaData;
 import org.jboss.ejb.client.Affinity;
 import org.jboss.ejb.client.EJBMetaDataImpl;
+import org.jboss.ejb.client.NodeAffinity;
 import org.jboss.ejb.client.URIAffinity;
 import org.jboss.marshalling.ObjectResolver;
 
@@ -28,21 +29,28 @@ import org.jboss.marshalling.ObjectResolver;
  * @author <a href="mailto:david.lloyd@redhat.com">David M. Lloyd</a>
  */
 final class ProtocolV1ObjectResolver implements ObjectResolver {
-    static final ProtocolV1ObjectResolver INSTANCE = new ProtocolV1ObjectResolver();
+    private final NodeAffinity nodeAffinity;
 
-    private ProtocolV1ObjectResolver() {
+    ProtocolV1ObjectResolver(final String nodeName) {
+        nodeAffinity = new NodeAffinity(nodeName);
     }
 
     public Object readResolve(final Object replacement) {
         if (replacement instanceof EJBMetaDataImpl) {
             return ((EJBMetaDataImpl) replacement).toAbstractEJBMetaData();
+        } else if ((replacement instanceof NodeAffinity) && replacement.equals(nodeAffinity)) {
+            // Swap a node affinity with the name of this node with a local affinity
+            return Affinity.LOCAL;
         }
         return replacement;
     }
 
     public Object writeReplace(final Object original) {
-        if (original instanceof URIAffinity || original == Affinity.LOCAL) {
+        if (original instanceof URIAffinity) {
             return Affinity.NONE;
+        } else if (original == Affinity.LOCAL) {
+            // Swap a local affinity with a node affinity with the name of this node
+            return nodeAffinity;
         } else if (original instanceof AbstractEJBMetaData) {
             return new EJBMetaDataImpl((AbstractEJBMetaData<?, ?>) original);
         }
