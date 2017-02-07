@@ -144,10 +144,11 @@ class EJBClientChannel {
         if (version < 3) {
             configuration.setClassTable(ProtocolV1ClassTable.INSTANCE);
             configuration.setObjectTable(ProtocolV1ObjectTable.INSTANCE);
-            configuration.setObjectResolver(ProtocolV1ObjectResolver.INSTANCE);
+            configuration.setObjectResolver(new ProtocolV1ObjectResolver(channel.getConnection().getEndpoint().getName()));
             configuration.setVersion(2);
         } else {
             configuration.setObjectTable(ProtocolV3ObjectTable.INSTANCE);
+            configuration.setObjectResolver(new ProtocolV3ObjectResolver(channel.getConnection().getPeerURI()));
             configuration.setVersion(4);
             // server does not present v3 unless the transaction service is also present
         }
