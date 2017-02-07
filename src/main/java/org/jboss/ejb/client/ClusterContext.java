@@ -411,6 +411,7 @@ public final class ClusterContext implements EJBClientContext.EJBReceiverContext
      *
      * @param receiver The EJB receiver for that node
      */
+    @Deprecated // make non-public
     public void unregisterEJBReceiver(final EJBReceiver receiver) {
         if (receiver == null) {
             throw Logs.MAIN.paramCannotBeNull("EJB receiver");
