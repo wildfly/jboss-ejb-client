@@ -675,9 +675,7 @@ class EJBClientChannel {
             out.writeShort(invocation.getIndex());
             writeRawIdentifier(statelessLocator, out);
             if (version >= 3) {
-                //TODO Elytron
-                final int peerIdentityId = 0; //channel.getConnection().getPeerIdentityId();
-                out.writeInt(peerIdentityId);
+                out.writeInt(channel.getConnection().getPeerIdentityId());
                 writeTransaction(ContextTransactionManager.getInstance().getTransaction(), out);
             }
         } catch (IOException e) {
