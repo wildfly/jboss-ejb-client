@@ -27,6 +27,7 @@ import java.io.InvalidObjectException;
 import java.rmi.RemoteException;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.IdentityHashMap;
 import java.util.Map;
 import java.util.concurrent.Future;
 
@@ -92,6 +93,7 @@ final class ProtocolV3ObjectTable implements ObjectTable {
     static final ProtocolV3ObjectTable INSTANCE = new ProtocolV3ObjectTable();
 
     private static final Map<Object, AbstractWritingExternalizer> objectWriters;
+    private static final Map<Object, AbstractWritingExternalizer> stringWriters;
     private static final Map<Class<?>, AbstractWritingExternalizer> classWriters;
 
     private static final AbstractWritingExternalizer[] extById;
@@ -181,23 +183,37 @@ final class ProtocolV3ObjectTable implements ObjectTable {
             "ejbStore",
         };
         final AbstractWritingExternalizer[] extByIdTmp = new AbstractWritingExternalizer[simpleObjects.length];
-        final Map<Object, AbstractWritingExternalizer> objMap = new HashMap<>();
+        final Map<Object, AbstractWritingExternalizer> objMap = new IdentityHashMap<>();
+        final Map<Object, AbstractWritingExternalizer> stringMap = new HashMap<>();
         for (int i = 0, simpleObjectsLength = simpleObjects.length; i < simpleObjectsLength; i++) {
             ByteExternalizer ext = new ByteExternalizer(simpleObjects[i], i);
             extByIdTmp[i] = ext;
-            objMap.put(ext.getObject(), ext);
+            if(ext.getObject() instanceof String) {
+                stringMap.put(ext.getObject(), ext);
+            } else {
+                objMap.put(ext.getObject(), ext);
+            }
         }
         // TODO: add class-based ext for LocalTransaction
         // TODO: add class-based ext for RemoteTransaction
         // TODO: add class-based ext for InputStream
         // TODO: add class-based ext for OutputStream
         extById = extByIdTmp;
+        //we have a separate map for string objects, as we don't want to call hashCode on arbitrary objects
+        //There are tests we need to pass that involve serializing a Vector that contains itself, which will
+        //fail if we call hashCode
         objectWriters = objMap;
+        stringWriters = stringMap;
         classWriters = Collections.emptyMap();
     }
 
     public Writer getObjectWriter(final Object object) throws IOException {
-        Writer writer = objectWriters.get(object);
+        Writer writer;
+        if(object instanceof String) {
+            writer = stringWriters.get(object);
+        } else {
+            writer = objectWriters.get(object);
+        }
         if (writer == null) {
             writer = classWriters.get(object.getClass());
         }
