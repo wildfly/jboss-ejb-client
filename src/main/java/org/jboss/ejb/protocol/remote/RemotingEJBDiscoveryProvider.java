@@ -18,8 +18,11 @@
 
 package org.jboss.ejb.protocol.remote;
 
+import static java.security.AccessController.doPrivileged;
+
 import java.io.IOException;
 import java.net.URI;
+import java.security.PrivilegedAction;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -74,7 +77,7 @@ final class RemotingEJBDiscoveryProvider implements DiscoveryProvider {
             if (scheme == null || ! ejbReceiver.getRemoteTransportProvider().supportsProtocol(scheme) || ! endpoint.isValidUriScheme(scheme)) {
                 continue;
             }
-            final IoFuture<Connection> future = endpoint.getConnection(uri);
+            final IoFuture<Connection> future = doPrivileged((PrivilegedAction<IoFuture<Connection>>) () -> endpoint.getConnection(uri));
             cancellers.add(future::cancel);
             future.addNotifier(new IoFuture.HandlingNotifier<Connection, DiscoveryResult>() {
                 public void handleCancelled(final DiscoveryResult discoveryResult) {

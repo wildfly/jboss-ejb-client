@@ -22,9 +22,12 @@
 
 package org.jboss.ejb.protocol.remote;
 
+import static java.security.AccessController.doPrivileged;
+
 import java.io.IOException;
 import java.io.InterruptedIOException;
 import java.net.URI;
+import java.security.PrivilegedAction;
 
 import javax.ejb.CreateException;
 
@@ -152,6 +155,6 @@ class RemoteEJBReceiver extends EJBReceiver {
         } else {
             throw new IllegalArgumentException("Invalid EJB affinity");
         }
-        return Endpoint.getCurrent().getConnection(target);
+        return doPrivileged((PrivilegedAction<IoFuture<Connection>>) () -> Endpoint.getCurrent().getConnection(target));
     }
 }
