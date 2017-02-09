@@ -44,11 +44,9 @@ import org.wildfly.transaction.client.spi.SimpleTransactionControl;
 class EJBSimpleTransactionControl implements SimpleTransactionControl {
     private final EJBClientChannel channel;
     private final TransactionID transactionID;
-    private final int timeout;
 
-    EJBSimpleTransactionControl(final EJBClientChannel channel, final int timeout) {
+    EJBSimpleTransactionControl(final EJBClientChannel channel) {
         this.channel = channel;
-        this.timeout = timeout;
         this.transactionID = channel.allocateUserTransactionID();
     }
 
