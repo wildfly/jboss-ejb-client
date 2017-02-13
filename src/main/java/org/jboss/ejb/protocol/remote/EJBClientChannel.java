@@ -351,7 +351,7 @@ class EJBClientChannel {
                                 builder.addAttribute(EJBClientContext.FILTER_ATTR_CLUSTER, clusterValue);
                                 if (netmaskBits != 0) {
                                     // do not match all
-                                    builder.addAttribute(EJBClientContext.FILTER_ATTR_SOURCE_IP, AttributeValue.fromString("[" + InetAddress.getByAddress(sourceIpBytes).getHostAddress() + "]/" + netmaskBits));
+                                    builder.addAttribute(EJBClientContext.FILTER_ATTR_SOURCE_IP, AttributeValue.fromString(InetAddress.getByAddress(sourceIpBytes).getHostAddress() + "/" + netmaskBits));
                                 }
 
                                 try {

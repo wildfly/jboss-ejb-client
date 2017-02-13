@@ -23,6 +23,7 @@
 package org.jboss.ejb._private;
 
 import org.jboss.ejb.client.Affinity;
+import org.jboss.ejb.client.DiscoveredURISelector;
 import org.jboss.ejb.client.EJBClientInvocationContext;
 import org.jboss.ejb.client.EJBIdentifier;
 import org.jboss.ejb.client.EJBLocator;
@@ -302,6 +303,9 @@ public interface Logs extends BasicLogger {
 
     @Message(id = 73, value = "Failed to construct Remoting endpoint")
     IllegalStateException failedToConstructEndpoint(@Cause IOException e);
+
+    @Message(id = 74, value = "Configured selector \"%s\" returned null")
+    IllegalStateException selectorReturnedNull(Object selector);
 
     // Proxy API errors
 

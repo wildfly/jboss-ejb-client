@@ -84,4 +84,15 @@ public abstract class EJBReceiver extends Attachable {
     protected SocketAddress getSourceAddress(final URI uri) {
         return null;
     }
+
+    /**
+     * Determine if the given target URI is "connected".  Connectionless or connect-per-request protocols can inherit
+     * the default, which always returns {@code true}.
+     *
+     * @param uri the supported URI of the peer (not {@code null})
+     * @return {@code true} if the peer is readily available, {@code false} otherwise
+     */
+    protected boolean isConnected(final URI uri) {
+        return true;
+    }
 }

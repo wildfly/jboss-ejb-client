@@ -28,11 +28,16 @@ import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
 import java.net.URI;
+import java.net.UnknownHostException;
 import java.security.PrivilegedAction;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import java.util.function.Supplier;
 
 import org.jboss.ejb._private.Logs;
@@ -67,6 +72,7 @@ public final class EJBClientContext extends Attachable implements Contextual<EJB
 
     private static final EJBClientInterceptor[] NO_INTERCEPTORS = new EJBClientInterceptor[0];
     private static final EJBTransportProvider[] NO_TRANSPORT_PROVIDERS = new EJBTransportProvider[0];
+    private static final String[] NO_STRINGS = new String[0];
 
     /**
      * The discovery attribute name which contains the application and module name of the located EJB.
@@ -98,6 +104,8 @@ public final class EJBClientContext extends Attachable implements Contextual<EJB
     private final long invocationTimeout;
     private final EJBReceiverContext receiverContext;
     private final List<EJBClientConnection> configuredConnections;
+    private final Map<String, EJBClientCluster> configuredClusters;
+    private final ClusterNodeSelector clusterNodeSelector;
 
     EJBClientContext(Builder builder) {
         final List<EJBClientInterceptor> builderInterceptors = builder.interceptors;
@@ -122,6 +130,20 @@ public final class EJBClientContext extends Attachable implements Contextual<EJB
         } else {
             configuredConnections = Collections.unmodifiableList(new ArrayList<>(clientConnections));
         }
+        final List<EJBClientCluster> clientClusters = builder.clientClusters;
+        if (clientClusters == null || clientClusters.isEmpty()) {
+            configuredClusters = Collections.emptyMap();
+        } else if (clientClusters.size() == 1) {
+            final EJBClientCluster clientCluster = clientClusters.get(0);
+            configuredClusters = Collections.singletonMap(clientCluster.getName(), clientCluster);
+        } else {
+            Map<String, EJBClientCluster> map = new HashMap<>();
+            for (EJBClientCluster clientCluster : clientClusters) {
+                map.put(clientCluster.getName(), clientCluster);
+            }
+            configuredClusters = Collections.unmodifiableMap(map);
+        }
+        clusterNodeSelector = builder.clusterNodeSelector;
         // this must be last
         for (EJBTransportProvider transportProvider : transportProviders) {
             transportProvider.notifyRegistered(receiverContext);
@@ -246,6 +268,8 @@ public final class EJBClientContext extends Attachable implements Contextual<EJB
         List<EJBClientInterceptor> interceptors;
         List<EJBTransportProvider> transportProviders;
         List<EJBClientConnection> clientConnections;
+        List<EJBClientCluster> clientClusters;
+        ClusterNodeSelector clusterNodeSelector = ClusterNodeSelector.DEFAULT;
         long invocationTimeout;
 
         /**
@@ -292,7 +316,21 @@ public final class EJBClientContext extends Attachable implements Contextual<EJB
             clientConnections.add(connection);
         }
 
+        public void addClientCluster(EJBClientCluster cluster) {
+            Assert.checkNotNullParam("cluster", cluster);
+            if (clientClusters == null) {
+                clientClusters = new ArrayList<>();
+            }
+            clientClusters.add(cluster);
+        }
+
+        public void setClusterNodeSelector(final ClusterNodeSelector clusterNodeSelector) {
+            Assert.checkNotNullParam("clusterNodeSelector", clusterNodeSelector);
+            this.clusterNodeSelector = clusterNodeSelector;
+        }
+
         public void setInvocationTimeout(final long invocationTimeout) {
+            Assert.checkMinimumParameter("invocationTimeout", 0L, invocationTimeout);
             this.invocationTimeout = invocationTimeout;
         }
 
@@ -337,16 +375,16 @@ public final class EJBClientContext extends Attachable implements Contextual<EJB
         final Affinity affinity = locator.getAffinity();
         final String scheme;
         if (affinity instanceof NodeAffinity) {
-            return discoverFirst(locator, locatedAction);
+            return discoverAffinityNode(locator, (NodeAffinity) affinity, locatedAction);
         } else if (affinity instanceof ClusterAffinity) {
-            return discoverFirst(locator, locatedAction);
+            return discoverAffinityCluster(locator, (ClusterAffinity) affinity, locatedAction);
         } else if (affinity == Affinity.LOCAL) {
             scheme = "local";
         } else if (affinity instanceof URIAffinity) {
             scheme = affinity.getUri().getScheme();
         } else {
             assert affinity == Affinity.NONE;
-            return discoverFirst(locator, locatedAction);
+            return discoverAffinityNone(locator, locatedAction);
         }
         final EJBReceiver transportProvider = getTransportProvider(scheme);
         if (transportProvider == null) {
@@ -356,128 +394,333 @@ public final class EJBClientContext extends Attachable implements Contextual<EJB
         }
     }
 
-    <R, L extends EJBLocator<T>, T> R discoverFirst(L locator, final LocatedAction<R, L, T> locatedAction) throws Exception {
-        final FilterSpec filterSpec;
-        final Affinity affinity = locator.getAffinity();
-        if (affinity == Affinity.NONE) {
-            final String appName = locator.getAppName();
-            final String moduleName = locator.getModuleName();
-            final String beanName = locator.getBeanName();
-            final String distinctName = locator.getDistinctName();
-            if (distinctName != null && ! distinctName.isEmpty()) {
-                if (appName.isEmpty()) {
-                    filterSpec = FilterSpec.equal(FILTER_ATTR_EJB_MODULE_DISTINCT, moduleName + '/' + distinctName);
-                } else {
-                    filterSpec = FilterSpec.equal(FILTER_ATTR_EJB_MODULE_DISTINCT, appName + '/' + moduleName + '/' + distinctName);
-                }
-            } else {
-                if (appName.isEmpty()) {
-                    filterSpec = FilterSpec.equal(FILTER_ATTR_EJB_MODULE, moduleName);
-                } else {
-                    filterSpec = FilterSpec.equal(FILTER_ATTR_EJB_MODULE, appName + '/' + moduleName);
-                }
-            }
-        } else if (affinity instanceof NodeAffinity) {
-            filterSpec = FilterSpec.equal(FILTER_ATTR_NODE, ((NodeAffinity) affinity).getNodeName());
-        } else if (affinity instanceof ClusterAffinity) {
-            filterSpec = FilterSpec.equal(FILTER_ATTR_CLUSTER, ((ClusterAffinity) affinity).getClusterName());
-        } else {
-            return performLocatedAction(locator, locatedAction);
-        }
+    <R, L extends EJBLocator<T>, T> R discoverAffinityNone(L locator, final LocatedAction<R, L, T> locatedAction) throws Exception {
+        assert locator.getAffinity() == Affinity.NONE;
 
-        ServiceURL serviceURL;
-        EJBReceiver receiver;
-        try (final ServicesQueue servicesQueue = discover(filterSpec)) {
-            for (;;) {
-                try {
-                    serviceURL = servicesQueue.takeService();
-                } catch (InterruptedException e) {
-                    Thread.currentThread().interrupt();
-                    throw Logs.MAIN.operationInterrupted();
-                }
+        try (final ServicesQueue servicesQueue = discover(getFilterSpec(locator.getIdentifier()))) {
+            ServiceURL serviceURL;
+            do {
+                serviceURL = servicesQueue.takeService();
                 if (serviceURL == null) {
                     throw Logs.MAIN.noEJBReceiverAvailable(locator);
                 }
-                // check that we support the URI scheme
-                final URI uri = serviceURL.getLocationURI();
-                receiver = getTransportProvider(uri.getScheme());
-                if (receiver == null) {
-                    // unsupported, skip it
-                    continue;
-                }
-                // check that we satisfy the service URL
-                final List<AttributeValue> values = serviceURL.getAttributeValues(FILTER_ATTR_SOURCE_IP);
-                boolean matches = values.isEmpty();
-                if (matches) {
-                    // we got one!
-                    break;
+            } while (! supports(serviceURL));
+            ServiceURL nextServiceURL;
+            do {
+                nextServiceURL = servicesQueue.takeService();
+            } while (nextServiceURL != null && ! supports(nextServiceURL));
+            if (nextServiceURL == null) {
+                // we only got one; optimal case
+                final Affinity affinity = Affinity.forUri(serviceURL.getLocationURI());
+                // recurse for one node if needed
+                if (affinity instanceof NodeAffinity) {
+                    return discoverAffinityNode(locator, (NodeAffinity) affinity, locatedAction);
+                } else if (affinity instanceof ClusterAffinity) {
+                    return discoverAffinityCluster(locator, (ClusterAffinity) affinity, locatedAction);
+                } else if (affinity == Affinity.LOCAL) {
+                    assert supports(serviceURL);
+                    return locatedAction.execute(getTransportProvider("local"), locator, affinity);
                 } else {
-                    SocketAddress sourceAddress = receiver.getSourceAddress(uri);
-                    InetAddress inetAddress;
-                    if (sourceAddress instanceof InetSocketAddress) {
-                        inetAddress = ((InetSocketAddress) sourceAddress).getAddress();
-                    } else {
-                        inetAddress = null;
+                    final EJBReceiver provider = getTransportProvider(affinity.getUri().getScheme());
+                    if (provider == null) {
+                        throw Logs.MAIN.noEJBReceiverAvailable(locator);
                     }
-                    int bestNetmask;
-                    for (AttributeValue value : values) try {
-                        if (! value.isString()) {
-                            continue;
-                        }
-                        final String string = value.toString();
-                        if (string.codePointAt(0) != '[') {
-                            continue;
-                        }
-                        int closeBrace = string.indexOf(']', 1);
-                        if (closeBrace == -1) {
-                            continue;
-                        }
-                        final InetAddress matchAddress = InetAddress.getByName(string.substring(1, closeBrace));
-                        if (string.codePointAt(closeBrace + 1) != '/') {
-                            continue;
-                        }
-                        final int mask = Integer.parseInt(string.substring(closeBrace + 2));
-
-                        // now do the test
-                        if (inetAddress == null) {
-                            if (mask == 0) {
-                                // it's zero, so we can just break out now because we have the only match we're gonna get
-                                break;
-                            }
-                            // else fall out because we have no source address to test
-                        } else if (NetworkUtil.belongsToNetwork(inetAddress, matchAddress, mask)) {
-                            // matched!
-                            break;
-                        }
-                    } catch (RuntimeException ignored) {
-                        // it's not a valid entry, so ignore it
+                    return locatedAction.execute(provider, locator, affinity);
+                }
+            }
+            // OK it's a multi-result situation, we could get any combination at this point
+            List<URI> uris = new ArrayList<>();
+            List<String> nodes = new ArrayList<>();
+            List<String> clusters = new ArrayList<>();
+            boolean[] local = new boolean[1];
+            classify(serviceURL, uris, nodes, clusters, local);
+            classify(nextServiceURL, uris, nodes, clusters, local);
+            if (local[0]) {
+                // shortcut for local invocation
+                return locatedAction.execute(getTransportProvider("local"), locator, Affinity.LOCAL);
+            }
+            serviceURL = servicesQueue.takeService();
+            while (serviceURL != null) {
+                if (supports(serviceURL)) {
+                    classify(serviceURL, uris, nodes, clusters, local);
+                }
+                if (local[0]) {
+                    // shortcut for local invocation
+                    return locatedAction.execute(getTransportProvider("local"), locator, Affinity.LOCAL);
+                }
+                serviceURL = servicesQueue.takeService();
+            }
+            // all classified now
+            if (! uris.isEmpty()) {
+                // always prefer a URI
+                final URI uri;
+                if (uris.size() == 1) {
+                    // just use the first one
+                    uri = uris.get(0);
+                } else {
+                    // TODO pull from config
+                    DiscoveredURISelector selector = DiscoveredURISelector.RANDOM;
+                    uri = selector.selectNode(uris, locator);
+                    if (uri == null) {
+                        throw Logs.MAIN.selectorReturnedNull(selector);
                     }
+                }
+                return locatedAction.execute(getTransportProvider(uri.getScheme()), locator, Affinity.forUri(uri));
+            }
+            if (! nodes.isEmpty()) {
+                // nodes are the next best thing
+                final String node;
+                if (nodes.size() == 1) {
+                    node = nodes.get(0);
+                } else {
+                    // TODO pull from config
+                    DeploymentNodeSelector selector = DeploymentNodeSelector.RANDOM;
+                    node = selector.selectNode(nodes.toArray(NO_STRINGS), locator.getAppName(), locator.getModuleName(), locator.getDistinctName());
+                    if (node == null) {
+                        throw Logs.MAIN.selectorReturnedNull(selector);
+                    }
+                }
+                return discoverAffinityNode(locator, new NodeAffinity(node), locatedAction);
+            }
+            assert ! clusters.isEmpty();
+            // last of all, find the first cluster and use it
+            return discoverAffinityCluster(locator, new ClusterAffinity(clusters.get(0)), locatedAction);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw Logs.MAIN.operationInterrupted();
+        }
+    }
 
-                    // try again
+    <R, L extends EJBLocator<T>, T> R discoverAffinityNode(final L locator, final NodeAffinity nodeAffinity, final LocatedAction<R, L, T> locatedAction) throws Exception {
+        // we just need to find a single location for this node; therefore, we'll exit at the first opportunity.
+        try (final ServicesQueue servicesQueue = discover(getFilterSpec(nodeAffinity))) {
+            // we don't recurse into node or cluster for this case; furthermore we always use the first answer.
+            ServiceURL serviceURL;
+            for (;;) {
+                // interruption is caught in the calling method
+                serviceURL = servicesQueue.takeService();
+                if (serviceURL == null) {
+                    throw Logs.MAIN.noEJBReceiverAvailable(locator);
+                }
+                final EJBReceiver receiver = getTransportProvider(serviceURL.getUriScheme());
+                if (receiver != null) {
+                    return locatedAction.execute(receiver, locator, Affinity.forUri(serviceURL.getLocationURI()));
                 }
             }
         }
-        final URI uri = serviceURL.getLocationURI();
-        return locatedAction.execute(receiver, locator, Affinity.forUri(uri));
+    }
+
+    private <R, L extends EJBLocator<T>, T> R discoverAffinityCluster(final L locator, final ClusterAffinity clusterAffinity, final LocatedAction<R, L, T> locatedAction) throws Exception {
+        final String clusterName = clusterAffinity.getClusterName();
+        final EJBClientCluster cluster = configuredClusters.get(clusterName);
+        final ClusterNodeSelector selector;
+        if (cluster != null) {
+            // we override a few things then
+            final ClusterNodeSelector configSelector = cluster.getClusterNodeSelector();
+            selector = configSelector == null ? clusterNodeSelector : configSelector;
+        } else {
+            selector = clusterNodeSelector;
+        }
+        // we expect multiple results
+        Set<URI> unresolvedUris = new HashSet<>();
+        Set<String> nodes = new HashSet<>();
+        try (final ServicesQueue servicesQueue = discover(getFilterSpec(clusterAffinity))) {
+            // interruption is caught in the calling method
+            ServiceURL serviceURL = servicesQueue.takeService();
+            while (serviceURL != null) {
+                final String scheme = serviceURL.getUriScheme();
+                switch (scheme) {
+                    case "node": {
+                        nodes.add(serviceURL.getLocationURI().getSchemeSpecificPart());
+                        break;
+                    }
+                    case "local": {
+                        // todo: special case
+                        break;
+                    }
+                    case "cluster": {
+                        // ignore cluster-in-cluster
+                        break;
+                    }
+                    default: {
+                        if (getTransportProvider(scheme) != null) {
+                            unresolvedUris.add(serviceURL.getLocationURI());
+                        }
+                        break;
+                    }
+                }
+                // interruption is caught in the calling method
+                serviceURL = servicesQueue.takeService();
+            }
+        }
+        if (nodes.isEmpty()) {
+            if (unresolvedUris.isEmpty()) {
+                throw Logs.MAIN.noEJBReceiverAvailable(locator);
+            } else {
+                // TODO: we should have a selector here too
+                final URI uri = unresolvedUris.iterator().next();
+                return locatedAction.execute(getTransportProvider(uri.getScheme()), locator, URIAffinity.forUri(uri));
+            }
+        } else if (nodes.size() == 1) {
+            return discoverAffinityNode(locator, new NodeAffinity(nodes.iterator().next()), locatedAction);
+        } else {
+            // find the subset of connected nodes
+            final Map<String, URI> all = new HashMap<>();
+            final Map<String, URI> connected = new HashMap<>();
+            searchingNodes: for (String nodeName : nodes) {
+                try (final ServicesQueue servicesQueue = discover(getNodeFilterSpec(nodeName))) {
+                    // interruption is caught in the calling method
+                    ServiceURL serviceURL = servicesQueue.takeService();
+                    while (serviceURL != null) {
+                        final String scheme = serviceURL.getUriScheme();
+                        switch (scheme) {
+                            case "node": {
+                                // ignore node-in-node
+                                break;
+                            }
+                            case "cluster": {
+                                // ignore cluster-in-node
+                                break;
+                            }
+                            default: {
+                                // this includes "local"
+                                final EJBReceiver transportProvider = getTransportProvider(scheme);
+                                if (transportProvider != null) {
+                                    // found a match, now see if it is "connected"
+                                    final URI locationURI = serviceURL.getLocationURI();
+                                    if (satisfiesSourceAddress(serviceURL, transportProvider)) {
+                                        if (transportProvider.isConnected(locationURI)) {
+                                            connected.put(nodeName, locationURI);
+                                        }
+                                        all.put(nodeName, locationURI);
+                                    }
+                                    continue searchingNodes;
+                                }
+                                break;
+                            }
+                        }
+                        // interruption is caught in the calling method
+                        serviceURL = servicesQueue.takeService();
+                    }
+                }
+            }
+
+            final String[] connectedArray = connected.keySet().toArray(NO_STRINGS);
+            final String[] nodeArray = all.keySet().toArray(NO_STRINGS);
+            final String node = selector.selectNode(clusterName, connectedArray, nodeArray);
+            if (node == null) {
+                throw Logs.MAIN.selectorReturnedNull(selector);
+            }
+            URI uri = all.get(node);
+            if (uri == null) {
+                throw Logs.MAIN.noEJBReceiverAvailable(locator);
+            }
+            return locatedAction.execute(getTransportProvider(uri.getScheme()), locator, Affinity.forUri(uri));
+        }
+    }
+
+    private boolean supports(final ServiceURL serviceURL) {
+        final String scheme = serviceURL.getLocationURI().getScheme();
+        return "node".equals(scheme) || "cluster".equals(scheme) || getTransportProvider(scheme) != null;
+    }
+
+    private void classify(final ServiceURL serviceURL, final List<URI> uris, final List<String> nodes, final List<String> clusters, final boolean[] local) {
+        final URI locationURI = serviceURL.getLocationURI();
+        final String scheme = locationURI.getScheme();
+        if ("node".equals(scheme)) {
+            nodes.add(locationURI.getSchemeSpecificPart());
+        } else if ("cluster".equals(scheme)) {
+            clusters.add(locationURI.getSchemeSpecificPart());
+        } else if ("local".equals(scheme)) {
+            local[0] = true;
+        } else {
+            uris.add(locationURI);
+        }
+    }
+
+
+    FilterSpec getFilterSpec(EJBIdentifier identifier) {
+        final String appName = identifier.getAppName();
+        final String moduleName = identifier.getModuleName();
+        final String distinctName = identifier.getDistinctName();
+        if (distinctName != null && ! distinctName.isEmpty()) {
+            if (appName.isEmpty()) {
+                return FilterSpec.equal(FILTER_ATTR_EJB_MODULE_DISTINCT, moduleName + '/' + distinctName);
+            } else {
+                return FilterSpec.equal(FILTER_ATTR_EJB_MODULE_DISTINCT, appName + '/' + moduleName + '/' + distinctName);
+            }
+        } else {
+            if (appName.isEmpty()) {
+                return FilterSpec.equal(FILTER_ATTR_EJB_MODULE, moduleName);
+            } else {
+                return FilterSpec.equal(FILTER_ATTR_EJB_MODULE, appName + '/' + moduleName);
+            }
+        }
+    }
+
+    FilterSpec getFilterSpec(NodeAffinity nodeAffinity) {
+        return getNodeFilterSpec(nodeAffinity.getNodeName());
+    }
+
+    FilterSpec getNodeFilterSpec(String nodeName) {
+        return FilterSpec.equal(FILTER_ATTR_NODE, nodeName);
+    }
+
+    FilterSpec getFilterSpec(ClusterAffinity clusterAffinity) {
+        return FilterSpec.equal(FILTER_ATTR_CLUSTER, clusterAffinity.getClusterName());
+    }
+
+    boolean satisfiesSourceAddress(ServiceURL serviceURL, EJBReceiver receiver) {
+        final List<AttributeValue> values = serviceURL.getAttributeValues(FILTER_ATTR_SOURCE_IP);
+        // treat as match
+        if (values.isEmpty()) return true;
+        SocketAddress sourceAddress = receiver.getSourceAddress(serviceURL.getLocationURI());
+        InetAddress inetAddress;
+        if (sourceAddress instanceof InetSocketAddress) {
+            inetAddress = ((InetSocketAddress) sourceAddress).getAddress();
+        } else {
+            inetAddress = null;
+        }
+        for (AttributeValue value : values) {
+            if (! value.isString()) {
+                continue;
+            }
+            final String string = value.toString();
+            int slash = string.indexOf('/');
+            if (slash == -1) {
+                continue;
+            }
+            final InetAddress matchAddress;
+            try {
+                matchAddress = InetAddress.getByName(string.substring(0, slash));
+            } catch (UnknownHostException e) {
+                // the attribute isn't actually valid
+                continue;
+            }
+            final int mask;
+            try {
+                mask = Integer.parseInt(string.substring(slash + 1));
+            } catch (NumberFormatException e) {
+                // the attribute isn't actually valid
+                continue;
+            }
+
+            // now do the test
+            if (inetAddress == null) {
+                if (mask == 0) {
+                    // it's zero, so we can just break out now because we have the only match we're gonna get
+                    break;
+                }
+                // else fall out because we have no source address to test
+            } else if (NetworkUtil.belongsToNetwork(inetAddress, matchAddress, mask)) {
+                // matched!
+                return true;
+            }
+        }
+        return false;
     }
 
     EJBClientInterceptor[] getInterceptors() {
         return interceptors;
-    }
-
-    private static int getInt(byte[] b, int offs) {
-        return (b[offs] & 0xff) << 24 | (b[offs + 1] & 0xff) << 16 | (b[offs + 2] & 0xff) << 8 | b[offs + 3] & 0xff;
-    }
-
-    private static long getLong(byte[] b, int offs) {
-        return (getInt(b, offs) & 0xFFFFFFFFL) << 32 | getInt(b, offs + 4) & 0xFFFFFFFFL;
-    }
-
-    private static int nwsl(int arg, int places) {
-        return places <= 0 ? arg : places >= 32 ? 0 : arg << places;
-    }
-
-    private static long nwsl(long arg, int places) {
-        return places <= 0 ? arg : places >= 64 ? 0L : arg << places;
     }
 }

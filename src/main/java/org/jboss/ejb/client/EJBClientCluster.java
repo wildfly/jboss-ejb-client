@@ -1,0 +1,141 @@
+/*
+ * JBoss, Home of Professional Open Source.
+ * Copyright 2017 Red Hat, Inc., and individual contributors
+ * as indicated by the @author tags.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package org.jboss.ejb.client;
+
+import java.net.URI;
+
+import org.wildfly.common.Assert;
+import org.wildfly.security.auth.client.AuthenticationConfiguration;
+
+/**
+ * Information about a configured cluster on an EJB client context.
+ *
+ * @author <a href="mailto:david.lloyd@redhat.com">David M. Lloyd</a>
+ */
+public final class EJBClientCluster {
+    private final String name;
+    private final int maximumConnectedNodes;
+    private final long connectTimeoutMilliseconds;
+    private final ClusterNodeSelector clusterNodeSelector;
+    private final AuthenticationConfiguration overrideConfiguration;
+
+    EJBClientCluster(final Builder builder) {
+        name = builder.name;
+        maximumConnectedNodes = builder.maximumConnectedNodes;
+        connectTimeoutMilliseconds = builder.connectTimeoutMilliseconds;
+        clusterNodeSelector = builder.clusterNodeSelector;
+        overrideConfiguration = builder.overrideConfiguration;
+    }
+
+    /**
+     * Get the name of the configured cluster.
+     *
+     * @return the name of the configured cluster (not {@code null})
+     */
+    public String getName() {
+        return name;
+    }
+
+    /**
+     * Get the maximum number of nodes to connect.
+     *
+     * @return the maximum number of nodes to connect, or 0 for no limit
+     */
+    public int getMaximumConnectedNodes() {
+        return maximumConnectedNodes;
+    }
+
+    /**
+     * Get the connection timeout value in milliseconds.  This value overrides any preconfigured values.
+     *
+     * @return the connection timeout (in milliseconds), 0 for no timeout, or -1 to use the context default
+     */
+    public long getConnectTimeoutMilliseconds() {
+        return connectTimeoutMilliseconds;
+    }
+
+    /**
+     * Get the cluster node selector to use.
+     *
+     * @return the cluster node selector, or {@code null} if the default selector from the context should be used
+     */
+    public ClusterNodeSelector getClusterNodeSelector() {
+        return clusterNodeSelector;
+    }
+
+    /**
+     * Get the overriding authentication configuration in use for nodes in this cluster, overriding the caller's default.
+     *
+     * @return the authentication configuration to use or {@code null} to use the standard inherited authentication configuration
+     */
+    public AuthenticationConfiguration getOverrideConfiguration() {
+        return overrideConfiguration;
+    }
+
+    /**
+     * A builder for a cluster definition.
+     */
+    public static final class Builder {
+
+        private String name;
+        private int maximumConnectedNodes = 0;
+        private long connectTimeoutMilliseconds = -1L;
+        private ClusterNodeSelector clusterNodeSelector;
+        private AuthenticationConfiguration overrideConfiguration;
+
+        /**
+         * Construct a new instance.
+         */
+        public Builder() {
+        }
+
+        public void setName(final String name) {
+            Assert.checkNotNullParam("name", name);
+            this.name = name;
+        }
+
+        public void setMaximumConnectedNodes(final int maximumConnectedNodes) {
+            Assert.checkMinimumParameter("maximumConnectedNodes", 0, maximumConnectedNodes);
+            this.maximumConnectedNodes = maximumConnectedNodes;
+        }
+
+        public void setConnectTimeoutMilliseconds(final long connectTimeoutMilliseconds) {
+            Assert.checkMinimumParameter("connectTimeoutMilliseconds", -1L, connectTimeoutMilliseconds);
+            this.connectTimeoutMilliseconds = connectTimeoutMilliseconds;
+        }
+
+        public void setClusterNodeSelector(final ClusterNodeSelector clusterNodeSelector) {
+            this.clusterNodeSelector = clusterNodeSelector;
+        }
+
+        public void setOverrideConfiguration(final AuthenticationConfiguration overrideConfiguration) {
+            this.overrideConfiguration = overrideConfiguration;
+        }
+
+        /**
+         * Build a new {@link EJBClientCluster} instance based on the current contents of this builder.
+         *
+         * @return the new instance (not {@code null})
+         */
+        public EJBClientCluster build() {
+            Assert.checkNotNullParam("name", name);
+            return new EJBClientCluster(this);
+        }
+    }
+}

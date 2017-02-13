@@ -45,6 +45,7 @@ import org.jboss.ejb.client.URIAffinity;
 import org.jboss.remoting3.ClientServiceHandle;
 import org.jboss.remoting3.Connection;
 import org.jboss.remoting3.Endpoint;
+import org.wildfly.common.Assert;
 import org.wildfly.naming.client.NamingProvider;
 import org.wildfly.naming.client.remote.RemoteNamingProvider;
 import org.xnio.FinishedIoFuture;
@@ -143,6 +144,16 @@ class RemoteEJBReceiver extends EJBReceiver {
         }
     }
 
+    protected boolean isConnected(final URI uri) {
+        final IoFuture<Connection> future = Endpoint.getCurrent().getConnectionIfExists(uri, "ejb", "jboss");
+        try {
+            return future != null && future.getStatus() == IoFuture.Status.DONE && future.get().isOpen();
+        } catch (IOException e) {
+            // impossible
+            throw Assert.unreachableCode();
+        }
+    }
+
     private <T> IoFuture<Connection> getConnection(final EJBLocator<T> locator, final NamingProvider namingProvider) throws Exception {
         final Connection namingConnection = namingProvider instanceof RemoteNamingProvider ? ((RemoteNamingProvider) namingProvider).getPeerIdentity().getConnection() : null;
         final Affinity affinity = locator.getAffinity();
@@ -155,6 +166,6 @@ class RemoteEJBReceiver extends EJBReceiver {
         } else {
             throw new IllegalArgumentException("Invalid EJB affinity");
         }
-        return doPrivileged((PrivilegedAction<IoFuture<Connection>>) () -> Endpoint.getCurrent().getConnection(target));
+        return doPrivileged((PrivilegedAction<IoFuture<Connection>>) () -> Endpoint.getCurrent().getConnection(target, "ejb", "jboss"));
     }
 }
