@@ -22,6 +22,8 @@
 
 package org.jboss.ejb.client;
 
+import java.util.Collection;
+
 import javax.naming.Context;
 import javax.naming.NamingException;
 
@@ -37,12 +39,12 @@ import org.wildfly.naming.client.util.FastHashtable;
  */
 @MetaInfServices
 public final class EJBNamingContextFactory implements NamingContextFactory {
-    public boolean supportsUriScheme(final NamingProvider namingProvider, final String nameScheme) {
+    public boolean supportsUriScheme(final Collection<NamingProvider> namingProviders, final String nameScheme) {
         return "ejb".equals(nameScheme);
     }
 
-    public Context createRootContext(final NamingProvider namingProvider, final String nameScheme, final FastHashtable<String, Object> env) throws NamingException {
+    public Context createRootContext(final Collection<NamingProvider> namingProviders, final String nameScheme, final FastHashtable<String, Object> env) throws NamingException {
         assert nameScheme.equals("ejb");
-        return new EJBRootContext(namingProvider, env);
+        return new EJBRootContext(namingProviders == null ? null : namingProviders.toArray(new NamingProvider[namingProviders.size()]), env);
     }
 }
