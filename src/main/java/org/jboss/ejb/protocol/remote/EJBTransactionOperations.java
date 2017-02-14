@@ -204,11 +204,11 @@ class EJBTransactionOperations implements RemotingOperations {
     }
 
     public SimpleTransactionControl begin() throws SystemException {
-        return new EJBSimpleTransactionControl(channel);
+        // this method will be removed after WFTC 1.0.0.Beta12
+        return begin(0);
     }
 
     public SimpleTransactionControl begin(final int timeout) throws SystemException {
-        // this method will be removed after WFTC 1.0.0.Beta11
-        return begin();
+        return new EJBSimpleTransactionControl(channel);
     }
 }
