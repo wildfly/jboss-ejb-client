@@ -48,6 +48,7 @@ final class RemotingEJBDiscoveryProvider implements DiscoveryProvider {
     static final RemotingEJBDiscoveryProvider INSTANCE = new RemotingEJBDiscoveryProvider();
 
     private RemotingEJBDiscoveryProvider() {
+        Endpoint.getCurrent(); //this will blow up if remoting is not present, preventing this from being registered
     }
 
     public DiscoveryRequest discover(final ServiceType serviceType, final FilterSpec filterSpec, final DiscoveryResult result) {
