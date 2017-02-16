@@ -75,7 +75,7 @@ final class EJBProxyInformation<T> {
 
         private <P> EJBProxyInformation<P> doCompute(final Class<P> type) {
             final Class<? extends P> proxyClass = Proxy.getProxyClass(type.getClassLoader(), type).asSubclass(type);
-            final IdentityHashMap<Method, ProxyMethodInfo> methodInfoMap = new IdentityHashMap<Method, ProxyMethodInfo>();
+            final HashMap<Method, ProxyMethodInfo> methodInfoMap = new HashMap<Method, ProxyMethodInfo>();
             final HashMap<EJBMethodLocator, ProxyMethodInfo> methodLocatorMap = new HashMap<>();
             final CompressionHint classCompressionHint = type.getAnnotation(CompressionHint.class);
             final ClientTransaction classTransactionHint = type.getAnnotation(ClientTransaction.class);
@@ -198,7 +198,7 @@ final class EJBProxyInformation<T> {
         }
     };
 
-    EJBProxyInformation(final Class<? extends T> proxyClass, final Constructor<? extends T> proxyConstructor, final IdentityHashMap<Method, ProxyMethodInfo> methodInfoMap, final HashMap<EJBMethodLocator, ProxyMethodInfo> methodLocatorMap, final int classCompressionHint, final boolean classIdempotent, final boolean classAsync) {
+    EJBProxyInformation(final Class<? extends T> proxyClass, final Constructor<? extends T> proxyConstructor, final HashMap<Method, ProxyMethodInfo> methodInfoMap, final HashMap<EJBMethodLocator, ProxyMethodInfo> methodLocatorMap, final int classCompressionHint, final boolean classIdempotent, final boolean classAsync) {
         this.proxyClass = proxyClass;
         this.proxyConstructor = proxyConstructor;
         this.methodInfoMap = methodInfoMap;
@@ -215,7 +215,7 @@ final class EJBProxyInformation<T> {
 
     private final Class<? extends T> proxyClass;
     private final Constructor<? extends T> proxyConstructor;
-    private final IdentityHashMap<Method, ProxyMethodInfo> methodInfoMap;
+    private final HashMap<Method, ProxyMethodInfo> methodInfoMap;
     private final HashMap<EJBMethodLocator, ProxyMethodInfo> methodLocatorMap;
     private final int classCompressionHint;
     private final boolean classIdempotent;
