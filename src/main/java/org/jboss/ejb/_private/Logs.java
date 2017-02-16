@@ -36,8 +36,11 @@ import org.jboss.logging.Logger;
 import org.jboss.logging.annotations.Message;
 import org.jboss.logging.annotations.MessageLogger;
 import org.jboss.logging.annotations.Once;
+import org.jboss.logging.annotations.Param;
 import org.jboss.logging.annotations.Property;
 import org.jboss.remoting3.Channel;
+import org.wildfly.client.config.ConfigXMLParseException;
+import org.wildfly.client.config.ConfigurationXMLStreamReader;
 
 import javax.ejb.EJBException;
 import javax.naming.CommunicationException;
@@ -317,6 +320,11 @@ public interface Logs extends BasicLogger {
 
     @Message(id = 102, value = "No asynchronous operation in progress")
     IllegalStateException noAsyncInProgress();
+
+    // Configuration problems
+
+    @Message(id = 200, value = "Cannot load from a module when jboss-modules is not available")
+    ConfigXMLParseException noJBossModules(@Param ConfigurationXMLStreamReader streamReader);
 
     // Invocation result exceptions
 

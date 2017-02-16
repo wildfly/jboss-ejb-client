@@ -157,9 +157,9 @@ final class ConfigurationBasedEJBClientContextSelector implements Supplier<EJBCl
         ClassLoader cl;
         if (moduleName != null) {
             try {
-                cl = Module.getModuleFromCallerModuleLoader(ModuleIdentifier.fromString(moduleName)).getClassLoader();
-            } catch (ModuleLoadException e) {
-                throw new ConfigXMLParseException(e);
+                cl = ModuleLoadDelegate.loadModule(moduleName);
+            } catch (LinkageError e) {
+                throw Logs.MAIN.noJBossModules(streamReader);
             }
         } else {
             cl = ConfigurationBasedEJBClientContextSelector.class.getClassLoader();
@@ -178,6 +178,16 @@ final class ConfigurationBasedEJBClientContextSelector implements Supplier<EJBCl
             return;
         }
         throw streamReader.unexpectedElement();
+    }
+
+    static final class ModuleLoadDelegate {
+        static ClassLoader loadModule(String moduleName) throws ConfigXMLParseException {
+            try {
+                return Module.getModuleFromCallerModuleLoader(ModuleIdentifier.fromString(moduleName)).getClassLoader();
+            } catch (ModuleLoadException e) {
+                throw new ConfigXMLParseException(e);
+            }
+        }
     }
 
     private static void parseConnectionsType(final ConfigurationXMLStreamReader streamReader, final EJBClientContext.Builder builder) throws ConfigXMLParseException {
