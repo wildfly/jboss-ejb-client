@@ -40,23 +40,9 @@ import org.wildfly.naming.client.store.RelativeContext;
 import org.wildfly.naming.client.util.FastHashtable;
 
 class EJBRootContext extends AbstractContext {
-    private final Affinity affinity;
-    private final NamingProvider namingProvider;
 
-    EJBRootContext(final NamingProvider namingProvider, final FastHashtable<String, Object> env) {
-        super(env);
-        this.namingProvider = namingProvider;
-        final URI providerUri = namingProvider == null ? null : namingProvider.getProviderUri();
-        if (providerUri == null) {
-            affinity = Affinity.NONE;
-        } else {
-            final String scheme = providerUri.getScheme();
-            if (scheme == null) {
-                affinity = Affinity.NONE;
-            } else {
-                affinity = Affinity.forUri(providerUri);
-            }
-        }
+    EJBRootContext(final NamingProvider[] namingProviders, final FastHashtable<String, Object> env) {
+        super(env, namingProviders);
     }
 
     protected Object lookupNative(final Name name) throws NamingException {
@@ -134,21 +120,36 @@ class EJBRootContext extends AbstractContext {
         } catch (ClassNotFoundException e) {
             throw Logs.MAIN.lookupFailed(name, name, e);
         }
-        EJBLocator<?> locator;
         final EJBIdentifier identifier = new EJBIdentifier(appName, moduleName, beanName, distinctName);
-        if (stateful) {
-            try {
-                locator = EJBClient.createSession(StatelessEJBLocator.create(view, identifier, affinity));
-            } catch (Exception e) {
-                throw Logs.MAIN.lookupFailed(name, name, e);
+        final boolean finalStateful = stateful;
+        return performNamingFunction((NamingProvider namingProvider) -> {
+            EJBLocator<?> locator;
+            final URI providerUri = namingProvider == null ? null : namingProvider.getProviderUri();
+            final Affinity affinity;
+            if (providerUri == null) {
+                affinity = Affinity.NONE;
+            } else {
+                final String scheme = providerUri.getScheme();
+                if (scheme == null) {
+                    affinity = Affinity.NONE;
+                } else {
+                    affinity = Affinity.forUri(providerUri);
+                }
             }
-            if (locator == null) {
-                throw Logs.MAIN.nullSessionCreated(name, name, affinity, identifier);
+            if (finalStateful) {
+                try {
+                    locator = EJBClient.createSession(StatelessEJBLocator.create(view, identifier, affinity));
+                } catch (Exception e) {
+                    throw Logs.MAIN.lookupFailed(name, name, e);
+                }
+                if (locator == null) {
+                    throw Logs.MAIN.nullSessionCreated(name, name, affinity, identifier);
+                }
+            } else {
+                locator = StatelessEJBLocator.create(view, identifier, affinity);
             }
-        } else {
-            locator = StatelessEJBLocator.create(view, identifier, affinity);
-        }
-        return EJBClient.createProxy(namingProvider, locator);
+            return EJBClient.createProxy(namingProvider, locator);
+        });
     }
 
     private static ClassLoader getContextClassLoader(){
