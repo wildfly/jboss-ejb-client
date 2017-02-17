@@ -27,8 +27,6 @@ import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.ObjectStreamField;
 import java.io.Serializable;
-import java.lang.invoke.MethodHandle;
-import java.lang.invoke.MethodHandles;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationHandler;
@@ -66,27 +64,21 @@ public abstract class EJBLocator<T> implements Serializable {
     private int hashCode;
     private EJBProxyInformation<T> proxyInformation;
 
-    private static final MethodHandle viewTypeSetter;
-    private static final MethodHandle identifierSetter;
-    private static final MethodHandle affinitySetter;
+    private static final Field viewTypeSetter;
+    private static final Field identifierSetter;
+    private static final Field affinitySetter;
 
     static {
-        final MethodHandles.Lookup lookup = MethodHandles.lookup();
         final Class<?> clazz = EJBLocator.class;
         try {
-            Field f = clazz.getDeclaredField("viewType");
-            f.setAccessible(true);
-            viewTypeSetter = lookup.unreflectSetter(f);
-            f = clazz.getDeclaredField("identifier");
-            f.setAccessible(true);
-            identifierSetter = lookup.unreflectSetter(f);
-            f = clazz.getDeclaredField("affinity");
-            f.setAccessible(true);
-            affinitySetter = lookup.unreflectSetter(f);
+            viewTypeSetter = clazz.getDeclaredField("viewType");
+            viewTypeSetter.setAccessible(true);
+            identifierSetter = clazz.getDeclaredField("identifier");
+            identifierSetter.setAccessible(true);
+            affinitySetter = clazz.getDeclaredField("affinity");
+            affinitySetter.setAccessible(true);
         } catch (NoSuchFieldException e) {
             throw new NoSuchFieldError(e.getMessage());
-        } catch (IllegalAccessException e) {
-            throw new IllegalAccessError(e.getMessage());
         }
     }
 
@@ -427,10 +419,10 @@ public abstract class EJBLocator<T> implements Serializable {
                 (String) fields.get("beanName", null),
                 (String) fields.get("distinctName", null)
             );
-            viewTypeSetter.invokeExact(this, (Class<?>) fields.get("viewType", null));
-            identifierSetter.invokeExact(this, identifier);
-            affinitySetter.invokeExact(this, (Affinity) fields.get("affinity", Affinity.NONE));
-        } catch (ClassNotFoundException | IOException | RuntimeException | Error e) {
+            viewTypeSetter.set(this, fields.get("viewType", null));
+            identifierSetter.set(this, identifier);
+            affinitySetter.set(this, fields.get("affinity", Affinity.NONE));
+        } catch ( IOException | RuntimeException | Error e) {
             throw e;
         } catch (Throwable t) {
             throw new UndeclaredThrowableException(t);
