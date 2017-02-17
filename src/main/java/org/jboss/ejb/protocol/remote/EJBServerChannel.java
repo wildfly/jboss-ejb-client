@@ -377,7 +377,7 @@ final class EJBServerChannel {
             final EJBIdentifier identifier = new EJBIdentifier(appName, moduleName, beanName, distName);
 
             connection.getLocalIdentity(securityContext).runAs((Runnable) () ->
-                association.receiveSessionOpenRequest(new RemotingSessionOpenRequest<Object>(
+                association.receiveSessionOpenRequest(new RemotingSessionOpenRequest(
                     invId,
                     identifier,
                     transactionSupplier
@@ -612,7 +612,7 @@ final class EJBServerChannel {
         }
     }
 
-    final class RemotingSessionOpenRequest<T> extends RemotingRequest implements SessionOpenRequest {
+    final class RemotingSessionOpenRequest extends RemotingRequest implements SessionOpenRequest {
         private final EJBIdentifier identifier;
         final ExceptionSupplier<ImportResult<?>, SystemException> transactionSupplier;
         int txnCmd = 0; // assume nobody will ask about the transaction
