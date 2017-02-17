@@ -25,6 +25,7 @@ package org.jboss.ejb.client;
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.Serializable;
+import java.lang.reflect.Method;
 import java.util.Arrays;
 
 import org.jboss.marshalling.FieldSetter;
@@ -52,24 +53,37 @@ public final class EJBMethodLocator implements Serializable {
      * @param parameterTypeNames the parameter type names array (may be empty, must not be {@code null} nor contain {@code null} elements)
      */
     public EJBMethodLocator(final String methodName, final String... parameterTypeNames) {
+        this(methodName, parameterTypeNames, true);
+    }
+
+    private EJBMethodLocator(final String methodName, final String[] parameterTypeNames, boolean copy) {
         Assert.checkNotNullParam("methodName", methodName);
         Assert.checkNotNullParam("parameterTypeNames", parameterTypeNames);
         this.methodName = methodName;
-        String[] clone = this.parameterTypeNames = parameterTypeNames.clone();
-        for (int i = 0; i < clone.length; i++) {
+        final int length = parameterTypeNames.length;
+        String[] clone = this.parameterTypeNames = copy && length > 0 ? parameterTypeNames.clone() : parameterTypeNames;
+        for (int i = 0; i < length; i++) {
             Assert.checkNotNullArrayParam("parameterTypeNames", i, clone[i]);
         }
         hashCode = calcHashCode(methodName, parameterTypeNames);
     }
 
     /**
-     * Construct a new instance via method.  This is useful when creating a method locator with a {@code Class<?>}.
+     * Get a method locator for the given reflection method.
      *
-     * @param methodName the method name (must not be {@code null})
-     * @param parameterTypeNames the parameter type names array (may be empty, must not be {@code null} nor contain {@code null} elements)
+     * @param method the reflection method (must not be {@code null})
+     * @return the method locator (not {@code null})
      */
-    public static <T> EJBMethodLocator create(final String methodName, final String... parameterTypeNames) {
-        return new EJBMethodLocator(methodName, parameterTypeNames);
+    public static EJBMethodLocator forMethod(final Method method) {
+        Assert.checkNotNullParam("method", method);
+        final String name = method.getName();
+        final Class<?>[] parameterTypes = method.getParameterTypes();
+        final int length = parameterTypes.length;
+        final String[] paramNames = new String[length];
+        for (int i = 0; i < length; i ++) {
+            paramNames[i] = parameterTypes[i].getName();
+        }
+        return new EJBMethodLocator(name, paramNames, false);
     }
 
     private static int calcHashCode(final String methodName, final String[] parameterTypeNames) {
