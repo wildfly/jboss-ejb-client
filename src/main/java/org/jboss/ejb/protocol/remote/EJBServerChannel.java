@@ -23,14 +23,17 @@
 package org.jboss.ejb.protocol.remote;
 
 import static java.lang.Math.min;
+import static java.security.AccessController.doPrivileged;
 import static org.xnio.IoUtils.safeClose;
 
 import java.io.DataInput;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.lang.reflect.Proxy;
 import java.net.Inet6Address;
 import java.net.SocketAddress;
+import java.security.PrivilegedAction;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -426,7 +429,7 @@ final class EJBServerChannel {
                         parameterTypeNames[j ++] = sigString.substring(i);
                     }
                 }
-                methodLocator = EJBMethodLocator.create(methodName, parameterTypeNames);
+                methodLocator = new EJBMethodLocator(methodName, parameterTypeNames);
                 identity = connection.getLocalIdentity();
             }
             final RemotingInvocationRequest request = new RemotingInvocationRequest(
@@ -947,6 +950,24 @@ final class EJBServerChannel {
 
         ServerClassResolver() {
             super(true);
+        }
+
+        public Class<?> resolveProxyClass(final Unmarshaller unmarshaller, final String[] interfaces) throws IOException, ClassNotFoundException {
+            final int length = interfaces.length;
+            final Class<?>[] classes = new Class<?>[length];
+
+            for(int i = 0; i < length; ++i) {
+                classes[i] = this.loadClass(interfaces[i]);
+            }
+
+            final ClassLoader classLoader;
+            if (length == 1) {
+                classLoader = doPrivileged((PrivilegedAction<ClassLoader>) classes[0]::getClassLoader);
+            } else {
+                classLoader = getClassLoader();
+            }
+
+            return Proxy.getProxyClass(classLoader, classes);
         }
 
         protected ClassLoader getClassLoader() {

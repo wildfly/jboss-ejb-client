@@ -33,6 +33,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.UnsupportedEncodingException;
 import java.lang.reflect.Method;
+import java.lang.reflect.Proxy;
 import java.net.InetAddress;
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -75,6 +76,7 @@ import org.jboss.ejb.client.TransactionID;
 import org.jboss.ejb.client.UserTransactionID;
 import org.jboss.ejb.client.XidTransactionID;
 import org.jboss.marshalling.ByteInput;
+import org.jboss.marshalling.ContextClassResolver;
 import org.jboss.marshalling.Marshaller;
 import org.jboss.marshalling.MarshallerFactory;
 import org.jboss.marshalling.Marshalling;
@@ -141,6 +143,25 @@ class EJBClientChannel {
         this.version = version;
         marshallerFactory = Marshalling.getProvidedMarshallerFactory("river");
         MarshallingConfiguration configuration = new MarshallingConfiguration();
+        configuration.setClassResolver(new ContextClassResolver() {
+            public Class<?> resolveProxyClass(final Unmarshaller unmarshaller, final String[] interfaces) throws IOException, ClassNotFoundException {
+                final int length = interfaces.length;
+                final Class<?>[] classes = new Class<?>[length];
+
+                for(int i = 0; i < length; ++i) {
+                    classes[i] = this.loadClass(interfaces[i]);
+                }
+
+                final ClassLoader classLoader;
+                if (length == 1) {
+                    classLoader = doPrivileged((PrivilegedAction<ClassLoader>) classes[0]::getClassLoader);
+                } else {
+                    classLoader = getClassLoader();
+                }
+
+                return Proxy.getProxyClass(classLoader, classes);
+            }
+        });
         if (version < 3) {
             configuration.setClassTable(ProtocolV1ClassTable.INSTANCE);
             configuration.setObjectTable(ProtocolV1ObjectTable.INSTANCE);
