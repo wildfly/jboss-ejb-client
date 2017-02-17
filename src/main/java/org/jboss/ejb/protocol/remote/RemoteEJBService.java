@@ -81,7 +81,8 @@ public final class RemoteEJBService {
                 });
                 try (MessageOutputStream mos = messageTracker.openMessage()) {
                     mos.writeByte(Protocol.LATEST_VERSION);
-                    mos.write(Protocol.RIVER_BYTES);
+                    StreamUtils.writePackedUnsignedInt31(mos, 1);
+                    mos.writeUTF("river");
                 } catch (InterruptedException e) {
                     Thread.currentThread().interrupt();
                     safeClose(channel);

@@ -29,13 +29,6 @@ final class Protocol {
 
     public static final int LATEST_VERSION = 3;
 
-    static final byte[] RIVER_BYTES = new byte[] {
-        0, 5, (byte) 'r', (byte) 'i', (byte) 'v', (byte) 'e', (byte) 'r'
-    };
-
-    public static final int NEW_LOCATOR    = 0x00;
-    public static final int CACHED_LOCATOR = 0x01;
-
     // flags field (v3 and up)
     public static final int COMPRESS_RESPONSE = 0b0000_1111;
 

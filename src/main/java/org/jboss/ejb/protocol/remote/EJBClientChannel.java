@@ -740,7 +740,7 @@ class EJBClientChannel {
                     // send back result
                     try (MessageOutputStream out = channel.writeMessage()) {
                         out.write(version);
-                        out.write(Protocol.RIVER_BYTES);
+                        out.writeUTF("river");
                     }
                     // almost done; wait for initial module available report
                     final EJBClientChannel ejbClientChannel = new EJBClientChannel(channel, version, futureResult);
