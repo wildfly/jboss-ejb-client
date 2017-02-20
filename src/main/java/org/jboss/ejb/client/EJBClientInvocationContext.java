@@ -510,6 +510,7 @@ public final class EJBClientInvocationContext extends Attachable {
                 blockingCaller = false;
                 if (getInvokedMethod().getReturnType() == void.class) {
                     asyncState = AsyncState.ONE_WAY;
+                    this.resultReady(NULL_RESPONSE);
                 } else {
                     asyncState = AsyncState.ASYNCHRONOUS;
                 }
