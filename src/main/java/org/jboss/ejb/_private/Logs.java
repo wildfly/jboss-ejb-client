@@ -310,6 +310,9 @@ public interface Logs extends BasicLogger {
     @Message(id = 74, value = "Configured selector \"%s\" returned null")
     IllegalStateException selectorReturnedNull(Object selector);
 
+    @Message(id = 75, value = "No transport provider available for URI scheme %2$s for locator %1$s")
+    IllegalStateException noTransportProvider(EJBLocator<?> locator, String scheme);
+
     // Proxy API errors
 
     @Message(id = 100, value = "Object '%s' is not a valid proxy object")
