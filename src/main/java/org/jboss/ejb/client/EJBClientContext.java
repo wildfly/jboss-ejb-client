@@ -32,6 +32,7 @@ import java.net.UnknownHostException;
 import java.security.PrivilegedAction;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -388,7 +389,7 @@ public final class EJBClientContext extends Attachable implements Contextual<EJB
         }
         final EJBReceiver transportProvider = getTransportProvider(scheme);
         if (transportProvider == null) {
-            throw Logs.MAIN.noEJBReceiverAvailable(locator);
+            throw Logs.MAIN.noTransportProvider(locator, scheme);
         } else {
             return locatedAction.execute(transportProvider, locator, locator.getAffinity());
         }
@@ -402,7 +403,7 @@ public final class EJBClientContext extends Attachable implements Contextual<EJB
             do {
                 serviceURL = servicesQueue.takeService();
                 if (serviceURL == null) {
-                    throw Logs.MAIN.noEJBReceiverAvailable(locator);
+                    throw withSuppressed(Logs.MAIN.noEJBReceiverAvailable(locator), servicesQueue.getProblems());
                 }
             } while (! supports(serviceURL));
             ServiceURL nextServiceURL;
@@ -423,7 +424,7 @@ public final class EJBClientContext extends Attachable implements Contextual<EJB
                 } else {
                     final EJBReceiver provider = getTransportProvider(affinity.getUri().getScheme());
                     if (provider == null) {
-                        throw Logs.MAIN.noEJBReceiverAvailable(locator);
+                        throw withSuppressed(Logs.MAIN.noEJBReceiverAvailable(locator), servicesQueue.getProblems());
                     }
                     return locatedAction.execute(provider, locator, affinity);
                 }
@@ -500,7 +501,7 @@ public final class EJBClientContext extends Attachable implements Contextual<EJB
                 // interruption is caught in the calling method
                 serviceURL = servicesQueue.takeService();
                 if (serviceURL == null) {
-                    throw Logs.MAIN.noEJBReceiverAvailable(locator);
+                    throw withSuppressed(Logs.MAIN.noEJBReceiverAvailable(locator), servicesQueue.getProblems());
                 }
                 final EJBReceiver receiver = getTransportProvider(serviceURL.getUriScheme());
                 if (receiver != null) {
@@ -524,6 +525,7 @@ public final class EJBClientContext extends Attachable implements Contextual<EJB
         // we expect multiple results
         Set<URI> unresolvedUris = new HashSet<>();
         Set<String> nodes = new HashSet<>();
+        List<Throwable> problems;
         try (final ServicesQueue servicesQueue = discover(getFilterSpec(clusterAffinity))) {
             // interruption is caught in the calling method
             ServiceURL serviceURL = servicesQueue.takeService();
@@ -552,10 +554,11 @@ public final class EJBClientContext extends Attachable implements Contextual<EJB
                 // interruption is caught in the calling method
                 serviceURL = servicesQueue.takeService();
             }
+            problems = servicesQueue.getProblems();
         }
         if (nodes.isEmpty()) {
             if (unresolvedUris.isEmpty()) {
-                throw Logs.MAIN.noEJBReceiverAvailable(locator);
+                throw withSuppressed(Logs.MAIN.noEJBReceiverAvailable(locator), problems);
             } else {
                 // TODO: we should have a selector here too
                 final URI uri = unresolvedUris.iterator().next();
@@ -613,7 +616,7 @@ public final class EJBClientContext extends Attachable implements Contextual<EJB
             }
             URI uri = all.get(node);
             if (uri == null) {
-                throw Logs.MAIN.noEJBReceiverAvailable(locator);
+                throw withSuppressed(Logs.MAIN.noEJBReceiverAvailable(locator), problems);
             }
             return locatedAction.execute(getTransportProvider(uri.getScheme()), locator, Affinity.forUri(uri));
         }
@@ -722,5 +725,14 @@ public final class EJBClientContext extends Attachable implements Contextual<EJB
 
     EJBClientInterceptor[] getInterceptors() {
         return interceptors;
+    }
+
+    <T extends Throwable> T withSuppressed(T original, Collection<Throwable> suppressed) {
+        if (suppressed != null) {
+            for (Throwable throwable : suppressed) {
+                original.addSuppressed(throwable);
+            }
+        }
+        return original;
     }
 }

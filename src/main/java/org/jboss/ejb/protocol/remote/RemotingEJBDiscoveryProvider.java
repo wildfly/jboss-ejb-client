@@ -86,6 +86,7 @@ final class RemotingEJBDiscoveryProvider implements DiscoveryProvider {
                 }
 
                 public void handleFailed(final IOException exception, final DiscoveryResult discoveryResult) {
+                    discoveryResult.reportProblem(exception);
                     countDown(connectionCount, discoveryResult);
                 }
 
@@ -98,6 +99,7 @@ final class RemotingEJBDiscoveryProvider implements DiscoveryProvider {
                         }
 
                         public void handleFailed(final IOException exception, final DiscoveryResult discoveryResult) {
+                            discoveryResult.reportProblem(exception);
                             countDown(connectionCount, discoveryResult);
                         }
 
@@ -105,6 +107,10 @@ final class RemotingEJBDiscoveryProvider implements DiscoveryProvider {
                             final DiscoveryRequest request = clientChannel.getDiscoveryProvider().discover(serviceType, filterSpec, new DiscoveryResult() {
                                 public void complete() {
                                     countDown(connectionCount, discoveryResult);
+                                }
+
+                                public void reportProblem(final Throwable description) {
+                                    discoveryResult.reportProblem(description);
                                 }
 
                                 public void addMatch(final ServiceURL serviceURL) {
