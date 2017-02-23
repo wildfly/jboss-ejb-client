@@ -567,7 +567,7 @@ public final class EJBClientInvocationContext extends Attachable {
                             } else {
                                 waitStartTime = System.nanoTime();
                                 // we wait for a specific amount of time
-                                lock.wait(remainingWaitTimeout);
+                                lock.wait(TimeUnit.NANOSECONDS.toMillis(remainingWaitTimeout));
                             }
                         } catch (InterruptedException e) {
                             intr = true;
