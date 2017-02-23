@@ -31,6 +31,7 @@ import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
+import static java.lang.Math.max;
 import static java.lang.Thread.holdsLock;
 
 import javax.transaction.Transaction;
@@ -546,65 +547,64 @@ public final class EJBClientInvocationContext extends Attachable {
 
     Object awaitResponse(final EJBInvocationHandler<?> invocationHandler) throws Exception {
         assert !holdsLock(lock);
-        boolean intr = false;
+        boolean intr = false, cancel = false;
         final long handlerInvTimeout = invocationHandler.getInvocationTimeout();
         final long invocationTimeout = handlerInvTimeout != -1 ? handlerInvTimeout : ejbClientContext.getInvocationTimeout();
         try {
+            final Object lock = this.lock;
             synchronized (lock) {
                 try {
-                    if (asyncState == AsyncState.ASYNCHRONOUS) {
-                        return PROCEED_ASYNC;
-                    } else if (asyncState == AsyncState.ONE_WAY) {
-                        this.resultReady(NULL_RESPONSE);
-                    }
-                    long remainingWaitTimeout = TimeUnit.MILLISECONDS.toNanos(invocationTimeout);
-                    long waitStartTime = System.nanoTime();
-                    while (state == State.WAITING) {
-                        try {
-                            // if no invocation timeout is configured, then we wait indefinitely
-                            if (invocationTimeout <= 0) {
-                                lock.wait();
-                            } else {
-                                waitStartTime = System.nanoTime();
-                                // we wait for a specific amount of time
-                                lock.wait(TimeUnit.NANOSECONDS.toMillis(remainingWaitTimeout));
-                            }
-                        } catch (InterruptedException e) {
-                            intr = true;
-                            // if there was a invocation timeout configured and the thread was interrupted
-                            // then figure out how long we waited and what remaining time we should wait for
-                            // if the result hasn't yet arrived
-                            if (invocationTimeout > 0) {
-                                final long timeWaitedFor = Math.max(0L, System.nanoTime() - waitStartTime);
-                                // we already waited enough, so setup a result producer which will
-                                // let the client know that the invocation timed out
-                                if (timeWaitedFor >= remainingWaitTimeout) {
-                                    // setup a invocation timeout result producer
-                                    this.resultReady(new InvocationTimeoutResultProducer(invocationTimeout));
+                    if (invocationTimeout <= 0) {
+                        // no timeout; lighter code path
+                        while (state.isWaiting()) {
+                            switch (asyncState) {
+                                case ASYNCHRONOUS:
+                                    return PROCEED_ASYNC;
+                                case ONE_WAY:
+                                    this.resultReady(NULL_RESPONSE);
                                     break;
-                                } else {
-                                    remainingWaitTimeout = remainingWaitTimeout - timeWaitedFor;
-                                }
                             }
-                            continue;
+                            try {
+                                lock.wait();
+                            } catch (InterruptedException e) {
+                                intr = true;
+                            }
                         }
-                        if (asyncState == AsyncState.ASYNCHRONOUS) {
-                            // It's an asynchronous invocation; proceed asynchronously.
-                            return PROCEED_ASYNC;
-                        } else if (asyncState == AsyncState.ONE_WAY) {
-                            this.resultReady(NULL_RESPONSE);
-                        }
-                        // If the state is still waiting and the invocation timeout was specified,
-                        // then it indicates that the Object.wait(timeout) returned due to a timeout.
-                        if (state == State.WAITING && invocationTimeout > 0) {
-                            // setup a invocation timeout result producer
-                            this.resultReady(new InvocationTimeoutResultProducer(invocationTimeout));
-                            break;
+                    } else {
+                        final long start = System.nanoTime();
+                        final long timeoutNanos = TimeUnit.MILLISECONDS.toNanos(invocationTimeout);
+                        long remaining = timeoutNanos;
+                        while (state.isWaiting()) {
+                            if (remaining == 0) {
+                                // timed out
+                                if (state != State.CANCEL_REQ) {
+                                    state = State.CANCEL_REQ;
+                                    cancel = true;
+                                }
+                                this.resultReady(new InvocationTimeoutResultProducer(invocationTimeout));
+                                break;
+                            }
+                            switch (asyncState) {
+                                case ASYNCHRONOUS:
+                                    return PROCEED_ASYNC;
+                                case ONE_WAY:
+                                    this.resultReady(NULL_RESPONSE);
+                                    break;
+                            }
+                            try {
+                                lock.wait(remaining / 1_000_000L, (int) (remaining % 1_000_000L));
+                            } catch (InterruptedException e) {
+                                intr = true;
+                            }
+                            remaining = max(0L, timeoutNanos - max(0L, System.nanoTime() - start));
                         }
                     }
                 } finally {
                     blockingCaller = false;
                 }
+            }
+            if (cancel) {
+                getReceiver().cancelInvocation(receiverInvocationContext, false);
             }
             return getResult();
         } finally {
@@ -805,7 +805,7 @@ public final class EJBClientInvocationContext extends Attachable {
                                     if (state != State.WAITING && state != State.CANCEL_REQ && state != State.CONSUMING) {
                                         continue loop;
                                     }
-                                    remaining -= Math.max(1L, System.nanoTime() - now);
+                                    remaining -= max(1L, System.nanoTime() - now);
                                 } while (remaining > 0L);
                             }
                             throw log.timedOut();
