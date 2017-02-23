@@ -24,6 +24,7 @@ import org.jboss.ejb.client.EJBMetaDataImpl;
 import org.jboss.ejb.client.NodeAffinity;
 import org.jboss.ejb.client.URIAffinity;
 import org.jboss.marshalling.ObjectResolver;
+import org.wildfly.common.rpc.RemoteExceptionCause;
 
 /**
  * @author <a href="mailto:david.lloyd@redhat.com">David M. Lloyd</a>
@@ -53,6 +54,9 @@ final class ProtocolV1ObjectResolver implements ObjectResolver {
             return nodeAffinity;
         } else if (original instanceof AbstractEJBMetaData) {
             return new EJBMetaDataImpl((AbstractEJBMetaData<?, ?>) original);
+        } else if (original instanceof RemoteExceptionCause) {
+            // old clients will not have this class
+            return ((RemoteExceptionCause) original).toPlainThrowable();
         }
         return original;
     }
