@@ -28,6 +28,7 @@ import java.util.concurrent.Executor;
 import org.jboss.ejb.client.EJBIdentifier;
 import org.jboss.ejb.client.SessionID;
 import org.wildfly.common.annotation.NotNull;
+import org.wildfly.security.auth.server.SecurityIdentity;
 
 /**
  * The base type of any EJB server request.  This type is implemented by protocol implementations and consumed by
@@ -83,6 +84,13 @@ public interface Request {
      */
     @NotNull
     EJBIdentifier getEJBIdentifier();
+
+    /**
+     * Get the security identity that is associated with this invocation.
+     *
+     * @return the security identity, or {@code null} if the connection is not bound to a security domain
+     */
+    SecurityIdentity getSecurityIdentity();
 
     /**
      * Write a message indicating that an exception was thrown by the operation.
