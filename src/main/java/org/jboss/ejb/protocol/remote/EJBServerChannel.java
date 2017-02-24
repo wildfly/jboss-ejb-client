@@ -376,13 +376,11 @@ final class EJBServerChannel {
             final Connection connection = channel.getConnection();
             final EJBIdentifier identifier = new EJBIdentifier(appName, moduleName, beanName, distName);
 
-            connection.getLocalIdentity(securityContext).runAs((Runnable) () ->
-                association.receiveSessionOpenRequest(new RemotingSessionOpenRequest(
-                    invId,
-                    identifier,
-                    transactionSupplier
-                ))
-            );
+            association.receiveSessionOpenRequest(new RemotingSessionOpenRequest(
+                invId,
+                identifier,
+                transactionSupplier,
+                connection.getLocalIdentity(securityContext)));
         }
 
         void handleInvocationRequest(final int invId, final InputStream input) throws IOException, ClassNotFoundException {
@@ -433,9 +431,9 @@ final class EJBServerChannel {
                 identity = connection.getLocalIdentity();
             }
             final RemotingInvocationRequest request = new RemotingInvocationRequest(
-                invId, connection, association, identifier, methodLocator, classResolver, unmarshaller
+                invId, connection, association, identifier, methodLocator, classResolver, unmarshaller, identity
             );
-            invocations.put(new InProgress(request, identity == null ? association.receiveInvocationRequest(request) : identity.runAsFunction(association::receiveInvocationRequest, request)));
+            invocations.put(new InProgress(request, association.receiveInvocationRequest(request)));
         }
     }
 
@@ -485,9 +483,11 @@ final class EJBServerChannel {
     abstract class RemotingRequest implements Request {
         final int invId;
         SessionID sessionId;
+        final SecurityIdentity identity;
 
-        protected RemotingRequest(final int invId) {
+        RemotingRequest(final int invId, final SecurityIdentity identity) {
             this.invId = invId;
+            this.identity = identity;
         }
 
         public Executor getRequestExecutor() {
@@ -508,6 +508,10 @@ final class EJBServerChannel {
 
         public boolean isBlockingCaller() {
             return false;
+        }
+
+        public SecurityIdentity getSecurityIdentity() {
+            return identity;
         }
 
         public void writeNoSuchEJB() {
@@ -617,8 +621,8 @@ final class EJBServerChannel {
         final ExceptionSupplier<ImportResult<?>, SystemException> transactionSupplier;
         int txnCmd = 0; // assume nobody will ask about the transaction
 
-        RemotingSessionOpenRequest(final int invId, final EJBIdentifier identifier, final ExceptionSupplier<ImportResult<?>, SystemException> transactionSupplier) {
-            super(invId);
+        RemotingSessionOpenRequest(final int invId, final EJBIdentifier identifier, final ExceptionSupplier<ImportResult<?>, SystemException> transactionSupplier, final SecurityIdentity identity) {
+            super(invId, identity);
             this.transactionSupplier = transactionSupplier;
             this.identifier = identifier;
         }
@@ -692,8 +696,8 @@ final class EJBServerChannel {
         final Unmarshaller remaining;
         int txnCmd = 0; // assume nobody will ask about the transaction
 
-        RemotingInvocationRequest(final int invId, final Connection connection, final Association association, final EJBIdentifier identifier, final EJBMethodLocator methodLocator, final ServerClassResolver classResolver, final Unmarshaller remaining) {
-            super(invId);
+        RemotingInvocationRequest(final int invId, final Connection connection, final Association association, final EJBIdentifier identifier, final EJBMethodLocator methodLocator, final ServerClassResolver classResolver, final Unmarshaller remaining, final SecurityIdentity identity) {
+            super(invId, identity);
             this.connection = connection;
             this.association = association;
             this.identifier = identifier;
