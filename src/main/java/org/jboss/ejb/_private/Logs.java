@@ -23,7 +23,6 @@
 package org.jboss.ejb._private;
 
 import org.jboss.ejb.client.Affinity;
-import org.jboss.ejb.client.DiscoveredURISelector;
 import org.jboss.ejb.client.EJBClientInvocationContext;
 import org.jboss.ejb.client.EJBIdentifier;
 import org.jboss.ejb.client.EJBLocator;

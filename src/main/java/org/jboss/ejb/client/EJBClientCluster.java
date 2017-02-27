@@ -18,8 +18,6 @@
 
 package org.jboss.ejb.client;
 
-import java.net.URI;
-
 import org.wildfly.common.Assert;
 import org.wildfly.security.auth.client.AuthenticationConfiguration;
 
