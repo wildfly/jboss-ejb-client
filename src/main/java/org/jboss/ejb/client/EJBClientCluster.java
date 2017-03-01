@@ -28,7 +28,7 @@ import org.wildfly.security.auth.client.AuthenticationConfiguration;
  */
 public final class EJBClientCluster {
     private final String name;
-    private final int maximumConnectedNodes;
+    private final long maximumConnectedNodes;
     private final long connectTimeoutMilliseconds;
     private final ClusterNodeSelector clusterNodeSelector;
     private final AuthenticationConfiguration overrideConfiguration;
@@ -55,7 +55,7 @@ public final class EJBClientCluster {
      *
      * @return the maximum number of nodes to connect, or 0 for no limit
      */
-    public int getMaximumConnectedNodes() {
+    public long getMaximumConnectedNodes() {
         return maximumConnectedNodes;
     }
 
@@ -92,7 +92,7 @@ public final class EJBClientCluster {
     public static final class Builder {
 
         private String name;
-        private int maximumConnectedNodes = 0;
+        private long maximumConnectedNodes = 0;
         private long connectTimeoutMilliseconds = -1L;
         private ClusterNodeSelector clusterNodeSelector;
         private AuthenticationConfiguration overrideConfiguration;
@@ -108,7 +108,7 @@ public final class EJBClientCluster {
             this.name = name;
         }
 
-        public void setMaximumConnectedNodes(final int maximumConnectedNodes) {
+        public void setMaximumConnectedNodes(final long maximumConnectedNodes) {
             Assert.checkMinimumParameter("maximumConnectedNodes", 0, maximumConnectedNodes);
             this.maximumConnectedNodes = maximumConnectedNodes;
         }
