@@ -32,6 +32,8 @@ public class RequestSendFailedException extends RuntimeException {
 
     private static final long serialVersionUID = 4880994720537464175L;
 
+    private boolean canBeRetried;
+
     /**
      * Constructs a new {@code RequestSendFailedException} instance.  The message is left blank ({@code null}), and no
      * cause is specified.
@@ -67,5 +69,70 @@ public class RequestSendFailedException extends RuntimeException {
      */
     public RequestSendFailedException(final String msg, final Throwable cause) {
         super(msg, cause);
+    }
+
+    /**
+     * Constructs a new {@code RequestSendFailedException} instance.  The message is left blank ({@code null}), and no
+     * cause is specified.
+     *
+     * @param canBeRetried the value of the can-be-retried flag
+     */
+    public RequestSendFailedException(final boolean canBeRetried) {
+        this.canBeRetried = canBeRetried;
+    }
+
+    /**
+     * Constructs a new {@code RequestSendFailedException} instance with an initial message.  No cause is specified.
+     *
+     * @param message the message
+     * @param canBeRetried the value of the can-be-retried flag
+     */
+    public RequestSendFailedException(final String message, final boolean canBeRetried) {
+        super(message);
+        this.canBeRetried = canBeRetried;
+    }
+
+    /**
+     * Constructs a new {@code RequestSendFailedException} instance with an initial message and cause.
+     *
+     * @param message the message
+     * @param cause the cause
+     * @param canBeRetried the value of the can-be-retried flag
+     */
+    public RequestSendFailedException(final String message, final Throwable cause, final boolean canBeRetried) {
+        super(message, cause);
+        this.canBeRetried = canBeRetried;
+    }
+
+    /**
+     * Constructs a new {@code RequestSendFailedException} instance with an initial cause.  If a non-{@code null} cause
+     * is specified, its message is used to initialize the message of this {@code RequestSendFailedException}; otherwise
+     * the message is left blank ({@code null}).
+     *
+     * @param cause the cause
+     * @param canBeRetried the value of the can-be-retried flag
+     */
+    public RequestSendFailedException(final Throwable cause, final boolean canBeRetried) {
+        super(cause);
+        this.canBeRetried = canBeRetried;
+    }
+
+    /**
+     * Determine if this request can safely be retried.
+     *
+     * @return {@code true} if the request can safely be retried; {@code false} otherwise
+     */
+    public boolean canBeRetried() {
+        return canBeRetried;
+    }
+
+    /**
+     * Set the "can be retried" flag.
+     *
+     * @param canBeRetried the flag value
+     */
+    public RequestSendFailedException setCanBeRetried(final boolean canBeRetried) {
+        this.canBeRetried = canBeRetried;
+        return this;
     }
 }

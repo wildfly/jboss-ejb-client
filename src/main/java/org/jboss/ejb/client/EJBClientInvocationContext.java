@@ -53,6 +53,7 @@ public final class EJBClientInvocationContext extends Attachable {
 
     public static final String PRIVATE_ATTACHMENTS_KEY = "org.jboss.ejb.client.invocation.attachments";
     private static final EJBReceiverInvocationContext.ResultProducer.Immediate NULL_RESPONSE = new EJBReceiverInvocationContext.ResultProducer.Immediate(null);
+    private static final int MAX_RETRIES = 5;
 
     // Contextual stuff
     private final EJBInvocationHandler<?> invocationHandler;
@@ -303,25 +304,32 @@ public final class EJBClientInvocationContext extends Attachable {
      * @throws Exception if the request was not successfully sent
      */
     public void sendRequest() throws Exception {
-        final int idx = interceptorChainIndex++;
-        try {
-            final EJBClientContext.InterceptorList list = this.ejbClientContext.getInterceptors(getViewClass(), getInvokedMethod());
-            final EJBClientInterceptorInformation[] chain = list.getInformation();
-            if (idx > chain.length) {
-                throw Logs.MAIN.sendRequestCalledDuringWrongPhase();
-            }
-            if (chain.length == idx) {
-                final EJBReceiver receiver = this.receiver;
-                if (receiver == null) {
-                    performInvocation(getLocator());
-                } else {
-                    receiver.processInvocation(receiverInvocationContext);
+        for (int i = 0; i < MAX_RETRIES; i ++) try {
+            final int idx = interceptorChainIndex++;
+            try {
+                final EJBClientContext.InterceptorList list = this.ejbClientContext.getInterceptors(getViewClass(), getInvokedMethod());
+                final EJBClientInterceptorInformation[] chain = list.getInformation();
+                if (idx > chain.length) {
+                    throw Logs.MAIN.sendRequestCalledDuringWrongPhase();
                 }
-            } else {
-                chain[idx].getInterceptorInstance().handleInvocation(this);
+                if (chain.length == idx) {
+                    final EJBReceiver receiver = this.receiver;
+                    if (receiver == null) {
+                        performInvocation(getLocator());
+                    } else {
+                        receiver.processInvocation(receiverInvocationContext);
+                    }
+                } else {
+                    chain[idx].getInterceptorInstance().handleInvocation(this);
+                }
+            } finally {
+                interceptorChainIndex --;
             }
-        } finally {
-            interceptorChainIndex --;
+            return;
+        } catch (RequestSendFailedException e) {
+            if (! e.canBeRetried()) {
+                throw e;
+            }
         }
     }
 

@@ -69,6 +69,7 @@ import org.jboss.ejb.client.EJBClientContext;
 import org.jboss.ejb.client.EJBClientInvocationContext;
 import org.jboss.ejb.client.EJBLocator;
 import org.jboss.ejb.client.EJBReceiverInvocationContext;
+import org.jboss.ejb.client.RequestSendFailedException;
 import org.jboss.ejb.client.SessionID;
 import org.jboss.ejb.client.StatefulEJBLocator;
 import org.jboss.ejb.client.StatelessEJBLocator;
@@ -457,7 +458,7 @@ class EJBClientChannel {
         if (version >= 3) try {
             peerIdentityId = channel.getConnection().getPeerIdentityId();
         } catch (AuthenticationException e) {
-            receiverContext.resultReady(new EJBReceiverInvocationContext.ResultProducer.Failed(e));
+            receiverContext.resultReady(new EJBReceiverInvocationContext.ResultProducer.Failed(new RequestSendFailedException(e, false)));
             return;
         }
         else {
@@ -602,7 +603,9 @@ class EJBClientChannel {
                 out.cancel();
                 throw e;
             }
-        } catch (IOException | RollbackException | SystemException | RuntimeException e) {
+        } catch (IOException e) {
+            receiverContext.resultReady(new EJBReceiverInvocationContext.ResultProducer.Failed(new RequestSendFailedException(e.getMessage(), e, true)));
+        } catch (RollbackException | SystemException | RuntimeException e) {
             receiverContext.resultReady(new EJBReceiverInvocationContext.ResultProducer.Failed(new EJBException(e.getMessage(), e)));
             return;
         }
