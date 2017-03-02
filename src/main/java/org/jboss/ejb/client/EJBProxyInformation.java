@@ -54,6 +54,8 @@ import org.jboss.ejb.client.annotation.Idempotent;
  */
 final class EJBProxyInformation<T> {
 
+    static final boolean ENABLE_SCANNING = doPrivileged((PrivilegedAction<Boolean>) () -> Boolean.valueOf(System.getProperty("org.jboss.ejb.client.view.annotation.scan.enabled", "true"))).booleanValue();
+
     static final Class<?>[] JUST_INV_HANDLER = new Class<?>[] { InvocationHandler.class };
 
     static final int MT_BUSINESS        = 0;
@@ -80,9 +82,9 @@ final class EJBProxyInformation<T> {
             final HashMap<Method, ProxyMethodInfo> fallbackMap = new HashMap<>();
             final IdentityHashMap<Method, ProxyMethodInfo> methodInfoMap = new IdentityHashMap<>();
             final HashMap<EJBMethodLocator, ProxyMethodInfo> methodLocatorMap = new HashMap<>();
-            final CompressionHint classCompressionHint = type.getAnnotation(CompressionHint.class);
-            final ClientTransaction classTransactionHint = type.getAnnotation(ClientTransaction.class);
-            final ClientInterceptors classClientInterceptors = type.getAnnotation(ClientInterceptors.class);
+            final CompressionHint classCompressionHint = ENABLE_SCANNING ? type.getAnnotation(CompressionHint.class) : null;
+            final ClientTransaction classTransactionHint = ENABLE_SCANNING ? type.getAnnotation(ClientTransaction.class) : null;
+            final ClientInterceptors classClientInterceptors = ENABLE_SCANNING ? type.getAnnotation(ClientInterceptors.class) : null;
             final EJBClientContext.InterceptorList classInterceptors = getInterceptorsFromAnnotation(classClientInterceptors);
 
             final int classCompressionLevel;
@@ -96,8 +98,8 @@ final class EJBProxyInformation<T> {
                 classCompressRequest = classCompressionHint.compressRequest();
                 classCompressResponse = classCompressionHint.compressResponse();
             }
-            final boolean classIdempotent = type.getAnnotation(Idempotent.class) != null;
-            final boolean classAsync = type.getAnnotation(ClientAsynchronous.class) != null;
+            final boolean classIdempotent = ENABLE_SCANNING && type.getAnnotation(Idempotent.class) != null;
+            final boolean classAsync = ENABLE_SCANNING && type.getAnnotation(ClientAsynchronous.class) != null;
             final Field[] declaredFields = proxyClass.getDeclaredFields();
             for (Field declaredField : declaredFields) {
                 declaredField.setAccessible(true);
@@ -106,11 +108,11 @@ final class EJBProxyInformation<T> {
                     try {
                         final Method method = (Method) declaredField.get(null);
                         final boolean alwaysAsync = method.getReturnType() == Future.class;
-                        final boolean idempotent = classIdempotent || method.getAnnotation(Idempotent.class) != null;
-                        final boolean clientAsync = alwaysAsync || classAsync || method.getAnnotation(ClientAsynchronous.class) != null;
-                        final CompressionHint compressionHint = method.getAnnotation(CompressionHint.class);
-                        final ClientTransaction transactionHint = method.getAnnotation(ClientTransaction.class);
-                        final ClientInterceptors clientInterceptors = type.getAnnotation(ClientInterceptors.class);
+                        final boolean idempotent = classIdempotent || ENABLE_SCANNING && method.getAnnotation(Idempotent.class) != null;
+                        final boolean clientAsync = alwaysAsync || classAsync || ENABLE_SCANNING && method.getAnnotation(ClientAsynchronous.class) != null;
+                        final CompressionHint compressionHint = ENABLE_SCANNING ? method.getAnnotation(CompressionHint.class) : null;
+                        final ClientTransaction transactionHint = ENABLE_SCANNING ? method.getAnnotation(ClientTransaction.class) : null;
+                        final ClientInterceptors clientInterceptors = ENABLE_SCANNING ? type.getAnnotation(ClientInterceptors.class) : null;
                         final EJBClientContext.InterceptorList interceptors = getInterceptorsFromAnnotation(clientInterceptors);
                         final int compressionLevel;
                         final boolean compressRequest;

@@ -19,6 +19,7 @@
 package org.jboss.ejb.client;
 
 import static java.lang.Integer.signum;
+import static org.jboss.ejb.client.EJBProxyInformation.ENABLE_SCANNING;
 
 import java.lang.reflect.InvocationTargetException;
 
@@ -32,7 +33,7 @@ final class EJBClientInterceptorInformation implements Comparable<EJBClientInter
     private static final ClassValue<EJBClientInterceptorInformation> CLASS_VALUE = new ClassValue<EJBClientInterceptorInformation>() {
         protected EJBClientInterceptorInformation computeValue(final Class<?> type) {
             final Class<? extends EJBClientInterceptor> subclass = type.asSubclass(EJBClientInterceptor.class);
-            final ClientInterceptorPriority annotation = subclass.getAnnotation(ClientInterceptorPriority.class);
+            final ClientInterceptorPriority annotation = ENABLE_SCANNING ? subclass.getAnnotation(ClientInterceptorPriority.class) : null;
             final int priority = annotation != null ? annotation.value() : 0;
             return new EJBClientInterceptorInformation(subclass, priority);
         }
