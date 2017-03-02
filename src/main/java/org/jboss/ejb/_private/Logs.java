@@ -200,8 +200,9 @@ public interface Logs extends BasicLogger {
     @Message(id = 41, value = "A session bean does not have a primary key class")
     RuntimeException primaryKeyNotRelevantForSessionBeans();
 
-    @Message(id = 42, value = "Failed to find EJB client configuration file specified in %s system property")
-    RuntimeException failedToFindEjbClientConfigFileSpecifiedBySysProp(@Cause Exception e, final String sysPropName);
+    @LogMessage(level = WARN)
+    @Message(id = 42, value = "Failed to load EJB client configuration file specified in %s system property: %s")
+    void failedToFindEjbClientConfigFileSpecifiedBySysProp(String sysPropName, Exception e);
 
     @Message(id = 43, value = "Error reading EJB client properties file %s")
     RuntimeException failedToReadEjbClientConfigFile(@Cause Exception e, String file);

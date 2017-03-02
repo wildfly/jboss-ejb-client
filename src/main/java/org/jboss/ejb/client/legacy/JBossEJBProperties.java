@@ -108,10 +108,13 @@ public final class JBossEJBProperties implements Contextual<JBossEJBProperties> 
     private static final String PROPERTY_KEY_CLUSTERS = "remote.clusters";
 
     private static final boolean expandPasswords;
+    private static final String CONFIGURED_PATH_NAME;
 
     static {
         expandPasswords = doPrivileged((PrivilegedAction<Boolean>) () ->
             Boolean.valueOf(System.getProperty("jboss-ejb-client.expandPasswords", "false"))).booleanValue();
+        final String filePathPropertyName = "jboss.ejb.client.properties.file.path";
+        CONFIGURED_PATH_NAME = doPrivileged((PrivilegedAction<String>) () -> System.getProperty(filePathPropertyName));
         final AtomicReference<JBossEJBProperties> onceRef = new AtomicReference<>();
         CONTEXT_MANAGER.setGlobalDefaultSupplier(() -> {
             JBossEJBProperties value = onceRef.get();
@@ -120,7 +123,18 @@ public final class JBossEJBProperties implements Contextual<JBossEJBProperties> 
                     value = onceRef.get();
                     if (value == null) {
                         try {
-                            value = JBossEJBProperties.fromClassPath();
+                            if (CONFIGURED_PATH_NAME != null) try {
+                                File propertiesFile = new File(CONFIGURED_PATH_NAME);
+                                if (! propertiesFile.isAbsolute()) {
+                                    propertiesFile = new File(System.getProperty("user.dir"), propertiesFile.toString());
+                                }
+                                value = JBossEJBProperties.fromFile(propertiesFile);
+                            } catch (IOException e) {
+                                Logs.MAIN.failedToFindEjbClientConfigFileSpecifiedBySysProp(filePathPropertyName, e);
+                                value = JBossEJBProperties.fromClassPath();
+                            } else {
+                                value = JBossEJBProperties.fromClassPath();
+                            }
                         } catch (IOException e) {
                         }
                         onceRef.set(value);
