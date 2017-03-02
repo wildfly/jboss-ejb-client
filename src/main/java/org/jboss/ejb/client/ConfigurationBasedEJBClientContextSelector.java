@@ -165,14 +165,12 @@ final class ConfigurationBasedEJBClientContextSelector implements Supplier<EJBCl
             cl = ConfigurationBasedEJBClientContextSelector.class.getClassLoader();
         }
         final Class<? extends EJBClientInterceptor> interceptorClass;
-        final EJBClientInterceptor interceptor;
         try {
             interceptorClass = Class.forName(className, false, cl).asSubclass(EJBClientInterceptor.class);
-            interceptor = interceptorClass.newInstance();
-        } catch (ClassNotFoundException | InstantiationException | IllegalAccessException | ClassCastException e) {
+        } catch (ClassNotFoundException | ClassCastException e) {
             throw new ConfigXMLParseException(e);
         }
-        builder.addInterceptor(interceptor);
+        builder.addInterceptor(interceptorClass);
         final int next = streamReader.nextTag();
         if (next == END_ELEMENT) {
             return;

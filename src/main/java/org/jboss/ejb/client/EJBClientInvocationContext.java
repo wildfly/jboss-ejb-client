@@ -305,7 +305,8 @@ public final class EJBClientInvocationContext extends Attachable {
     public void sendRequest() throws Exception {
         final int idx = interceptorChainIndex++;
         try {
-            final EJBClientInterceptor[] chain = this.ejbClientContext.getInterceptors();
+            final EJBClientContext.InterceptorList list = this.ejbClientContext.getInterceptors(getViewClass(), getInvokedMethod());
+            final EJBClientInterceptorInformation[] chain = list.getInformation();
             if (idx > chain.length) {
                 throw Logs.MAIN.sendRequestCalledDuringWrongPhase();
             }
@@ -317,7 +318,7 @@ public final class EJBClientInvocationContext extends Attachable {
                     receiver.processInvocation(receiverInvocationContext);
                 }
             } else {
-                chain[idx].handleInvocation(this);
+                chain[idx].getInterceptorInstance().handleInvocation(this);
             }
         } finally {
             interceptorChainIndex --;
@@ -350,12 +351,13 @@ public final class EJBClientInvocationContext extends Attachable {
 
         final int idx = this.interceptorChainIndex++;
         try {
-            final EJBClientInterceptor[] chain = this.ejbClientContext.getInterceptors();
+            final EJBClientContext.InterceptorList list = this.ejbClientContext.getInterceptors(getViewClass(), getInvokedMethod());
+            final EJBClientInterceptorInformation[] chain = list.getInformation();
             if (chain.length == idx) {
                 return resultProducer.getResult();
             }
             if (idx == 0) try {
-                return chain[idx].handleInvocationResult(this);
+                return chain[idx].getInterceptorInstance().handleInvocationResult(this);
             } finally {
                 resultDone = true;
                 final Affinity weakAffinity = getAttachment(AttachmentKeys.WEAK_AFFINITY);
@@ -363,7 +365,7 @@ public final class EJBClientInvocationContext extends Attachable {
                     invocationHandler.setWeakAffinity(weakAffinity);
                 }
             } else try {
-                return chain[idx].handleInvocationResult(this);
+                return chain[idx].getInterceptorInstance().handleInvocationResult(this);
             } finally {
                 resultDone = true;
             }

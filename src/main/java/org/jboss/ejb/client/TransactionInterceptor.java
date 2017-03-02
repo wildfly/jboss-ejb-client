@@ -22,11 +22,10 @@
 
 package org.jboss.ejb.client;
 
-import java.net.URI;
-
 import javax.transaction.Transaction;
 
 import org.jboss.ejb._private.Logs;
+import org.jboss.ejb.client.annotation.ClientInterceptorPriority;
 import org.jboss.ejb.client.annotation.ClientTransactionPolicy;
 import org.wildfly.transaction.client.ContextTransactionManager;
 
@@ -35,15 +34,18 @@ import org.wildfly.transaction.client.ContextTransactionManager;
  *
  * @author <a href="mailto:david.lloyd@redhat.com">David M. Lloyd</a>
  */
+@ClientInterceptorPriority(ClientInterceptorPriority.JBOSS_BEFORE + 1)
 public final class TransactionInterceptor implements EJBClientInterceptor {
     private static final ContextTransactionManager transactionManager = ContextTransactionManager.getInstance();
 
+    /**
+     * Construct a new instance.
+     */
     public TransactionInterceptor() {
     }
 
     public void handleInvocation(final EJBClientInvocationContext context) throws Exception {
         final ClientTransactionPolicy transactionPolicy = context.getTransactionPolicy();
-        final URI uri = context.getLocator().getAffinity().getUri();
         final Transaction transaction = transactionManager.getTransaction();
 
         if (transactionPolicy.failIfTransactionAbsent()) {

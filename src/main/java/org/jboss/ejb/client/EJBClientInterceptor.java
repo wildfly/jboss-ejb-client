@@ -22,9 +22,25 @@
 
 package org.jboss.ejb.client;
 
+import org.jboss.ejb.client.annotation.ClientInterceptorPriority;
+
 /**
  * An EJB client interceptor, possibly protocol-specific.  Client interceptors should not store any state locally since
  * they are shared between all threads.
+ * <p>
+ * Interceptors are generally applied in priority order.  Priority is determined by configuration or by the presence of
+ * an {@link ClientInterceptorPriority} annotation on the interceptor class.  If priorities are equal, then the
+ * following configuration order applies:
+ * <ul>
+ *     <li>Annotation-declared method-level interceptors</li>
+ *     <li>Annotation-declared class-level interceptors</li>
+ *     <li>Method-level configuration-declared interceptors</li>
+ *     <li>Class-level configuration-declared interceptors</li>
+ *     <li>Global configuration-declared interceptors</li>
+ *     <li>Interceptors found from class path</li>
+ *     <li>Globally installed default interceptors</li>
+ * </ul>
+ * Interceptors in the same configuration source are called in the order they were declared.
  *
  * @author <a href="mailto:david.lloyd@redhat.com">David M. Lloyd</a>
  */

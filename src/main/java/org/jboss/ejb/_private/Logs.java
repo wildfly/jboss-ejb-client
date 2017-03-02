@@ -328,6 +328,17 @@ public interface Logs extends BasicLogger {
     @Message(id = 200, value = "Cannot load from a module when jboss-modules is not available")
     ConfigXMLParseException noJBossModules(@Param ConfigurationXMLStreamReader streamReader);
 
+    // Interceptor problems
+
+    @Message(id = 300, value = "No valid no-argument constructor on interceptor %s")
+    IllegalArgumentException noInterceptorConstructor(Class<?> type);
+
+    @Message(id = 301, value = "Constructor is not accessible on interceptor %s")
+    IllegalArgumentException interceptorConstructorNotAccessible(Class<?> type);
+
+    @Message(id = 302, value = "Construction of interceptor %s failed")
+    IllegalStateException interceptorConstructorFailed(Class<?> type, @Cause Throwable cause);
+
     // Invocation result exceptions
 
     @Message(id = 400, value = "Remote invocation failed due to an exception")

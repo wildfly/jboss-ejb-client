@@ -31,6 +31,7 @@ import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.lang.reflect.Proxy;
 import java.security.PrivilegedAction;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.IdentityHashMap;
 import java.util.concurrent.Future;
@@ -40,6 +41,7 @@ import javax.ejb.EJBHome;
 import javax.ejb.EJBObject;
 
 import org.jboss.ejb.client.annotation.ClientAsynchronous;
+import org.jboss.ejb.client.annotation.ClientInterceptors;
 import org.jboss.ejb.client.annotation.ClientTransaction;
 import org.jboss.ejb.client.annotation.ClientTransactionPolicy;
 import org.jboss.ejb.client.annotation.CompressionHint;
@@ -80,6 +82,9 @@ final class EJBProxyInformation<T> {
             final HashMap<EJBMethodLocator, ProxyMethodInfo> methodLocatorMap = new HashMap<>();
             final CompressionHint classCompressionHint = type.getAnnotation(CompressionHint.class);
             final ClientTransaction classTransactionHint = type.getAnnotation(ClientTransaction.class);
+            final ClientInterceptors classClientInterceptors = type.getAnnotation(ClientInterceptors.class);
+            final EJBClientContext.InterceptorList classInterceptors = getInterceptorsFromAnnotation(classClientInterceptors);
+
             final int classCompressionLevel;
             final boolean classCompressRequest;
             final boolean classCompressResponse;
@@ -105,6 +110,8 @@ final class EJBProxyInformation<T> {
                         final boolean clientAsync = alwaysAsync || classAsync || method.getAnnotation(ClientAsynchronous.class) != null;
                         final CompressionHint compressionHint = method.getAnnotation(CompressionHint.class);
                         final ClientTransaction transactionHint = method.getAnnotation(ClientTransaction.class);
+                        final ClientInterceptors clientInterceptors = type.getAnnotation(ClientInterceptors.class);
+                        final EJBClientContext.InterceptorList interceptors = getInterceptorsFromAnnotation(clientInterceptors);
                         final int compressionLevel;
                         final boolean compressRequest;
                         final boolean compressResponse;
@@ -133,7 +140,7 @@ final class EJBProxyInformation<T> {
                         final String methodName = method.getName();
                         final int methodType = getMethodType(type, methodName, methodParamTypes);
                         final EJBMethodLocator methodLocator = new EJBMethodLocator(methodName, parameterTypeNames);
-                        final ProxyMethodInfo proxyMethodInfo = new ProxyMethodInfo(methodType, compressionLevel, compressRequest, compressResponse, idempotent, transactionPolicy, method, methodLocator, b.toString(), clientAsync);
+                        final ProxyMethodInfo proxyMethodInfo = new ProxyMethodInfo(methodType, compressionLevel, compressRequest, compressResponse, idempotent, transactionPolicy, method, methodLocator, b.toString(), clientAsync, interceptors);
                         methodInfoMap.put(method, proxyMethodInfo);
                         fallbackMap.put(method, proxyMethodInfo);
                         methodLocatorMap.put(methodLocator, proxyMethodInfo);
@@ -148,7 +155,27 @@ final class EJBProxyInformation<T> {
             } catch (NoSuchMethodException e) {
                 throw new NoSuchMethodError("No valid constructor found on proxy class");
             }
-            return new EJBProxyInformation<>(proxyClass, constructor, methodInfoMap, fallbackMap, methodLocatorMap, classCompressionLevel, classIdempotent, classAsync);
+            return new EJBProxyInformation<>(proxyClass, constructor, methodInfoMap, fallbackMap, methodLocatorMap, classCompressionLevel, classIdempotent, classAsync, classInterceptors);
+        }
+
+        private EJBClientContext.InterceptorList getInterceptorsFromAnnotation(final ClientInterceptors classClientInterceptors) {
+            if (classClientInterceptors != null) {
+                final Class<?>[] interceptorClasses = classClientInterceptors.value();
+                final int length = interceptorClasses.length;
+                if (length == 0) {
+                    return EJBClientContext.InterceptorList.EMPTY;
+                } else if (length == 1) {
+                    return EJBClientInterceptorInformation.forClass(interceptorClasses[0]).getSingletonList();
+                } else {
+                    final EJBClientInterceptorInformation[] interceptors = new EJBClientInterceptorInformation[length];
+                    for (int i = 0; i < length; i++) {
+                        interceptors[i] = EJBClientInterceptorInformation.forClass(interceptorClasses[i]);
+                    }
+                    return new EJBClientContext.InterceptorList(interceptors);
+                }
+            } else {
+                return EJBClientContext.InterceptorList.EMPTY;
+            }
         }
 
         private int getMethodType(final Class<?> interfaceClass, final String name, final Class<?>[] methodParamTypes) {
@@ -200,7 +227,7 @@ final class EJBProxyInformation<T> {
         }
     };
 
-    EJBProxyInformation(final Class<? extends T> proxyClass, final Constructor<? extends T> proxyConstructor, final IdentityHashMap<Method, ProxyMethodInfo> methodInfoMap, final HashMap<Method, ProxyMethodInfo> fallbackMap, final HashMap<EJBMethodLocator, ProxyMethodInfo> methodLocatorMap, final int classCompressionHint, final boolean classIdempotent, final boolean classAsync) {
+    EJBProxyInformation(final Class<? extends T> proxyClass, final Constructor<? extends T> proxyConstructor, final IdentityHashMap<Method, ProxyMethodInfo> methodInfoMap, final HashMap<Method, ProxyMethodInfo> fallbackMap, final HashMap<EJBMethodLocator, ProxyMethodInfo> methodLocatorMap, final int classCompressionHint, final boolean classIdempotent, final boolean classAsync, final EJBClientContext.InterceptorList classInterceptors) {
         this.proxyClass = proxyClass;
         this.proxyConstructor = proxyConstructor;
         this.methodInfoMap = methodInfoMap;
@@ -209,6 +236,7 @@ final class EJBProxyInformation<T> {
         this.classCompressionHint = classCompressionHint;
         this.classIdempotent = classIdempotent;
         this.classAsync = classAsync;
+        this.classInterceptors = classInterceptors;
     }
 
     @SuppressWarnings("unchecked")
@@ -224,6 +252,7 @@ final class EJBProxyInformation<T> {
     private final int classCompressionHint;
     private final boolean classIdempotent;
     private final boolean classAsync;
+    private final EJBClientContext.InterceptorList classInterceptors;
 
     boolean hasCompressionHint(Method proxyMethod) {
         final ProxyMethodInfo proxyMethodInfo = getProxyMethodInfo(proxyMethod);
@@ -264,6 +293,14 @@ final class EJBProxyInformation<T> {
         return methodLocatorMap.get(locator);
     }
 
+    EJBClientContext.InterceptorList getClassInterceptors() {
+        return classInterceptors;
+    }
+
+    Collection<ProxyMethodInfo> getMethods() {
+        return methodInfoMap.values();
+    }
+
     static final class ProxyMethodInfo {
 
         final int methodType;
@@ -276,8 +313,9 @@ final class EJBProxyInformation<T> {
         final EJBMethodLocator methodLocator;
         final String signature;
         final boolean clientAsync;
+        final EJBClientContext.InterceptorList interceptors;
 
-        ProxyMethodInfo(final int methodType, final int compressionLevel, final boolean compressRequest, final boolean compressResponse, final boolean idempotent, final ClientTransactionPolicy transactionPolicy, final Method method, final EJBMethodLocator methodLocator, final String signature, final boolean clientAsync) {
+        ProxyMethodInfo(final int methodType, final int compressionLevel, final boolean compressRequest, final boolean compressResponse, final boolean idempotent, final ClientTransactionPolicy transactionPolicy, final Method method, final EJBMethodLocator methodLocator, final String signature, final boolean clientAsync, final EJBClientContext.InterceptorList interceptors) {
             this.methodType = methodType;
             this.compressionLevel = compressionLevel;
             this.compressRequest = compressRequest;
@@ -288,6 +326,7 @@ final class EJBProxyInformation<T> {
             this.methodLocator = methodLocator;
             this.signature = signature;
             this.clientAsync = clientAsync;
+            this.interceptors = interceptors;
         }
 
         public int getMethodType() {
@@ -328,6 +367,10 @@ final class EJBProxyInformation<T> {
 
         EJBMethodLocator getMethodLocator() {
             return methodLocator;
+        }
+
+        EJBClientContext.InterceptorList getInterceptors() {
+            return interceptors;
         }
 
         boolean isSynchronous() {

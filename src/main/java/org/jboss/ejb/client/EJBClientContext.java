@@ -24,22 +24,32 @@ package org.jboss.ejb.client;
 
 import static java.security.AccessController.doPrivileged;
 
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.lang.reflect.Method;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
 import java.net.URI;
+import java.net.URL;
 import java.net.UnknownHostException;
+import java.nio.charset.StandardCharsets;
 import java.security.PrivilegedAction;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.function.Supplier;
+import java.util.stream.Collectors;
 
 import org.jboss.ejb._private.Logs;
 import org.jboss.ejb._private.NetworkUtil;
@@ -71,7 +81,6 @@ public final class EJBClientContext extends Attachable implements Contextual<EJB
 
     private static final Supplier<EJBClientContext> GETTER = doPrivileged((PrivilegedAction<Supplier<EJBClientContext>>) CONTEXT_MANAGER::getPrivilegedSupplier);
 
-    private static final EJBClientInterceptor[] NO_INTERCEPTORS = new EJBClientInterceptor[0];
     private static final EJBTransportProvider[] NO_TRANSPORT_PROVIDERS = new EJBTransportProvider[0];
     private static final String[] NO_STRINGS = new String[0];
 
@@ -100,21 +109,28 @@ public final class EJBClientContext extends Attachable implements Contextual<EJB
         CONTEXT_MANAGER.setGlobalDefaultSupplier(new ConfigurationBasedEJBClientContextSelector());
     }
 
-    private final EJBClientInterceptor[] interceptors;
     private final EJBTransportProvider[] transportProviders;
     private final long invocationTimeout;
     private final EJBReceiverContext receiverContext;
     private final List<EJBClientConnection> configuredConnections;
     private final Map<String, EJBClientCluster> configuredClusters;
     private final ClusterNodeSelector clusterNodeSelector;
+    private final ClassValue<EJBProxyInterceptorInformation<?>> proxyInfoValue = new ClassValue<EJBProxyInterceptorInformation<?>>() {
+        protected EJBProxyInterceptorInformation<?> computeValue(final Class<?> type) {
+            return EJBProxyInterceptorInformation.construct(type, EJBClientContext.this);
+        }
+    };
+
+    static final InterceptorList defaultInterceptors = new InterceptorList(new EJBClientInterceptorInformation[] {
+        EJBClientInterceptorInformation.forClass(TransactionInterceptor.class)
+    });
+
+    private final InterceptorList classPathInterceptors;
+    private final InterceptorList globalInterceptors;
+    private final Map<String, InterceptorList> configuredPerClassInterceptors;
+    private final Map<String, Map<EJBMethodLocator, InterceptorList>> configuredPerMethodInterceptors;
 
     EJBClientContext(Builder builder) {
-        final List<EJBClientInterceptor> builderInterceptors = builder.interceptors;
-        if (builderInterceptors == null || builderInterceptors.isEmpty()) {
-            interceptors = NO_INTERCEPTORS;
-        } else {
-            interceptors = builderInterceptors.toArray(NO_INTERCEPTORS);
-        }
         final List<EJBTransportProvider> builderTransportProviders = builder.transportProviders;
         if (builderTransportProviders == null || builderTransportProviders.isEmpty()) {
             transportProviders = NO_TRANSPORT_PROVIDERS;
@@ -145,9 +161,171 @@ public final class EJBClientContext extends Attachable implements Contextual<EJB
             configuredClusters = Collections.unmodifiableMap(map);
         }
         clusterNodeSelector = builder.clusterNodeSelector;
+
+        // global interceptors
+        final List<EJBClientInterceptorInformation> globalInterceptors = builder.globalInterceptors;
+        if (globalInterceptors != null) {
+            final Iterator<EJBClientInterceptorInformation> globalInterceptorsIterator = globalInterceptors.iterator();
+            if (globalInterceptorsIterator.hasNext()) {
+                final EJBClientInterceptorInformation first = globalInterceptorsIterator.next();
+                if (globalInterceptorsIterator.hasNext()) {
+                    // two or more
+                    final ArrayList<EJBClientInterceptorInformation> arrayList = new ArrayList<>();
+                    arrayList.add(first);
+                    do {
+                        arrayList.add(globalInterceptorsIterator.next());
+                    } while (globalInterceptorsIterator.hasNext());
+                    if (arrayList.isEmpty()) {
+                        this.globalInterceptors = InterceptorList.EMPTY;
+                    } else {
+                        this.globalInterceptors = new InterceptorList(arrayList.toArray(EJBClientInterceptorInformation.NO_INTERCEPTORS));
+                    }
+                } else {
+                    // just one
+                    this.globalInterceptors = first.getSingletonList();
+                }
+            } else {
+                this.globalInterceptors = InterceptorList.EMPTY;
+            }
+        } else {
+            this.globalInterceptors = InterceptorList.EMPTY;
+        }
+
+        // class path interceptors
+        this.classPathInterceptors = doPrivileged((PrivilegedAction<InterceptorList>) EJBClientContext::getClassPathInterceptorList);
+
+        // configured per-class interceptors
+        final List<ClassInterceptor> classInterceptors = builder.classInterceptors;
+        if (classInterceptors != null) {
+            final Iterator<ClassInterceptor> classInterceptorsIterator = classInterceptors.iterator();
+            if (classInterceptorsIterator.hasNext()) {
+                final HashMap<String, ArrayList<EJBClientInterceptorInformation>> map = new HashMap<>();
+                do {
+                    final ClassInterceptor classInterceptor = classInterceptorsIterator.next();
+                    map.computeIfAbsent(classInterceptor.getClassName(), ignored -> new ArrayList<>()).add(classInterceptor.getInterceptor());
+                } while (classInterceptorsIterator.hasNext());
+                final Iterator<Map.Entry<String, ArrayList<EJBClientInterceptorInformation>>> mapIterator = map.entrySet().iterator();
+                if (mapIterator.hasNext()) {
+                    final Map.Entry<String, ArrayList<EJBClientInterceptorInformation>> first = mapIterator.next();
+                    if (mapIterator.hasNext()) {
+                        Map<String, InterceptorList> targetMap = new HashMap<>(map.size());
+                        targetMap.put(first.getKey(), InterceptorList.ofList(first.getValue()));
+                        do {
+                            final Map.Entry<String, ArrayList<EJBClientInterceptorInformation>> next = mapIterator.next();
+                            targetMap.put(next.getKey(), InterceptorList.ofList(next.getValue()));
+                        } while (mapIterator.hasNext());
+                        this.configuredPerClassInterceptors = targetMap;
+                    } else {
+                        this.configuredPerClassInterceptors = Collections.singletonMap(first.getKey(), InterceptorList.ofList(first.getValue()));
+                    }
+                } else {
+                    this.configuredPerClassInterceptors = Collections.emptyMap();
+                }
+            } else {
+                this.configuredPerClassInterceptors = Collections.emptyMap();
+            }
+        } else {
+            this.configuredPerClassInterceptors = Collections.emptyMap();
+        }
+
+        // configured per-method interceptors
+        final List<MethodInterceptor> methodInterceptors = builder.methodInterceptors;
+        if (methodInterceptors != null) {
+            final Iterator<MethodInterceptor> methodInterceptorIterator = methodInterceptors.iterator();
+            if (methodInterceptorIterator.hasNext()) {
+                final HashMap<String, HashMap<EJBMethodLocator, ArrayList<EJBClientInterceptorInformation>>> map = new HashMap<>();
+                do {
+                    final MethodInterceptor methodInterceptor = methodInterceptorIterator.next();
+                    map.computeIfAbsent(methodInterceptor.getClassName(), ignored -> new HashMap<>()).computeIfAbsent(methodInterceptor.getMethodLocator(), ignored -> new ArrayList<>()).add(methodInterceptor.getInterceptor());
+                } while (methodInterceptorIterator.hasNext());
+                final Iterator<Map.Entry<String, HashMap<EJBMethodLocator, ArrayList<EJBClientInterceptorInformation>>>> outerIter = map.entrySet().iterator();
+                if (outerIter.hasNext()) {
+                    final Map.Entry<String, HashMap<EJBMethodLocator, ArrayList<EJBClientInterceptorInformation>>> first = outerIter.next();
+                    if (outerIter.hasNext()) {
+                        Map<String, Map<EJBMethodLocator, InterceptorList>> targetMap = new HashMap<>(map.size());
+                        targetMap.put(first.getKey(), calculateMethodInterceptors(first.getValue()));
+                        do {
+                            final Map.Entry<String, HashMap<EJBMethodLocator, ArrayList<EJBClientInterceptorInformation>>> next = outerIter.next();
+                            targetMap.put(next.getKey(), calculateMethodInterceptors(next.getValue()));
+                        } while (outerIter.hasNext());
+                        this.configuredPerMethodInterceptors = targetMap;
+                    } else {
+                        this.configuredPerMethodInterceptors = Collections.singletonMap(first.getKey(), calculateMethodInterceptors(first.getValue()));
+                    }
+                } else {
+                    this.configuredPerMethodInterceptors = Collections.emptyMap();
+                }
+            } else {
+                this.configuredPerMethodInterceptors = Collections.emptyMap();
+            }
+        } else {
+            this.configuredPerMethodInterceptors = Collections.emptyMap();
+        }
+
         // this must be last
         for (EJBTransportProvider transportProvider : transportProviders) {
             transportProvider.notifyRegistered(receiverContext);
+        }
+    }
+
+    private static Map<EJBMethodLocator, InterceptorList> calculateMethodInterceptors(final HashMap<EJBMethodLocator, ArrayList<EJBClientInterceptorInformation>> map) {
+        final Iterator<Map.Entry<EJBMethodLocator, ArrayList<EJBClientInterceptorInformation>>> iterator = map.entrySet().iterator();
+        if (iterator.hasNext()) {
+            final Map.Entry<EJBMethodLocator, ArrayList<EJBClientInterceptorInformation>> first = iterator.next();
+            if (iterator.hasNext()) {
+                HashMap<EJBMethodLocator, InterceptorList> targetMap = new HashMap<>(map.size());
+                targetMap.put(first.getKey(), InterceptorList.ofList(first.getValue()));
+                do {
+                    final Map.Entry<EJBMethodLocator, ArrayList<EJBClientInterceptorInformation>> next = iterator.next();
+                    targetMap.put(next.getKey(), InterceptorList.ofList(next.getValue()));
+                } while (iterator.hasNext());
+                return targetMap;
+            } else {
+                return Collections.singletonMap(first.getKey(), InterceptorList.ofList(first.getValue()));
+            }
+        } else {
+            return Collections.emptyMap();
+        }
+    }
+
+    static InterceptorList getClassPathInterceptorList() {
+        ClassLoader classLoader = Thread.currentThread().getContextClassLoader();
+        try {
+            final Enumeration<URL> resources = classLoader.getResources("META-INF/services/org.jboss.ejb.client.EJBClientInterceptor");
+            if (resources.hasMoreElements()) {
+                final ArrayList<EJBClientInterceptorInformation> list = new ArrayList<>();
+                do {
+                    final URL url = resources.nextElement();
+                    try (InputStream st = url.openStream()) {
+                        try (InputStreamReader isr = new InputStreamReader(st, StandardCharsets.UTF_8)) {
+                            try (BufferedReader r = new BufferedReader(isr)) {
+                                String line;
+                                while ((line = r.readLine()) != null) {
+                                    line = line.trim();
+                                    if (line.isEmpty() || line.charAt(0) == '#') {
+                                        continue;
+                                    }
+                                    try {
+                                        final Class<?> interceptorClass = Class.forName(line, true, classLoader).asSubclass(EJBClientInterceptor.class);
+                                        list.add(EJBClientInterceptorInformation.forClass(interceptorClass));
+                                    } catch (ClassNotFoundException e) {
+                                        // skip
+                                    }
+                                }
+                            }
+                        }
+                    }
+                } while (resources.hasMoreElements());
+                if (list.isEmpty()) {
+                    return InterceptorList.EMPTY;
+                } else {
+                    return new InterceptorList(list.toArray(EJBClientInterceptorInformation.NO_INTERCEPTORS));
+                }
+            } else {
+                return InterceptorList.EMPTY;
+            }
+        } catch (IOException e) {
+            return InterceptorList.EMPTY;
         }
     }
 
@@ -253,12 +431,54 @@ public final class EJBClientContext extends Attachable implements Contextual<EJB
         return getDiscovery().discover(EJB_SERVICE_TYPE, filterSpec);
     }
 
-    EJBTransportProvider[] getTransportProviders() {
-        return transportProviders;
-    }
-
     Discovery getDiscovery() {
         return DISCOVERY_SUPPLIER.get();
+    }
+
+    InterceptorList getInterceptors(final Class<?> invokedProxy, final Method method) {
+        return proxyInfoValue.get(invokedProxy).getInterceptors(method);
+    }
+
+    static final class ClassInterceptor {
+        private final String className;
+        private final EJBClientInterceptorInformation interceptor;
+
+        ClassInterceptor(final String className, final EJBClientInterceptorInformation interceptor) {
+            this.className = className;
+            this.interceptor = interceptor;
+        }
+
+        String getClassName() {
+            return className;
+        }
+
+        EJBClientInterceptorInformation getInterceptor() {
+            return interceptor;
+        }
+    }
+
+    static final class MethodInterceptor {
+        private final String className;
+        private final EJBMethodLocator methodLocator;
+        private final EJBClientInterceptorInformation interceptor;
+
+        MethodInterceptor(final String className, final EJBMethodLocator methodLocator, final EJBClientInterceptorInformation interceptor) {
+            this.className = className;
+            this.methodLocator = methodLocator;
+            this.interceptor = interceptor;
+        }
+
+        String getClassName() {
+            return className;
+        }
+
+        EJBMethodLocator getMethodLocator() {
+            return methodLocator;
+        }
+
+        EJBClientInterceptorInformation getInterceptor() {
+            return interceptor;
+        }
     }
 
     /**
@@ -266,7 +486,9 @@ public final class EJBClientContext extends Attachable implements Contextual<EJB
      */
     public static final class Builder {
 
-        List<EJBClientInterceptor> interceptors;
+        List<EJBClientInterceptorInformation> globalInterceptors;
+        List<ClassInterceptor> classInterceptors;
+        List<MethodInterceptor> methodInterceptors;
         List<EJBTransportProvider> transportProviders;
         List<EJBClientConnection> clientConnections;
         List<EJBClientCluster> clientClusters;
@@ -277,28 +499,89 @@ public final class EJBClientContext extends Attachable implements Contextual<EJB
          * Construct a new instance.
          */
         public Builder() {
-            interceptors = new ArrayList<>();
-            interceptors.add(new TransactionInterceptor());
         }
 
-        Builder(final EJBClientContext ejbClientContext) {
-            final EJBClientInterceptor[] interceptors = ejbClientContext.getInterceptors();
-            if (interceptors.length > 0) {
-                this.interceptors = new ArrayList<>(Arrays.asList(interceptors));
+        Builder(final EJBClientContext clientContext) {
+            globalInterceptors = Arrays.stream(clientContext.globalInterceptors.getInformation()).collect(Collectors.toCollection(ArrayList::new));
+            classInterceptors = new ArrayList<>();
+            for (Map.Entry<String, InterceptorList> entry : clientContext.getConfiguredPerClassInterceptors().entrySet()) {
+                final String className = entry.getKey();
+                for (EJBClientInterceptorInformation information : entry.getValue().getInformation()) {
+                    classInterceptors.add(new ClassInterceptor(className, information));
+                }
             }
-            final EJBTransportProvider[] transportProviders = ejbClientContext.getTransportProviders();
-            if (transportProviders.length > 0) {
-                this.transportProviders = new ArrayList<>(Arrays.asList(transportProviders));
+            methodInterceptors = new ArrayList<>();
+            for (Map.Entry<String, Map<EJBMethodLocator, InterceptorList>> entry : clientContext.getConfiguredPerMethodInterceptors().entrySet()) {
+                final String className = entry.getKey();
+                for (Map.Entry<EJBMethodLocator, InterceptorList> entry1 : entry.getValue().entrySet()) {
+                    final EJBMethodLocator methodLocator = entry1.getKey();
+                    for (EJBClientInterceptorInformation information : entry1.getValue().getInformation()) {
+                        methodInterceptors.add(new MethodInterceptor(className, methodLocator, information));
+                    }
+                }
             }
-            clientConnections = new ArrayList<>(ejbClientContext.getConfiguredConnections());
+            transportProviders = new ArrayList<>();
+            Collections.addAll(transportProviders, clientContext.transportProviders);
+            clientConnections = new ArrayList<>();
+            clientConnections.addAll(clientContext.getConfiguredConnections());
+            clientClusters = new ArrayList<>();
+            clientClusters.addAll(clientContext.configuredClusters.values());
+            clusterNodeSelector = clientContext.clusterNodeSelector;
+            invocationTimeout = clientContext.invocationTimeout;
         }
 
         public void addInterceptor(EJBClientInterceptor interceptor) {
             Assert.checkNotNullParam("interceptor", interceptor);
-            if (interceptors == null) {
-                interceptors = new ArrayList<>();
+            if (globalInterceptors == null) {
+                globalInterceptors = new ArrayList<>();
             }
-            interceptors.add(interceptor);
+            globalInterceptors.add(EJBClientInterceptorInformation.forInstance(interceptor));
+        }
+
+        public void addInterceptor(Class<? extends EJBClientInterceptor> interceptorClass) {
+            Assert.checkNotNullParam("interceptorClass", interceptorClass);
+            if (globalInterceptors == null) {
+                globalInterceptors = new ArrayList<>();
+            }
+            globalInterceptors.add(EJBClientInterceptorInformation.forClass(interceptorClass));
+        }
+
+        public void addClassInterceptor(String className, EJBClientInterceptor interceptor) {
+            Assert.checkNotNullParam("className", className);
+            Assert.checkNotNullParam("interceptor", interceptor);
+            if (classInterceptors == null) {
+                classInterceptors = new ArrayList<>();
+            }
+            classInterceptors.add(new ClassInterceptor(className, EJBClientInterceptorInformation.forInstance(interceptor)));
+        }
+
+        public void addClassInterceptor(String className, Class<? extends EJBClientInterceptor> interceptorClass) {
+            Assert.checkNotNullParam("className", className);
+            Assert.checkNotNullParam("interceptorClass", interceptorClass);
+            if (classInterceptors == null) {
+                classInterceptors = new ArrayList<>();
+            }
+            classInterceptors.add(new ClassInterceptor(className, EJBClientInterceptorInformation.forClass(interceptorClass)));
+        }
+
+        public void addMethodInterceptor(String className, EJBMethodLocator methodLocator, EJBClientInterceptor interceptor) {
+            Assert.checkNotNullParam("className", className);
+            Assert.checkNotNullParam("methodLocator", methodLocator);
+            Assert.checkNotNullParam("interceptor", interceptor);
+            if (methodInterceptors == null) {
+                methodInterceptors = new ArrayList<>();
+            }
+            methodInterceptors.add(new MethodInterceptor(className, methodLocator, EJBClientInterceptorInformation.forInstance(interceptor)));
+        }
+
+        public void addMethodInterceptor(String className, EJBMethodLocator methodLocator, Class<? extends EJBClientInterceptor> interceptorClass) {
+            Assert.checkNotNullParam("className", className);
+            Assert.checkNotNullParam("methodLocator", methodLocator);
+            Assert.checkNotNullParam("interceptorClass", interceptorClass);
+            if (methodInterceptors == null) {
+                methodInterceptors = new ArrayList<>();
+            }
+            methodInterceptors.add(new MethodInterceptor(className, methodLocator, EJBClientInterceptorInformation.forClass(interceptorClass)));
         }
 
         public void addTransportProvider(EJBTransportProvider provider) {
@@ -723,16 +1006,73 @@ public final class EJBClientContext extends Attachable implements Contextual<EJB
         return false;
     }
 
-    EJBClientInterceptor[] getInterceptors() {
-        return interceptors;
+    InterceptorList getClassPathInterceptors() {
+        return classPathInterceptors;
     }
 
-    <T extends Throwable> T withSuppressed(T original, Collection<Throwable> suppressed) {
+    InterceptorList getGlobalInterceptors() {
+        return globalInterceptors;
+    }
+
+    Map<String, InterceptorList> getConfiguredPerClassInterceptors() {
+        return configuredPerClassInterceptors;
+    }
+
+    Map<String, Map<EJBMethodLocator, InterceptorList>> getConfiguredPerMethodInterceptors() {
+        return configuredPerMethodInterceptors;
+    }
+
+    static <T extends Throwable> T withSuppressed(T original, Collection<Throwable> suppressed) {
         if (suppressed != null) {
             for (Throwable throwable : suppressed) {
                 original.addSuppressed(throwable);
             }
         }
         return original;
+    }
+
+    static final class InterceptorList {
+        static final InterceptorList EMPTY = new InterceptorList(new EJBClientInterceptorInformation[0]);
+
+        private final EJBClientInterceptorInformation[] information;
+        private final int hashCode;
+
+        InterceptorList(final EJBClientInterceptorInformation[] information) {
+            Arrays.sort(information);
+            this.information = information;
+            hashCode = Arrays.hashCode(information);
+        }
+
+        EJBClientInterceptorInformation[] getInformation() {
+            return information;
+        }
+
+        public boolean equals(final Object obj) {
+            return obj instanceof InterceptorList && Arrays.equals(information, ((InterceptorList) obj).information);
+        }
+
+        public int hashCode() {
+            return hashCode;
+        }
+
+        private static InterceptorList ofList(final ArrayList<EJBClientInterceptorInformation> value) {
+            if (value.isEmpty()) {
+                return EMPTY;
+            } else if (value.size() == 1) {
+                return value.get(0).getSingletonList();
+            } else {
+                return new InterceptorList(value.toArray(EJBClientInterceptorInformation.NO_INTERCEPTORS));
+            }
+        }
+
+        InterceptorList combine(final InterceptorList other) {
+            return information.length == 0 ? other : other.information.length == 0 ? this : new InterceptorList(concat(information, other.information));
+        }
+
+        private static EJBClientInterceptorInformation[] concat(final EJBClientInterceptorInformation[] a, final EJBClientInterceptorInformation[] b) {
+            final EJBClientInterceptorInformation[] c = Arrays.copyOf(a, a.length + b.length);
+            System.arraycopy(b, 0, c, a.length, b.length);
+            return c;
+        }
     }
 }
