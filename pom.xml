@@ -49,7 +49,7 @@
         <version.org.jboss.spec.javax.transaction>1.0.0.Final</version.org.jboss.spec.javax.transaction>
         <version.org.jboss.xnio>3.5.0.Beta2</version.org.jboss.xnio>
         <version.org.kohsuke.metainf-services>1.7</version.org.kohsuke.metainf-services>
-        <version.org.wildfly.common>1.2.0.Beta7-SNAPSHOT</version.org.wildfly.common>
+        <version.org.wildfly.common>1.2.0.Beta7</version.org.wildfly.common>
         <version.org.wildfly.naming.client>1.0.0.Beta11</version.org.wildfly.naming.client>
         <version.org.wildfly.discovery>1.0.0.Beta8</version.org.wildfly.discovery>
         <version.org.wildfly.security.elytron>1.1.0.Beta26</version.org.wildfly.security.elytron>
