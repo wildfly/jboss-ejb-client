@@ -25,6 +25,7 @@ package org.jboss.ejb.protocol.remote;
 import static java.lang.Math.min;
 import static java.security.AccessController.doPrivileged;
 import static org.wildfly.common.math.HashMath.multiHashOrdered;
+import static org.xnio.Bits.allAreClear;
 import static org.xnio.Bits.allAreSet;
 import static org.xnio.IoUtils.safeClose;
 
@@ -359,7 +360,7 @@ class EJBClientChannel {
                             int mappingCount = StreamUtils.readPackedSignedInt32(message);
                             for (int k = 0; k < mappingCount; k ++) {
                                 int b = message.readUnsignedByte();
-                                final boolean ip6 = allAreSet(b, 1);
+                                final boolean ip6 = allAreClear(b, 1);
                                 int netmaskBits = b >>> 1;
                                 final byte[] sourceIpBytes = new byte[ip6 ? 16 : 4];
                                 message.readFully(sourceIpBytes);
