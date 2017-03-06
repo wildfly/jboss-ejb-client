@@ -71,7 +71,7 @@ public final class RemoteEJBService {
                             safeClose(channel);
                             return;
                         }
-                        final EJBServerChannel serverChannel = new EJBServerChannel(transactionService.getServerForConnection(channel.getConnection()), channel, version, messageTracker, callbackBuffer);
+                        final EJBServerChannel serverChannel = new EJBServerChannel(transactionService.getServerForConnection(channel.getConnection()), channel, version, messageTracker);
                         callbackBuffer.addListener((sc, a) -> {
                             final ListenerHandle handle1 = a.registerClusterTopologyListener(sc.createTopologyListener());
                             final ListenerHandle handle2 = a.registerModuleAvailabilityListener(sc.createModuleListener());

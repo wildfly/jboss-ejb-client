@@ -106,17 +106,15 @@ final class EJBServerChannel {
     private final Channel channel;
     private final int version;
     private final MessageTracker messageTracker;
-    private final CallbackBuffer callbackBuffer;
     private final MarshallerFactory marshallerFactory;
     private final MarshallingConfiguration configuration;
     private final IntIndexHashMap<InProgress> invocations = new IntIndexHashMap<>(InProgress::getInvId);
 
-    EJBServerChannel(final RemotingTransactionServer transactionServer, final Channel channel, final int version, final MessageTracker messageTracker, final CallbackBuffer callbackBuffer) {
+    EJBServerChannel(final RemotingTransactionServer transactionServer, final Channel channel, final int version, final MessageTracker messageTracker) {
         this.transactionServer = transactionServer;
         this.channel = channel;
         this.version = version;
         this.messageTracker = messageTracker;
-        this.callbackBuffer = callbackBuffer;
         final MarshallingConfiguration configuration = new MarshallingConfiguration();
         if (version < 3) {
             configuration.setClassTable(ProtocolV1ClassTable.INSTANCE);
@@ -329,7 +327,7 @@ final class EJBServerChannel {
             final int flags = message.readInt();
             final Xid[] xids;
             try {
-                xids = transactionServer.getTransactionService().getTransactionContext().getRecoveryInterface().recover(flags);
+                xids = transactionServer.getTransactionService().getTransactionContext().getRecoveryInterface().recover(flags, parentName);
             } catch (XAException e) {
                 writeFailedResponse(invId, e);
                 return;
@@ -364,7 +362,6 @@ final class EJBServerChannel {
             final String distName = inputStream.readUTF();
             final String beanName = inputStream.readUTF();
             final int securityContext;
-            final int transactionContext;
             final ExceptionSupplier<ImportResult<?>, SystemException> transactionSupplier;
             if (version >= 3) {
                 securityContext = inputStream.readInt();
@@ -752,6 +749,7 @@ final class EJBServerChannel {
                     if (attName.equals(EJBClientInvocationContext.PRIVATE_ATTACHMENTS_KEY)) {
                         if (version <= 2) {
                             // only supported for protocol v1/2 - read out transaction ID
+                            @SuppressWarnings("unchecked")
                             Map<Object, Object> map = (Map<Object, Object>) unmarshaller.readObject();
                             final Object transactionIdObject = map.get(AttachmentKeys.TRANSACTION_ID_KEY);
                             if (transactionIdObject != null) {
