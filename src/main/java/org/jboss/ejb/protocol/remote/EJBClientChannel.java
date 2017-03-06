@@ -169,6 +169,8 @@ class EJBClientChannel {
             configuration.setObjectTable(ProtocolV1ObjectTable.INSTANCE);
             configuration.setObjectResolver(new ProtocolV1ObjectResolver(channel.getConnection().getEndpoint().getName()));
             configuration.setVersion(2);
+            // Do not wait for cluster topology report.
+            finishedParts.set(0b10);
         } else {
             configuration.setObjectTable(ProtocolV3ObjectTable.INSTANCE);
             configuration.setObjectResolver(new ProtocolV3ObjectResolver(channel.getConnection().getPeerURI()));
