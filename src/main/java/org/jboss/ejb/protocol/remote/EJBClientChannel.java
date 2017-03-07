@@ -38,6 +38,7 @@ import java.lang.reflect.Proxy;
 import java.net.InetAddress;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.nio.channels.ClosedChannelException;
 import java.security.PrivilegedAction;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -1161,6 +1162,11 @@ class EJBClientChannel {
         }
 
         public void handleClosed() {
+            receiverInvocationContext.resultReady(new EJBReceiverInvocationContext.ResultProducer.Failed(new EJBException(new ClosedChannelException())));
+        }
+
+        public void handleException(IOException cause) {
+            receiverInvocationContext.resultReady(new EJBReceiverInvocationContext.ResultProducer.Failed(new EJBException(cause)));
         }
 
         XAOutflowHandle getOutflowHandle() {
