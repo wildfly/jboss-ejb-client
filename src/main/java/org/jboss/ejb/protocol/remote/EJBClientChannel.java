@@ -50,7 +50,6 @@ import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
-import java.util.function.Supplier;
 import java.util.zip.InflaterInputStream;
 
 import javax.ejb.CreateException;
@@ -119,8 +118,6 @@ import org.xnio.IoFuture;
  */
 @SuppressWarnings("deprecation")
 class EJBClientChannel {
-
-    private static final Supplier<ServiceRegistry> REGISTRY_SUPPLIER = doPrivileged((PrivilegedAction<Supplier<ServiceRegistry>>) ServiceRegistry.getContextManager()::getPrivilegedSupplier);
 
     private final MarshallerFactory marshallerFactory;
 
@@ -724,7 +721,7 @@ class EJBClientChannel {
         out.writeUTF(statelessLocator.getBeanName());
     }
 
-    static IoFuture<EJBClientChannel> construct(final Channel channel, final RemoteEJBReceiver remoteEJBReceiver) {
+    static IoFuture<EJBClientChannel> construct(final Channel channel) {
         FutureResult<EJBClientChannel> futureResult = new FutureResult<>();
         // now perform opening negotiation: receive server greeting
         channel.receiveMessage(new Channel.Receiver() {

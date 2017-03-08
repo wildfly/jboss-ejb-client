@@ -61,7 +61,7 @@ class RemoteEJBReceiver extends EJBReceiver {
     private final RemoteTransportProvider remoteTransportProvider;
     private final EJBReceiverContext receiverContext;
 
-    final ClientServiceHandle<EJBClientChannel> serviceHandle = new ClientServiceHandle<>("jboss.ejb", channel -> EJBClientChannel.construct(channel, this));
+    final ClientServiceHandle<EJBClientChannel> serviceHandle = new ClientServiceHandle<>("jboss.ejb", channel -> EJBClientChannel.construct(channel));
 
     RemoteEJBReceiver(final RemoteTransportProvider remoteTransportProvider, final EJBReceiverContext receiverContext) {
         this.remoteTransportProvider = remoteTransportProvider;
