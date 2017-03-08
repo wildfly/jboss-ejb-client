@@ -73,6 +73,7 @@ final class RemotingEJBDiscoveryProvider implements DiscoveryProvider {
         final AtomicInteger connectionCount = new AtomicInteger(connections.size() + 1);
         final List<Runnable> cancellers = Collections.synchronizedList(new ArrayList<>());
         for (EJBClientConnection connection : connections) {
+            if (! connection.isForDiscovery()) continue;
             final URI uri = connection.getDestination();
             final String scheme = uri.getScheme();
             if (scheme == null || ! ejbReceiver.getRemoteTransportProvider().supportsProtocol(scheme) || ! endpoint.isValidUriScheme(scheme)) {

@@ -29,9 +29,11 @@ import org.wildfly.common.Assert;
  */
 public final class EJBClientConnection {
     private final URI destination;
+    private final boolean forDiscovery;
 
     EJBClientConnection(final Builder builder) {
         destination = builder.destination;
+        forDiscovery = builder.forDiscovery;
     }
 
     /**
@@ -44,10 +46,20 @@ public final class EJBClientConnection {
     }
 
     /**
+     * Determine if this connection definition is intended to be used for discovery.
+     *
+     * @return {@code true} to use this connection for discovery if possible, {@code false} otherwise
+     */
+    public boolean isForDiscovery() {
+        return forDiscovery;
+    }
+
+    /**
      * A builder for a client connection definition.
      */
     public static final class Builder {
         URI destination;
+        boolean forDiscovery;
 
         /**
          * Construct a new instance.
@@ -59,10 +71,23 @@ public final class EJBClientConnection {
          * Set the destination URI.
          *
          * @param destination the destination URI (must not be {@code null})
+         * @return this builder
          */
-        public void setDestination(final URI destination) {
+        public Builder setDestination(final URI destination) {
             Assert.checkNotNullParam("destination", destination);
             this.destination = destination;
+            return this;
+        }
+
+        /**
+         * Set whether this connection should be used for discovery (defaults to {@code true}).
+         *
+         * @param forDiscovery {@code true} to use this connection for discovery, {@code false} otherwise
+         * @return this builder
+         */
+        public Builder setForDiscovery(final boolean forDiscovery) {
+            this.forDiscovery = forDiscovery;
+            return this;
         }
 
         /**
