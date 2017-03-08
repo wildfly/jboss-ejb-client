@@ -25,10 +25,13 @@ package org.jboss.ejb.client.legacy;
 import java.net.URI;
 import java.util.List;
 import java.util.Properties;
+import java.util.function.Supplier;
 
 import org.jboss.ejb._private.Logs;
+import org.jboss.ejb.client.DeploymentNodeSelector;
 import org.jboss.ejb.client.EJBClientConnection;
 import org.jboss.ejb.client.EJBClientContext;
+import org.wildfly.common.function.ExceptionSupplier;
 import org.xnio.OptionMap;
 
 /**
@@ -61,6 +64,17 @@ public class LegacyPropertiesConfiguration {
                 final EJBClientConnection.Builder connectionBuilder = new EJBClientConnection.Builder();
                 connectionBuilder.setDestination(uri);
                 builder.addClientConnection(connectionBuilder.build());
+            }
+
+            final ExceptionSupplier<DeploymentNodeSelector, ReflectiveOperationException> deploymentNodeSelectorSupplier = properties.getDeploymentNodeSelectorSupplier();
+            if (deploymentNodeSelectorSupplier != null) {
+                final DeploymentNodeSelector deploymentNodeSelector;
+                try {
+                    deploymentNodeSelector = deploymentNodeSelectorSupplier.get();
+                } catch (ReflectiveOperationException e) {
+                    throw Logs.MAIN.cannotInstantiateDeploymentNodeSelector(properties.getDefaultCallbackHandlerClassName(), e);
+                }
+                builder.setDeploymentNodeSelector(deploymentNodeSelector);
             }
         }
     }
