@@ -66,11 +66,8 @@ final class RemotingEJBDiscoveryProvider implements DiscoveryProvider {
         }
         final Endpoint endpoint = Endpoint.getCurrent();
         final List<EJBClientConnection> connections = ejbClientContext.getConfiguredConnections();
-        if (connections.isEmpty()) {
-            result.complete();
-            return DiscoveryRequest.NULL;
-        }
-        final AtomicInteger connectionCount = new AtomicInteger(connections.size() + 1);
+        final AtomicInteger connectionCount = new AtomicInteger(connections.size() + 2);
+        ejbReceiver.getRemoteTransportProvider().getClusterDiscoveryProvider().discover(serviceType, filterSpec, new CountingResult(connectionCount, result));
         final List<Runnable> cancellers = Collections.synchronizedList(new ArrayList<>());
         for (EJBClientConnection connection : connections) {
             if (! connection.isForDiscovery()) continue;
@@ -105,19 +102,7 @@ final class RemotingEJBDiscoveryProvider implements DiscoveryProvider {
                         }
 
                         public void handleDone(final EJBClientChannel clientChannel, final DiscoveryResult discoveryResult) {
-                            final DiscoveryRequest request = clientChannel.getDiscoveryProvider().discover(serviceType, filterSpec, new DiscoveryResult() {
-                                public void complete() {
-                                    countDown(connectionCount, discoveryResult);
-                                }
-
-                                public void reportProblem(final Throwable description) {
-                                    discoveryResult.reportProblem(description);
-                                }
-
-                                public void addMatch(final ServiceURL serviceURL) {
-                                    discoveryResult.addMatch(serviceURL);
-                                }
-                            });
+                            final DiscoveryRequest request = clientChannel.getDiscoveryProvider().discover(serviceType, filterSpec, new CountingResult(connectionCount, discoveryResult));
                             cancellers.add(request::cancel);
                         }
                     }, discoveryResult);
@@ -138,6 +123,28 @@ final class RemotingEJBDiscoveryProvider implements DiscoveryProvider {
     static void countDown(final AtomicInteger connectionCount, final DiscoveryResult discoveryResult) {
         if (connectionCount.decrementAndGet() == 0) {
             discoveryResult.complete();
+        }
+    }
+
+    static class CountingResult implements DiscoveryResult {
+        private final AtomicInteger connectionCount;
+        private final DiscoveryResult discoveryResult;
+
+        CountingResult(final AtomicInteger connectionCount, final DiscoveryResult discoveryResult) {
+            this.connectionCount = connectionCount;
+            this.discoveryResult = discoveryResult;
+        }
+
+        public void complete() {
+            countDown(connectionCount, discoveryResult);
+        }
+
+        public void reportProblem(final Throwable description) {
+            discoveryResult.reportProblem(description);
+        }
+
+        public void addMatch(final ServiceURL serviceURL) {
+            discoveryResult.addMatch(serviceURL);
         }
     }
 }

@@ -126,11 +126,12 @@ class EJBClientChannel {
 
     private final InvocationTracker invocationTracker;
 
+    private final ServiceRegistry persistentClusterRegistry;
     private final ServiceRegistry serviceRegistry;
     private final MarshallingConfiguration configuration;
     private final ServiceRegistration nodeRegistration;
     private final ConcurrentMap<DiscKey, ServiceRegistration> registrationsMap = new ConcurrentHashMap<>();
-    private final ConcurrentMap<String, ConcurrentMap<String, ConcurrentMap<ClusterDiscKey, ServiceRegistration>>> clusterRegistrationsMap = new ConcurrentHashMap<>();
+    private final ConcurrentMap<String, ConcurrentMap<String, ConcurrentMap<ClusterDiscKey, ServiceRegistration>>> clusterRegistrationsMap;
     private final IntIndexMap<UserTransactionID> userTxnIds = new IntIndexHashMap<UserTransactionID>(UserTransactionID::getId);
 
     private final RemoteTransactionContext transactionContext;
@@ -138,9 +139,11 @@ class EJBClientChannel {
     private final AtomicReference<FutureResult<EJBClientChannel>> futureResultRef;
     private final LocalRegistryAndDiscoveryProvider discoveryProvider = new LocalRegistryAndDiscoveryProvider();
 
-    EJBClientChannel(final Channel channel, final int version, final FutureResult<EJBClientChannel> futureResult) {
+    EJBClientChannel(final Channel channel, final int version, final ServiceRegistry persistentClusterRegistry, final ConcurrentMap<String, ConcurrentMap<String, ConcurrentMap<ClusterDiscKey, ServiceRegistration>>> clusterRegistrationsMap, final FutureResult<EJBClientChannel> futureResult) {
         this.channel = channel;
         this.version = version;
+        this.persistentClusterRegistry = persistentClusterRegistry;
+        this.clusterRegistrationsMap = clusterRegistrationsMap;
         marshallerFactory = Marshalling.getProvidedMarshallerFactory("river");
         MarshallingConfiguration configuration = new MarshallingConfiguration();
         configuration.setClassResolver(new ContextClassResolver() {
@@ -192,22 +195,6 @@ class EJBClientChannel {
                 final Map.Entry<DiscKey, ServiceRegistration> entry = i1.next();
                 i1.remove();
                 entry.getValue().close();
-            }
-            final Iterator<Map.Entry<String, ConcurrentMap<String, ConcurrentMap<ClusterDiscKey, ServiceRegistration>>>> i2 = clusterRegistrationsMap.entrySet().iterator();
-            while (i2.hasNext()) {
-                final Map.Entry<String, ConcurrentMap<String, ConcurrentMap<ClusterDiscKey, ServiceRegistration>>> entry1 = i2.next();
-                i2.remove();
-                final Iterator<Map.Entry<String, ConcurrentMap<ClusterDiscKey, ServiceRegistration>>> i3 = entry1.getValue().entrySet().iterator();
-                while (i3.hasNext()) {
-                    final Map.Entry<String, ConcurrentMap<ClusterDiscKey, ServiceRegistration>> entry2 = i3.next();
-                    i3.remove();
-                    Iterator<ServiceRegistration> i4 = entry2.getValue().values().iterator();
-                    while (i4.hasNext()) {
-                        final ServiceRegistration registration = i4.next();
-                        i4.remove();
-                        registration.close();
-                    }
-                }
             }
         });
     }
@@ -391,7 +378,7 @@ class EJBClientChannel {
                                     Logs.REMOTING.trace("Ignoring cluster node because the URI failed to be built", e);
                                     continue;
                                 }
-                                final ServiceRegistration registration = serviceRegistry.registerService(builder.create());
+                                final ServiceRegistration registration = persistentClusterRegistry.registerService(builder.create());
                                 final ClusterDiscKey key = new ClusterDiscKey(clusterName, nodeName, sourceIpBytes, netmaskBits);
                                 final ServiceRegistration old = clusterRegistrationsMap.computeIfAbsent(clusterName, x -> new ConcurrentHashMap<>()).computeIfAbsent(nodeName, x -> new ConcurrentHashMap<>()).put(key, registration);
                                 if (old != null) {
@@ -721,7 +708,7 @@ class EJBClientChannel {
         out.writeUTF(statelessLocator.getBeanName());
     }
 
-    static IoFuture<EJBClientChannel> construct(final Channel channel) {
+    static IoFuture<EJBClientChannel> construct(final Channel channel, final ServiceRegistry persistentClusterRegistry, final ConcurrentMap<String, ConcurrentMap<String, ConcurrentMap<ClusterDiscKey, ServiceRegistration>>> clusterRegistrationsMap) {
         FutureResult<EJBClientChannel> futureResult = new FutureResult<>();
         // now perform opening negotiation: receive server greeting
         channel.receiveMessage(new Channel.Receiver() {
@@ -747,7 +734,7 @@ class EJBClientChannel {
                         out.writeUTF("river");
                     }
                     // almost done; wait for initial module available report
-                    final EJBClientChannel ejbClientChannel = new EJBClientChannel(channel, version, futureResult);
+                    final EJBClientChannel ejbClientChannel = new EJBClientChannel(channel, version, persistentClusterRegistry, clusterRegistrationsMap, futureResult);
                     channel.receiveMessage(new Channel.Receiver() {
                         public void handleError(final Channel channel, final IOException error) {
                             safeClose(channel);

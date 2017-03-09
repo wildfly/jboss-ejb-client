@@ -28,6 +28,7 @@ import java.io.IOException;
 import java.io.InterruptedIOException;
 import java.net.URI;
 import java.security.PrivilegedAction;
+import java.util.concurrent.ConcurrentMap;
 
 import javax.ejb.CreateException;
 
@@ -46,6 +47,8 @@ import org.jboss.remoting3.ClientServiceHandle;
 import org.jboss.remoting3.Connection;
 import org.jboss.remoting3.Endpoint;
 import org.wildfly.common.Assert;
+import org.wildfly.discovery.ServiceRegistration;
+import org.wildfly.discovery.ServiceRegistry;
 import org.wildfly.naming.client.NamingProvider;
 import org.wildfly.naming.client.remote.RemoteNamingProvider;
 import org.xnio.FinishedIoFuture;
@@ -60,12 +63,17 @@ class RemoteEJBReceiver extends EJBReceiver {
 
     private final RemoteTransportProvider remoteTransportProvider;
     private final EJBReceiverContext receiverContext;
+    private final ServiceRegistry persistentClusterRegistry;
+    private final ConcurrentMap<String, ConcurrentMap<String, ConcurrentMap<EJBClientChannel.ClusterDiscKey, ServiceRegistration>>> clusterRegistrationsMap;
 
-    final ClientServiceHandle<EJBClientChannel> serviceHandle = new ClientServiceHandle<>("jboss.ejb", channel -> EJBClientChannel.construct(channel));
+    final ClientServiceHandle<EJBClientChannel> serviceHandle;
 
-    RemoteEJBReceiver(final RemoteTransportProvider remoteTransportProvider, final EJBReceiverContext receiverContext) {
+    RemoteEJBReceiver(final RemoteTransportProvider remoteTransportProvider, final EJBReceiverContext receiverContext, final ServiceRegistry persistentClusterRegistry, final ConcurrentMap<String, ConcurrentMap<String, ConcurrentMap<EJBClientChannel.ClusterDiscKey, ServiceRegistration>>> clusterRegistrationsMap) {
         this.remoteTransportProvider = remoteTransportProvider;
         this.receiverContext = receiverContext;
+        this.persistentClusterRegistry = persistentClusterRegistry;
+        this.clusterRegistrationsMap = clusterRegistrationsMap;
+        serviceHandle = new ClientServiceHandle<>("jboss.ejb", channel -> EJBClientChannel.construct(channel, this.persistentClusterRegistry, this.clusterRegistrationsMap));
     }
 
     final IoFuture.HandlingNotifier<Connection, EJBReceiverInvocationContext> notifier = new IoFuture.HandlingNotifier<Connection, EJBReceiverInvocationContext>() {

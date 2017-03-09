@@ -25,7 +25,6 @@ package org.jboss.ejb.client.legacy;
 import java.net.URI;
 import java.util.List;
 import java.util.Properties;
-import java.util.function.Supplier;
 
 import org.jboss.ejb._private.Logs;
 import org.jboss.ejb.client.DeploymentNodeSelector;

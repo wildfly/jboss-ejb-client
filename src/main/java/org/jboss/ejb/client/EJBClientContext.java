@@ -369,6 +369,16 @@ public final class EJBClientContext extends Attachable implements Contextual<EJB
     }
 
     /**
+     * Get the initially configured clusters for this context.  The collection will not reflect any topology updates
+     * received from peers.
+     *
+     * @return the initially configured clusters for this context
+     */
+    public Collection<EJBClientCluster> getInitialConfiguredClusters() {
+        return configuredClusters.values();
+    }
+
+    /**
      * Get a copy of this context with the given interceptor(s) added.  If the array is {@code null} or empty, the
      * current context is returned as-is.
      *
