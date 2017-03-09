@@ -217,7 +217,7 @@ public final class EJBClientInvocationContext extends Attachable {
     /**
      * Get the compression hint level.  If no compression hint is given, -1 is returned.
      *
-     * @return the compression hint level, or -1 for no compression
+     * @return the compression hint level, or -1 for no compression hint
      */
     public int getCompressionLevel() {
         return methodInfo.getCompressionLevel();

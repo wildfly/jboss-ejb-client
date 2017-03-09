@@ -29,9 +29,12 @@ import static org.xnio.Bits.allAreClear;
 import static org.xnio.Bits.allAreSet;
 import static org.xnio.IoUtils.safeClose;
 
+import java.io.DataInputStream;
 import java.io.DataOutput;
+import java.io.DataOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.OutputStream;
 import java.io.UnsupportedEncodingException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
@@ -50,6 +53,8 @@ import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.zip.Deflater;
+import java.util.zip.DeflaterOutputStream;
 import java.util.zip.InflaterInputStream;
 
 import javax.ejb.CreateException;
@@ -272,9 +277,16 @@ class EJBClientChannel {
                 case Protocol.SESSION_NOT_ACTIVE:
                 case Protocol.EJB_NOT_STATEFUL:
                 case Protocol.BAD_VIEW_TYPE:
-                case Protocol.PROCEED_ASYNC_RESPONSE: {
+                case Protocol.PROCEED_ASYNC_RESPONSE:{
                     final int invId = message.readUnsignedShort();
                     leaveOpen = invocationTracker.signalResponse(invId, msg, message, false);
+                    break;
+                }
+                case Protocol.COMPRESSED_INVOCATION_MESSAGE: {
+                    DataInputStream inputStream = new DataInputStream(new InflaterInputStream(message));
+                    final int realMessageId = inputStream.readByte();
+                    final int invId = inputStream.readUnsignedShort();
+                    leaveOpen = invocationTracker.signalResponse(invId, realMessageId, new ResponseMessageInputStream(inputStream, invId), false);
                     break;
                 }
                 case Protocol.MODULE_AVAILABLE: {
@@ -452,7 +464,8 @@ class EJBClientChannel {
         else {
             peerIdentityId = 0; // unused
         }
-        try (MessageOutputStream out = invocationTracker.allocateMessage()) {
+        try (MessageOutputStream underlying = invocationTracker.allocateMessage()) {
+            MessageOutputStream out = handleCompression(invocationContext, underlying);
             try {
                 out.write(Protocol.INVOCATION_REQUEST);
                 out.writeShort(invocation.getIndex());
@@ -491,7 +504,8 @@ class EJBClientChannel {
 
                     // write response compression info
                     if (invocationContext.isCompressResponse()) {
-                        marshaller.writeByte(invocationContext.getCompressionLevel());
+                        int compressionLevel = invocationContext.getCompressionLevel() > 0 ? invocationContext.getCompressionLevel() : 15;
+                        marshaller.writeByte(compressionLevel);
                     } else {
                         marshaller.writeByte(0);
                     }
@@ -588,8 +602,10 @@ class EJBClientChannel {
                 // finished
                 marshaller.finish();
             } catch (IOException e) {
-                out.cancel();
+                underlying.cancel();
                 throw e;
+            } finally {
+                ((OutputStream)out).close();
             }
         } catch (IOException e) {
             receiverContext.resultReady(new EJBReceiverInvocationContext.ResultProducer.Failed(new RequestSendFailedException(e.getMessage(), e, true)));
@@ -597,6 +613,60 @@ class EJBClientChannel {
             receiverContext.resultReady(new EJBReceiverInvocationContext.ResultProducer.Failed(new EJBException(e.getMessage(), e)));
             return;
         }
+    }
+
+    /**
+     * Wraps the {@link MessageOutputStream message output stream} into a relevant {@link DataOutputStream}, taking into account various factors like the necessity to
+     * compress the data that gets passed along the stream
+     *
+     * @param invocationContext         The EJB client invocation context
+     * @param messageOutputStream       The message outputstream that needs to be wrapped
+     * @return
+     * @throws Exception
+     */
+    private MessageOutputStream handleCompression(final EJBClientInvocationContext invocationContext, final MessageOutputStream messageOutputStream) throws IOException {
+        // if the negotiated protocol version doesn't support compressed messages then just return
+        if(version == 1) {
+            return messageOutputStream;
+        }
+
+        // if "hints" are disabled, just return a DataOutputStream without the necessity of processing any "hints"
+        final Boolean hintsDisabled = invocationContext.getProxyAttachment(AttachmentKeys.HINTS_DISABLED);
+        if (hintsDisabled != null && hintsDisabled) {
+            if (Logs.REMOTING.isTraceEnabled()) {
+                Logs.REMOTING.trace("Hints are disabled. Ignoring any CompressionHint on methods being invoked on view " + invocationContext.getViewClass());
+            }
+            return messageOutputStream;
+        }
+
+        // process any CompressionHint
+        final int compressionLevel = invocationContext.getCompressionLevel();
+        // write out a attachment to indicate whether or not the response has to be compressed (v2 only)
+        if (version == 2 && invocationContext.isCompressResponse()) {
+            invocationContext.putAttachment(AttachmentKeys.COMPRESS_RESPONSE, true);
+            invocationContext.putAttachment(AttachmentKeys.RESPONSE_COMPRESSION_LEVEL, compressionLevel);
+            if (Logs.REMOTING.isTraceEnabled()) {
+                Logs.REMOTING.trace("Letting the server know that the response of method " + invocationContext.getInvokedMethod() + " has to be compressed with compression level = " + compressionLevel);
+            }
+        }
+
+        // create a compressed invocation data *only* if the request has to be compressed (note, it's perfectly valid for certain methods to just specify that only the response is compressed)
+        if (invocationContext.isCompressRequest()) {
+            // write out the header indicating that it's a compressed stream
+            messageOutputStream.write(Protocol.COMPRESSED_INVOCATION_MESSAGE);
+            // create the deflater using the specified level
+            final Deflater deflater = new Deflater(compressionLevel);
+            // wrap the message outputstream with the deflater stream so that *any subsequent* data writes to the stream are compressed
+            final DeflaterOutputStream deflaterOutputStream = new DeflaterOutputStream(messageOutputStream, deflater);
+            if (Logs.REMOTING.isTraceEnabled()) {
+                Logs.REMOTING.trace("Using a compressing stream with compression level = " + compressionLevel + " for request data for EJB invocation on method " + invocationContext.getInvokedMethod());
+            }
+            return new WrapperMessageOutputStream(messageOutputStream, deflaterOutputStream);
+        } else {
+            // just return a normal DataOutputStream without any compression
+            return messageOutputStream;
+        }
+
     }
 
     private TransactionID calculateTransactionId(final Transaction transaction) throws RollbackException, SystemException, InvalidTransactionException {
@@ -1023,13 +1093,13 @@ class EJBClientChannel {
             }
         }
 
-        public void handleResponse(final int id, final MessageInputStream inputStream) {
+        @Override
+        public void handleResponse(int parameter, MessageInputStream inputStream) {
+            handleResponse(parameter, new DataInputStream(inputStream));
+        }
+
+        private void handleResponse(final int id, final DataInputStream inputStream) {
             switch (id) {
-                case Protocol.COMPRESSED_INVOCATION_MESSAGE: {
-                    free();
-                    receiverInvocationContext.resultReady(new MethodCallResultProducer(new InflaterInputStream(inputStream), id));
-                    break;
-                }
                 case Protocol.INVOCATION_RESPONSE: {
                     free();
                     if (version >= 3) try {
@@ -1172,7 +1242,12 @@ class EJBClientChannel {
             }
 
             public Object getResult() throws Exception {
-                final ResponseMessageInputStream response = new ResponseMessageInputStream(inputStream, id);
+                final ResponseMessageInputStream response;
+                if(inputStream instanceof ResponseMessageInputStream) {
+                    response = (ResponseMessageInputStream) inputStream;
+                } else {
+                    response = new ResponseMessageInputStream(inputStream, id);
+                }
                 Object result;
                 try (final Unmarshaller unmarshaller = createUnmarshaller()) {
                     unmarshaller.start(response);

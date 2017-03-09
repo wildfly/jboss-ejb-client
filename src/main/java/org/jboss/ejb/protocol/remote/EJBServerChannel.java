@@ -27,9 +27,9 @@ import static java.security.AccessController.doPrivileged;
 import static org.xnio.IoUtils.safeClose;
 
 import java.io.DataInput;
+import java.io.DataOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.OutputStream;
 import java.lang.reflect.Proxy;
 import java.net.Inet6Address;
 import java.net.SocketAddress;
@@ -169,13 +169,22 @@ final class EJBServerChannel {
                 switch (code) {
                     case Protocol.COMPRESSED_INVOCATION_MESSAGE:
                     case Protocol.INVOCATION_REQUEST: {
-                        final int invId = message.readUnsignedShort();
-                        // now if we get an error, we can respond.
                         try (InputStream input = code == Protocol.COMPRESSED_INVOCATION_MESSAGE ? new InflaterInputStream(message) : message) {
-                            handleInvocationRequest(invId, input);
-                        } catch (IOException | ClassNotFoundException e) {
-                            // write response back to client
-                            writeFailedResponse(invId, e);
+                            // now if we get an error, we can respond.
+                            if(code == Protocol.COMPRESSED_INVOCATION_MESSAGE) {
+                                int verify = input.read();
+                                if(verify != Protocol.INVOCATION_REQUEST) {
+                                    throw new RuntimeException();
+                                }
+
+                            }
+                            final int invId = (input.read() << 8) | input.read();
+                            try {
+                                handleInvocationRequest(invId, input);
+                            } catch (IOException | ClassNotFoundException e) {
+                                // write response back to client
+                                writeFailedResponse(invId, e);
+                            }
                         }
                         break;
                     }
@@ -822,8 +831,15 @@ final class EJBServerChannel {
                     }
 
                     public void writeInvocationResult(final Object result) {
-                        try (MessageOutputStream os = messageTracker.openMessageUninterruptibly()) {
-                            os.writeByte(finalResponseCompressLevel > 0 ? Protocol.COMPRESSED_INVOCATION_MESSAGE : Protocol.INVOCATION_RESPONSE);
+                        MessageOutputStream os;
+                        try (MessageOutputStream underlying = messageTracker.openMessageUninterruptibly()) {
+                            if(finalResponseCompressLevel != 0) {
+                                underlying.writeByte(Protocol.COMPRESSED_INVOCATION_MESSAGE);
+                                os = new WrapperMessageOutputStream(underlying, new DeflaterOutputStream(underlying, new Deflater(finalResponseCompressLevel)));
+                            } else {
+                                os = underlying;
+                            }
+                            os.writeByte(Protocol.INVOCATION_RESPONSE);
                             os.writeShort(invId);
                             if (version >= 3) {
                                 os.writeByte(txnCmd);
@@ -836,26 +852,25 @@ final class EJBServerChannel {
                                     os.write(bytes);
                                 }
                             }
-                            try (OutputStream output = finalResponseCompressLevel > 0 ? new DeflaterOutputStream(os, new Deflater(finalResponseCompressLevel, false)) : os) {
-                                final Marshaller marshaller = marshallerFactory.createMarshaller(configuration);
-                                marshaller.start(Marshalling.createByteOutput(output));
-                                marshaller.writeObject(result);
-                                int count = attachments.size();
-                                if (count > 255) {
-                                    marshaller.writeByte(255);
-                                } else {
-                                    marshaller.writeByte(count);
-                                }
-                                int i = 0;
-                                for (Map.Entry<String, Object> entry : attachments.entrySet()) {
-                                    marshaller.writeObject(entry.getKey());
-                                    marshaller.writeObject(entry.getValue());
-                                    if (i ++ == 255) {
-                                        break;
-                                    }
-                                }
-                                marshaller.finish();
+                            final Marshaller marshaller = marshallerFactory.createMarshaller(configuration);
+                            marshaller.start(Marshalling.createByteOutput(os));
+                            marshaller.writeObject(result);
+                            int count = attachments.size();
+                            if (count > 255) {
+                                marshaller.writeByte(255);
+                            } else {
+                                marshaller.writeByte(count);
                             }
+                            int i = 0;
+                            for (Map.Entry<String, Object> entry : attachments.entrySet()) {
+                                marshaller.writeObject(entry.getKey());
+                                marshaller.writeObject(entry.getValue());
+                                if (i ++ == 255) {
+                                    break;
+                                }
+                            }
+                            marshaller.finish();
+                            os.close();
                         } catch (IOException e) {
                             // nothing to do at this point; the client doesn't want the response
                             Logs.REMOTING.trace("EJB response write failed", e);
