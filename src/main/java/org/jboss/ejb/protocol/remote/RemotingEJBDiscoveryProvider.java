@@ -67,13 +67,18 @@ final class RemotingEJBDiscoveryProvider implements DiscoveryProvider {
         final Endpoint endpoint = Endpoint.getCurrent();
         final List<EJBClientConnection> connections = ejbClientContext.getConfiguredConnections();
         final AtomicInteger connectionCount = new AtomicInteger(connections.size() + 2);
-        ejbReceiver.getRemoteTransportProvider().getClusterDiscoveryProvider().discover(serviceType, filterSpec, new CountingResult(connectionCount, result));
+        final CountingResult countingResult = new CountingResult(connectionCount, result);
+        final DiscoveryRequest clusterRequest = ejbReceiver.getRemoteTransportProvider().getClusterDiscoveryProvider().discover(serviceType, filterSpec, countingResult);
         final List<Runnable> cancellers = Collections.synchronizedList(new ArrayList<>());
         for (EJBClientConnection connection : connections) {
-            if (! connection.isForDiscovery()) continue;
+            if (! connection.isForDiscovery()) {
+                countDown(connectionCount, result);
+                continue;
+            }
             final URI uri = connection.getDestination();
             final String scheme = uri.getScheme();
             if (scheme == null || ! ejbReceiver.getRemoteTransportProvider().supportsProtocol(scheme) || ! endpoint.isValidUriScheme(scheme)) {
+                countDown(connectionCount, result);
                 continue;
             }
             final IoFuture<Connection> future = doPrivileged((PrivilegedAction<IoFuture<Connection>>) () -> endpoint.getConnection(uri));
@@ -102,7 +107,7 @@ final class RemotingEJBDiscoveryProvider implements DiscoveryProvider {
                         }
 
                         public void handleDone(final EJBClientChannel clientChannel, final DiscoveryResult discoveryResult) {
-                            final DiscoveryRequest request = clientChannel.getDiscoveryProvider().discover(serviceType, filterSpec, new CountingResult(connectionCount, discoveryResult));
+                            final DiscoveryRequest request = clientChannel.getDiscoveryProvider().discover(serviceType, filterSpec, countingResult);
                             cancellers.add(request::cancel);
                         }
                     }, discoveryResult);
@@ -112,6 +117,7 @@ final class RemotingEJBDiscoveryProvider implements DiscoveryProvider {
         }
         countDown(connectionCount, result);
         return () -> {
+            clusterRequest.cancel();
             synchronized (cancellers) {
                 for (Runnable canceller : cancellers) {
                     canceller.run();

@@ -59,7 +59,7 @@ public final class EJBClientConnection {
      */
     public static final class Builder {
         URI destination;
-        boolean forDiscovery;
+        boolean forDiscovery = true;
 
         /**
          * Construct a new instance.
