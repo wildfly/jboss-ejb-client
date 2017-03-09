@@ -326,10 +326,12 @@ public final class JBossEJBProperties implements Contextual<JBossEJBProperties> 
 
         // deployment node selector
         final String deploymentNodeSelectorClassName = getProperty(properties, PROPERTY_KEY_DEPLOYMENT_NODE_SELECTOR, null, true);
-        builder.setDeploymentNodeSelectorClassName(deploymentNodeSelectorClassName);
+        if (deploymentNodeSelectorClassName != null) {
+            builder.setDeploymentNodeSelectorClassName(deploymentNodeSelectorClassName);
 
-        builder.setDeploymentNodeSelectorSupplier(() ->
-            Class.forName(deploymentNodeSelectorClassName, true, classLoader).asSubclass(DeploymentNodeSelector.class).getConstructor().newInstance());
+            builder.setDeploymentNodeSelectorSupplier(() ->
+                Class.forName(deploymentNodeSelectorClassName, true, classLoader).asSubclass(DeploymentNodeSelector.class).getConstructor().newInstance());
+        }
 
         // connections
         final String connectionsString = getProperty(properties, PROPERTY_KEY_REMOTE_CONNECTIONS, "", true).trim();
