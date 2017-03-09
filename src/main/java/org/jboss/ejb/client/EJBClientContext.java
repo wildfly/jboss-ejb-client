@@ -115,6 +115,7 @@ public final class EJBClientContext extends Attachable implements Contextual<EJB
     private final List<EJBClientConnection> configuredConnections;
     private final Map<String, EJBClientCluster> configuredClusters;
     private final ClusterNodeSelector clusterNodeSelector;
+    private final DeploymentNodeSelector deploymentNodeSelector;
     private final ClassValue<EJBProxyInterceptorInformation<?>> proxyInfoValue = new ClassValue<EJBProxyInterceptorInformation<?>>() {
         protected EJBProxyInterceptorInformation<?> computeValue(final Class<?> type) {
             return EJBProxyInterceptorInformation.construct(type, EJBClientContext.this);
@@ -161,6 +162,7 @@ public final class EJBClientContext extends Attachable implements Contextual<EJB
             configuredClusters = Collections.unmodifiableMap(map);
         }
         clusterNodeSelector = builder.clusterNodeSelector;
+        deploymentNodeSelector = builder.deploymentNodeSelector;
 
         // global interceptors
         final List<EJBClientInterceptorInformation> globalInterceptors = builder.globalInterceptors;
@@ -493,6 +495,7 @@ public final class EJBClientContext extends Attachable implements Contextual<EJB
         List<EJBClientConnection> clientConnections;
         List<EJBClientCluster> clientClusters;
         ClusterNodeSelector clusterNodeSelector = ClusterNodeSelector.DEFAULT;
+        DeploymentNodeSelector deploymentNodeSelector = DeploymentNodeSelector.RANDOM;
         long invocationTimeout;
 
         /**
@@ -527,6 +530,7 @@ public final class EJBClientContext extends Attachable implements Contextual<EJB
             clientClusters = new ArrayList<>();
             clientClusters.addAll(clientContext.configuredClusters.values());
             clusterNodeSelector = clientContext.clusterNodeSelector;
+            deploymentNodeSelector = clientContext.deploymentNodeSelector;
             invocationTimeout = clientContext.invocationTimeout;
         }
 
@@ -611,6 +615,11 @@ public final class EJBClientContext extends Attachable implements Contextual<EJB
         public void setClusterNodeSelector(final ClusterNodeSelector clusterNodeSelector) {
             Assert.checkNotNullParam("clusterNodeSelector", clusterNodeSelector);
             this.clusterNodeSelector = clusterNodeSelector;
+        }
+
+        public void setDeploymentNodeSelector(final DeploymentNodeSelector deploymentNodeSelector) {
+            Assert.checkNotNullParam("deploymentNodeSelector", deploymentNodeSelector);
+            this.deploymentNodeSelector = deploymentNodeSelector;
         }
 
         public void setInvocationTimeout(final long invocationTimeout) {
@@ -757,11 +766,9 @@ public final class EJBClientContext extends Attachable implements Contextual<EJB
                 if (nodes.size() == 1) {
                     node = nodes.get(0);
                 } else {
-                    // TODO pull from config
-                    DeploymentNodeSelector selector = DeploymentNodeSelector.RANDOM;
-                    node = selector.selectNode(nodes.toArray(NO_STRINGS), locator.getAppName(), locator.getModuleName(), locator.getDistinctName());
+                    node = deploymentNodeSelector.selectNode(nodes.toArray(NO_STRINGS), locator.getAppName(), locator.getModuleName(), locator.getDistinctName());
                     if (node == null) {
-                        throw Logs.MAIN.selectorReturnedNull(selector);
+                        throw Logs.MAIN.selectorReturnedNull(deploymentNodeSelector);
                     }
                 }
                 return discoverAffinityNode(locator, new NodeAffinity(node), locatedAction);
