@@ -98,7 +98,9 @@ Version is 0x01 or 0x02 or 0x03. 0x00 is reserved for test purposes.
 
          7 6 5 4 3 2 1 0 
         ┌─┬─┬─┬─┬─┬─┬─┬─┐
-        │  0x03 or 0x1B │  Command = Invocation Request or Compressed Invocation Request (0x1B is also Compressed Invocation Response (V2+ only))
+        │ 0x1B          │  Compressed request (optional, if present everything following is compressed)
+        ├───────────────┤
+        │ 0x03          │  Command = Invocation Request or Compressed Invocation Request
         ├───────────────┤
         │ Invocation ID │  Fixed length, two bytes
         ├ ─ ─ ─ ─ ─ ─ ─ ┤
@@ -197,7 +199,9 @@ Note.  As of protocol V3, this message is no longer used.  Asynchronous void met
 
      7 6 5 4 3 2 1 0 
     ┌─┬─┬─┬─┬─┬─┬─┬─┐
-    │  0x05 or 0x1B │  Command = Invocation Response or Compressed Invocation Response (0x1B is also Compressed Invocation Request (V2+ only))
+    │ 0x1B          │  Optional Compressed Invocation Response, if this is present everything following is compressed
+    ├───────────────┤
+    │ 0x05          │  Command = Invocation Response
     ├───────────────┤
     │ Invocation ID │  Fixed length, two bytes
     ├ ─ ─ ─ ─ ─ ─ ─ ┤
