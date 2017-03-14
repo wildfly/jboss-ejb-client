@@ -779,6 +779,7 @@ class EJBClientChannel {
         private int id;
         private MessageInputStream inputStream;
         private XAOutflowHandle outflowHandle;
+        private IOException ex;
 
         protected SessionOpenInvocation(final int index, final StatelessEJBLocator<T> statelessLocator) {
             super(index);
@@ -799,9 +800,11 @@ class EJBClientChannel {
             }
         }
 
-        @Override
-        public void handleException(IOException exception) {
-            
+        public void handleException(IOException cause) {
+            synchronized (this) {
+                this.ex = cause;
+                notifyAll();
+            }
         }
 
         void setOutflowHandle(final XAOutflowHandle outflowHandle) {
@@ -921,6 +924,9 @@ class EJBClientChannel {
                             mis = inputStream;
                             inputStream = null;
                             break;
+                        }
+                        if (ex != null) {
+                            throw new EJBException(ex);
                         }
                         if (id == -1) {
                             throw new EJBException("Connection closed");
