@@ -51,7 +51,6 @@ import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.zip.InflaterInputStream;
-
 import javax.ejb.CreateException;
 import javax.ejb.EJBException;
 import javax.ejb.NoSuchEJBException;
@@ -61,7 +60,8 @@ import javax.transaction.SystemException;
 import javax.transaction.Transaction;
 import javax.transaction.xa.Xid;
 
-import org.jboss.ejb._private.*;
+import org.jboss.ejb._private.Logs;
+import org.jboss.ejb._private.NetworkUtil;
 import org.jboss.ejb.client.Affinity;
 import org.jboss.ejb.client.AttachmentKey;
 import org.jboss.ejb.client.AttachmentKeys;
@@ -797,6 +797,11 @@ class EJBClientChannel {
             synchronized (this) {
                 notifyAll();
             }
+        }
+
+        @Override
+        public void handleException(IOException exception) {
+            
         }
 
         void setOutflowHandle(final XAOutflowHandle outflowHandle) {
