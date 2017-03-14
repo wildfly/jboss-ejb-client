@@ -32,9 +32,11 @@ import org.jboss.ejb.client.EJBClientConnection;
 import org.jboss.ejb.client.EJBClientContext;
 import org.jboss.remoting3.Connection;
 import org.jboss.remoting3.Endpoint;
+import org.wildfly.discovery.Discovery;
 import org.wildfly.discovery.FilterSpec;
 import org.wildfly.discovery.ServiceType;
 import org.wildfly.discovery.ServiceURL;
+import org.wildfly.discovery.ServicesQueue;
 import org.wildfly.discovery.spi.DiscoveryProvider;
 import org.wildfly.discovery.spi.DiscoveryRequest;
 import org.wildfly.discovery.spi.DiscoveryResult;
@@ -65,10 +67,25 @@ final class RemotingEJBDiscoveryProvider implements DiscoveryProvider {
             return DiscoveryRequest.NULL;
         }
         final Endpoint endpoint = Endpoint.getCurrent();
-        final List<EJBClientConnection> connections = ejbClientContext.getConfiguredConnections();
-        final AtomicInteger connectionCount = new AtomicInteger(connections.size() + 2);
+        final List<EJBClientConnection> connections = new ArrayList<>(ejbClientContext.getConfiguredConnections());
+
+        // attempt to obtain connection information for any cluster nodes
+        URI serviceURI;
+        try (final ServicesQueue servicesQueue = Discovery.create(ejbReceiver.getRemoteTransportProvider().getClusterDiscoveryProvider()).discover(serviceType, null)) {
+            serviceURI = servicesQueue.take();
+            while (serviceURI != null) {
+                EJBClientConnection.Builder nodeConnectionBuilder = new EJBClientConnection.Builder();
+                nodeConnectionBuilder.setDestination(serviceURI);
+                connections.add(nodeConnectionBuilder.build());
+                serviceURI = servicesQueue.take();
+            }
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new IllegalStateException(e);
+        }
+
+        final AtomicInteger connectionCount = new AtomicInteger(connections.size() + 1);
         final CountingResult countingResult = new CountingResult(connectionCount, result);
-        final DiscoveryRequest clusterRequest = ejbReceiver.getRemoteTransportProvider().getClusterDiscoveryProvider().discover(serviceType, filterSpec, countingResult);
         final List<Runnable> cancellers = Collections.synchronizedList(new ArrayList<>());
         for (EJBClientConnection connection : connections) {
             if (! connection.isForDiscovery()) {
@@ -117,7 +134,6 @@ final class RemotingEJBDiscoveryProvider implements DiscoveryProvider {
         }
         countDown(connectionCount, result);
         return () -> {
-            clusterRequest.cancel();
             synchronized (cancellers) {
                 for (Runnable canceller : cancellers) {
                     canceller.run();
