@@ -467,7 +467,7 @@ class EJBClientChannel {
                 out.writeShort(invocation.getIndex());
 
                 Marshaller marshaller = getMarshaller();
-                marshaller.start(Marshalling.createByteOutput(out));
+                marshaller.start(new NoFlushByteOutput(Marshalling.createByteOutput(out)));
 
                 final Method invokedMethod = invocationContext.getInvokedMethod();
                 final Object[] parameters = invocationContext.getParameters();
