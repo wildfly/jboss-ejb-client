@@ -25,6 +25,8 @@ package org.jboss.ejb.client;
 import java.net.SocketAddress;
 import java.net.URI;
 
+import org.wildfly.naming.client.NamingProvider;
+
 /**
  * A receiver for EJB invocations.  Receivers can be associated with one or more client contexts.  This interface is
  * implemented by providers for EJB invocation services.
@@ -68,12 +70,13 @@ public abstract class EJBReceiver extends Attachable {
      * and bean name combination. Returns a {@link StatefulEJBLocator} representing the newly created session.
      *
      * @param statelessLocator the stateless locator
+     * @param namingProvider the naming provider, may be null
      * @param <T> the view type
      * @return the EJB locator for the newly opened session
      * @throws IllegalArgumentException if the session creation request is made for a bean which is <i>not</i> a stateful
      *                                  session bean
      */
-    protected abstract <T> StatefulEJBLocator<T> createSession(final StatelessEJBLocator<T> statelessLocator) throws Exception;
+    protected abstract <T> StatefulEJBLocator<T> createSession(final StatelessEJBLocator<T> statelessLocator, NamingProvider namingProvider) throws Exception;
 
     /**
      * Query the expected or actual source IP address configured for the given target URI.

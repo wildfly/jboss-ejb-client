@@ -62,6 +62,7 @@ import org.wildfly.discovery.FilterSpec;
 import org.wildfly.discovery.ServiceType;
 import org.wildfly.discovery.ServiceURL;
 import org.wildfly.discovery.ServicesQueue;
+import org.wildfly.naming.client.NamingProvider;
 
 /**
  * The public API for an EJB client context.  An EJB client context may be associated with (and used by) one or more threads concurrently.
@@ -664,12 +665,11 @@ public final class EJBClientContext extends Attachable implements Contextual<EJB
         return getCurrent();
     }
 
-    <T> StatefulEJBLocator<T> createSession(final StatelessEJBLocator<T> statelessLocator) throws Exception {
+    <T> StatefulEJBLocator<T> createSession(final StatelessEJBLocator<T> statelessLocator, NamingProvider namingProvider) throws Exception {
         final LocatedAction<StatefulEJBLocator<T>, StatelessEJBLocator<T>, T> action =
-            (receiver, originalLocator, newAffinity) -> receiver.createSession(originalLocator.withNewAffinity(newAffinity));
+                (receiver, originalLocator, newAffinity) -> receiver.createSession(originalLocator.withNewAffinity(newAffinity), namingProvider);
         return performLocatedAction(statelessLocator, action);
     }
-
     interface LocatedAction<R, L extends EJBLocator<T>, T> {
         R execute(EJBReceiver receiver, L originalLocator, Affinity newAffinity) throws Exception;
     }
