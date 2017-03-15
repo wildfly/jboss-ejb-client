@@ -138,7 +138,7 @@ class EJBRootContext extends AbstractContext {
         final EJBIdentifier identifier = new EJBIdentifier(appName, moduleName, beanName, distinctName);
         if (stateful) {
             try {
-                locator = EJBClient.createSession(StatelessEJBLocator.create(view, identifier, affinity));
+                locator = EJBClient.createSession(StatelessEJBLocator.create(view, identifier, affinity), namingProvider);
             } catch (Exception e) {
                 throw Logs.MAIN.lookupFailed(name, name, e);
             }

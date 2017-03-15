@@ -137,9 +137,9 @@ class RemoteEJBReceiver extends EJBReceiver {
         }
     }
 
-    protected <T> StatefulEJBLocator<T> createSession(final StatelessEJBLocator<T> statelessLocator) throws Exception {
+    protected <T> StatefulEJBLocator<T> createSession(final StatelessEJBLocator<T> statelessLocator, NamingProvider namingProvider) throws Exception {
         try {
-            IoFuture<Connection> futureConnection = getConnection(statelessLocator, null);
+            IoFuture<Connection> futureConnection = getConnection(statelessLocator, namingProvider);
             final EJBClientChannel ejbClientChannel = getClientChannel(futureConnection.getInterruptibly());
             return ejbClientChannel.openSession(statelessLocator);
         } catch (IOException e) {
