@@ -279,10 +279,11 @@ public final class EJBClient {
      * @return the new EJB locator
      * @throws CreateException if an error occurs
      */
-    public static <T> StatefulEJBLocator<T> createSession(StatelessEJBLocator<T> statelessLocator, NamingProvider namingProvider) throws Exception {
+    static <T> StatefulEJBLocator<T> createSession(StatelessEJBLocator<T> statelessLocator, NamingProvider namingProvider) throws Exception {
         final EJBClientContext clientContext = EJBClientContext.getCurrent();
         return clientContext.createSession(statelessLocator, namingProvider);
     }
+
     /**
      * Perform a one-way asynchronous invocation by method locator on a proxy.  Any return value is ignored.
      *
