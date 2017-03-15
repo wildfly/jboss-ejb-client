@@ -88,11 +88,11 @@ final class ProtocolV1ClassTable implements ClassTable {
      * set below.
      */
     private static final Class<?>[] classes = {
-            EJBLocator.class,
-            EJBHomeLocator.class,
-            StatelessEJBLocator.class,
-            StatefulEJBLocator.class,
-            EntityEJBLocator.class,
+            V1EJBLocator.class,
+            V1HomeLocator.class,
+            V1StatelessLocator.class,
+            V1StatefulLocator.class,
+            V1EntityLocator.class,
             EJBHandle.class,
             EJBHomeHandle.class,
             SerializedEJBInvocationHandler.class,
@@ -143,6 +143,11 @@ final class ProtocolV1ClassTable implements ClassTable {
         deprecatedClassTableClasses.add(Throwable.class);
         deprecatedClassTableClasses.add(Exception.class);
         deprecatedClassTableClasses.add(RuntimeException.class);
+        deprecatedClassTableClasses.add(EJBLocator.class);
+        deprecatedClassTableClasses.add(EJBHomeLocator.class);
+        deprecatedClassTableClasses.add(StatefulEJBLocator.class);
+        deprecatedClassTableClasses.add(StatelessEJBLocator.class);
+        deprecatedClassTableClasses.add(EntityEJBLocator.class);
 
         final Map<Class<?>, ByteWriter> map = new IdentityHashMap<Class<?>, ByteWriter>();
         final Class<?>[] classes = ProtocolV1ClassTable.classes;
