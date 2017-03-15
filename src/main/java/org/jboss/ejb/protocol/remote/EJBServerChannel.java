@@ -27,7 +27,7 @@ import static java.security.AccessController.doPrivileged;
 import static org.xnio.IoUtils.safeClose;
 
 import java.io.DataInput;
-import java.io.DataOutputStream;
+import java.io.DataInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.lang.reflect.Proxy;
@@ -101,6 +101,8 @@ import org.wildfly.transaction.client.spi.SubordinateTransactionControl;
  */
 @SuppressWarnings("deprecation")
 final class EJBServerChannel {
+
+    private static final char METHOD_PARAM_TYPE_SEPARATOR = ',';
 
     private final RemotingTransactionServer transactionServer;
     private final Channel channel;
@@ -393,8 +395,7 @@ final class EJBServerChannel {
             final MarshallingConfiguration configuration = EJBServerChannel.this.configuration.clone();
             final ServerClassResolver classResolver = new ServerClassResolver();
             configuration.setClassResolver(classResolver);
-            Unmarshaller unmarshaller = marshallerFactory.createUnmarshaller(configuration);
-            unmarshaller.start(Marshalling.createByteInput(input));
+            final Unmarshaller unmarshaller;
 
             final EJBIdentifier identifier;
             final EJBMethodLocator methodLocator;
@@ -402,13 +403,20 @@ final class EJBServerChannel {
             final Connection connection = channel.getConnection();
             final SecurityIdentity identity;
             if (version >= 3) {
+                unmarshaller = marshallerFactory.createUnmarshaller(configuration);
+                unmarshaller.start(Marshalling.createByteInput(input));
                 identifier = unmarshaller.readObject(EJBIdentifier.class);
                 methodLocator = unmarshaller.readObject(EJBMethodLocator.class);
                 int identityId = unmarshaller.readInt();
                 identity = identityId == 0 ? connection.getLocalIdentity() : connection.getLocalIdentity(identityId);
             } else {
                 assert version <= 2;
-                String sigString = UTFUtils.readUTFZBytes(unmarshaller);
+                DataInputStream data = new DataInputStream(input);
+                final String methodName = data.readUTF();
+                // method signature
+                final String sigString = data.readUTF();
+                unmarshaller = marshallerFactory.createUnmarshaller(configuration);
+                unmarshaller.start(Marshalling.createByteInput(data));
                 String appName = unmarshaller.readObject(String.class);
                 String moduleName = unmarshaller.readObject(String.class);
                 String distinctName = unmarshaller.readObject(String.class);
@@ -416,22 +424,11 @@ final class EJBServerChannel {
                 identifier = new EJBIdentifier(appName, moduleName, beanName, distinctName);
 
                 // parse out the signature string
-                String methodName = "";
-                // first count the segments
-                int count = 0;
-                for (int i = 0; i != -1; i = sigString.indexOf(',', i)) {
-                    count ++;
-                }
-                String[] parameterTypeNames = new String[count];
-                // now extract them
-                int j = 0, n;
-                for (int i = 0; i != -1; i = n + 1) {
-                    n = sigString.indexOf(',', i);
-                    if (n == -1) {
-                        parameterTypeNames[j ++] = sigString.substring(i, n);
-                    } else {
-                        parameterTypeNames[j ++] = sigString.substring(i);
-                    }
+                final String[] parameterTypeNames;
+                if (sigString.isEmpty()) {
+                    parameterTypeNames = new String[0];
+                } else {
+                    parameterTypeNames = sigString.split(String.valueOf(METHOD_PARAM_TYPE_SEPARATOR));
                 }
                 methodLocator = new EJBMethodLocator(methodName, parameterTypeNames);
                 identity = connection.getLocalIdentity();
