@@ -34,6 +34,7 @@ import org.jboss.marshalling.Unmarshaller;
 import java.io.DataInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.Serializable;
 import java.util.Map;
 
 /**
@@ -108,6 +109,14 @@ class MethodInvocationResponseHandler extends ProtocolMessageHandler {
                 final Object result = unmarshaller.readObject();
                 // read the attachments
                 final Map<String, Object> attachments = MethodInvocationResponseHandler.this.readAttachments(unmarshaller);
+
+                if (this.clientInvocationContext != null && attachments != null) {
+                    for (Map.Entry<String, Object> attachment : attachments.entrySet()) {
+                        if (attachment.getValue() instanceof Serializable) {
+                            this.clientInvocationContext.getContextData().put(attachment.getKey(), attachment.getValue());
+                        }
+                    }
+                }
 
                 // finish unmarshalling
                 unmarshaller.finish();
