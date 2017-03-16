@@ -541,41 +541,45 @@ public final class EJBClientContext extends Attachable implements Contextual<EJB
             invocationTimeout = clientContext.invocationTimeout;
         }
 
-        public void addInterceptor(EJBClientInterceptor interceptor) {
+        public Builder addInterceptor(EJBClientInterceptor interceptor) {
             Assert.checkNotNullParam("interceptor", interceptor);
             if (globalInterceptors == null) {
                 globalInterceptors = new ArrayList<>();
             }
             globalInterceptors.add(EJBClientInterceptorInformation.forInstance(interceptor));
+            return this;
         }
 
-        public void addInterceptor(Class<? extends EJBClientInterceptor> interceptorClass) {
+        public Builder addInterceptor(Class<? extends EJBClientInterceptor> interceptorClass) {
             Assert.checkNotNullParam("interceptorClass", interceptorClass);
             if (globalInterceptors == null) {
                 globalInterceptors = new ArrayList<>();
             }
             globalInterceptors.add(EJBClientInterceptorInformation.forClass(interceptorClass));
+            return this;
         }
 
-        public void addClassInterceptor(String className, EJBClientInterceptor interceptor) {
+        public Builder addClassInterceptor(String className, EJBClientInterceptor interceptor) {
             Assert.checkNotNullParam("className", className);
             Assert.checkNotNullParam("interceptor", interceptor);
             if (classInterceptors == null) {
                 classInterceptors = new ArrayList<>();
             }
             classInterceptors.add(new ClassInterceptor(className, EJBClientInterceptorInformation.forInstance(interceptor)));
+            return this;
         }
 
-        public void addClassInterceptor(String className, Class<? extends EJBClientInterceptor> interceptorClass) {
+        public Builder addClassInterceptor(String className, Class<? extends EJBClientInterceptor> interceptorClass) {
             Assert.checkNotNullParam("className", className);
             Assert.checkNotNullParam("interceptorClass", interceptorClass);
             if (classInterceptors == null) {
                 classInterceptors = new ArrayList<>();
             }
             classInterceptors.add(new ClassInterceptor(className, EJBClientInterceptorInformation.forClass(interceptorClass)));
+            return this;
         }
 
-        public void addMethodInterceptor(String className, EJBMethodLocator methodLocator, EJBClientInterceptor interceptor) {
+        public Builder addMethodInterceptor(String className, EJBMethodLocator methodLocator, EJBClientInterceptor interceptor) {
             Assert.checkNotNullParam("className", className);
             Assert.checkNotNullParam("methodLocator", methodLocator);
             Assert.checkNotNullParam("interceptor", interceptor);
@@ -583,9 +587,10 @@ public final class EJBClientContext extends Attachable implements Contextual<EJB
                 methodInterceptors = new ArrayList<>();
             }
             methodInterceptors.add(new MethodInterceptor(className, methodLocator, EJBClientInterceptorInformation.forInstance(interceptor)));
+            return this;
         }
 
-        public void addMethodInterceptor(String className, EJBMethodLocator methodLocator, Class<? extends EJBClientInterceptor> interceptorClass) {
+        public Builder addMethodInterceptor(String className, EJBMethodLocator methodLocator, Class<? extends EJBClientInterceptor> interceptorClass) {
             Assert.checkNotNullParam("className", className);
             Assert.checkNotNullParam("methodLocator", methodLocator);
             Assert.checkNotNullParam("interceptorClass", interceptorClass);
@@ -593,45 +598,52 @@ public final class EJBClientContext extends Attachable implements Contextual<EJB
                 methodInterceptors = new ArrayList<>();
             }
             methodInterceptors.add(new MethodInterceptor(className, methodLocator, EJBClientInterceptorInformation.forClass(interceptorClass)));
+            return this;
         }
 
-        public void addTransportProvider(EJBTransportProvider provider) {
+        public Builder addTransportProvider(EJBTransportProvider provider) {
             Assert.checkNotNullParam("provider", provider);
             if (transportProviders == null) {
                 transportProviders = new ArrayList<>();
             }
             transportProviders.add(provider);
+            return this;
         }
 
-        public void addClientConnection(EJBClientConnection connection) {
+        public Builder addClientConnection(EJBClientConnection connection) {
             Assert.checkNotNullParam("connection", connection);
             if (clientConnections == null) {
                 clientConnections = new ArrayList<>();
             }
             clientConnections.add(connection);
+            return this;
         }
 
-        public void addClientCluster(EJBClientCluster cluster) {
+        public Builder addClientCluster(EJBClientCluster cluster) {
             Assert.checkNotNullParam("cluster", cluster);
             if (clientClusters == null) {
                 clientClusters = new ArrayList<>();
             }
             clientClusters.add(cluster);
+            return this;
         }
 
-        public void setClusterNodeSelector(final ClusterNodeSelector clusterNodeSelector) {
+        public Builder setClusterNodeSelector(final ClusterNodeSelector clusterNodeSelector) {
             Assert.checkNotNullParam("clusterNodeSelector", clusterNodeSelector);
             this.clusterNodeSelector = clusterNodeSelector;
+            return this;
         }
 
-        public void setDeploymentNodeSelector(final DeploymentNodeSelector deploymentNodeSelector) {
+        public Builder setDeploymentNodeSelector(final DeploymentNodeSelector deploymentNodeSelector) {
             Assert.checkNotNullParam("deploymentNodeSelector", deploymentNodeSelector);
             this.deploymentNodeSelector = deploymentNodeSelector;
+            return this;
         }
 
-        public void setInvocationTimeout(final long invocationTimeout) {
+        public Builder setInvocationTimeout(final long invocationTimeout) {
             Assert.checkMinimumParameter("invocationTimeout", 0L, invocationTimeout);
             this.invocationTimeout = invocationTimeout;
+            return this;
         }
 
         public EJBClientContext build() {
