@@ -132,7 +132,7 @@ public final class SerializedEJBInvocationHandler implements Externalizable {
     private static <T> EJBInvocationHandler<T> readResolve(EJBLocator<T> locator) {
         NamingProvider namingProvider = NamingProvider.getCurrentNamingProvider();
         if (namingProvider != null) {
-            if (locator.getAffinity() == Affinity.LOCAL) {
+            if (locator.getAffinity() == Affinity.LOCAL || locator.getAffinity() == Affinity.NONE) {
                 return new EJBInvocationHandler<T>(namingProvider, locator.withNewAffinity(Affinity.forUri(namingProvider.getProviderUri())));
             } else {
                 return new EJBInvocationHandler<T>(namingProvider, locator);
