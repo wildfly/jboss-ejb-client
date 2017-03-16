@@ -344,7 +344,7 @@ final class EJBServerChannel {
                 os.writeShort(invId);
                 PackedInteger.writePackedInteger(os, xids.length);
                 final Marshaller marshaller = marshallerFactory.createMarshaller(configuration);
-                marshaller.start(Marshalling.createByteOutput(os));
+                marshaller.start(new NoFlushByteOutput(Marshalling.createByteOutput(os)));
                 for (Xid xid : xids) {
                     marshaller.writeObject(new XidTransactionID(xid));
                 }
@@ -469,7 +469,7 @@ final class EJBServerChannel {
             os.writeByte(Protocol.APPLICATION_EXCEPTION);
             os.writeShort(invId);
             final Marshaller marshaller = marshallerFactory.createMarshaller(configuration);
-            marshaller.start(Marshalling.createByteOutput(os));
+            marshaller.start(new NoFlushByteOutput(Marshalling.createByteOutput(os)));
             marshaller.writeObject(new RequestSendFailedException(e));
             marshaller.writeByte(0);
             marshaller.finish();
@@ -538,7 +538,7 @@ final class EJBServerChannel {
                     os.writeByte(Protocol.APPLICATION_EXCEPTION);
                     os.writeShort(invId);
                     final Marshaller marshaller = marshallerFactory.createMarshaller(configuration);
-                    marshaller.start(Marshalling.createByteOutput(os));
+                    marshaller.start(new NoFlushByteOutput(Marshalling.createByteOutput(os)));
                     marshaller.writeObject(Logs.REMOTING.invalidViewTypeForInvocation(message));
                     marshaller.writeByte(0);
                     marshaller.finish();
@@ -602,7 +602,7 @@ final class EJBServerChannel {
                 os.writeShort(invId);
                 if (version >= 3) os.writeByte(getEnlistmentStatus());
                 final Marshaller marshaller = marshallerFactory.createMarshaller(configuration);
-                marshaller.start(Marshalling.createByteOutput(os));
+                marshaller.start(new NoFlushByteOutput(Marshalling.createByteOutput(os)));
                 marshaller.writeObject(reason);
                 marshaller.writeByte(0);
                 marshaller.finish();
@@ -671,7 +671,7 @@ final class EJBServerChannel {
                 os.write(encodedForm);
                 if (1 <= version && version <= 2) {
                     final Marshaller marshaller = marshallerFactory.createMarshaller(configuration);
-                    marshaller.start(Marshalling.createByteOutput(os));
+                    marshaller.start(new NoFlushByteOutput(Marshalling.createByteOutput(os)));
                     // V2 needs weak affinity to the current node
                     marshaller.writeObject(new NodeAffinity(channel.getConnection().getEndpoint().getName()));
                     marshaller.finish();
@@ -846,7 +846,7 @@ final class EJBServerChannel {
                                 }
                             }
                             final Marshaller marshaller = marshallerFactory.createMarshaller(configuration);
-                            marshaller.start(Marshalling.createByteOutput(os));
+                            marshaller.start(new NoFlushByteOutput(Marshalling.createByteOutput(os)));
                             marshaller.writeObject(result);
                             int count = attachments.size();
                             if (count > 255) {
