@@ -111,7 +111,7 @@ public final class ElytronLegacyConfiguration implements LegacyConfiguration {
         if (userName != null) config = config.useName(userName);
         final String realm = authenticationConfiguration.getMechanismRealm();
         if (realm != null) config = config.useRealm(realm);
-        final ExceptionSupplier<CallbackHandler, ReflectiveOperationException> callbackHandlerSupplier = configuration.getCallbackHandlerSupplier();
+        final ExceptionSupplier<CallbackHandler, ReflectiveOperationException> callbackHandlerSupplier = authenticationConfiguration.getCallbackHandlerSupplier();
         if (callbackHandlerSupplier != null) {
             final CallbackHandler callbackHandler;
             try {
