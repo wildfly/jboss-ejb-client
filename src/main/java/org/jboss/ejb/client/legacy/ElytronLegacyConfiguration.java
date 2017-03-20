@@ -127,7 +127,7 @@ public final class ElytronLegacyConfiguration implements LegacyConfiguration {
         final OptionMap options = configuration.getConnectionOptions();
         @SuppressWarnings({"unchecked", "rawtypes"})
         final Map<String, String> props = (Map) SaslUtils.createPropertyMap(options, false);
-        if (props.isEmpty()) {
+        if (! props.isEmpty()) {
             config = config.useMechanismProperties(props);
         } else {
             config = config.useMechanismProperties(Collections.singletonMap(LocalUserClient.QUIET_AUTH, Boolean.toString(useQuietAuth)));
