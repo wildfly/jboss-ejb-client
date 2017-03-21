@@ -875,6 +875,21 @@ final class EJBServerChannel {
             }
         }
 
+        @Override
+        public void writeProceedAsync() {
+            if(version >= 3) {
+                //not used in newer protocols
+                return;
+            }
+            try (MessageOutputStream os = messageTracker.openMessageUninterruptibly()) {
+                os.writeByte(Protocol.PROCEED_ASYNC_RESPONSE);
+                os.writeShort(invId);
+            } catch (IOException e) {
+                // nothing to do at this point; the client doesn't want the response
+                Logs.REMOTING.trace("EJB async response write failed", e);
+            }
+        }
+
         @NotNull
         public EJBIdentifier getEJBIdentifier() {
             return identifier;
