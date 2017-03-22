@@ -21,6 +21,7 @@ package org.jboss.ejb.client.legacy;
 import java.security.AccessController;
 import java.security.PrivilegedAction;
 import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 
 import javax.security.auth.callback.CallbackHandler;
@@ -87,19 +88,22 @@ public final class ElytronLegacyConfiguration implements LegacyConfiguration {
             final String clusterName = entry.getKey();
             final JBossEJBProperties.ClusterConfiguration configuration = entry.getValue();
 
-            for (JBossEJBProperties.ClusterNodeConfiguration nodeConfiguration : configuration.getNodeConfigurations()) {
-                MatchRule rule = MatchRule.ALL.matchAbstractType("ejb", "jboss");
-                AuthenticationConfiguration config = AuthenticationConfiguration.EMPTY;
+            final List<JBossEJBProperties.ClusterNodeConfiguration> nodeConfigurations = configuration.getNodeConfigurations();
+            if (nodeConfigurations != null) {
+                for (JBossEJBProperties.ClusterNodeConfiguration nodeConfiguration : nodeConfigurations) {
+                    MatchRule rule = MatchRule.ALL.matchAbstractType("ejb", "jboss");
+                    AuthenticationConfiguration config = AuthenticationConfiguration.EMPTY;
 
-                rule = rule.matchProtocol("node");
-                rule = rule.matchUrnName(nodeConfiguration.getNodeName());
+                    rule = rule.matchProtocol("node");
+                    rule = rule.matchUrnName(nodeConfiguration.getNodeName());
 
-                config = configureCommon(properties, configuration, config);
+                    config = configureCommon(properties, nodeConfiguration, config);
 
-                context = context.with(
-                    rule,
-                    config
-                );
+                    context = context.with(
+                            rule,
+                            config
+                    );
+                }
             }
         }
         return context;
@@ -111,7 +115,7 @@ public final class ElytronLegacyConfiguration implements LegacyConfiguration {
         if (userName != null) config = config.useName(userName);
         final String realm = authenticationConfiguration.getMechanismRealm();
         if (realm != null) config = config.useRealm(realm);
-        final ExceptionSupplier<CallbackHandler, ReflectiveOperationException> callbackHandlerSupplier = configuration.getCallbackHandlerSupplier();
+        final ExceptionSupplier<CallbackHandler, ReflectiveOperationException> callbackHandlerSupplier = authenticationConfiguration.getCallbackHandlerSupplier();
         if (callbackHandlerSupplier != null) {
             final CallbackHandler callbackHandler;
             try {
@@ -127,7 +131,7 @@ public final class ElytronLegacyConfiguration implements LegacyConfiguration {
         final OptionMap options = configuration.getConnectionOptions();
         @SuppressWarnings({"unchecked", "rawtypes"})
         final Map<String, String> props = (Map) SaslUtils.createPropertyMap(options, false);
-        if (props.isEmpty()) {
+        if (! props.isEmpty()) {
             config = config.useMechanismProperties(props);
         } else {
             config = config.useMechanismProperties(Collections.singletonMap(LocalUserClient.QUIET_AUTH, Boolean.toString(useQuietAuth)));
