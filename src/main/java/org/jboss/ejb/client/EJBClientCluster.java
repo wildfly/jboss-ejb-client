@@ -103,27 +103,32 @@ public final class EJBClientCluster {
         public Builder() {
         }
 
-        public void setName(final String name) {
+        public Builder setName(final String name) {
             Assert.checkNotNullParam("name", name);
             this.name = name;
+            return this;
         }
 
-        public void setMaximumConnectedNodes(final long maximumConnectedNodes) {
+        public Builder setMaximumConnectedNodes(final long maximumConnectedNodes) {
             Assert.checkMinimumParameter("maximumConnectedNodes", 0, maximumConnectedNodes);
             this.maximumConnectedNodes = maximumConnectedNodes;
+            return this;
         }
 
-        public void setConnectTimeoutMilliseconds(final long connectTimeoutMilliseconds) {
+        public Builder setConnectTimeoutMilliseconds(final long connectTimeoutMilliseconds) {
             Assert.checkMinimumParameter("connectTimeoutMilliseconds", -1L, connectTimeoutMilliseconds);
             this.connectTimeoutMilliseconds = connectTimeoutMilliseconds;
+            return this;
         }
 
-        public void setClusterNodeSelector(final ClusterNodeSelector clusterNodeSelector) {
+        public Builder setClusterNodeSelector(final ClusterNodeSelector clusterNodeSelector) {
             this.clusterNodeSelector = clusterNodeSelector;
+            return this;
         }
 
-        public void setOverrideConfiguration(final AuthenticationConfiguration overrideConfiguration) {
+        public Builder setOverrideConfiguration(final AuthenticationConfiguration overrideConfiguration) {
             this.overrideConfiguration = overrideConfiguration;
+            return this;
         }
 
         /**
