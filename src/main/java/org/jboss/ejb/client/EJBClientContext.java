@@ -22,6 +22,7 @@
 
 package org.jboss.ejb.client;
 
+import org.jboss.ejb.client.remoting.ReconnectHandler;
 import java.io.Closeable;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -49,7 +50,6 @@ import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 
 import org.jboss.ejb.client.remoting.ConfigBasedEJBClientContextSelector;
-import org.jboss.ejb.client.remoting.ReconnectHandler;
 import org.jboss.ejb.client.remoting.RemotingConnectionEJBReceiver;
 import org.jboss.logging.Logger;
 import org.jboss.remoting3.Connection;
@@ -150,6 +150,18 @@ public final class EJBClientContext extends Attachable implements Closeable {
             logger.debugf(t, "Failed to load EJB client interceptor(s) from the classpath via classloader %s for EJB client context %s", classLoader, this);
         }
 
+    }
+
+    /**
+     * Returns the Ejb Receivers of the current EjbClientContext.
+     */
+    private EJBReceiver[] getEjbReceivers() {
+        EJBReceiver[] ejbReceivers = null;
+        synchronized (this.ejbReceiverAssociations) {
+            ejbReceivers = this.ejbReceiverAssociations.keySet().toArray(new EJBReceiver[this.ejbReceiverAssociations.size()]);
+        }
+
+        return ejbReceivers;
     }
 
     /**
@@ -337,6 +349,20 @@ public final class EJBClientContext extends Attachable implements Closeable {
         return this.registerEJBReceiver(receiver, null);
     }
 
+    @Deprecated
+    public boolean registerEJBReceiver(final EJBReceiver receiver, boolean deleteExistingReceiver) {
+        if (deleteExistingReceiver)
+            unregisterExistingIdenticalEJBReceivers(receiver.getNodeName());
+        return this.registerEJBReceiver(receiver, null);
+    }
+
+    @Deprecated
+    public boolean registerEJBReceiver(final EJBReceiver receiver, final EJBReceiverContextCloseHandler receiverContextCloseHandler, boolean deleteExistingReceiver) {
+        if (deleteExistingReceiver)
+            unregisterExistingIdenticalEJBReceivers(receiver.getNodeName());
+        return this.registerEJBReceiver(receiver, receiverContextCloseHandler);
+    }
+
     /**
      * Registers a {@link EJBReceiver} in this context and uses the {@link EJBReceiverContextCloseHandler receiverContextCloseHandler}
      * to notify of a {@link EJBReceiverContext} being closed.
@@ -470,6 +496,18 @@ public final class EJBClientContext extends Attachable implements Closeable {
                             }
                         }
                     });
+                }
+            }
+        }
+    }
+
+    private void unregisterExistingIdenticalEJBReceivers(String nodeName) {
+        EJBReceiver[] ejbReceivers = getEjbReceivers();
+        if(ejbReceivers != null) {
+            for(EJBReceiver receiver:ejbReceivers) {
+                if(receiver!=null && receiver.getNodeName().compareTo(nodeName)==0) {
+                    unregisterEJBReceiver(receiver);
+                    receiver = null;
                 }
             }
         }

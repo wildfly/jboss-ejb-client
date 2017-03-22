@@ -162,7 +162,7 @@ public class ConfigBasedEJBClientContextSelector implements IdentityEJBClientCon
                     // create a remoting EJB receiver for this connection
                     final EJBReceiver remotingEJBReceiver = new RemotingConnectionEJBReceiver(connection, reconnectHandler, connectionConfiguration.getChannelCreationOptions(), protocol);
                     // associate it with the client context
-                    this.ejbClientContext.registerEJBReceiver(remotingEJBReceiver);
+                    this.ejbClientContext.registerEJBReceiver(remotingEJBReceiver,true);
                     // keep track of successful registrations for logging purposes
                     successfulEJBReceiverRegistrations++;
                 } catch (javax.security.sasl.SaslException e) {
