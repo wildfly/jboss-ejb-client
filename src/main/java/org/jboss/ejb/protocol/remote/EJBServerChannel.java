@@ -811,7 +811,13 @@ final class EJBServerChannel {
                             return null;
                         }
                         if (txnCmd != 0) {
-                            throw new IllegalStateException();
+                            // FIXME WFLY-7207 right now there is no way of telling if the transaction is active or not
+                            // at EJBSuspendHandler and EjbSuspendInterceptor when in mid-suspension. For that reason, I need to
+                            // invoke Interceptor.getTransaction() to see if an exception comes up
+                            // if it doesn't, the transaction is not new, and I can proceed in the interceptor
+                            // This causes the EJBRemoteTransactionPropagatingInterceptor call to getTransaction to be
+                            // a duplicate and results in the unwanted exception. Commenting this for now.
+                            //throw new IllegalStateException();
                         }
                         final ImportResult<?> importResult = finalTransactionSupplier.get();
                         if (importResult.isNew()) {
