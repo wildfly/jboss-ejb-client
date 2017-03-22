@@ -36,7 +36,7 @@ final class ProtocolV3ObjectResolver implements ObjectResolver {
 
     public Object readResolve(final Object replacement) {
         // Swap a local affinity with a URI affinity with the peer's URI
-        if (replacement == Affinity.LOCAL) {
+        if (replacement == Affinity.LOCAL || replacement == Affinity.NONE) {
             return peerURIAffinity;
         }
         return replacement;
