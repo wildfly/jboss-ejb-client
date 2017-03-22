@@ -46,7 +46,8 @@ import org.wildfly.common.Assert;
 final class ConfigurationBasedEJBClientContextSelector implements Supplier<EJBClientContext> {
     private static final EJBClientContext configuredContext;
 
-    private static final String NS_EJB_CLIENT_3_0 = "urn:jboss:ejb-client:3.0";
+    private static final String NS_EJB_CLIENT_3_0 = "urn:jboss:wildly-client-ejb:3.0";
+    private static final String NS_INCORRECT = "urn:jboss:ejb-client:3.0";
 
     static {
         configuredContext = loadConfiguration();
@@ -71,7 +72,12 @@ final class ConfigurationBasedEJBClientContextSelector implements Supplier<EJBCl
     private static void parseEJBClientConfiguration(final ConfigurationXMLStreamReader streamReader, final EJBClientContext.Builder builder) throws ConfigXMLParseException {
         if (streamReader.hasNext()) {
             if (streamReader.nextTag() == START_ELEMENT) {
-                if (! streamReader.getNamespaceURI().equals(NS_EJB_CLIENT_3_0) || ! streamReader.getLocalName().equals("jboss-ejb-client")) {
+                String namespaceURI = streamReader.getNamespaceURI();
+                // TODO: temporary
+                if (namespaceURI.equals(NS_INCORRECT)) {
+                    throw new ConfigXMLParseException("The namespace \"" + NS_INCORRECT + "\" was incorrect; replace with \"" + NS_EJB_CLIENT_3_0 + "\"", streamReader);
+                }
+                if (! namespaceURI.equals(NS_EJB_CLIENT_3_0) || ! streamReader.getLocalName().equals("jboss-ejb-client")) {
                     throw streamReader.unexpectedElement();
                 }
                 parseEJBClientType(streamReader, builder);
