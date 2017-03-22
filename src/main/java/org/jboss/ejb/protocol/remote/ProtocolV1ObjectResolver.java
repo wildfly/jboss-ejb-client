@@ -18,6 +18,8 @@
 
 package org.jboss.ejb.protocol.remote;
 
+import java.net.URI;
+
 import org.jboss.ejb.client.AbstractEJBMetaData;
 import org.jboss.ejb.client.Affinity;
 import org.jboss.ejb.client.EJBMetaDataImpl;
@@ -30,10 +32,15 @@ import org.wildfly.common.rpc.RemoteExceptionCause;
  * @author <a href="mailto:david.lloyd@redhat.com">David M. Lloyd</a>
  */
 final class ProtocolV1ObjectResolver implements ObjectResolver {
+
+    private static final boolean DISABLE_V1_AFFINITY_REWRITE = Boolean.getBoolean("org.jboss.ejb.client.disable-v1-affinity-rewrite");
+
+    private final Affinity peerURIAffinity;
     private final NodeAffinity nodeAffinity;
 
-    ProtocolV1ObjectResolver(final String nodeName) {
+    ProtocolV1ObjectResolver(final String nodeName, URI peerURI) {
         nodeAffinity = new NodeAffinity(nodeName);
+        this.peerURIAffinity = Affinity.forUri(peerURI);
     }
 
     public Object readResolve(final Object replacement) {
@@ -41,7 +48,9 @@ final class ProtocolV1ObjectResolver implements ObjectResolver {
             return ((EJBMetaDataImpl) replacement).toAbstractEJBMetaData();
         } else if ((replacement instanceof NodeAffinity) && replacement.equals(nodeAffinity)) {
             // Swap a node affinity with the name of this node with a local affinity
-            return Affinity.LOCAL;
+            return peerURIAffinity;
+        } else if(replacement == Affinity.NONE && !DISABLE_V1_AFFINITY_REWRITE) {
+            return peerURIAffinity;
         }
         return replacement;
     }

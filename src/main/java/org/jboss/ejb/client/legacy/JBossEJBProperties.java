@@ -469,40 +469,49 @@ public final class JBossEJBProperties implements Contextual<JBossEJBProperties> 
         Builder() {
         }
 
-        void setEndpointName(final String endpointName) {
+        Builder setEndpointName(final String endpointName) {
             this.endpointName = endpointName;
+            return this;
         }
 
-        void setEndpointCreationOptions(final OptionMap endpointCreationOptions) {
+        Builder setEndpointCreationOptions(final OptionMap endpointCreationOptions) {
             this.endpointCreationOptions = endpointCreationOptions;
+            return this;
         }
 
-        void setRemoteConnectionProviderCreationOptions(final OptionMap remoteConnectionProviderCreationOptions) {
+        Builder setRemoteConnectionProviderCreationOptions(final OptionMap remoteConnectionProviderCreationOptions) {
             this.remoteConnectionProviderCreationOptions = remoteConnectionProviderCreationOptions;
+            return this;
         }
 
-        void setConnectionList(final List<ConnectionConfiguration> connectionList) {
+        Builder setConnectionList(final List<ConnectionConfiguration> connectionList) {
             this.connectionList = connectionList;
+            return this;
         }
 
-        void setClusterConfigurations(final Map<String, ClusterConfiguration> clusterConfigurations) {
+        Builder setClusterConfigurations(final Map<String, ClusterConfiguration> clusterConfigurations) {
             this.clusterConfigurations = clusterConfigurations;
+            return this;
         }
 
-        void setInvocationTimeout(final long invocationTimeout) {
+        Builder setInvocationTimeout(final long invocationTimeout) {
             this.invocationTimeout = invocationTimeout;
+            return this;
         }
 
-        void setReconnectTimeout(final long reconnectTimeout) {
+        Builder setReconnectTimeout(final long reconnectTimeout) {
             this.reconnectTimeout = reconnectTimeout;
+            return this;
         }
 
-        void setDeploymentNodeSelectorClassName(final String deploymentNodeSelectorClassName) {
+        Builder setDeploymentNodeSelectorClassName(final String deploymentNodeSelectorClassName) {
             this.deploymentNodeSelectorClassName = deploymentNodeSelectorClassName;
+            return this;
         }
 
-        void setDeploymentNodeSelectorSupplier(final ExceptionSupplier<DeploymentNodeSelector, ReflectiveOperationException> deploymentNodeSelectorSupplier) {
+        Builder setDeploymentNodeSelectorSupplier(final ExceptionSupplier<DeploymentNodeSelector, ReflectiveOperationException> deploymentNodeSelectorSupplier) {
             this.deploymentNodeSelectorSupplier = deploymentNodeSelectorSupplier;
+            return this;
         }
     }
 
@@ -565,32 +574,39 @@ public final class JBossEJBProperties implements Contextual<JBossEJBProperties> 
             Builder() {
             }
 
-            void setConnectionOptions(final OptionMap connectionOptions) {
+            Builder setConnectionOptions(final OptionMap connectionOptions) {
                 this.connectionOptions = connectionOptions;
+                return this;
             }
 
-            void setCallbackHandlerClassName(final String callbackHandlerClassName) {
+            Builder setCallbackHandlerClassName(final String callbackHandlerClassName) {
                 this.callbackHandlerClassName = callbackHandlerClassName;
+                return this;
             }
 
-            void setCallbackHandlerSupplier(final ExceptionSupplier<CallbackHandler, ReflectiveOperationException> callbackHandlerSupplier) {
+            Builder setCallbackHandlerSupplier(final ExceptionSupplier<CallbackHandler, ReflectiveOperationException> callbackHandlerSupplier) {
                 this.callbackHandlerSupplier = callbackHandlerSupplier;
+                return this;
             }
 
-            void setConnectionTimeout(final long connectionTimeout) {
+            Builder setConnectionTimeout(final long connectionTimeout) {
                 this.connectionTimeout = connectionTimeout;
+                return this;
             }
 
-            void setChannelOptions(final OptionMap channelOptions) {
+            Builder setChannelOptions(final OptionMap channelOptions) {
                 this.channelOptions = channelOptions;
+                return this;
             }
 
-            void setConnectEagerly(final boolean connectEagerly) {
+            Builder setConnectEagerly(final boolean connectEagerly) {
                 this.connectEagerly = connectEagerly;
+                return this;
             }
 
-            void setAuthenticationConfiguration(final AuthenticationConfiguration authenticationConfiguration) {
+            Builder setAuthenticationConfiguration(final AuthenticationConfiguration authenticationConfiguration) {
                 this.authenticationConfiguration = authenticationConfiguration;
+                return this;
             }
 
             boolean populateFromProperties(final Properties properties, final String prefix, final ClassLoader classLoader, final Builder defaultsBuilder) {
@@ -687,12 +703,14 @@ public final class JBossEJBProperties implements Contextual<JBossEJBProperties> 
                 return true;
             }
 
-            void setHost(final String host) {
+            Builder setHost(final String host) {
                 this.host = host;
+                return this;
             }
 
-            void setPort(final int port) {
+            Builder setPort(final int port) {
                 this.port = port;
+                return this;
             }
         }
     }
@@ -743,24 +761,29 @@ public final class JBossEJBProperties implements Contextual<JBossEJBProperties> 
             Builder() {
             }
 
-            void setClusterName(final String clusterName) {
+            Builder setClusterName(final String clusterName) {
                 this.clusterName = clusterName;
+                return this;
             }
 
-            void setMaximumAllowedConnectedNodes(final long maximumAllowedConnectedNodes) {
+            Builder setMaximumAllowedConnectedNodes(final long maximumAllowedConnectedNodes) {
                 this.maximumAllowedConnectedNodes = maximumAllowedConnectedNodes;
+                return this;
             }
 
-            void setClusterNodeSelectorClassName(final String clusterNodeSelectorClassName) {
+            Builder setClusterNodeSelectorClassName(final String clusterNodeSelectorClassName) {
                 this.clusterNodeSelectorClassName = clusterNodeSelectorClassName;
+                return this;
             }
 
-            void setClusterNodeSelectorSupplier(final ExceptionSupplier<ClusterNodeSelector, ReflectiveOperationException> clusterNodeSelectorSupplier) {
+            Builder setClusterNodeSelectorSupplier(final ExceptionSupplier<ClusterNodeSelector, ReflectiveOperationException> clusterNodeSelectorSupplier) {
                 this.clusterNodeSelectorSupplier = clusterNodeSelectorSupplier;
+                return this;
             }
 
-            void setNodeConfigurations(final List<ClusterNodeConfiguration> nodeConfigurations) {
+            Builder setNodeConfigurations(final List<ClusterNodeConfiguration> nodeConfigurations) {
                 this.nodeConfigurations = nodeConfigurations;
+                return this;
             }
 
             boolean populateFromProperties(final Properties properties, final String prefix, final ClassLoader classLoader, final CommonSubconfiguration.Builder defaultsBuilder) {
@@ -825,8 +848,9 @@ public final class JBossEJBProperties implements Contextual<JBossEJBProperties> 
             Builder() {
             }
 
-            void setNodeName(final String nodeName) {
+            Builder setNodeName(final String nodeName) {
                 this.nodeName = nodeName;
+                return this;
             }
         }
     }
@@ -876,24 +900,29 @@ public final class JBossEJBProperties implements Contextual<JBossEJBProperties> 
             Builder() {
             }
 
-            void setUserName(final String userName) {
+            Builder setUserName(final String userName) {
                 this.userName = userName;
+                return this;
             }
 
-            void setPassword(final String password) {
+            Builder setPassword(final String password) {
                 this.password = password;
+                return this;
             }
 
-            void setMechanismRealm(final String mechanismRealm) {
+            Builder setMechanismRealm(final String mechanismRealm) {
                 this.mechanismRealm = mechanismRealm;
+                return this;
             }
 
-            void setCallbackHandlerClassName(final String callbackHandlerClassName) {
+            Builder setCallbackHandlerClassName(final String callbackHandlerClassName) {
                 this.callbackHandlerClassName = callbackHandlerClassName;
+                return this;
             }
 
-            void setCallbackHandlerSupplier(final ExceptionSupplier<CallbackHandler, ReflectiveOperationException> callbackHandlerSupplier) {
+            Builder setCallbackHandlerSupplier(final ExceptionSupplier<CallbackHandler, ReflectiveOperationException> callbackHandlerSupplier) {
                 this.callbackHandlerSupplier = callbackHandlerSupplier;
+                return this;
             }
 
             boolean populateFromProperties(final Properties properties, final String prefix, final ClassLoader classLoader) {

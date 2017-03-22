@@ -169,7 +169,7 @@ class EJBClientChannel {
         if (version < 3) {
             configuration.setClassTable(ProtocolV1ClassTable.INSTANCE);
             configuration.setObjectTable(ProtocolV1ObjectTable.INSTANCE);
-            configuration.setObjectResolver(new ProtocolV1ObjectResolver(channel.getConnection().getEndpoint().getName()));
+            configuration.setObjectResolver(new ProtocolV1ObjectResolver(channel.getConnection().getEndpoint().getName(), channel.getConnection().getPeerURI()));
             configuration.setVersion(2);
             // Do not wait for cluster topology report.
             finishedParts.set(0b10);
@@ -467,7 +467,7 @@ class EJBClientChannel {
                 out.writeShort(invocation.getIndex());
 
                 Marshaller marshaller = getMarshaller();
-                marshaller.start(Marshalling.createByteOutput(out));
+                marshaller.start(new NoFlushByteOutput(Marshalling.createByteOutput(out)));
 
                 final Method invokedMethod = invocationContext.getInvokedMethod();
                 final Object[] parameters = invocationContext.getParameters();
