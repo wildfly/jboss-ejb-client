@@ -61,14 +61,8 @@ class EJBClientContextConnectionReconnectHandler extends MaxAttemptsReconnectHan
             // keep track of this connection so that we can close it when the EJB client context is closed
             this.remotingCleanupHandler.addConnection(connection);
 
-            if(this.ejbReceiver != null) {
-                // remove it before registering a new one
-                this.ejbClientContext.unregisterEJBReceiver(this.ejbReceiver);
-                this.ejbReceiver = null;
-            }
-
             this.ejbReceiver = new RemotingConnectionEJBReceiver(connection, this, connectionConfiguration.getChannelCreationOptions());
-            this.ejbClientContext.registerEJBReceiver(this.ejbReceiver);
+            this.ejbClientContext.registerEJBReceiver(this.ejbReceiver, true);
         } finally {
             // if we successfully re-connected or if no more attempts are allowed for re-connecting
             // then unregister this ReconnectHandler from the EJBClientContext

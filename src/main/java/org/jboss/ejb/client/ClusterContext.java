@@ -368,6 +368,13 @@ public final class ClusterContext implements EJBClientContext.EJBReceiverContext
         this.removeAllClusterNodes();
     }
 
+    @Deprecated // make non-public
+    public void registerEJBReceiver(final EJBReceiver receiver, boolean deleteExistingReceiver) {
+        if (deleteExistingReceiver)
+            unregisterEJBReceiver(receiver);
+        this.registerEJBReceiver(receiver);
+    }
+
     /**
      * Register a {@link EJBReceiver} with this cluster context
      *
@@ -409,7 +416,7 @@ public final class ClusterContext implements EJBClientContext.EJBReceiverContext
         }
 
         final String nodeName = receiver.getNodeName();
-        if (this.connectedNodes.contains(nodeName)) {
+        if (!this.connectedNodes.contains(nodeName)) {
             // nothing to do
             return;
         }

@@ -22,11 +22,6 @@
 
 package org.jboss.ejb.client.remoting;
 
-import java.io.IOException;
-import java.util.Iterator;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentMap;
-
 import org.jboss.ejb.client.EJBClientConfiguration;
 import org.jboss.ejb.client.EJBClientContext;
 import org.jboss.ejb.client.EJBClientContextIdentifier;
@@ -38,6 +33,11 @@ import org.jboss.ejb.client.Logs;
 import org.jboss.logging.Logger;
 import org.jboss.remoting3.Connection;
 import org.jboss.remoting3.Endpoint;
+
+import java.io.IOException;
+import java.util.Iterator;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 
 /**
  * An EJB client context selector which uses {@link EJBClientConfiguration} to create {@link org.jboss.ejb.client.remoting.RemotingConnectionEJBReceiver}s.
@@ -158,7 +158,7 @@ public class ConfigBasedEJBClientContextSelector implements IdentityEJBClientCon
                     // create a remoting EJB receiver for this connection
                     final EJBReceiver remotingEJBReceiver = new RemotingConnectionEJBReceiver(connection, reconnectHandler, connectionConfiguration.getChannelCreationOptions());
                     // associate it with the client context
-                    this.ejbClientContext.registerEJBReceiver(remotingEJBReceiver);
+                    this.ejbClientContext.registerEJBReceiver(remotingEJBReceiver,true);
                     // keep track of successful registrations for logging purposes
                     successfulEJBReceiverRegistrations++;
                 } catch (javax.security.sasl.SaslException e) {
