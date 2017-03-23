@@ -64,16 +64,10 @@ class ClusterContextConnectionReconnectHandler extends MaxAttemptsReconnectHandl
             if (connection == null) {
                 return;
             }
-            // keep track of this connection so that we can close it when the EJB client context is closed
-            this.remotingCleanupHandler.addConnection(connection);
 
-            if(this.ejbReceiver != null) {
-                // remove it before registering a new one
-                this.clusterContext.unregisterEJBReceiver(this.ejbReceiver);
-                this.ejbReceiver = null;
-            }
+            this.remotingCleanupHandler.addConnection(connection);
             this.ejbReceiver = new RemotingConnectionEJBReceiver(connection, this, connectionConfiguration.getChannelCreationOptions());
-            this.clusterContext.registerEJBReceiver(this.ejbReceiver);
+            this.clusterContext.registerEJBReceiver(this.ejbReceiver, true);
 
         } finally {
             // if we successfully re-connected or if no more attempts are allowed for re-connecting
