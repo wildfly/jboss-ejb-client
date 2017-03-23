@@ -116,7 +116,7 @@ final class EJBServerChannel {
         if (version < 3) {
             configuration.setClassTable(ProtocolV1ClassTable.INSTANCE);
             configuration.setObjectTable(ProtocolV1ObjectTable.INSTANCE);
-            configuration.setObjectResolver(new ProtocolV1ObjectResolver(channel.getConnection().getEndpoint().getName(), channel.getConnection().getPeerURI()));
+            configuration.setObjectResolver(new ProtocolV1ObjectResolver(channel.getConnection(), channel.getConnection().getPeerURI()));
             configuration.setVersion(2);
         } else {
             configuration.setObjectTable(ProtocolV3ObjectTable.INSTANCE);
