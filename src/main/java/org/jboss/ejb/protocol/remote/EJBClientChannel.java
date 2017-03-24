@@ -1264,9 +1264,11 @@ class EJBClientChannel {
                         String key = unmarshaller.readObject(String.class);
                         if (key.equals(Affinity.WEAK_AFFINITY_CONTEXT_KEY)) {
                             receiverInvocationContext.getClientInvocationContext().putAttachment(AttachmentKeys.WEAK_AFFINITY, unmarshaller.readObject(Affinity.class));
-                        } else {
-                            // discard
+                        } else if (key.equals(EJBClientInvocationContext.PRIVATE_ATTACHMENTS_KEY)) {
+                            // skip
                             unmarshaller.readObject();
+                        } else {
+                            receiverInvocationContext.getClientInvocationContext().getContextData().put(key, unmarshaller.readObject());
                         }
                     }
                     unmarshaller.finish();
