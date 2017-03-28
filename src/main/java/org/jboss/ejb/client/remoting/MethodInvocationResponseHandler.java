@@ -105,11 +105,6 @@ class MethodInvocationResponseHandler extends ProtocolMessageHandler {
                 // read the attachments
                 final Map<String, Object> attachments = MethodInvocationResponseHandler.this.readAttachments(unmarshaller);
 
-                if(attachments != null) {
-                    for(Map.Entry<String,Object> entry : attachments.entrySet())
-                        this.clientInvocationContext.getContextData().put(entry.getKey(), entry.getValue());
-                }
-
                 // finish unmarshalling
                 unmarshaller.finish();
                 // see if there's a weak affinity passed as an attachment. If yes, then attach it to the client invocation
