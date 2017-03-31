@@ -383,7 +383,7 @@ public final class JBossEJBProperties implements Contextual<JBossEJBProperties> 
                     String prefix = "remote.cluster." + clusterName + ".";
 
                     final ClusterConfiguration.Builder clusterBuilder = new ClusterConfiguration.Builder();
-                    clusterBuilder.populateFromProperties(properties, prefix, classLoader, builder);
+                    clusterBuilder.populateFromProperties(clusterName, properties, prefix, classLoader, builder);
 
                     map.put(clusterName, new ClusterConfiguration(clusterBuilder));
                 }
@@ -756,7 +756,7 @@ public final class JBossEJBProperties implements Contextual<JBossEJBProperties> 
             long maximumAllowedConnectedNodes;
             String clusterNodeSelectorClassName;
             ExceptionSupplier<ClusterNodeSelector, ReflectiveOperationException> clusterNodeSelectorSupplier;
-            List<ClusterNodeConfiguration> nodeConfigurations;
+            List<ClusterNodeConfiguration> nodeConfigurations = new ArrayList<ClusterNodeConfiguration>();
 
             Builder() {
             }
@@ -786,11 +786,10 @@ public final class JBossEJBProperties implements Contextual<JBossEJBProperties> 
                 return this;
             }
 
-            boolean populateFromProperties(final Properties properties, final String prefix, final ClassLoader classLoader, final CommonSubconfiguration.Builder defaultsBuilder) {
+            boolean populateFromProperties(final String clusterName, final Properties properties, final String prefix, final ClassLoader classLoader, final CommonSubconfiguration.Builder defaultsBuilder) {
                 if (! super.populateFromProperties(properties, prefix, classLoader, defaultsBuilder)) {
                     return false;
                 }
-                final String clusterName = getProperty(properties, prefix, null, true);
                 if (clusterName == null) {
                     return false;
                 }
@@ -807,6 +806,7 @@ public final class JBossEJBProperties implements Contextual<JBossEJBProperties> 
                 final HashSet<String> nodeNames = new HashSet<>();
                 final String nodePrefix = prefix + ".node.";
                 final int prefixLen = nodePrefix.length();
+                final List<ClusterNodeConfiguration> nodes = new ArrayList<ClusterNodeConfiguration>();
                 String nodeName;
                 for (String propertyName : properties.stringPropertyNames()) {
                     if (propertyName.startsWith(nodePrefix)) {
@@ -819,12 +819,13 @@ public final class JBossEJBProperties implements Contextual<JBossEJBProperties> 
                         if (nodeNames.add(nodeName)) {
                             final ClusterNodeConfiguration.Builder builder = new ClusterNodeConfiguration.Builder();
                             if (builder.populateFromProperties(properties, prefix + "." + nodeName + ".", classLoader, this)) {
-                                nodeConfigurations.add(new ClusterNodeConfiguration(builder));
+                                nodes.add(new ClusterNodeConfiguration(builder));
                             }
                         }
                     }
                     // otherwise ignore it
                 }
+                setNodeConfigurations(nodes);
                 return true;
             }
         }
