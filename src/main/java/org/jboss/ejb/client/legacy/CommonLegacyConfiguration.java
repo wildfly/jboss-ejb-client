@@ -41,14 +41,19 @@ final class CommonLegacyConfiguration {
         if (port == -1) {
             return null;
         }
-        final String protocol;
-        if (connectionOptions.get(Options.SECURE, false) && connectionOptions.get(Options.SSL_ENABLED, false)) {
-            protocol = "remote+https";
+        final String scheme;
+        final String protocol = connectionConfiguration.getProtocol();
+        if (protocol == null) {
+            if (connectionOptions.get(Options.SECURE, false) && connectionOptions.get(Options.SSL_ENABLED, false)) {
+                scheme = "remote+https";
+            } else {
+                scheme = "remote+http";
+            }
         } else {
-            protocol = "remote+http";
+            scheme = protocol;
         }
         try {
-            return new URI(protocol, null, NetworkUtil.formatPossibleIpv6Address(host), port, null, null, null);
+            return new URI(scheme, null, NetworkUtil.formatPossibleIpv6Address(host), port, null, null, null);
         } catch (URISyntaxException e) {
             return null;
         }

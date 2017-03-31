@@ -100,6 +100,7 @@ public final class JBossEJBProperties implements Contextual<JBossEJBProperties> 
     private static final String PROPERTY_KEY_USERNAME = "username";
     private static final String PROPERTY_KEY_PASSWORD = "password";
     private static final String PROPERTY_KEY_PASSWORD_BASE64 = "password.base64";
+    private static final String PROPERTY_KEY_PROTOCOL = "protocol";
     private static final String PROPERTY_KEY_REALM = "realm";
     private static final String PROPERTY_KEY_CALLBACK_HANDLER_CLASS = "callback.handler.class";
 
@@ -648,11 +649,13 @@ public final class JBossEJBProperties implements Contextual<JBossEJBProperties> 
 
         private final String host;
         private final int port;
+        private final String protocol;
 
         ConnectionConfiguration(Builder builder) {
             super(builder);
             this.host = builder.host;
             this.port = builder.port;
+            this.protocol = builder.protocol;
         }
 
         public String getHost() {
@@ -662,10 +665,15 @@ public final class JBossEJBProperties implements Contextual<JBossEJBProperties> 
         public int getPort() {
             return port;
         }
-        
+
+        public String getProtocol() {
+            return protocol;
+        }
+
         static final class Builder extends CommonSubconfiguration.Builder {
             String host;
             int port;
+            String protocol;
 
             Builder() {
             }
@@ -700,6 +708,9 @@ public final class JBossEJBProperties implements Contextual<JBossEJBProperties> 
                     return false;
                 }
                 setPort(port);
+
+                String protocol = getProperty(properties, prefix + "protocol", DEFAULT_PROTOCOL, true).trim();
+                this.protocol = protocol;
                 return true;
             }
 
