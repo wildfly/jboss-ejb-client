@@ -169,13 +169,13 @@ class EJBClientChannel {
         if (version < 3) {
             configuration.setClassTable(ProtocolV1ClassTable.INSTANCE);
             configuration.setObjectTable(ProtocolV1ObjectTable.INSTANCE);
-            configuration.setObjectResolver(new ProtocolV1ObjectResolver(channel.getConnection().getEndpoint().getName(), channel.getConnection().getPeerURI()));
+            configuration.setObjectResolver(new ProtocolV1ObjectResolver(channel.getConnection(), true));
             configuration.setVersion(2);
             // Do not wait for cluster topology report.
             finishedParts.set(0b10);
         } else {
             configuration.setObjectTable(ProtocolV3ObjectTable.INSTANCE);
-            configuration.setObjectResolver(new ProtocolV3ObjectResolver(channel.getConnection().getPeerURI()));
+            configuration.setObjectResolver(new ProtocolV3ObjectResolver(channel.getConnection(), true));
             configuration.setVersion(4);
             // server does not present v3 unless the transaction service is also present
         }

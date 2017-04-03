@@ -116,11 +116,11 @@ final class EJBServerChannel {
         if (version < 3) {
             configuration.setClassTable(ProtocolV1ClassTable.INSTANCE);
             configuration.setObjectTable(ProtocolV1ObjectTable.INSTANCE);
-            configuration.setObjectResolver(new ProtocolV1ObjectResolver(channel.getConnection().getEndpoint().getName(), channel.getConnection().getPeerURI()));
+            configuration.setObjectResolver(new ProtocolV1ObjectResolver(channel.getConnection(), true));
             configuration.setVersion(2);
         } else {
             configuration.setObjectTable(ProtocolV3ObjectTable.INSTANCE);
-            configuration.setObjectResolver(new ProtocolV3ObjectResolver(channel.getConnection().getPeerURI()));
+            configuration.setObjectResolver(new ProtocolV3ObjectResolver(channel.getConnection(), true));
             configuration.setVersion(4);
         }
         marshallerFactory = new RiverMarshallerFactory();

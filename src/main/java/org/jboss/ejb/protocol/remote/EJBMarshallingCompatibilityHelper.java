@@ -35,9 +35,11 @@ public final class EJBMarshallingCompatibilityHelper implements MarshallingCompa
         if (transport instanceof RemoteTransport) {
             final RemoteTransport remoteTransport = (RemoteTransport) transport;
             if (remoteTransport.getVersion() == 1) {
-                return new ProtocolV1ObjectResolver(remoteTransport.getConnection().getEndpoint().getName(), remoteTransport.getConnection().getPeerURI());
-            } else if (remoteTransport.getVersion() == 2) {
-                return new ProtocolV3ObjectResolver(remoteTransport.getConnection().getPeerURI());
+                // naming version is 1, EJB version is 1 or 2 (same resolver either way)
+                return new ProtocolV1ObjectResolver(remoteTransport.getConnection(), true);
+            } else if (remoteTransport.getVersion() == 2) { // this refers to the naming version, not the EJB version
+                // naming version is 2, EJB version is 3
+                return new ProtocolV3ObjectResolver(remoteTransport.getConnection(), true);
             }
         }
         return null;
