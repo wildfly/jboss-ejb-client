@@ -26,6 +26,7 @@ import org.jboss.ejb.client.EJBMetaDataImpl;
 import org.jboss.ejb.client.NodeAffinity;
 import org.jboss.ejb.client.URIAffinity;
 import org.jboss.marshalling.ObjectResolver;
+import org.jboss.remoting3.Connection;
 import org.wildfly.common.rpc.RemoteExceptionCause;
 
 /**
@@ -36,18 +37,20 @@ final class ProtocolV1ObjectResolver implements ObjectResolver {
     private static final boolean DISABLE_V1_AFFINITY_REWRITE = Boolean.getBoolean("org.jboss.ejb.client.disable-v1-affinity-rewrite");
 
     private final Affinity peerURIAffinity;
-    private final NodeAffinity nodeAffinity;
+    private final Connection connection;
+    private final NodeAffinity thisNodeAffinity;
 
-    ProtocolV1ObjectResolver(final String nodeName, URI peerURI) {
-        nodeAffinity = new NodeAffinity(nodeName);
+    ProtocolV1ObjectResolver(final Connection connection, URI peerURI) {
+        this.connection = connection;
         this.peerURIAffinity = Affinity.forUri(peerURI);
+        this.thisNodeAffinity = new NodeAffinity(connection.getEndpoint().getName());
     }
 
     public Object readResolve(final Object replacement) {
         if (replacement instanceof EJBMetaDataImpl) {
             return ((EJBMetaDataImpl) replacement).toAbstractEJBMetaData();
-        } else if ((replacement instanceof NodeAffinity) && replacement.equals(nodeAffinity)) {
-            // Swap a node affinity with the name of this node with a local affinity
+        } else if ((replacement instanceof NodeAffinity) && ((NodeAffinity)replacement).getNodeName().equals(connection.getRemoteEndpointName())) {
+            // Swap a node affinity with the name of the remote peer for a URI affinity
             return peerURIAffinity;
         } else if(replacement == Affinity.NONE && !DISABLE_V1_AFFINITY_REWRITE) {
             return peerURIAffinity;
@@ -60,7 +63,7 @@ final class ProtocolV1ObjectResolver implements ObjectResolver {
             return Affinity.NONE;
         } else if (original == Affinity.LOCAL) {
             // Swap a local affinity with a node affinity with the name of this node
-            return nodeAffinity;
+            return thisNodeAffinity;
         } else if (original instanceof AbstractEJBMetaData) {
             return new EJBMetaDataImpl((AbstractEJBMetaData<?, ?>) original);
         } else if (original instanceof RemoteExceptionCause) {
