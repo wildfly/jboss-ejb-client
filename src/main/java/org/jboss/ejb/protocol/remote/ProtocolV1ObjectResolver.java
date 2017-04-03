@@ -26,41 +26,50 @@ import org.jboss.ejb.client.EJBMetaDataImpl;
 import org.jboss.ejb.client.NodeAffinity;
 import org.jboss.ejb.client.URIAffinity;
 import org.jboss.marshalling.ObjectResolver;
+import org.jboss.remoting3.Connection;
 import org.wildfly.common.rpc.RemoteExceptionCause;
 
 /**
  * @author <a href="mailto:david.lloyd@redhat.com">David M. Lloyd</a>
  */
 final class ProtocolV1ObjectResolver implements ObjectResolver {
+    private final NodeAffinity peerNodeAffinity;
+    private final NodeAffinity selfNodeAffinity;
+    private final URIAffinity peerUriAffinity;
+    private final boolean preferUri;
 
-    private static final boolean DISABLE_V1_AFFINITY_REWRITE = Boolean.getBoolean("org.jboss.ejb.client.disable-v1-affinity-rewrite");
-
-    private final Affinity peerURIAffinity;
-    private final NodeAffinity nodeAffinity;
-
-    ProtocolV1ObjectResolver(final String nodeName, URI peerURI) {
-        nodeAffinity = new NodeAffinity(nodeName);
-        this.peerURIAffinity = Affinity.forUri(peerURI);
+    ProtocolV1ObjectResolver(final Connection connection, final boolean preferUri) {
+        peerNodeAffinity = new NodeAffinity(connection.getRemoteEndpointName());
+        selfNodeAffinity = new NodeAffinity(connection.getEndpoint().getName());
+        this.preferUri = preferUri;
+        final URI peerURI = connection.getPeerURI();
+        peerUriAffinity = peerURI == null ? null : (URIAffinity) Affinity.forUri(peerURI);
     }
 
     public Object readResolve(final Object replacement) {
         if (replacement instanceof EJBMetaDataImpl) {
             return ((EJBMetaDataImpl) replacement).toAbstractEJBMetaData();
-        } else if ((replacement instanceof NodeAffinity) && replacement.equals(nodeAffinity)) {
-            // Swap a node affinity with the name of this node with a local affinity
-            return peerURIAffinity;
-        } else if(replacement == Affinity.NONE && !DISABLE_V1_AFFINITY_REWRITE) {
-            return peerURIAffinity;
+        } else if (replacement instanceof NodeAffinity) {
+            if (replacement.equals(selfNodeAffinity)) {
+                // Peer sent our node name; make it local
+                return Affinity.LOCAL;
+            } else if (preferUri && peerUriAffinity != null && replacement.equals(peerNodeAffinity)) {
+                // Peer (server) sent their own node name; make it a URI if we can
+                return peerUriAffinity;
+            }
         }
         return replacement;
     }
 
     public Object writeReplace(final Object original) {
         if (original instanceof URIAffinity) {
+            if (peerUriAffinity != null && original.equals(peerUriAffinity)) {
+                return peerNodeAffinity;
+            }
             return Affinity.NONE;
         } else if (original == Affinity.LOCAL) {
             // Swap a local affinity with a node affinity with the name of this node
-            return nodeAffinity;
+            return selfNodeAffinity;
         } else if (original instanceof AbstractEJBMetaData) {
             return new EJBMetaDataImpl((AbstractEJBMetaData<?, ?>) original);
         } else if (original instanceof RemoteExceptionCause) {

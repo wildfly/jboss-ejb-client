@@ -21,31 +21,50 @@ package org.jboss.ejb.protocol.remote;
 import java.net.URI;
 
 import org.jboss.ejb.client.Affinity;
+import org.jboss.ejb.client.NodeAffinity;
 import org.jboss.ejb.client.URIAffinity;
 import org.jboss.marshalling.ObjectResolver;
+import org.jboss.remoting3.Connection;
 
 /**
  * @author <a href="mailto:fjuma@redhat.com">Farah Juma</a>
  */
 final class ProtocolV3ObjectResolver implements ObjectResolver {
-    private final Affinity peerURIAffinity;
+    private final NodeAffinity peerNodeAffinity;
+    private final NodeAffinity selfNodeAffinity;
+    private final URIAffinity peerUriAffinity;
+    private final boolean preferUri;
 
-    ProtocolV3ObjectResolver(final URI peerURI) {
-        peerURIAffinity = Affinity.forUri(peerURI);
+    ProtocolV3ObjectResolver(final Connection connection, final boolean preferUri) {
+        peerNodeAffinity = new NodeAffinity(connection.getRemoteEndpointName());
+        selfNodeAffinity = new NodeAffinity(connection.getEndpoint().getName());
+        this.preferUri = preferUri;
+        final URI peerURI = connection.getPeerURI();
+        peerUriAffinity = peerURI == null ? null : (URIAffinity) Affinity.forUri(peerURI);
     }
 
     public Object readResolve(final Object replacement) {
-        // Swap a local affinity with a URI affinity with the peer's URI
         if (replacement == Affinity.LOCAL) {
-            return peerURIAffinity;
+            // This shouldn't be possible.  If it happens though, we will guess that it is the peer talking about itself
+            return preferUri && peerUriAffinity != null ? peerUriAffinity : peerNodeAffinity;
+        } else if (replacement instanceof NodeAffinity) {
+            if (replacement.equals(selfNodeAffinity)) {
+                return Affinity.LOCAL;
+            } else if (preferUri && peerUriAffinity != null && replacement.equals(peerNodeAffinity)) {
+                // the peer is talking about itself; use the more specific URI if we have one
+                return peerUriAffinity;
+            }
         }
         return replacement;
     }
 
     public Object writeReplace(final Object original) {
-        // Swap a URI affinity with the peer's URI with a local affinity
-        if ((original instanceof URIAffinity) && original.equals(peerURIAffinity)) {
-            return Affinity.LOCAL;
+        if (original == Affinity.LOCAL) {
+            // we don't know the peer's view URI of us, if there even is one, so switch it to node affinity and let the peer sort it out
+            return selfNodeAffinity;
+        } else if (peerUriAffinity != null && original instanceof URIAffinity && original.equals(peerUriAffinity)) {
+            // it's the peer node; the peer won't know its own URI though, so send its node affinity instead
+            return peerNodeAffinity;
         }
         return original;
     }
