@@ -111,11 +111,11 @@ public final class ElytronLegacyConfiguration implements LegacyConfiguration {
 
     private static AuthenticationConfiguration configureCommon(final JBossEJBProperties properties, final JBossEJBProperties.CommonSubconfiguration configuration, AuthenticationConfiguration config) {
         final JBossEJBProperties.AuthenticationConfiguration authenticationConfiguration = configuration.getAuthenticationConfiguration();
-        final String userName = authenticationConfiguration.getUserName();
+        final String userName = authenticationConfiguration == null ? null : authenticationConfiguration.getUserName();
         if (userName != null) config = config.useName(userName);
-        final String realm = authenticationConfiguration.getMechanismRealm();
+        final String realm = authenticationConfiguration == null ? null : authenticationConfiguration.getMechanismRealm();
         if (realm != null) config = config.useRealm(realm);
-        final ExceptionSupplier<CallbackHandler, ReflectiveOperationException> callbackHandlerSupplier = authenticationConfiguration.getCallbackHandlerSupplier();
+        final ExceptionSupplier<CallbackHandler, ReflectiveOperationException> callbackHandlerSupplier = authenticationConfiguration == null ? null : authenticationConfiguration.getCallbackHandlerSupplier();
         if (callbackHandlerSupplier != null) {
             final CallbackHandler callbackHandler;
             try {
@@ -125,7 +125,7 @@ public final class ElytronLegacyConfiguration implements LegacyConfiguration {
             }
             config = config.useCallbackHandler(callbackHandler);
         }
-        final String password = authenticationConfiguration.getPassword();
+        final String password = authenticationConfiguration == null ? null : authenticationConfiguration.getPassword();
         if (password != null) config = config.usePassword(password);
 
         final OptionMap options = configuration.getConnectionOptions();
@@ -141,6 +141,7 @@ public final class ElytronLegacyConfiguration implements LegacyConfiguration {
         } else if (options.contains(Options.SASL_MECHANISMS)) {
             config = config.allowSaslMechanisms(options.get(Options.SASL_MECHANISMS).toArray(NO_STRINGS));
         }
+        config = config.useProvidersFromClassLoader(ElytronLegacyConfiguration.class.getClassLoader());
         return config;
     }
 }
