@@ -20,6 +20,7 @@ package org.jboss.ejb.client;
 
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Proxy;
+import java.net.SocketAddress;
 import java.net.URI;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
@@ -54,6 +55,12 @@ public final class EJBClient {
     }
 
     private static final ThreadLocal<Future<?>> FUTURE_RESULT = new ThreadLocal<Future<?>>();
+
+    /**
+     * An invocation context key which is set to the source socket address of the invocation request, if any.  The
+     * value will be of type {@link SocketAddress}.
+     */
+    public static final String SOURCE_ADDRESS_KEY = "jboss.source-address";
 
     /**
      * Get an asynchronous view of a proxy.  Any {@code void} method on the proxy will be invoked fully asynchronously
