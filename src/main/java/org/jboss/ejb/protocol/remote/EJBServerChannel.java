@@ -49,6 +49,7 @@ import javax.transaction.xa.Xid;
 import org.jboss.ejb._private.Logs;
 import org.jboss.ejb.client.Affinity;
 import org.jboss.ejb.client.AttachmentKeys;
+import org.jboss.ejb.client.EJBClient;
 import org.jboss.ejb.client.EJBClientInvocationContext;
 import org.jboss.ejb.client.EJBIdentifier;
 import org.jboss.ejb.client.EJBLocator;
@@ -782,6 +783,7 @@ final class EJBServerChannel {
                         attachments.put(attName, unmarshaller.readObject());
                     }
                 }
+                attachments.put(EJBClient.SOURCE_ADDRESS_KEY, channel.getConnection().getPeerAddress());
 
                 final ExceptionSupplier<ImportResult<?>, SystemException> finalTransactionSupplier = transactionSupplier;
                 final int finalResponseCompressLevel = responseCompressLevel == 15 ? Deflater.DEFAULT_COMPRESSION : min(responseCompressLevel, 9);
@@ -847,6 +849,7 @@ final class EJBServerChannel {
                             final Marshaller marshaller = marshallerFactory.createMarshaller(configuration);
                             marshaller.start(new NoFlushByteOutput(Marshalling.createByteOutput(os)));
                             marshaller.writeObject(result);
+                            attachments.remove(EJBClient.SOURCE_ADDRESS_KEY);
                             int count = attachments.size();
                             if (count > 255) {
                                 marshaller.writeByte(255);
