@@ -88,6 +88,19 @@ public final class ElytronLegacyConfiguration implements LegacyConfiguration {
             final String clusterName = entry.getKey();
             final JBossEJBProperties.ClusterConfiguration configuration = entry.getValue();
 
+            MatchRule defaultRule = MatchRule.ALL.matchAbstractType("ejb", "jboss");
+            AuthenticationConfiguration defaultConfig = AuthenticationConfiguration.EMPTY;
+
+            defaultRule = defaultRule.matchProtocol("cluster");
+            defaultRule = defaultRule.matchUrnName(clusterName);
+
+            defaultConfig = configureCommon(properties, configuration, defaultConfig);
+
+            context = context.with(
+                    defaultRule,
+                    defaultConfig
+            );
+
             final List<JBossEJBProperties.ClusterNodeConfiguration> nodeConfigurations = configuration.getNodeConfigurations();
             if (nodeConfigurations != null) {
                 for (JBossEJBProperties.ClusterNodeConfiguration nodeConfiguration : nodeConfigurations) {
