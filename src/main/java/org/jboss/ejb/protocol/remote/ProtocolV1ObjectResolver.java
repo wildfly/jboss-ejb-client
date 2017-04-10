@@ -57,6 +57,8 @@ final class ProtocolV1ObjectResolver implements ObjectResolver {
                 // Peer (server) sent their own node name; make it a URI if we can
                 return peerUriAffinity;
             }
+        } else if(replacement == Affinity.NONE) {
+            return peerUriAffinity;
         }
         return replacement;
     }
