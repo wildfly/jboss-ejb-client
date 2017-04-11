@@ -26,6 +26,7 @@ import java.io.DataInput;
 import java.io.DataInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
 import java.net.Inet6Address;
 import java.net.SocketAddress;
@@ -33,6 +34,7 @@ import java.security.PrivilegedAction;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.Executor;
 import java.util.zip.Deflater;
 import java.util.zip.DeflaterOutputStream;
@@ -60,6 +62,7 @@ import org.jboss.ejb.client.SessionID;
 import org.jboss.ejb.client.TransactionID;
 import org.jboss.ejb.client.UserTransactionID;
 import org.jboss.ejb.client.XidTransactionID;
+import org.jboss.ejb.client.annotation.CompressionHint;
 import org.jboss.ejb.server.Association;
 import org.jboss.ejb.server.CancelHandle;
 import org.jboss.ejb.server.ClusterTopologyListener;
@@ -786,6 +789,23 @@ final class EJBServerChannel {
                 attachments.put(EJBClient.SOURCE_ADDRESS_KEY, channel.getConnection().getPeerAddress());
 
                 final ExceptionSupplier<ImportResult<?>, SystemException> finalTransactionSupplier = transactionSupplier;
+
+                if(version == 2) {
+                    //version 2 did not send compression information in the response stream
+                    //instead it must be read from the class
+                    Method invokedMethod = findMethod(locator.getViewType(), methodLocator);
+                    CompressionHint compressionHint = invokedMethod.getAnnotation(CompressionHint.class);
+                    // then class level
+                    if (compressionHint == null) {
+                        compressionHint = invokedMethod.getDeclaringClass().getAnnotation(CompressionHint.class);
+                    }
+                    if(compressionHint != null) {
+                        if(compressionHint.compressResponse()) {
+                            responseCompressLevel = compressionHint.compressionLevel();
+                        }
+                    }
+                }
+
                 final int finalResponseCompressLevel = responseCompressLevel == 15 ? Deflater.DEFAULT_COMPRESSION : min(responseCompressLevel, 9);
                 return new Resolved() {
 
@@ -952,6 +972,29 @@ final class EJBServerChannel {
                 writeFailure(Logs.REMOTING.requestCancelled());
             }
         }
+    }
+
+    private static Method findMethod(final Class componentView, final EJBMethodLocator ejbMethodLocator) {
+        final Method[] viewMethods = componentView.getMethods();
+        for (final Method method : viewMethods) {
+            if (method.getName().equals(ejbMethodLocator.getMethodName())) {
+                final Class<?>[] methodParamTypes = method.getParameterTypes();
+                if (methodParamTypes.length != ejbMethodLocator.getParameterCount()) {
+                    continue;
+                }
+                boolean found = true;
+                for (int i = 0; i < methodParamTypes.length; i++) {
+                    if (!methodParamTypes[i].getName().equals(ejbMethodLocator.getParameterTypeName(i))) {
+                        found = false;
+                        break;
+                    }
+                }
+                if (found) {
+                    return method;
+                }
+            }
+        }
+        return null;
     }
 
     static final class InProgress {
