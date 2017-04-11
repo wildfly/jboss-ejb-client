@@ -218,7 +218,7 @@ final class ConfigurationBasedEJBClientContextSelector implements Supplier<EJBCl
         URI uri = null;
         final int attributeCount = streamReader.getAttributeCount();
         for (int i = 0; i < attributeCount; i ++) {
-            if (streamReader.getNamespaceURI(i) != null || ! streamReader.getAttributeLocalName(i).equals("uri") || uri != null) {
+            if (streamReader.getAttributeNamespace(i) != null || ! streamReader.getAttributeLocalName(i).equals("uri") || uri != null) {
                 throw streamReader.unexpectedAttribute(i);
             }
             uri = streamReader.getURIAttributeValue(i);
