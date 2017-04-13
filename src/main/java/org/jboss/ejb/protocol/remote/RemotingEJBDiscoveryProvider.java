@@ -44,6 +44,8 @@ import org.xnio.IoFuture;
 import org.xnio.OptionMap;
 
 /**
+ * Provides discovery service based on all known EJBClientChannel service registry entries.
+ *
  * @author <a href="mailto:david.lloyd@redhat.com">David M. Lloyd</a>
  */
 final class RemotingEJBDiscoveryProvider implements DiscoveryProvider {
