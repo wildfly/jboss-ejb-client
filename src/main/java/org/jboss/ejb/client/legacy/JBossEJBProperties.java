@@ -344,9 +344,8 @@ public final class JBossEJBProperties implements Contextual<JBossEJBProperties> 
             // Parse this the same way as the legacy code.
             final StringTokenizer tokenizer = new StringTokenizer(connectionsString, ",");
             while (tokenizer.hasMoreTokens()) {
-                String connectionName = tokenizer.nextToken();
-                final String trimmed = connectionName.trim();
-                if (! trimmed.isEmpty()) {
+                final String connectionName = tokenizer.nextToken().trim();
+                if (! connectionName.isEmpty()) {
                     final ConnectionConfiguration.Builder connBuilder = new ConnectionConfiguration.Builder();
 
                     String prefix = "remote.connection." + connectionName + ".";
@@ -378,9 +377,8 @@ public final class JBossEJBProperties implements Contextual<JBossEJBProperties> 
             final HashMap<String, ClusterConfiguration> map = new HashMap<>();
             final StringTokenizer tokenizer = new StringTokenizer(clustersString, ",");
             while (tokenizer.hasMoreTokens()) {
-                final String clusterName = tokenizer.nextToken();
-                final String trimmed = clusterName.trim();
-                if (! trimmed.isEmpty()) {
+                final String clusterName = tokenizer.nextToken().trim();
+                if (! clusterName.isEmpty()) {
                     String prefix = "remote.cluster." + clusterName + ".";
 
                     final ClusterConfiguration.Builder clusterBuilder = new ClusterConfiguration.Builder();
