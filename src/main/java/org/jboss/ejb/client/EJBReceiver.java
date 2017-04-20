@@ -21,7 +21,9 @@ package org.jboss.ejb.client;
 import java.net.SocketAddress;
 import java.net.URI;
 
-import org.wildfly.naming.client.NamingProvider;
+import javax.net.ssl.SSLContext;
+
+import org.wildfly.security.auth.client.AuthenticationConfiguration;
 
 /**
  * A receiver for EJB invocations.  Receivers can be associated with one or more client contexts.  This interface is
@@ -65,14 +67,15 @@ public abstract class EJBReceiver extends Attachable {
      * Creates a session for a stateful session bean represented by the passed app name, module name, distinct name
      * and bean name combination. Returns a {@link StatefulEJBLocator} representing the newly created session.
      *
-     * @param statelessLocator the stateless locator
-     * @param namingProvider the naming provider, may be null
      * @param <T> the view type
+     * @param statelessLocator the stateless locator
+     * @param authenticationConfiguration the authentication configuration to use (not {@code null})
+     * @param sslContext the SSL context to use (may be {@code null} if none is configured)
      * @return the EJB locator for the newly opened session
      * @throws IllegalArgumentException if the session creation request is made for a bean which is <i>not</i> a stateful
      *                                  session bean
      */
-    protected abstract <T> StatefulEJBLocator<T> createSession(final StatelessEJBLocator<T> statelessLocator, NamingProvider namingProvider) throws Exception;
+    protected abstract <T> StatefulEJBLocator<T> createSession(StatelessEJBLocator<T> statelessLocator, AuthenticationConfiguration authenticationConfiguration, SSLContext sslContext) throws Exception;
 
     /**
      * Query the expected or actual source IP address configured for the given target URI.

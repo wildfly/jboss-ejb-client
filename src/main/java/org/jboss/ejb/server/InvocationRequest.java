@@ -71,7 +71,7 @@ public interface InvocationRequest extends Request {
      * Write a message indicating that this is an async request. If this is not required by the underlying protocol then
      * this may be a noop
      */
-    default void writeProceedAsync() {};
+    default void writeProceedAsync() {}
 
     /**
      * The resolved content of the request.

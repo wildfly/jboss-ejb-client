@@ -22,6 +22,7 @@ import java.io.Externalizable;
 import java.io.IOException;
 import java.io.ObjectInput;
 import java.io.ObjectOutput;
+import java.net.URI;
 
 import org.wildfly.common.Assert;
 import org.wildfly.naming.client.NamingProvider;
@@ -132,13 +133,14 @@ public final class SerializedEJBInvocationHandler implements Externalizable {
     private static <T> EJBInvocationHandler<T> readResolve(EJBLocator<T> locator) {
         NamingProvider namingProvider = NamingProvider.getCurrentNamingProvider();
         if (namingProvider != null) {
-            if (locator.getAffinity() == Affinity.LOCAL) {
-                return new EJBInvocationHandler<T>(namingProvider, locator.withNewAffinity(Affinity.forUri(namingProvider.getProviderUri())));
+            final URI providerUri = namingProvider.getProviderUri();
+            if (providerUri.equals(locator.getAffinity().getUri())) {
+                return new EJBInvocationHandler<T>(locator, namingProvider.getAuthenticationConfiguration(), namingProvider.getSSLContext());
             } else {
-                return new EJBInvocationHandler<T>(namingProvider, locator);
+                return new EJBInvocationHandler<T>(locator, null, null);
             }
         } else {
-            return new EJBInvocationHandler<T>(null, locator);
+            return new EJBInvocationHandler<T>(locator, null, null);
         }
     }
 }

@@ -20,7 +20,9 @@ package org.jboss.ejb.client;
 
 import java.util.Arrays;
 
-import org.wildfly.naming.client.NamingProvider;
+import javax.net.ssl.SSLContext;
+
+import org.wildfly.security.auth.client.AuthenticationConfiguration;
 
 /**
  * The context used for an EJB receiver to return the result of an invocation.
@@ -71,12 +73,23 @@ public final class EJBReceiverInvocationContext {
     }
 
     /**
-     * Get the naming provider attached to this invocation, if any.
+     * Get the authentication configuration of the request.  The configuration may be associated with the proxy,
+     * or it may have been inherited from the environment.
      *
-     * @return the naming provider attached to this invocation, or {@code null} if there is none
+     * @return the authentication configuration of the request (not {@code null})
      */
-    public NamingProvider getNamingProvider() {
-        return clientInvocationContext.getNamingProvider();
+    public AuthenticationConfiguration getAuthenticationConfiguration() {
+        return clientInvocationContext.getAuthenticationConfiguration();
+    }
+
+    /**
+     * Get the SSL context of the request.  The SSL context may be associated with the proxy,
+     * or it may have been inherited from the environment.
+     *
+     * @return the SSL context of the request, or {@code null} if no SSL context is configured
+     */
+    public SSLContext getSSLContext() {
+        return clientInvocationContext.getSSLContext();
     }
 
     /**

@@ -31,6 +31,7 @@ import org.jboss.ejb.client.XidTransactionID;
 import org.jboss.marshalling.Marshalling;
 import org.jboss.marshalling.Unmarshaller;
 import org.jboss.remoting3.Connection;
+import org.jboss.remoting3.ConnectionPeerIdentity;
 import org.jboss.remoting3.MessageInputStream;
 import org.jboss.remoting3.MessageOutputStream;
 import org.jboss.remoting3.util.BlockingInvocation;
@@ -55,27 +56,33 @@ class EJBTransactionOperations implements RemotingOperations {
         }
     }
 
-    public void rollback(final Xid xid) throws XAException {
+    public void rollback(final Xid xid, final ConnectionPeerIdentity peerIdentity) throws XAException {
+        assert peerIdentity.getId() == 0;
         executeSimpleInvocation(new XidTransactionID(xid), Protocol.TXN_ROLLBACK_REQUEST, false, false, false);
     }
 
-    public void setRollbackOnly(final Xid xid) throws XAException {
+    public void setRollbackOnly(final Xid xid, final ConnectionPeerIdentity peerIdentity) throws XAException {
+        assert peerIdentity.getId() == 0;
         // no operation
     }
 
-    public void beforeCompletion(final Xid xid) throws XAException {
+    public void beforeCompletion(final Xid xid, final ConnectionPeerIdentity peerIdentity) throws XAException {
+        assert peerIdentity.getId() == 0;
         executeSimpleInvocation(new XidTransactionID(xid), Protocol.TXN_BEFORE_COMPLETION_REQUEST, false, false, false);
     }
 
-    public int prepare(final Xid xid) throws XAException {
+    public int prepare(final Xid xid, final ConnectionPeerIdentity peerIdentity) throws XAException {
+        assert peerIdentity.getId() == 0;
         return executeSimpleInvocation(new XidTransactionID(xid), Protocol.TXN_PREPARE_REQUEST, true, false, false);
     }
 
-    public void forget(final Xid xid) throws XAException {
+    public void forget(final Xid xid, final ConnectionPeerIdentity peerIdentity) throws XAException {
+        assert peerIdentity.getId() == 0;
         executeSimpleInvocation(new XidTransactionID(xid), Protocol.TXN_FORGET_REQUEST, false, false, false);
     }
 
-    public void commit(final Xid xid, final boolean onePhase) throws XAException {
+    public void commit(final Xid xid, final boolean onePhase, final ConnectionPeerIdentity peerIdentity) throws XAException {
+        assert peerIdentity.getId() == 0;
         executeSimpleInvocation(new XidTransactionID(xid), Protocol.TXN_COMMIT_REQUEST, false, true, onePhase);
     }
 
@@ -157,7 +164,8 @@ class EJBTransactionOperations implements RemotingOperations {
         }
     }
 
-    public Xid[] recover(final int flag, final String parentName) throws XAException {
+    public Xid[] recover(final int flag, final String parentName, final ConnectionPeerIdentity peerIdentity) throws XAException {
+        assert peerIdentity.getId() == 0;
         final InvocationTracker invocationTracker = channel.getInvocationTracker();
         final PlainTransactionInvocation invocation = invocationTracker.addInvocation(PlainTransactionInvocation::new);
         try (MessageOutputStream os = invocationTracker.allocateMessage(invocation)) {
@@ -199,12 +207,8 @@ class EJBTransactionOperations implements RemotingOperations {
         }
     }
 
-    public SimpleTransactionControl begin() throws SystemException {
-        // this method will be removed after WFTC 1.0.0.Beta12
-        return begin(0);
-    }
-
-    public SimpleTransactionControl begin(final int timeout) throws SystemException {
+    public SimpleTransactionControl begin(final ConnectionPeerIdentity peerIdentity) throws SystemException {
+        assert peerIdentity.getId() == 0;
         return new EJBSimpleTransactionControl(channel);
     }
 }

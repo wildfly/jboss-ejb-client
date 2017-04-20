@@ -27,13 +27,14 @@ import java.util.concurrent.TimeUnit;
 import java.util.function.UnaryOperator;
 
 import javax.ejb.CreateException;
+import javax.net.ssl.SSLContext;
 import javax.transaction.UserTransaction;
 
 import org.jboss.ejb._private.Logs;
 import org.wildfly.common.Assert;
 import org.wildfly.discovery.FilterSpec;
 import org.wildfly.discovery.ServicesQueue;
-import org.wildfly.naming.client.NamingProvider;
+import org.wildfly.security.auth.client.AuthenticationConfiguration;
 import org.wildfly.transaction.client.RemoteTransactionContext;
 
 /**
@@ -143,12 +144,12 @@ public final class EJBClient {
      * @throws IllegalArgumentException if the locator parameter is {@code null} or is invalid
      */
     public static <T> T createProxy(final EJBLocator<T> locator) throws IllegalArgumentException {
-        return createProxy(null, locator);
+        return createProxy(locator, null, null);
     }
 
-    static <T> T createProxy(final NamingProvider namingProvider, final EJBLocator<T> locator) throws IllegalArgumentException {
+    static <T> T createProxy(final EJBLocator<T> locator, final AuthenticationConfiguration authenticationConfiguration, final SSLContext sslContext) {
         Assert.checkNotNullParam("locator", locator);
-        return locator.createProxyInstance(new EJBInvocationHandler<T>(namingProvider, locator));
+        return locator.createProxyInstance(new EJBInvocationHandler<T>(locator, authenticationConfiguration, sslContext));
     }
 
     /**
@@ -269,22 +270,22 @@ public final class EJBClient {
      * @throws CreateException if an error occurs
      */
     public static <T> StatefulEJBLocator<T> createSession(StatelessEJBLocator<T> statelessLocator) throws Exception {
-        final EJBClientContext clientContext = EJBClientContext.getCurrent();
-        return clientContext.createSession(statelessLocator, null);
+        return createSession(statelessLocator, null, null);
     }
 
     /**
      * Create a new EJB session.
      *
      * @param statelessLocator the stateless locator identifying the stateful EJB
-     * @param namingProvider The naming provider that initiated the session creation
+     * @param authenticationConfiguration the authentication configuration to use for the request
+     * @param sslContext the SSL context to use for the request
      * @param <T> the view type
      * @return the new EJB locator
      * @throws CreateException if an error occurs
      */
-    static <T> StatefulEJBLocator<T> createSession(StatelessEJBLocator<T> statelessLocator, NamingProvider namingProvider) throws Exception {
+    static <T> StatefulEJBLocator<T> createSession(StatelessEJBLocator<T> statelessLocator, AuthenticationConfiguration authenticationConfiguration, SSLContext sslContext) throws Exception {
         final EJBClientContext clientContext = EJBClientContext.getCurrent();
-        return clientContext.createSession(statelessLocator, namingProvider);
+        return clientContext.createSession(statelessLocator, authenticationConfiguration, sslContext);
     }
 
     /**

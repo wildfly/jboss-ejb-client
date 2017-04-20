@@ -47,6 +47,8 @@ import java.util.Set;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
+import javax.net.ssl.SSLContext;
+
 import org.jboss.ejb._private.Logs;
 import org.jboss.ejb._private.NetworkUtil;
 import org.wildfly.common.Assert;
@@ -58,7 +60,7 @@ import org.wildfly.discovery.FilterSpec;
 import org.wildfly.discovery.ServiceType;
 import org.wildfly.discovery.ServiceURL;
 import org.wildfly.discovery.ServicesQueue;
-import org.wildfly.naming.client.NamingProvider;
+import org.wildfly.security.auth.client.AuthenticationConfiguration;
 
 /**
  * The public API for an EJB client context.  An EJB client context may be associated with (and used by) one or more threads concurrently.
@@ -673,11 +675,12 @@ public final class EJBClientContext extends Attachable implements Contextual<EJB
         return getCurrent();
     }
 
-    <T> StatefulEJBLocator<T> createSession(final StatelessEJBLocator<T> statelessLocator, NamingProvider namingProvider) throws Exception {
+    <T> StatefulEJBLocator<T> createSession(final StatelessEJBLocator<T> statelessLocator, final AuthenticationConfiguration authenticationConfiguration, final SSLContext sslContext) throws Exception {
         final LocatedAction<StatefulEJBLocator<T>, StatelessEJBLocator<T>, T> action =
-                (receiver, originalLocator, newAffinity) -> receiver.createSession(originalLocator.withNewAffinity(newAffinity), namingProvider);
+                (receiver, originalLocator, newAffinity) -> receiver.createSession(originalLocator.withNewAffinity(newAffinity), authenticationConfiguration, sslContext);
         return performLocatedAction(statelessLocator, action);
     }
+
     interface LocatedAction<R, L extends EJBLocator<T>, T> {
         R execute(EJBReceiver receiver, L originalLocator, Affinity newAffinity) throws Exception;
     }

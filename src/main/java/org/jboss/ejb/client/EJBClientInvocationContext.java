@@ -30,12 +30,13 @@ import java.util.concurrent.TimeoutException;
 import static java.lang.Math.max;
 import static java.lang.Thread.holdsLock;
 
+import javax.net.ssl.SSLContext;
 import javax.transaction.Transaction;
 
 import org.jboss.ejb._private.Logs;
 import org.jboss.ejb.client.annotation.ClientTransactionPolicy;
 import org.wildfly.common.Assert;
-import org.wildfly.naming.client.NamingProvider;
+import org.wildfly.security.auth.client.AuthenticationConfiguration;
 
 /**
  * An invocation context for EJB invocations from an EJB client
@@ -77,8 +78,9 @@ public final class EJBClientInvocationContext extends Attachable {
     private boolean resultDone;
     private boolean blockingCaller;
     private Transaction transaction;
-    private NamingProvider namingProvider;
     private Affinity weakAffinity = Affinity.NONE;
+    private AuthenticationConfiguration authenticationConfiguration;
+    private SSLContext sslContext;
 
     EJBClientInvocationContext(final EJBInvocationHandler<?> invocationHandler, final EJBClientContext ejbClientContext, final Object invokedProxy, final Object[] parameters, final EJBProxyInformation.ProxyMethodInfo methodInfo) {
         this.invocationHandler = invocationHandler;
@@ -138,10 +140,6 @@ public final class EJBClientInvocationContext extends Attachable {
      */
     public <T> T removeProxyAttachment(final AttachmentKey<T> key) {
         return invocationHandler.removeAttachment(key);
-    }
-
-    EJBInvocationHandler<?> getInvocationHandler() {
-        return invocationHandler;
     }
 
     /**
@@ -415,7 +413,7 @@ public final class EJBClientInvocationContext extends Attachable {
      *
      * @return the EJB receiver
      */
-    protected EJBReceiver getReceiver() {
+    EJBReceiver getReceiver() {
         return receiver;
     }
 
@@ -424,7 +422,7 @@ public final class EJBClientInvocationContext extends Attachable {
      *
      * @param receiver the EJB receiver associated with this invocation
      */
-    public void setReceiver(final EJBReceiver receiver) {
+    void setReceiver(final EJBReceiver receiver) {
         this.receiver = receiver;
     }
 
@@ -502,6 +500,22 @@ public final class EJBClientInvocationContext extends Attachable {
     public void setWeakAffinity(final Affinity weakAffinity) {
         Assert.checkNotNullParam("weakAffinity", weakAffinity);
         this.weakAffinity = weakAffinity;
+    }
+
+    AuthenticationConfiguration getAuthenticationConfiguration() {
+        return authenticationConfiguration;
+    }
+
+    void setAuthenticationConfiguration(final AuthenticationConfiguration authenticationConfiguration) {
+        this.authenticationConfiguration = authenticationConfiguration;
+    }
+
+    SSLContext getSSLContext() {
+        return sslContext;
+    }
+
+    void setSSLContext(final SSLContext sslContext) {
+        this.sslContext = sslContext;
     }
 
     Future<?> getFutureResponse() {
@@ -665,14 +679,6 @@ public final class EJBClientInvocationContext extends Attachable {
                 }
             }
         }
-    }
-
-    NamingProvider getNamingProvider() {
-        return namingProvider;
-    }
-
-    void setNamingProvider(final NamingProvider namingProvider) {
-        this.namingProvider = namingProvider;
     }
 
     final class FutureResponse implements Future<Object> {

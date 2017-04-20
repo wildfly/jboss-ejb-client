@@ -26,6 +26,7 @@ import javax.naming.Binding;
 import javax.naming.Name;
 import javax.naming.NameClassPair;
 import javax.naming.NamingException;
+import javax.net.ssl.SSLContext;
 
 import org.jboss.ejb._private.Logs;
 import org.wildfly.naming.client.AbstractContext;
@@ -34,6 +35,7 @@ import org.wildfly.naming.client.NamingProvider;
 import org.wildfly.naming.client.SimpleName;
 import org.wildfly.naming.client.store.RelativeContext;
 import org.wildfly.naming.client.util.FastHashtable;
+import org.wildfly.security.auth.client.AuthenticationConfiguration;
 
 class EJBRootContext extends AbstractContext {
     private final Affinity affinity;
@@ -131,10 +133,13 @@ class EJBRootContext extends AbstractContext {
             throw Logs.MAIN.lookupFailed(name, name, e);
         }
         EJBLocator<?> locator;
+        final NamingProvider namingProvider = this.namingProvider;
+        final AuthenticationConfiguration authenticationConfiguration = namingProvider == null ? null : namingProvider.getAuthenticationConfiguration();
+        final SSLContext sslContext = namingProvider == null ? null : namingProvider.getSSLContext();
         final EJBIdentifier identifier = new EJBIdentifier(appName, moduleName, beanName, distinctName);
         if (stateful) {
             try {
-                locator = EJBClient.createSession(StatelessEJBLocator.create(view, identifier, affinity), namingProvider);
+                locator = EJBClient.createSession(StatelessEJBLocator.create(view, identifier, affinity), authenticationConfiguration, sslContext);
             } catch (Exception e) {
                 throw Logs.MAIN.lookupFailed(name, name, e);
             }
@@ -144,7 +149,7 @@ class EJBRootContext extends AbstractContext {
         } else {
             locator = StatelessEJBLocator.create(view, identifier, affinity);
         }
-        return EJBClient.createProxy(namingProvider, locator);
+        return EJBClient.createProxy(locator, authenticationConfiguration, sslContext);
     }
 
     private static ClassLoader getContextClassLoader(){

@@ -87,6 +87,7 @@ import org.jboss.marshalling.MarshallingConfiguration;
 import org.jboss.marshalling.Unmarshaller;
 import org.jboss.remoting3.Channel;
 import org.jboss.remoting3.Connection;
+import org.jboss.remoting3.ConnectionPeerIdentity;
 import org.jboss.remoting3.MessageInputStream;
 import org.jboss.remoting3.MessageOutputStream;
 import org.jboss.remoting3.RemotingOptions;
@@ -102,7 +103,6 @@ import org.wildfly.discovery.ServiceRegistry;
 import org.wildfly.discovery.ServiceURL;
 import org.wildfly.discovery.impl.LocalRegistryAndDiscoveryProvider;
 import org.wildfly.discovery.spi.DiscoveryProvider;
-import org.wildfly.security.auth.AuthenticationException;
 import org.wildfly.transaction.client.ContextTransactionManager;
 import org.wildfly.transaction.client.LocalTransaction;
 import org.wildfly.transaction.client.RemoteTransaction;
@@ -445,19 +445,15 @@ class EJBClientChannel {
 
     private static final AttachmentKey<MethodInvocation> INV_KEY = new AttachmentKey<>();
 
-    public void processInvocation(final EJBReceiverInvocationContext receiverContext) {
+    public void processInvocation(final EJBReceiverInvocationContext receiverContext, final ConnectionPeerIdentity peerIdentity) {
         MethodInvocation invocation = invocationTracker.addInvocation(id -> new MethodInvocation(id, receiverContext));
         final EJBClientInvocationContext invocationContext = receiverContext.getClientInvocationContext();
         invocationContext.putAttachment(INV_KEY, invocation);
         final EJBLocator<?> locator = invocationContext.getLocator();
         final int peerIdentityId;
-        if (version >= 3) try {
-            peerIdentityId = channel.getConnection().getPeerIdentityId();
-        } catch (AuthenticationException e) {
-            receiverContext.resultReady(new EJBReceiverInvocationContext.ResultProducer.Failed(new RequestSendFailedException(e, false)));
-            return;
-        }
-        else {
+        if (version >= 3) {
+            peerIdentityId = peerIdentity.getId();
+        } else {
             peerIdentityId = 0; // unused
         }
         try (MessageOutputStream underlying = invocationTracker.allocateMessage()) {
@@ -601,7 +597,7 @@ class EJBClientChannel {
                 underlying.cancel();
                 throw e;
             } finally {
-                ((OutputStream)out).close();
+                out.close();
             }
         } catch (IOException e) {
             receiverContext.resultReady(new EJBReceiverInvocationContext.ResultProducer.Failed(new RequestSendFailedException(e.getMessage(), e, true)));
@@ -746,14 +742,14 @@ class EJBClientChannel {
         return marshallerFactory.createMarshaller(configuration);
     }
 
-    public <T> StatefulEJBLocator<T> openSession(final StatelessEJBLocator<T> statelessLocator) throws Exception {
+    public <T> StatefulEJBLocator<T> openSession(final StatelessEJBLocator<T> statelessLocator, final ConnectionPeerIdentity identity) throws Exception {
         SessionOpenInvocation<T> invocation = invocationTracker.addInvocation(id -> new SessionOpenInvocation<>(id, statelessLocator));
         try (MessageOutputStream out = invocationTracker.allocateMessage()) {
             out.write(Protocol.OPEN_SESSION_REQUEST);
             out.writeShort(invocation.getIndex());
             writeRawIdentifier(statelessLocator, out);
             if (version >= 3) {
-                out.writeInt(channel.getConnection().getPeerIdentityId());
+                out.writeInt(identity.getId());
                 writeTransaction(ContextTransactionManager.getInstance().getTransaction(), out);
             }
         } catch (IOException e) {

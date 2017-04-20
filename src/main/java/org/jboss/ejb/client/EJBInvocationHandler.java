@@ -18,11 +18,12 @@
 
 package org.jboss.ejb.client;
 
+import static java.security.AccessController.doPrivileged;
+
 import java.io.Serializable;
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
-import java.net.URI;
 import java.rmi.RemoteException;
 import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicReference;
@@ -30,10 +31,13 @@ import java.util.concurrent.atomic.AtomicReference;
 import javax.ejb.EJBException;
 import javax.ejb.EJBHome;
 import javax.ejb.EJBObject;
+import javax.net.ssl.SSLContext;
 
 import org.jboss.ejb._private.Logs;
 import org.wildfly.common.Assert;
-import org.wildfly.naming.client.NamingProvider;
+import org.wildfly.security.auth.client.AuthenticationConfiguration;
+import org.wildfly.security.auth.client.AuthenticationContext;
+import org.wildfly.security.auth.client.AuthenticationContextConfigurationClient;
 
 /**
  * @param <T> the proxy view type
@@ -42,9 +46,9 @@ import org.wildfly.naming.client.NamingProvider;
 final class EJBInvocationHandler<T> extends Attachable implements InvocationHandler, Serializable {
 
     private static final long serialVersionUID = 946555285095057230L;
+    private static final AuthenticationContextConfigurationClient CLIENT = doPrivileged(AuthenticationContextConfigurationClient.ACTION);
 
     private final transient boolean async;
-    private final NamingProvider namingProvider;
 
     private transient String toString;
     private transient String toStringProxy;
@@ -57,14 +61,25 @@ final class EJBInvocationHandler<T> extends Attachable implements InvocationHand
     private volatile long invocationTimeout = -1L;
 
     /**
+     * The sticky authentication configuration for this proxy.
+     */
+    private volatile AuthenticationConfiguration authenticationConfiguration;
+    /**
+     * The sticky SSL context for this proxy.
+     */
+    private volatile SSLContext sslContext;
+
+    /**
      * Construct a new instance.
      *
-     * @param namingProvider the naming provider, if any (may be {@code null})
-     * @param locator the EJB locator (not {@code null})
+     * @param locator the initial EJB locator (not {@code null})
+     * @param authenticationConfiguration the sticky authentication configuration, or {@code null} to use a dynamic identity
+     * @param sslContext the sticky SSL context, or {@code null} to use a dynamic SSL context
      */
-    EJBInvocationHandler(final NamingProvider namingProvider, final EJBLocator<T> locator) {
+    EJBInvocationHandler(final EJBLocator<T> locator, final AuthenticationConfiguration authenticationConfiguration, final SSLContext sslContext) {
+        this.authenticationConfiguration = authenticationConfiguration;
+        this.sslContext = sslContext;
         Assert.checkNotNullParam("locator", locator);
-        this.namingProvider = namingProvider;
         this.locatorRef = new AtomicReference<>(locator);
         async = false;
         if (locator instanceof StatefulEJBLocator) {
@@ -82,7 +97,8 @@ final class EJBInvocationHandler<T> extends Attachable implements InvocationHand
         super(other);
         final EJBLocator<T> locator = other.locatorRef.get();
         locatorRef = new AtomicReference<>(locator);
-        namingProvider = other.namingProvider;
+        authenticationConfiguration = other.authenticationConfiguration;
+        sslContext = other.sslContext;
         async = true;
         if (locator instanceof StatefulEJBLocator) {
             // set the weak affinity to the node on which the session was created
@@ -148,7 +164,11 @@ final class EJBInvocationHandler<T> extends Attachable implements InvocationHand
             invocationContext.setReceiver(receiver);
             invocationContext.setLocator(locatorRef.get().withNewAffinity(newAffinity));
             invocationContext.setBlockingCaller(true);
-            invocationContext.setNamingProvider(namingProvider);
+            final AuthenticationContext context = AuthenticationContext.captureCurrent();
+            final AuthenticationConfiguration authenticationConfiguration = this.authenticationConfiguration;
+            invocationContext.setAuthenticationConfiguration(authenticationConfiguration == null ? CLIENT.getAuthenticationConfiguration(newAffinity.getUri(), context, -1, "ejb", "jboss") : authenticationConfiguration);
+            final SSLContext sslContext = this.sslContext;
+            invocationContext.setSSLContext(sslContext == null ? CLIENT.getSSLContext(newAffinity.getUri(), context, "ejb", "jboss") : sslContext);
             invocationContext.setWeakAffinity(getWeakAffinity());
 
             try {
@@ -214,18 +234,7 @@ final class EJBInvocationHandler<T> extends Attachable implements InvocationHand
 
     @SuppressWarnings("unused")
     protected Object writeReplace() {
-        final NamingProvider namingProvider = this.namingProvider;
-        final EJBLocator<T> locator = locatorRef.get();
-        if (namingProvider != null) {
-            final Affinity affinity = locator.getAffinity();
-            if (affinity instanceof URIAffinity) {
-                final URI affinityUri = affinity.getUri();
-                if (namingProvider == NamingProvider.getCurrentNamingProvider() && namingProvider.getProviderUri().equals(affinityUri)) {
-                    return new SerializedEJBInvocationHandler(locator.withNewAffinity(Affinity.LOCAL), async);
-                }
-            }
-        }
-        return new SerializedEJBInvocationHandler(locator, async);
+        return new SerializedEJBInvocationHandler(locatorRef.get(), async);
     }
 
     EJBInvocationHandler<T> getAsyncHandler() {
@@ -284,15 +293,6 @@ final class EJBInvocationHandler<T> extends Attachable implements InvocationHand
     public String toString() {
         final String s = toString;
         return s != null ? s : (toString = String.format("Proxy invocation handler for %s", locatorRef.get()));
-    }
-
-    @SuppressWarnings("unchecked")
-    <R> EJBInvocationHandler<R> forClass(final Class<R> viewType) {
-        if (viewType.isAssignableFrom(viewType)) {
-            return (EJBInvocationHandler<R>) this;
-        } else {
-            throw new ClassCastException(viewType.getName());
-        }
     }
 
     void setStrongAffinity(final Affinity newAffinity) {

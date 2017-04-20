@@ -27,6 +27,7 @@ import java.security.PrivilegedAction;
 import java.util.concurrent.ConcurrentMap;
 
 import javax.ejb.CreateException;
+import javax.net.ssl.SSLContext;
 
 import org.jboss.ejb.client.Affinity;
 import org.jboss.ejb.client.AttachmentKey;
@@ -41,13 +42,14 @@ import org.jboss.ejb.client.StatelessEJBLocator;
 import org.jboss.ejb.client.URIAffinity;
 import org.jboss.remoting3.ClientServiceHandle;
 import org.jboss.remoting3.Connection;
+import org.jboss.remoting3.ConnectionPeerIdentity;
 import org.jboss.remoting3.Endpoint;
 import org.wildfly.common.Assert;
 import org.wildfly.discovery.ServiceRegistration;
 import org.wildfly.discovery.ServiceRegistry;
-import org.wildfly.naming.client.NamingProvider;
-import org.wildfly.naming.client.remote.RemoteNamingProvider;
-import org.xnio.FinishedIoFuture;
+import org.wildfly.security.auth.client.AuthenticationConfiguration;
+import org.wildfly.security.auth.client.AuthenticationContext;
+import org.wildfly.security.auth.client.AuthenticationContextConfigurationClient;
 import org.xnio.IoFuture;
 import org.xnio.OptionMap;
 
@@ -56,6 +58,7 @@ import org.xnio.OptionMap;
  */
 class RemoteEJBReceiver extends EJBReceiver {
     static final AttachmentKey<EJBClientChannel> EJBCC_KEY = new AttachmentKey<>();
+    private static final AuthenticationContextConfigurationClient CLIENT = doPrivileged(AuthenticationContextConfigurationClient.ACTION);
 
     private final RemoteTransportProvider remoteTransportProvider;
     private final EJBReceiverContext receiverContext;
@@ -72,18 +75,18 @@ class RemoteEJBReceiver extends EJBReceiver {
         serviceHandle = new ClientServiceHandle<>("jboss.ejb", channel -> EJBClientChannel.construct(channel, this.persistentClusterRegistry, this.clusterRegistrationsMap));
     }
 
-    final IoFuture.HandlingNotifier<Connection, EJBReceiverInvocationContext> notifier = new IoFuture.HandlingNotifier<Connection, EJBReceiverInvocationContext>() {
-        public void handleDone(final Connection connection, final EJBReceiverInvocationContext attachment) {
+    final IoFuture.HandlingNotifier<ConnectionPeerIdentity, EJBReceiverInvocationContext> notifier = new IoFuture.HandlingNotifier<ConnectionPeerIdentity, EJBReceiverInvocationContext>() {
+        public void handleDone(final ConnectionPeerIdentity peerIdentity, final EJBReceiverInvocationContext attachment) {
             final EJBClientChannel ejbClientChannel;
             try {
-                ejbClientChannel = getClientChannel(connection);
+                ejbClientChannel = getClientChannel(peerIdentity.getConnection());
             } catch (IOException e) {
                 // should generally not be possible but we should handle it cleanly regardless
                 attachment.resultReady(new EJBReceiverInvocationContext.ResultProducer.Failed(new RequestSendFailedException(e, true)));
                 return;
             }
             attachment.getClientInvocationContext().putAttachment(EJBCC_KEY, ejbClientChannel);
-            ejbClientChannel.processInvocation(attachment);
+            ejbClientChannel.processInvocation(attachment, peerIdentity);
         }
 
         public void handleCancelled(final EJBReceiverInvocationContext attachment) {
@@ -115,16 +118,14 @@ class RemoteEJBReceiver extends EJBReceiver {
     protected void processInvocation(final EJBReceiverInvocationContext receiverContext) throws Exception {
         final EJBClientInvocationContext clientInvocationContext = receiverContext.getClientInvocationContext();
         final EJBLocator<?> locator = clientInvocationContext.getLocator();
-        final NamingProvider namingProvider = receiverContext.getNamingProvider();
-        final IoFuture<Connection> futureConnection = getConnection(locator, namingProvider);
+        final AuthenticationConfiguration authenticationConfiguration = receiverContext.getAuthenticationConfiguration();
+        final SSLContext sslContext = receiverContext.getSSLContext();
+        final IoFuture<ConnectionPeerIdentity> futureConnection = getConnection(locator, authenticationConfiguration, sslContext);
         // this actually causes the invocation to move forward
         futureConnection.addNotifier(notifier, receiverContext);
     }
 
     protected boolean cancelInvocation(final EJBReceiverInvocationContext receiverContext, final boolean cancelIfRunning) {
-        final NamingProvider namingProvider = receiverContext.getNamingProvider();
-        final EJBClientInvocationContext clientInvocationContext = receiverContext.getClientInvocationContext();
-        final EJBLocator<?> locator = clientInvocationContext.getLocator();
         try {
             final EJBClientChannel channel = receiverContext.getClientInvocationContext().getAttachment(EJBCC_KEY);
             return channel != null && channel.cancelInvocation(receiverContext, cancelIfRunning);
@@ -133,11 +134,12 @@ class RemoteEJBReceiver extends EJBReceiver {
         }
     }
 
-    protected <T> StatefulEJBLocator<T> createSession(final StatelessEJBLocator<T> statelessLocator, NamingProvider namingProvider) throws Exception {
+    protected <T> StatefulEJBLocator<T> createSession(final StatelessEJBLocator<T> statelessLocator, final AuthenticationConfiguration authenticationConfiguration, final SSLContext sslContext) throws Exception {
         try {
-            IoFuture<Connection> futureConnection = getConnection(statelessLocator, namingProvider);
-            final EJBClientChannel ejbClientChannel = getClientChannel(futureConnection.getInterruptibly());
-            return ejbClientChannel.openSession(statelessLocator);
+            IoFuture<ConnectionPeerIdentity> futureConnection = getConnection(statelessLocator, authenticationConfiguration, sslContext);
+            final ConnectionPeerIdentity identity = futureConnection.getInterruptibly();
+            final EJBClientChannel ejbClientChannel = getClientChannel(identity.getConnection());
+            return ejbClientChannel.openSession(statelessLocator, identity);
         } catch (IOException e) {
             final CreateException createException = new CreateException("Failed to create stateful EJB: " + e.getMessage());
             createException.initCause(e);
@@ -149,27 +151,31 @@ class RemoteEJBReceiver extends EJBReceiver {
     }
 
     protected boolean isConnected(final URI uri) {
-        final IoFuture<Connection> future = Endpoint.getCurrent().getConnectionIfExists(uri, "ejb", "jboss");
+        final IoFuture<ConnectionPeerIdentity> future = Endpoint.getCurrent().getConnectedIdentityIfExists(uri, "ejb", "jboss", AuthenticationContext.captureCurrent());
         try {
-            return future != null && future.getStatus() == IoFuture.Status.DONE && future.get().isOpen();
+            return future != null && future.getStatus() == IoFuture.Status.DONE && future.get().getConnection().isOpen();
         } catch (IOException e) {
             // impossible
             throw Assert.unreachableCode();
         }
     }
 
-    private <T> IoFuture<Connection> getConnection(final EJBLocator<T> locator, final NamingProvider namingProvider) throws Exception {
-        final Connection namingConnection = namingProvider instanceof RemoteNamingProvider ? ((RemoteNamingProvider) namingProvider).getPeerIdentity().getConnection() : null;
+    private <T> IoFuture<ConnectionPeerIdentity> getConnection(final EJBLocator<T> locator, AuthenticationConfiguration authenticationConfiguration, SSLContext sslContext) throws Exception {
         final Affinity affinity = locator.getAffinity();
         final URI target;
         if (affinity instanceof URIAffinity) {
             target = affinity.getUri();
-            if (namingConnection != null && target.equals(namingConnection.getPeerURI())) {
-                return new FinishedIoFuture<>(namingConnection);
-            }
         } else {
             throw new IllegalArgumentException("Invalid EJB affinity");
         }
-        return doPrivileged((PrivilegedAction<IoFuture<Connection>>) () -> Endpoint.getCurrent().getConnection(target, "ejb", "jboss"));
+        if (authenticationConfiguration == null) {
+            authenticationConfiguration = CLIENT.getAuthenticationConfiguration(target, AuthenticationContext.captureCurrent(), -1, "ejb", "jboss");
+        }
+        if (sslContext == null) {
+            sslContext = CLIENT.getSSLContext(target, AuthenticationContext.captureCurrent(), "ejb", "jboss");
+        }
+        final SSLContext finalSslContext = sslContext;
+        final AuthenticationConfiguration finalAuthenticationConfiguration = authenticationConfiguration;
+        return doPrivileged((PrivilegedAction<IoFuture<ConnectionPeerIdentity>>) () -> Endpoint.getCurrent().getConnectedIdentity(target, finalSslContext, finalAuthenticationConfiguration));
     }
 }
