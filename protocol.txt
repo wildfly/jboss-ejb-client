@@ -100,7 +100,7 @@ Version is 0x01 or 0x02 or 0x03. 0x00 is reserved for test purposes.
         ┌─┬─┬─┬─┬─┬─┬─┬─┐
         │ 0x1B          │  Compressed request (optional, if present everything following is compressed)
         ├───────────────┤
-        │ 0x03          │  Command = Invocation Request or Compressed Invocation Request
+        │ 0x03          │  Command = Invocation Request
         ├───────────────┤
         │ Invocation ID │  Fixed length, two bytes
         ├───────────────┤
