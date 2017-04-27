@@ -352,6 +352,31 @@ class EJBClientChannel {
                             final String nodeName = message.readUTF();
                             final AttributeValue nodeValue = AttributeValue.fromString(nodeName);
 
+                            // we need to register one abstract ServiceURL for the node and multiple concrete ServiceURLs for the client mappings
+                            //   abstract ServiceURL ejb.jboss:node:<node>;cluster=<cluster>
+                            //   concrete ServiceURL ejb.jboss.scheme://<destHost,destPort>;node=<node>,source-ip=<sourceIP/netmask>
+
+                            // create and register the abstract SrviceURL
+                            final ServiceURL.Builder abstractBuilder = new ServiceURL.Builder();
+                            abstractBuilder.setAbstractType("ejb");
+                            abstractBuilder.setAbstractTypeAuthority("jboss");
+                            abstractBuilder.addAttribute(EJBClientContext.FILTER_ATTR_CLUSTER, clusterValue);
+                            try {
+                                abstractBuilder.setUri(new URI("node", nodeName, null));
+                            } catch (URISyntaxException e) {
+                                Logs.REMOTING.trace("Ignoring cluster node because the URI failed to be built", e);
+                                continue;
+                            }
+                            final ServiceRegistration abstractRegistration = persistentClusterRegistry.registerService(abstractBuilder.create());
+
+                            // dummy key for the single abstractServiceURL
+                            final ClusterDiscKey abstractKey = new ClusterDiscKey(clusterName, nodeName, null, 0);
+                            final ServiceRegistration oldAbstract = clusterRegistrationsMap.computeIfAbsent(clusterName, x -> new ConcurrentHashMap<>()).computeIfAbsent(nodeName, x -> new ConcurrentHashMap<>()).put(abstractKey, abstractRegistration);
+                            if (oldAbstract != null) {
+                                oldAbstract.close();
+                            }
+
+                            // create and register the concrete ServiceURLs for each client mapping
                             int mappingCount = StreamUtils.readPackedSignedInt32(message);
                             for (int k = 0; k < mappingCount; k ++) {
                                 int b = message.readUnsignedByte();
@@ -362,18 +387,16 @@ class EJBClientChannel {
                                 final String destHost = message.readUTF();
                                 final int destPort = message.readUnsignedShort();
 
-                                final ServiceURL.Builder builder = new ServiceURL.Builder();
-                                builder.setAbstractType("ejb");
-                                builder.setAbstractTypeAuthority("jboss");
-                                builder.addAttribute(EJBClientContext.FILTER_ATTR_NODE, nodeValue);
-                                builder.addAttribute(EJBClientContext.FILTER_ATTR_CLUSTER, clusterValue);
+                                final ServiceURL.Builder concreteBuilder = new ServiceURL.Builder();
+                                concreteBuilder.setAbstractType("ejb");
+                                concreteBuilder.setAbstractTypeAuthority("jboss");
+                                concreteBuilder.addAttribute(EJBClientContext.FILTER_ATTR_NODE, nodeValue);
                                 if (netmaskBits != 0) {
                                     // do not match all
-                                    builder.addAttribute(EJBClientContext.FILTER_ATTR_SOURCE_IP, AttributeValue.fromString(InetAddress.getByAddress(sourceIpBytes).getHostAddress() + "/" + netmaskBits));
+                                    concreteBuilder.addAttribute(EJBClientContext.FILTER_ATTR_SOURCE_IP, AttributeValue.fromString(InetAddress.getByAddress(sourceIpBytes).getHostAddress() + "/" + netmaskBits));
                                 }
-
                                 try {
-                                    builder.setUri(new URI(
+                                    concreteBuilder.setUri(new URI(
                                         scheme,
                                         null,
                                         NetworkUtil.formatPossibleIpv6Address(destHost),
@@ -386,11 +409,11 @@ class EJBClientChannel {
                                     Logs.REMOTING.trace("Ignoring cluster node because the URI failed to be built", e);
                                     continue;
                                 }
-                                final ServiceRegistration registration = persistentClusterRegistry.registerService(builder.create());
-                                final ClusterDiscKey key = new ClusterDiscKey(clusterName, nodeName, sourceIpBytes, netmaskBits);
-                                final ServiceRegistration old = clusterRegistrationsMap.computeIfAbsent(clusterName, x -> new ConcurrentHashMap<>()).computeIfAbsent(nodeName, x -> new ConcurrentHashMap<>()).put(key, registration);
-                                if (old != null) {
-                                    old.close();
+                                final ServiceRegistration concreteRegistration = persistentClusterRegistry.registerService(concreteBuilder.create());
+                                final ClusterDiscKey concreteKey = new ClusterDiscKey(clusterName, nodeName, sourceIpBytes, netmaskBits);
+                                final ServiceRegistration oldConcrete = clusterRegistrationsMap.computeIfAbsent(clusterName, x -> new ConcurrentHashMap<>()).computeIfAbsent(nodeName, x -> new ConcurrentHashMap<>()).put(concreteKey, concreteRegistration);
+                                if (oldConcrete != null) {
+                                    oldConcrete.close();
                                 }
                             }
                         }
