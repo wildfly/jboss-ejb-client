@@ -33,6 +33,14 @@
     <name>JBoss EJB client</name>
     <description>Client library for EJB applications working against Wildfly</description>
 
+    <licenses>
+        <license>
+            <name>Apache License, Version 2.0</name>
+            <url>http://www.apache.org/licenses/LICENSE-2.0.html</url>
+            <distribution>repo</distribution>
+        </license>
+    </licenses>
+
     <properties>
         <version.org.jboss.invocation>1.5.0.Beta4</version.org.jboss.invocation>
         <version.org.jboss.logging.jboss-logging>3.3.0.Final</version.org.jboss.logging.jboss-logging>
