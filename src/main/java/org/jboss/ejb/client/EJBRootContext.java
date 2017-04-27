@@ -21,6 +21,7 @@ package org.jboss.ejb.client;
 import java.net.URI;
 import java.security.AccessController;
 import java.security.PrivilegedAction;
+import java.util.concurrent.TimeUnit;
 
 import javax.naming.Binding;
 import javax.naming.Name;
@@ -38,6 +39,9 @@ import org.wildfly.naming.client.util.FastHashtable;
 import org.wildfly.security.auth.client.AuthenticationConfiguration;
 
 class EJBRootContext extends AbstractContext {
+
+    private static final String PROPERTY_KEY_INVOCATION_TIMEOUT = "invocation.timeout";
+
     private final Affinity affinity;
     private final NamingProvider namingProvider;
 
@@ -149,7 +153,15 @@ class EJBRootContext extends AbstractContext {
         } else {
             locator = StatelessEJBLocator.create(view, identifier, affinity);
         }
-        return EJBClient.createProxy(locator, authenticationConfiguration, sslContext);
+        Object proxy = EJBClient.createProxy(locator, authenticationConfiguration, sslContext);
+
+        // if "invocation.timeout" is set in environment properties, set this value to created proxy
+        Long invocationTimeout = getLongValueFromEnvironment(PROPERTY_KEY_INVOCATION_TIMEOUT);
+        if (invocationTimeout != null) {
+            EJBClient.setInvocationTimeout(proxy, invocationTimeout, TimeUnit.MILLISECONDS);
+        }
+
+        return proxy;
     }
 
     private static ClassLoader getContextClassLoader(){
@@ -184,5 +196,13 @@ class EJBRootContext extends AbstractContext {
 
     public String getNameInNamespace() throws NamingException {
         return "";
+    }
+
+    private Long getLongValueFromEnvironment(String key) throws NamingException {
+        Object val = getEnvironment().get(key);
+        if (val != null && val instanceof String) {
+            return Long.parseLong((String) val);
+        }
+        return null;
     }
 }
