@@ -71,6 +71,10 @@ public class LegacyPropertiesConfiguration {
                 }
                 builder.setDeploymentNodeSelector(deploymentNodeSelector);
             }
+
+            if (properties.getInvocationTimeout() != -1L) {
+                builder.setInvocationTimeout(properties.getInvocationTimeout());
+            }
         }
     }
 }
