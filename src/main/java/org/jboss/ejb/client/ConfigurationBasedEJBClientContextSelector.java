@@ -46,7 +46,7 @@ import org.wildfly.common.Assert;
 final class ConfigurationBasedEJBClientContextSelector implements Supplier<EJBClientContext> {
     private static final EJBClientContext configuredContext;
 
-    private static final String NS_EJB_CLIENT_3_0 = "urn:jboss:wildly-client-ejb:3.0";
+    private static final String NS_EJB_CLIENT_3_0 = "urn:jboss:wildfly-client-ejb:3.0";
     private static final String NS_INCORRECT = "urn:jboss:ejb-client:3.0";
 
     static {
