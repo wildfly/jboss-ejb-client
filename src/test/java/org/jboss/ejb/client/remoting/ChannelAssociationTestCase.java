@@ -99,6 +99,11 @@ public class ChannelAssociationTestCase {
         }
 
         @Override
+        public boolean isOpen() {
+            return false;
+        }
+
+        @Override
         public Attachments getAttachments() {
             return null;
         }

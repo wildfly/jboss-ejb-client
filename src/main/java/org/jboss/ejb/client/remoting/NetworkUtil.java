@@ -30,7 +30,6 @@ import org.jboss.remoting3.UnknownURISchemeException;
 import org.wildfly.security.auth.client.AuthenticationConfiguration;
 import org.wildfly.security.auth.client.AuthenticationContext;
 import org.wildfly.security.auth.client.AuthenticationContextConfigurationClient;
-import org.wildfly.security.auth.client.MatchRule;
 import org.xnio.IoFuture;
 import org.xnio.OptionMap;
 import org.xnio.Options;
@@ -46,6 +45,7 @@ import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.security.NoSuchAlgorithmException;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -181,16 +181,16 @@ public class NetworkUtil {
         if (callbackHandler != null) {
             mergedConfiguration = mergedConfiguration.useCallbackHandler(callbackHandler);
         }
-        if (sslContext != null) {
-            mergedConfiguration = mergedConfiguration.useSslContext(sslContext);
-        }
         Map<String, String> saslProperties = getSaslProperties(connectionCreationOptions);
         if (saslProperties != null) {
             mergedConfiguration = mergedConfiguration.useMechanismProperties(saslProperties);
         }
 
-        final AuthenticationContext context = AuthenticationContext.empty().with(MatchRule.ALL, mergedConfiguration);
-        return endpoint.connect(uri, sourceBindAddress, connectionCreationOptions, context);
+        try {
+            return endpoint.connect(uri, sourceBindAddress, connectionCreationOptions, sslContext == null ? SSLContext.getDefault() : sslContext, mergedConfiguration);
+        } catch (NoSuchAlgorithmException e) {
+            throw new IOException(e);
+        }
     }
 
     private static Map<String, String> getSaslProperties(final OptionMap connectionCreationOptions) {

@@ -47,8 +47,6 @@ import org.jboss.remoting3.ConnectionPeerIdentityContext;
 import org.jboss.remoting3.Endpoint;
 import org.jboss.remoting3.HandleableCloseable;
 import org.wildfly.security.auth.AuthenticationException;
-import org.wildfly.security.auth.client.PeerIdentity;
-import org.wildfly.security.auth.client.PeerIdentityContext;
 import org.wildfly.security.auth.server.SecurityIdentity;
 import org.xnio.IoFuture;
 import org.xnio.OptionMap;
@@ -225,6 +223,11 @@ class ConnectionPool {
         }
 
         @Override
+        public boolean isOpen() {
+            return this.underlyingConnection.isOpen();
+        }
+
+        @Override
         public SocketAddress getLocalAddress() {
             return this.underlyingConnection.getLocalAddress();
         }
@@ -247,6 +250,11 @@ class ConnectionPool {
         @Override
         public URI getPeerURI() {
             return this.underlyingConnection.getPeerURI();
+        }
+
+        @Override
+        public String getProtocol() {
+            return this.underlyingConnection.getProtocol();
         }
 
         @Override
@@ -307,6 +315,11 @@ class ConnectionPool {
         @Override
         public Principal getPrincipal() {
             return this.underlyingConnection.getPrincipal();
+        }
+
+        @Override
+        public boolean supportsRemoteAuth() {
+            return this.underlyingConnection.supportsRemoteAuth();
         }
     }
 

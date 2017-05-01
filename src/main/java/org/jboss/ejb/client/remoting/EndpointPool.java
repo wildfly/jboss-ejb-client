@@ -26,6 +26,7 @@ import org.jboss.logging.Logger;
 import org.jboss.remoting3.Attachments;
 import org.jboss.remoting3.CloseHandler;
 import org.jboss.remoting3.Connection;
+import org.jboss.remoting3.ConnectionPeerIdentity;
 import org.jboss.remoting3.DuplicateRegistrationException;
 import org.jboss.remoting3.Endpoint;
 import org.jboss.remoting3.HandleableCloseable;
@@ -34,6 +35,8 @@ import org.jboss.remoting3.Registration;
 import org.jboss.remoting3.ServiceRegistrationException;
 import org.jboss.remoting3.UnknownURISchemeException;
 import org.jboss.remoting3.spi.ConnectionProviderFactory;
+import org.wildfly.common.Assert;
+import org.wildfly.security.auth.client.AuthenticationConfiguration;
 import org.wildfly.security.auth.client.AuthenticationContext;
 import org.xnio.IoFuture;
 import org.xnio.OptionMap;
@@ -47,6 +50,8 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.atomic.AtomicInteger;
+
+import javax.net.ssl.SSLContext;
 
 /**
  * A pool which creates and hands out a {@link Endpoint} based on the endpoint creation attributes
@@ -135,6 +140,14 @@ class EndpointPool {
             return underlyingEndpoint.registerService(s, openListener, optionMap);
         }
 
+        public IoFuture<ConnectionPeerIdentity> getConnectedIdentity(final URI destination, final SSLContext sslContext, final AuthenticationConfiguration authenticationConfiguration) {
+            throw Assert.unsupported();
+        }
+
+        public IoFuture<ConnectionPeerIdentity> getConnectedIdentityIfExists(final URI destination, final SSLContext sslContext, final AuthenticationConfiguration authenticationConfiguration) {
+            throw Assert.unsupported();
+        }
+
         public IoFuture<Connection> getConnection(URI destination) {
             return underlyingEndpoint.getConnection(destination);
         }
@@ -145,21 +158,26 @@ class EndpointPool {
         }
 
         @Override
-        public IoFuture<Connection> connect(URI destination, InetSocketAddress bindAddress, OptionMap connectOptions, AuthenticationContext authenticationContext) throws IOException {
+        public IoFuture<Connection> connect(URI destination, InetSocketAddress bindAddress, OptionMap connectOptions, AuthenticationContext authenticationContext) {
             return underlyingEndpoint.connect(destination, bindAddress, connectOptions, authenticationContext);
         }
 
         @Override
-        public IoFuture<Connection> connect(URI destination, OptionMap connectOptions) throws IOException {
+        public IoFuture<Connection> connect(final URI destination, final InetSocketAddress bindAddress, final OptionMap connectOptions, final SSLContext sslContext, final AuthenticationConfiguration connectionConfiguration) {
+            return underlyingEndpoint.connect(destination, bindAddress, connectOptions, sslContext, connectionConfiguration);
+        }
+
+        @Override
+        public IoFuture<Connection> connect(URI destination, OptionMap connectOptions) {
             return underlyingEndpoint.connect(destination, connectOptions);
         }
 
         @Override
-        public IoFuture<Connection> connect(URI destination, OptionMap connectOptions, AuthenticationContext authenticationContext) throws IOException {
+        public IoFuture<Connection> connect(URI destination, OptionMap connectOptions, AuthenticationContext authenticationContext) {
             return underlyingEndpoint.connect(destination, connectOptions, authenticationContext);
         }
 
-        public IoFuture<Connection> connect(URI uri) throws IOException {
+        public IoFuture<Connection> connect(URI uri) {
             return underlyingEndpoint.connect(uri);
         }
 
@@ -197,6 +215,10 @@ class EndpointPool {
 
         public Key addCloseHandler(CloseHandler<? super Endpoint> closeHandler) {
             return underlyingEndpoint.addCloseHandler(closeHandler);
+        }
+
+        public boolean isOpen() {
+            return underlyingEndpoint.isOpen();
         }
 
         public Attachments getAttachments() {
