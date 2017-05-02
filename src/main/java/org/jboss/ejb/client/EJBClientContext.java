@@ -1060,7 +1060,7 @@ public final class EJBClientContext extends Attachable implements Contextual<EJB
     }
 
     static final class InterceptorList {
-        static final InterceptorList EMPTY = new InterceptorList(new EJBClientInterceptorInformation[0]);
+        static final InterceptorList EMPTY = new InterceptorList(EJBClientInterceptorInformation.NO_INTERCEPTORS);
 
         private final EJBClientInterceptorInformation[] information;
         private final int hashCode;
