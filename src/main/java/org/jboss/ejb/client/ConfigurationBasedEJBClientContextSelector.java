@@ -141,7 +141,7 @@ final class ConfigurationBasedEJBClientContextSelector implements Supplier<EJBCl
         String className = null;
         String moduleName = null;
         for (int i = 0; i < attributeCount; i++) {
-            if (streamReader.getNamespaceURI(i) != null) {
+            if (streamReader.getAttributeNamespace(i) != null && ! streamReader.getAttributeNamespace(i).isEmpty()) {
                 throw streamReader.unexpectedAttribute(i);
             }
             final String name = streamReader.getAttributeLocalName(i);
@@ -218,7 +218,7 @@ final class ConfigurationBasedEJBClientContextSelector implements Supplier<EJBCl
         URI uri = null;
         final int attributeCount = streamReader.getAttributeCount();
         for (int i = 0; i < attributeCount; i ++) {
-            if (streamReader.getAttributeNamespace(i) != null || ! streamReader.getAttributeLocalName(i).equals("uri") || uri != null) {
+            if (streamReader.getAttributeNamespace(i) != null && ! streamReader.getAttributeNamespace(i).isEmpty() || ! streamReader.getAttributeLocalName(i).equals("uri") || uri != null) {
                 throw streamReader.unexpectedAttribute(i);
             }
             uri = streamReader.getURIAttributeValueResolved(i);
