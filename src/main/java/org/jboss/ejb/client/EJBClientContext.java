@@ -153,6 +153,18 @@ public final class EJBClientContext extends Attachable implements Closeable {
     }
 
     /**
+     * Returns the Ejb Receivers of the current EjbClientContext.
+     */
+    protected EJBReceiver[] getEjbReceivers() {
+        EJBReceiver[] ejbReceivers = null;
+        synchronized (this.ejbReceiverAssociations) {
+            ejbReceivers = this.ejbReceiverAssociations.keySet().toArray(new EJBReceiver[this.ejbReceiverAssociations.size()]);
+        }
+
+        return ejbReceivers;
+    }
+
+    /**
      * Creates and returns a new client context.
      *
      * @return the newly created context
@@ -473,6 +485,21 @@ public final class EJBClientContext extends Attachable implements Closeable {
                 }
             }
         }
+    }
+
+    @Deprecated
+    public void unregisterNodeEJBReceivers(String nodeName) {
+        EJBReceiver[] ejbReceivers = getEjbReceivers();
+            if(ejbReceivers != null) {
+                for(EJBReceiver receiver:ejbReceivers) {
+                    if(receiver instanceof RemotingConnectionEJBReceiver) {
+                        if(receiver!=null && receiver.getNodeName().compareTo(nodeName)==0) {
+                            unregisterEJBReceiver(receiver);
+                            receiver = null;
+                        }
+                    }
+                }
+            }
     }
 
     /**
