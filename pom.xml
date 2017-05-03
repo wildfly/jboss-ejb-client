@@ -58,7 +58,7 @@
         <version.org.wildfly.naming.client>1.0.0.Beta14</version.org.wildfly.naming.client>
         <version.org.wildfly.discovery>1.0.0.Beta10</version.org.wildfly.discovery>
         <version.org.wildfly.security.elytron>1.1.0.Beta37</version.org.wildfly.security.elytron>
-        <version.org.wildfly.transaction-client>1.0.0.Beta21</version.org.wildfly.transaction-client>
+        <version.org.wildfly.transaction-client>1.0.0.Beta22</version.org.wildfly.transaction-client>
     </properties>
 
     <build>

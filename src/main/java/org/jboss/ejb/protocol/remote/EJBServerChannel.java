@@ -268,7 +268,7 @@ final class EJBServerChannel {
         }
 
         private void handleTxnRequest(final int code, final int invId, final MessageInputStream message) throws IOException {
-            final byte[] bytes = new byte[message.readUnsignedShort()];
+            final byte[] bytes = new byte[PackedInteger.readPackedInteger(message)];
             message.readFully(bytes);
             final TransactionID transactionID = TransactionID.createTransactionID(bytes);
             if (transactionID instanceof XidTransactionID) try {
@@ -305,9 +305,11 @@ final class EJBServerChannel {
             } catch (XAException e) {
                 writeFailedResponse(invId, e);
             } else if (transactionID instanceof UserTransactionID) try {
-                final LocalTransaction localTransaction = transactionServer.getTransactionIfExists(((UserTransactionID) transactionID).getId());
+                final LocalTransaction localTransaction = transactionServer.removeTransaction(((UserTransactionID) transactionID).getId());
                 switch (code) {
                     case Protocol.TXN_COMMIT_REQUEST: {
+                        // Discard unused parameter
+                        message.readBoolean();
                         if (localTransaction != null) localTransaction.commit();
                         writeTxnResponse(invId);
                         break;
@@ -325,8 +327,13 @@ final class EJBServerChannel {
                     }
                     default: throw Assert.impossibleSwitchCase(code);
                 }
-            } catch (SystemException | HeuristicMixedException | RollbackException | HeuristicRollbackException e) {
-                writeFailedResponse(invId, e);
+            } catch (Throwable t) {
+                // Narayana uses Errors, Exceptions, and RuntimeExceptions
+                if (t instanceof VirtualMachineError) {
+                    throw (VirtualMachineError)t;
+                }
+
+                writeFailedResponse(invId, t);
             } else {
                 throw Assert.unreachableCode();
             }
@@ -467,7 +474,7 @@ final class EJBServerChannel {
         }
     }
 
-    private void writeFailedResponse(final int invId, final Exception e) {
+    private void writeFailedResponse(final int invId, final Throwable e) {
         try (MessageOutputStream os = messageTracker.openMessageUninterruptibly()) {
             os.writeByte(Protocol.APPLICATION_EXCEPTION);
             os.writeShort(invId);
