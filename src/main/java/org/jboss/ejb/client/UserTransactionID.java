@@ -56,10 +56,10 @@ public final class UserTransactionID extends TransactionID {
         }
         // the rest is the unique ID
         //noinspection NumericOverflow
-        this.id = (encodedForm[nodeNameLength] & 0xff) << 24
-                | (encodedForm[nodeNameLength + 1] & 0xff) << 16
-                | (encodedForm[nodeNameLength + 2] & 0xff) << 8
-                | encodedForm[nodeNameLength + 3] & 0xff;
+        this.id = (encodedForm[nodeNameLength + 2] & 0xff) << 24
+                | (encodedForm[nodeNameLength + 3] & 0xff) << 16
+                | (encodedForm[nodeNameLength + 4] & 0xff) << 8
+                | encodedForm[nodeNameLength + 5] & 0xff;
     }
 
     public UserTransactionID(final String name, final int uniqueId) {
