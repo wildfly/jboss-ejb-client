@@ -32,11 +32,11 @@
         <version>16</version>
     </parent>
 
-    <artifactId>jboss-ejb-client</artifactId>
+    <artifactId>jboss-ejb-client-legacy</artifactId>
     <version>3.0.0.Beta6-SNAPSHOT</version>
 
-    <name>JBoss EJB client</name>
-    <description>Client library for EJB applications working against Wildfly</description>
+    <name>JBoss EJB Legacy Client</name>
+    <description>Client library for legacy EJB applications working against Wildfly</description>
 
     <properties>
         <version.checkstyle.plugin>2.9.1</version.checkstyle.plugin>
