@@ -29,6 +29,7 @@ import org.jboss.remoting3.Connection;
 import org.jboss.remoting3.ConnectionPeerIdentity;
 import org.jboss.remoting3.DuplicateRegistrationException;
 import org.jboss.remoting3.Endpoint;
+import org.jboss.remoting3.EndpointBuilder;
 import org.jboss.remoting3.HandleableCloseable;
 import org.jboss.remoting3.OpenListener;
 import org.jboss.remoting3.Registration;
@@ -40,6 +41,7 @@ import org.wildfly.security.auth.client.AuthenticationConfiguration;
 import org.wildfly.security.auth.client.AuthenticationContext;
 import org.xnio.IoFuture;
 import org.xnio.OptionMap;
+import org.xnio.Xnio;
 import org.xnio.XnioWorker;
 
 import java.io.Closeable;
@@ -81,7 +83,9 @@ class EndpointPool {
         final CacheKey key = new CacheKey(remoteConnectionProviderOptions, endPointCreationOptions, endpointName);
         PooledEndpoint pooledEndpoint = cache.get(key);
         if (pooledEndpoint == null) {
-            final Endpoint endpoint = Endpoint.builder().setEndpointName(endpointName).setXnioWorkerOptions(endPointCreationOptions).build();
+            final EndpointBuilder endpointBuilder = Endpoint.builder().setEndpointName(endpointName);
+            endpointBuilder.buildXnioWorker(Xnio.getInstance()).populateFromOptions(endPointCreationOptions);
+            final Endpoint endpoint = endpointBuilder.build();
 
             // We don't want to hold stale endpoint(s), so add a close handler which removes the entry
             // from the cache when the endpoint is closed
