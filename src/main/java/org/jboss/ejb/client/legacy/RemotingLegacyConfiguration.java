@@ -29,6 +29,7 @@ import org.jboss.remoting3.spi.EndpointConfigurator;
 import org.kohsuke.MetaInfServices;
 import org.xnio.OptionMap;
 import org.xnio.Options;
+import org.xnio.Xnio;
 
 /**
  * The interface to merge EJB properties into the Remoting configuration.
@@ -57,7 +58,7 @@ public final class RemotingLegacyConfiguration implements EndpointConfigurator {
             if (! endpointCreationOptions.contains(Options.THREAD_DAEMON)) {
                 endpointCreationOptions = OptionMap.builder().addAll(endpointCreationOptions).set(Options.THREAD_DAEMON, true).getMap();
             }
-            endpointBuilder.setXnioWorkerOptions(endpointCreationOptions);
+            endpointBuilder.buildXnioWorker(Xnio.getInstance()).populateFromOptions(endpointCreationOptions);
         }
 
         // we ignore the connection provider options
