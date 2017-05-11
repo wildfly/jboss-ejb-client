@@ -81,7 +81,7 @@ public class SimpleInvocationTestCase {
         Assert.assertNotNull("Received a null proxy", proxy);
         logger.info("Created proxy for Echo: " + proxy.toString());
 
-        System.out.println("Invoking on proxy...");
+        logger.info("Invoking on proxy...");
         // invoke on the proxy (use a URIAffinity for now)
         final String message = "hello!";
         final String echo = proxy.echo(message);

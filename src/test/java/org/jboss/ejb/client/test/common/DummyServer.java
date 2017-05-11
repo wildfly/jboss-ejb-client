@@ -84,6 +84,7 @@ public class DummyServer {
         // set up a security realm called default with a user called test
         final SimpleMapBackedSecurityRealm realm = new SimpleMapBackedSecurityRealm();
         realm.setPasswordMap("test", ClearPassword.createRaw(ClearPassword.ALGORITHM_CLEAR, "test".toCharArray()));
+
         // set up a security domain which has realm "default"
         final SecurityDomain.Builder domainBuilder = SecurityDomain.builder();
         domainBuilder.addRealm("default", realm).build();                                  // add the security realm called "default" to the security domain
@@ -91,7 +92,7 @@ public class DummyServer {
         domainBuilder.setPermissionMapper((permissionMappable, roles) -> PermissionVerifier.ALL);
         SecurityDomain testDomain = domainBuilder.build();
 
-        // set up a SaslAuthenticationFactory
+        // set up a SaslAuthenticationFactory (i.e. a SaslServerFactory)
         SaslAuthenticationFactory saslAuthenticationFactory = SaslAuthenticationFactory.builder()
                 .setSecurityDomain(testDomain)
                 .setMechanismConfigurationSelector(mechanismInformation -> {
@@ -153,15 +154,15 @@ public class DummyServer {
         clusterRegistry.addCluster(clusterInfo);
     }
 
-    void removeCluster(String clusterName) {
+    public void removeCluster(String clusterName) {
         clusterRegistry.removeCluster(clusterName);
     }
 
-    void addClusterNodes(ClusterInfo newClusterInfo) {
+    public void addClusterNodes(ClusterInfo newClusterInfo) {
         clusterRegistry.addClusterNodes(newClusterInfo);
     }
 
-    void removeClusterNodes(ClusterRemovalInfo clusterRemovalInfo) {
+    public void removeClusterNodes(ClusterRemovalInfo clusterRemovalInfo) {
         clusterRegistry.removeClusterNodes(clusterRemovalInfo);
     }
 
