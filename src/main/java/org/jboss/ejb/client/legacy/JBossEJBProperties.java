@@ -632,7 +632,7 @@ public final class JBossEJBProperties implements Contextual<JBossEJBProperties> 
                     }
                 }
 
-                setChannelOptions(getOptionMapFromProperties(properties, prefix + ".channel.options.", classLoader));
+                setChannelOptions(getOptionMapFromProperties(properties, prefix + "channel.options" + ".", classLoader));
 
                 final ExceptionSupplier<CallbackHandler, ReflectiveOperationException> callbackHandlerSupplier =
                     () -> Class.forName(callbackHandlerClassName, true, classLoader).asSubclass(CallbackHandler.class).getConstructor().newInstance();
@@ -803,7 +803,7 @@ public final class JBossEJBProperties implements Contextual<JBossEJBProperties> 
                     return false;
                 }
                 setClusterName(clusterName);
-                setMaximumAllowedConnectedNodes(getLongValueFromProperties(properties, prefix + "max-connected-nodes", 1000L));
+                setMaximumAllowedConnectedNodes(getLongValueFromProperties(properties, prefix + "max-allowed-connected-nodes", 1000L));
                 final String clusterNodeSelectorClassName = getProperty(properties, prefix + "clusternode.selector", null, true);
                 if (clusterNodeSelectorClassName != null) {
                     setClusterNodeSelectorClassName(clusterNodeSelectorClassName);
