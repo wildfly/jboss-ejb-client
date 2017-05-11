@@ -610,7 +610,7 @@ public final class JBossEJBProperties implements Contextual<JBossEJBProperties> 
 
             boolean populateFromProperties(final Properties properties, final String prefix, final ClassLoader classLoader, final Builder defaultsBuilder) {
                 // connection options
-                String connectOptionsPrefix = prefix + "connect.options.";
+                String connectOptionsPrefix = prefix + "connect.options" + ".";
                 setConnectionOptions(getOptionMapFromProperties(properties, connectOptionsPrefix, classLoader));
 
                 // connection timeout
@@ -803,7 +803,7 @@ public final class JBossEJBProperties implements Contextual<JBossEJBProperties> 
                     return false;
                 }
                 setClusterName(clusterName);
-                setMaximumAllowedConnectedNodes(getLongValueFromProperties(properties, prefix + "max-allowed-connected-nodes", 1000L));
+                setMaximumAllowedConnectedNodes(getLongValueFromProperties(properties, prefix + "max-connected-nodes", 1000L));
                 final String clusterNodeSelectorClassName = getProperty(properties, prefix + "clusternode.selector", null, true);
                 if (clusterNodeSelectorClassName != null) {
                     setClusterNodeSelectorClassName(clusterNodeSelectorClassName);
@@ -813,7 +813,8 @@ public final class JBossEJBProperties implements Contextual<JBossEJBProperties> 
                 }
 
                 final HashSet<String> nodeNames = new HashSet<>();
-                final String nodePrefix = prefix + ".node.";
+                // the cluster prefix already has a trailing dot
+                final String nodePrefix = prefix + "node" + ".";
                 final int prefixLen = nodePrefix.length();
                 final List<ClusterNodeConfiguration> nodes = new ArrayList<ClusterNodeConfiguration>();
                 String nodeName;
@@ -827,7 +828,8 @@ public final class JBossEJBProperties implements Contextual<JBossEJBProperties> 
                         }
                         if (nodeNames.add(nodeName)) {
                             final ClusterNodeConfiguration.Builder builder = new ClusterNodeConfiguration.Builder();
-                            if (builder.populateFromProperties(properties, prefix + "." + nodeName + ".", classLoader, this)) {
+                            builder.setNodeName(nodeName);
+                            if (builder.populateFromProperties(properties, prefix + nodeName + ".", classLoader, this)) {
                                 nodes.add(new ClusterNodeConfiguration(builder));
                             }
                         }
