@@ -677,52 +677,52 @@ public final class EJBClientContext extends Attachable implements Contextual<EJB
 
     <T> StatefulEJBLocator<T> createSession(final StatelessEJBLocator<T> statelessLocator, final AuthenticationConfiguration authenticationConfiguration, final SSLContext sslContext) throws Exception {
         final LocatedAction<StatefulEJBLocator<T>, StatelessEJBLocator<T>, T> action =
-                (receiver, originalLocator, newAffinity) -> receiver.createSession(originalLocator.withNewAffinity(newAffinity), authenticationConfiguration, sslContext);
-        return performLocatedAction(statelessLocator, action, Affinity.NONE);
+            (receiver, originalLocator, newAffinity, ac, sc) -> receiver.createSession(originalLocator.withNewAffinity(newAffinity), ac, sc);
+        return performLocatedAction(statelessLocator, action, Affinity.NONE, authenticationConfiguration, sslContext);
     }
 
     interface LocatedAction<R, L extends EJBLocator<T>, T> {
-        R execute(EJBReceiver receiver, L originalLocator, Affinity newAffinity) throws Exception;
+        R execute(EJBReceiver receiver, L originalLocator, Affinity newAffinity, final AuthenticationConfiguration authenticationConfiguration, final SSLContext sslContext) throws Exception;
     }
 
-    <R, L extends EJBLocator<T>, T> R performLocatedAction(final L locator, final LocatedAction<R, L, T> locatedAction, final Affinity weakAffinity) throws Exception {
+    <R, L extends EJBLocator<T>, T> R performLocatedAction(final L locator, final LocatedAction<R, L, T> locatedAction, final Affinity weakAffinity, final AuthenticationConfiguration authenticationConfiguration, final SSLContext sslContext) throws Exception {
         final Affinity affinity = locator.getAffinity();
         final String scheme;
         if (affinity instanceof NodeAffinity) {
-            return discoverAffinityNode(locator, (NodeAffinity) affinity, locatedAction);
+            return discoverAffinityNode(locator, (NodeAffinity) affinity, locatedAction, authenticationConfiguration, sslContext);
         } else if (affinity instanceof ClusterAffinity) {
-            return discoverAffinityCluster(locator, (ClusterAffinity) affinity, locatedAction, weakAffinity);
+            return discoverAffinityCluster(locator, (ClusterAffinity) affinity, locatedAction, weakAffinity, authenticationConfiguration, sslContext);
         } else if (affinity == Affinity.LOCAL) {
             scheme = "local";
         } else if (affinity instanceof URIAffinity) {
             scheme = affinity.getUri().getScheme();
         } else {
             assert affinity == Affinity.NONE;
-            return discoverAffinityNone(locator, locatedAction, weakAffinity);
+            return discoverAffinityNone(locator, locatedAction, weakAffinity, authenticationConfiguration, sslContext);
         }
-        return discoverAffinityScheme(locatedAction, locator, scheme, locator.getAffinity());
+        return discoverAffinityScheme(locatedAction, locator, scheme, locator.getAffinity(), authenticationConfiguration, sslContext);
     }
 
-    <R, L extends EJBLocator<T>, T> R discoverAffinityScheme(final LocatedAction<R, L, T> locatedAction, final L locator, final String scheme, final Affinity effectiveAffinity) throws Exception {
+    <R, L extends EJBLocator<T>, T> R discoverAffinityScheme(final LocatedAction<R, L, T> locatedAction, final L locator, final String scheme, final Affinity effectiveAffinity, final AuthenticationConfiguration authenticationConfiguration, final SSLContext sslContext) throws Exception {
         final EJBReceiver transportProvider = getTransportProvider(scheme);
         if (transportProvider == null) {
             throw Logs.MAIN.noTransportProvider(locator, scheme);
         } else {
-            return locatedAction.execute(transportProvider, locator, effectiveAffinity);
+            return locatedAction.execute(transportProvider, locator, effectiveAffinity, authenticationConfiguration, sslContext);
         }
     }
 
-    <R, L extends EJBLocator<T>, T> R discoverAffinityNone(L locator, final LocatedAction<R, L, T> locatedAction, final Affinity weakAffinity) throws Exception {
+    <R, L extends EJBLocator<T>, T> R discoverAffinityNone(L locator, final LocatedAction<R, L, T> locatedAction, final Affinity weakAffinity, final AuthenticationConfiguration authenticationConfiguration, final SSLContext sslContext) throws Exception {
         assert locator.getAffinity() == Affinity.NONE;
 
         if (weakAffinity instanceof NodeAffinity) {
-            return discoverAffinityNode(locator, (NodeAffinity) weakAffinity, locatedAction);
+            return discoverAffinityNode(locator, (NodeAffinity) weakAffinity, locatedAction, authenticationConfiguration, sslContext);
         } else if (weakAffinity instanceof URIAffinity) {
-            return discoverAffinityScheme(locatedAction, locator, weakAffinity.getUri().getScheme(), weakAffinity);
+            return discoverAffinityScheme(locatedAction, locator, weakAffinity.getUri().getScheme(), weakAffinity, authenticationConfiguration, sslContext);
         } else if (weakAffinity == Affinity.LOCAL) {
-            return discoverAffinityScheme(locatedAction, locator, "local", locator.getAffinity());
+            return discoverAffinityScheme(locatedAction, locator, "local", locator.getAffinity(), authenticationConfiguration, sslContext);
         } else if (weakAffinity instanceof ClusterAffinity) {
-            return discoverAffinityCluster(locator, (ClusterAffinity) weakAffinity, locatedAction, Affinity.NONE);
+            return discoverAffinityCluster(locator, (ClusterAffinity) weakAffinity, locatedAction, Affinity.NONE, authenticationConfiguration, sslContext);
         }
 
         try (final ServicesQueue servicesQueue = discover(getFilterSpec(locator.getIdentifier()))) {
@@ -742,18 +742,18 @@ public final class EJBClientContext extends Attachable implements Contextual<EJB
                 final Affinity affinity = Affinity.forUri(serviceURL.getLocationURI());
                 // recurse for one node if needed
                 if (affinity instanceof NodeAffinity) {
-                    return discoverAffinityNode(locator, (NodeAffinity) affinity, locatedAction);
+                    return discoverAffinityNode(locator, (NodeAffinity) affinity, locatedAction, authenticationConfiguration, sslContext);
                 } else if (affinity instanceof ClusterAffinity) {
-                    return discoverAffinityCluster(locator, (ClusterAffinity) affinity, locatedAction, Affinity.NONE);
+                    return discoverAffinityCluster(locator, (ClusterAffinity) affinity, locatedAction, Affinity.NONE, authenticationConfiguration, sslContext);
                 } else if (affinity == Affinity.LOCAL) {
                     assert supports(serviceURL);
-                    return locatedAction.execute(getTransportProvider("local"), locator, affinity);
+                    return locatedAction.execute(getTransportProvider("local"), locator, affinity, authenticationConfiguration, sslContext);
                 } else {
                     final EJBReceiver provider = getTransportProvider(affinity.getUri().getScheme());
                     if (provider == null) {
                         throw withSuppressed(Logs.MAIN.noEJBReceiverAvailable(locator), servicesQueue.getProblems());
                     }
-                    return locatedAction.execute(provider, locator, affinity);
+                    return locatedAction.execute(provider, locator, affinity, authenticationConfiguration, sslContext);
                 }
             }
             // OK it's a multi-result situation, we could get any combination at this point
@@ -765,7 +765,7 @@ public final class EJBClientContext extends Attachable implements Contextual<EJB
             classify(nextServiceURL, uris, nodes, clusters, local);
             if (local[0]) {
                 // shortcut for local invocation
-                return locatedAction.execute(getTransportProvider("local"), locator, Affinity.LOCAL);
+                return locatedAction.execute(getTransportProvider("local"), locator, Affinity.LOCAL, authenticationConfiguration, sslContext);
             }
             serviceURL = servicesQueue.takeService();
             while (serviceURL != null) {
@@ -774,7 +774,7 @@ public final class EJBClientContext extends Attachable implements Contextual<EJB
                 }
                 if (local[0]) {
                     // shortcut for local invocation
-                    return locatedAction.execute(getTransportProvider("local"), locator, Affinity.LOCAL);
+                    return locatedAction.execute(getTransportProvider("local"), locator, Affinity.LOCAL, authenticationConfiguration, sslContext);
                 }
                 serviceURL = servicesQueue.takeService();
             }
@@ -793,7 +793,7 @@ public final class EJBClientContext extends Attachable implements Contextual<EJB
                         throw Logs.MAIN.selectorReturnedNull(selector);
                     }
                 }
-                return locatedAction.execute(getTransportProvider(uri.getScheme()), locator, Affinity.forUri(uri));
+                return locatedAction.execute(getTransportProvider(uri.getScheme()), locator, Affinity.forUri(uri), authenticationConfiguration, sslContext);
             }
             if (! nodes.isEmpty()) {
                 // nodes are the next best thing
@@ -806,18 +806,18 @@ public final class EJBClientContext extends Attachable implements Contextual<EJB
                         throw Logs.MAIN.selectorReturnedNull(deploymentNodeSelector);
                     }
                 }
-                return discoverAffinityNode(locator, new NodeAffinity(node), locatedAction);
+                return discoverAffinityNode(locator, new NodeAffinity(node), locatedAction, authenticationConfiguration, sslContext);
             }
             assert ! clusters.isEmpty();
             // last of all, find the first cluster and use it
-            return discoverAffinityCluster(locator, new ClusterAffinity(clusters.get(0)), locatedAction, Affinity.NONE);
+            return discoverAffinityCluster(locator, new ClusterAffinity(clusters.get(0)), locatedAction, Affinity.NONE, authenticationConfiguration, sslContext);
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             throw Logs.MAIN.operationInterrupted();
         }
     }
 
-    <R, L extends EJBLocator<T>, T> R discoverAffinityNode(final L locator, final NodeAffinity nodeAffinity, final LocatedAction<R, L, T> locatedAction) throws Exception {
+    <R, L extends EJBLocator<T>, T> R discoverAffinityNode(final L locator, final NodeAffinity nodeAffinity, final LocatedAction<R, L, T> locatedAction, final AuthenticationConfiguration authenticationConfiguration, final SSLContext sslContext) throws Exception {
         // we just need to find a single location for this node; therefore, we'll exit at the first opportunity.
         try (final ServicesQueue servicesQueue = discover(getFilterSpec(nodeAffinity))) {
             // we don't recurse into node or cluster for this case; furthermore we always use the first answer.
@@ -830,21 +830,21 @@ public final class EJBClientContext extends Attachable implements Contextual<EJB
                 }
                 final EJBReceiver receiver = getTransportProvider(serviceURL.getUriScheme());
                 if (receiver != null) {
-                    return locatedAction.execute(receiver, locator, Affinity.forUri(serviceURL.getLocationURI()));
+                    return locatedAction.execute(receiver, locator, Affinity.forUri(serviceURL.getLocationURI()), authenticationConfiguration, sslContext);
                 }
             }
         }
     }
 
-    private <R, L extends EJBLocator<T>, T> R discoverAffinityCluster(final L locator, final ClusterAffinity clusterAffinity, final LocatedAction<R, L, T> locatedAction, final Affinity weakAffinity) throws Exception {
+    private <R, L extends EJBLocator<T>, T> R discoverAffinityCluster(final L locator, final ClusterAffinity clusterAffinity, final LocatedAction<R, L, T> locatedAction, final Affinity weakAffinity, final AuthenticationConfiguration authenticationConfiguration, final SSLContext sslContext) throws Exception {
         final String clusterName = clusterAffinity.getClusterName();
         final EJBClientCluster cluster = configuredClusters.get(clusterName);
         if (weakAffinity instanceof NodeAffinity) {
-            return discoverAffinityNode(locator, (NodeAffinity) weakAffinity, locatedAction);
+            return discoverAffinityNode(locator, (NodeAffinity) weakAffinity, locatedAction, authenticationConfiguration, sslContext);
         } else if (weakAffinity == Affinity.LOCAL) {
-            return discoverAffinityScheme(locatedAction, locator, "local", weakAffinity);
+            return discoverAffinityScheme(locatedAction, locator, "local", weakAffinity, authenticationConfiguration, sslContext);
         } else if (weakAffinity instanceof URIAffinity) {
-            return discoverAffinityScheme(locatedAction, locator, weakAffinity.getUri().getScheme(), weakAffinity);
+            return discoverAffinityScheme(locatedAction, locator, weakAffinity.getUri().getScheme(), weakAffinity, authenticationConfiguration, sslContext);
         }
         final ClusterNodeSelector selector;
         if (cluster != null) {
@@ -894,10 +894,10 @@ public final class EJBClientContext extends Attachable implements Contextual<EJB
             } else {
                 // TODO: we should have a selector here too
                 final URI uri = unresolvedUris.iterator().next();
-                return locatedAction.execute(getTransportProvider(uri.getScheme()), locator, URIAffinity.forUri(uri));
+                return locatedAction.execute(getTransportProvider(uri.getScheme()), locator, URIAffinity.forUri(uri), authenticationConfiguration, sslContext);
             }
         } else if (nodes.size() == 1) {
-            return discoverAffinityNode(locator, new NodeAffinity(nodes.iterator().next()), locatedAction);
+            return discoverAffinityNode(locator, new NodeAffinity(nodes.iterator().next()), locatedAction, authenticationConfiguration, sslContext);
         } else {
             // find the subset of connected nodes
             final Map<String, URI> all = new HashMap<>();
@@ -950,7 +950,7 @@ public final class EJBClientContext extends Attachable implements Contextual<EJB
             if (uri == null) {
                 throw withSuppressed(Logs.MAIN.noEJBReceiverAvailable(locator), problems);
             }
-            return locatedAction.execute(getTransportProvider(uri.getScheme()), locator, Affinity.forUri(uri));
+            return locatedAction.execute(getTransportProvider(uri.getScheme()), locator, Affinity.forUri(uri), authenticationConfiguration, sslContext);
         }
     }
 
