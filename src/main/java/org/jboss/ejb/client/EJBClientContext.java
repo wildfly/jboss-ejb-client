@@ -678,38 +678,52 @@ public final class EJBClientContext extends Attachable implements Contextual<EJB
     <T> StatefulEJBLocator<T> createSession(final StatelessEJBLocator<T> statelessLocator, final AuthenticationConfiguration authenticationConfiguration, final SSLContext sslContext) throws Exception {
         final LocatedAction<StatefulEJBLocator<T>, StatelessEJBLocator<T>, T> action =
                 (receiver, originalLocator, newAffinity) -> receiver.createSession(originalLocator.withNewAffinity(newAffinity), authenticationConfiguration, sslContext);
-        return performLocatedAction(statelessLocator, action);
+        return performLocatedAction(statelessLocator, action, Affinity.NONE);
     }
 
     interface LocatedAction<R, L extends EJBLocator<T>, T> {
         R execute(EJBReceiver receiver, L originalLocator, Affinity newAffinity) throws Exception;
     }
 
-    <R, L extends EJBLocator<T>, T> R performLocatedAction(final L locator, final LocatedAction<R, L, T> locatedAction) throws Exception {
+    <R, L extends EJBLocator<T>, T> R performLocatedAction(final L locator, final LocatedAction<R, L, T> locatedAction, final Affinity weakAffinity) throws Exception {
         final Affinity affinity = locator.getAffinity();
         final String scheme;
         if (affinity instanceof NodeAffinity) {
             return discoverAffinityNode(locator, (NodeAffinity) affinity, locatedAction);
         } else if (affinity instanceof ClusterAffinity) {
-            return discoverAffinityCluster(locator, (ClusterAffinity) affinity, locatedAction);
+            return discoverAffinityCluster(locator, (ClusterAffinity) affinity, locatedAction, weakAffinity);
         } else if (affinity == Affinity.LOCAL) {
             scheme = "local";
         } else if (affinity instanceof URIAffinity) {
             scheme = affinity.getUri().getScheme();
         } else {
             assert affinity == Affinity.NONE;
-            return discoverAffinityNone(locator, locatedAction);
+            return discoverAffinityNone(locator, locatedAction, weakAffinity);
         }
+        return discoverAffinityScheme(locatedAction, locator, scheme, locator.getAffinity());
+    }
+
+    <R, L extends EJBLocator<T>, T> R discoverAffinityScheme(final LocatedAction<R, L, T> locatedAction, final L locator, final String scheme, final Affinity effectiveAffinity) throws Exception {
         final EJBReceiver transportProvider = getTransportProvider(scheme);
         if (transportProvider == null) {
             throw Logs.MAIN.noTransportProvider(locator, scheme);
         } else {
-            return locatedAction.execute(transportProvider, locator, locator.getAffinity());
+            return locatedAction.execute(transportProvider, locator, effectiveAffinity);
         }
     }
 
-    <R, L extends EJBLocator<T>, T> R discoverAffinityNone(L locator, final LocatedAction<R, L, T> locatedAction) throws Exception {
+    <R, L extends EJBLocator<T>, T> R discoverAffinityNone(L locator, final LocatedAction<R, L, T> locatedAction, final Affinity weakAffinity) throws Exception {
         assert locator.getAffinity() == Affinity.NONE;
+
+        if (weakAffinity instanceof NodeAffinity) {
+            return discoverAffinityNode(locator, (NodeAffinity) weakAffinity, locatedAction);
+        } else if (weakAffinity instanceof URIAffinity) {
+            return discoverAffinityScheme(locatedAction, locator, weakAffinity.getUri().getScheme(), weakAffinity);
+        } else if (weakAffinity == Affinity.LOCAL) {
+            return discoverAffinityScheme(locatedAction, locator, "local", locator.getAffinity());
+        } else if (weakAffinity instanceof ClusterAffinity) {
+            return discoverAffinityCluster(locator, (ClusterAffinity) weakAffinity, locatedAction, Affinity.NONE);
+        }
 
         try (final ServicesQueue servicesQueue = discover(getFilterSpec(locator.getIdentifier()))) {
             ServiceURL serviceURL;
@@ -730,7 +744,7 @@ public final class EJBClientContext extends Attachable implements Contextual<EJB
                 if (affinity instanceof NodeAffinity) {
                     return discoverAffinityNode(locator, (NodeAffinity) affinity, locatedAction);
                 } else if (affinity instanceof ClusterAffinity) {
-                    return discoverAffinityCluster(locator, (ClusterAffinity) affinity, locatedAction);
+                    return discoverAffinityCluster(locator, (ClusterAffinity) affinity, locatedAction, Affinity.NONE);
                 } else if (affinity == Affinity.LOCAL) {
                     assert supports(serviceURL);
                     return locatedAction.execute(getTransportProvider("local"), locator, affinity);
@@ -796,7 +810,7 @@ public final class EJBClientContext extends Attachable implements Contextual<EJB
             }
             assert ! clusters.isEmpty();
             // last of all, find the first cluster and use it
-            return discoverAffinityCluster(locator, new ClusterAffinity(clusters.get(0)), locatedAction);
+            return discoverAffinityCluster(locator, new ClusterAffinity(clusters.get(0)), locatedAction, Affinity.NONE);
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             throw Logs.MAIN.operationInterrupted();
@@ -822,9 +836,16 @@ public final class EJBClientContext extends Attachable implements Contextual<EJB
         }
     }
 
-    private <R, L extends EJBLocator<T>, T> R discoverAffinityCluster(final L locator, final ClusterAffinity clusterAffinity, final LocatedAction<R, L, T> locatedAction) throws Exception {
+    private <R, L extends EJBLocator<T>, T> R discoverAffinityCluster(final L locator, final ClusterAffinity clusterAffinity, final LocatedAction<R, L, T> locatedAction, final Affinity weakAffinity) throws Exception {
         final String clusterName = clusterAffinity.getClusterName();
         final EJBClientCluster cluster = configuredClusters.get(clusterName);
+        if (weakAffinity instanceof NodeAffinity) {
+            return discoverAffinityNode(locator, (NodeAffinity) weakAffinity, locatedAction);
+        } else if (weakAffinity == Affinity.LOCAL) {
+            return discoverAffinityScheme(locatedAction, locator, "local", weakAffinity);
+        } else if (weakAffinity instanceof URIAffinity) {
+            return discoverAffinityScheme(locatedAction, locator, weakAffinity.getUri().getScheme(), weakAffinity);
+        }
         final ClusterNodeSelector selector;
         if (cluster != null) {
             // we override a few things then

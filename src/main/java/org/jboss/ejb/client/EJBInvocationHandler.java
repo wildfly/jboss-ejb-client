@@ -212,7 +212,7 @@ final class EJBInvocationHandler<T> extends Attachable implements InvocationHand
                 }
                 throw new EJBException(e);
             }
-        });
+        }, weakAffinity);
     }
 
     void setWeakAffinity(Affinity newWeakAffinity) {

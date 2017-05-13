@@ -334,7 +334,7 @@ public final class EJBClientInvocationContext extends Attachable {
             }
             receiver.processInvocation(receiverInvocationContext);
             return null;
-        });
+        }, weakAffinity);
     }
 
     /**
