@@ -18,6 +18,8 @@
 
 package org.jboss.ejb.client.legacy;
 
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -25,8 +27,11 @@ import java.util.function.Consumer;
 
 import org.jboss.ejb._private.Logs;
 import org.jboss.ejb.client.ClusterNodeSelector;
+import org.jboss.ejb.client.EJBClientContext;
 import org.kohsuke.MetaInfServices;
 import org.wildfly.common.function.ExceptionSupplier;
+import org.wildfly.discovery.AttributeValue;
+import org.wildfly.discovery.ServiceRegistration;
 import org.wildfly.discovery.ServiceURL;
 import org.wildfly.discovery.impl.StaticDiscoveryProvider;
 import org.wildfly.discovery.spi.DiscoveryProvider;
@@ -36,7 +41,10 @@ import org.wildfly.discovery.spi.RegistryProvider;
 /**
  * The interface to merge EJB properties into the discovery configuration.
  *
+ * We want to make any information concerning configured clustered nodes available via abstract ServiceURLs.
+ *
  * @author <a href="mailto:david.lloyd@redhat.com">David M. Lloyd</a>
+ * @author <a href='mailto:rachmato@redhat.com">Richard Achmatowicz</a>
  */
 @MetaInfServices
 public final class DiscoveryLegacyConfiguration implements ExternalDiscoveryConfigurator {
@@ -48,17 +56,29 @@ public final class DiscoveryLegacyConfiguration implements ExternalDiscoveryConf
 
         final List<ServiceURL> list = new ArrayList<>();
 
+        // for each node within a cluster, create a ServiceURL representing that cluster node
+        //   service:ejb.jboss:node:<node name>;cluster=<cluster name>
         for (Map.Entry<String, JBossEJBProperties.ClusterConfiguration> entry : ejbProperties.getClusterConfigurations().entrySet()) {
-            final String name = entry.getKey();
+            final String clusterName = entry.getKey();
             final JBossEJBProperties.ClusterConfiguration configuration = entry.getValue();
-            final ExceptionSupplier<ClusterNodeSelector, ReflectiveOperationException> clusterNodeSelectorSupplier = configuration.getClusterNodeSelectorSupplier();
-            final long maximumAllowedConnectedNodes = configuration.getMaximumAllowedConnectedNodes();
 
+            final AttributeValue clusterValue = AttributeValue.fromString(clusterName);
             for (JBossEJBProperties.ClusterNodeConfiguration nodeConfiguration : configuration.getNodeConfigurations()) {
                 final String nodeName = nodeConfiguration.getNodeName();
-
+                // construct an abstract ServiceURL mapping cluster -> node
+                final ServiceURL.Builder abstractBuilder = new ServiceURL.Builder();
+                abstractBuilder.setAbstractType("ejb");
+                abstractBuilder.setAbstractTypeAuthority("jboss");
+                abstractBuilder.addAttribute(EJBClientContext.FILTER_ATTR_CLUSTER, clusterValue);
+                try {
+                    abstractBuilder.setUri(new URI("node", nodeName, null));
+                } catch (URISyntaxException e) {
+                    Logs.REMOTING.trace("Ignoring cluster node " + nodeName + " because the URI failed to be built", e);
+                    continue;
+                }
+                // add the new ServiceURL to our provider
+                list.add(abstractBuilder.create());
             }
-            // todo: construct URI and map cluster:name to it
         }
 
         if (! list.isEmpty()) {
