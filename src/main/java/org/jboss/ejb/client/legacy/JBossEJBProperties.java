@@ -100,10 +100,12 @@ public final class JBossEJBProperties implements Contextual<JBossEJBProperties> 
     private static final String PROPERTY_KEY_USERNAME = "username";
     private static final String PROPERTY_KEY_PASSWORD = "password";
     private static final String PROPERTY_KEY_PASSWORD_BASE64 = "password.base64";
-    private static final String PROPERTY_KEY_PROTOCOL = "protocol";
     private static final String PROPERTY_KEY_REALM = "realm";
     private static final String PROPERTY_KEY_CALLBACK_HANDLER_CLASS = "callback.handler.class";
 
+    private static final String PROPERTY_KEY_HOST = "host";
+    private static final String PROPERTY_KEY_PORT = "port";
+    private static final String PROPERTY_KEY_PROTOCOL = "protocol";
     private static final String DEFAULT_PROTOCOL = "http-remoting";
 
     private static final String PROPERTY_KEY_CLUSTERS = "remote.clusters";
@@ -685,7 +687,7 @@ public final class JBossEJBProperties implements Contextual<JBossEJBProperties> 
                 super.populateFromProperties(properties, prefix, classLoader, defaultsBuilder);
 
                 // connection host name
-                String host = getProperty(properties,prefix + "host", "", true).trim();
+                String host = getProperty(properties,prefix + PROPERTY_KEY_HOST, "", true).trim();
                 if (host.isEmpty()) {
                     Logs.MAIN.skippingConnectionCreationDueToMissingHostOrPort(connectionName);
                     return false;
@@ -693,7 +695,7 @@ public final class JBossEJBProperties implements Contextual<JBossEJBProperties> 
                 setHost(host);
 
                 // connection port#
-                String portStr = getProperty(properties,prefix + "port", "", true).trim();
+                String portStr = getProperty(properties,prefix + PROPERTY_KEY_PORT, "", true).trim();
                 if (portStr.isEmpty()) {
                     Logs.MAIN.skippingConnectionCreationDueToMissingHostOrPort(connectionName);
                     return false;
@@ -707,7 +709,7 @@ public final class JBossEJBProperties implements Contextual<JBossEJBProperties> 
                 }
                 setPort(port);
 
-                String protocol = getProperty(properties, prefix + "protocol", DEFAULT_PROTOCOL, true).trim();
+                String protocol = getProperty(properties, prefix + PROPERTY_KEY_PROTOCOL, DEFAULT_PROTOCOL, true).trim();
                 this.protocol = protocol;
                 return true;
             }
@@ -941,6 +943,10 @@ public final class JBossEJBProperties implements Contextual<JBossEJBProperties> 
                 final String userName = getProperty(properties, prefix + PROPERTY_KEY_USERNAME, null, true);
                 if (userName != null) {
                     setUserName(userName);
+                }
+                final String mechanismRealm = getProperty(properties, prefix + PROPERTY_KEY_REALM, null, true);
+                if (mechanismRealm != null) {
+                    setMechanismRealm(mechanismRealm);
                 }
                 final String finalPassword;
                 final String b64Password = getProperty(properties, prefix + PROPERTY_KEY_PASSWORD_BASE64, null, expandPasswords);
