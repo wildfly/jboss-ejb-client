@@ -328,13 +328,13 @@ public final class EJBClientInvocationContext extends Attachable {
     }
 
     private <T> void performInvocation(EJBLocator<T> locator) throws Exception {
-        ejbClientContext.performLocatedAction(locator, (receiver, originalLocator, newAffinity) -> {
+        ejbClientContext.performLocatedAction(locator, (receiver, originalLocator, newAffinity, authenticationConfiguration, sslContext) -> {
             if (receiver == null) {
                 throw Logs.MAIN.noEJBReceiverAvailable(getLocator());
             }
             receiver.processInvocation(receiverInvocationContext);
             return null;
-        });
+        }, weakAffinity, authenticationConfiguration, sslContext);
     }
 
     /**
