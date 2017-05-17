@@ -28,6 +28,8 @@ import java.lang.reflect.Field;
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.UndeclaredThrowableException;
+import java.security.AccessController;
+import java.security.PrivilegedAction;
 import java.util.Objects;
 
 import javax.ejb.EJBHome;
@@ -68,11 +70,11 @@ public abstract class EJBLocator<T> implements Serializable {
         final Class<?> clazz = EJBLocator.class;
         try {
             viewTypeSetter = clazz.getDeclaredField("viewType");
-            viewTypeSetter.setAccessible(true);
+            secureSetAccessible(viewTypeSetter, true);
             identifierSetter = clazz.getDeclaredField("identifier");
-            identifierSetter.setAccessible(true);
+            secureSetAccessible(identifierSetter, true);
             affinitySetter = clazz.getDeclaredField("affinity");
-            affinitySetter.setAccessible(true);
+            secureSetAccessible(affinitySetter, true);
         } catch (NoSuchFieldException e) {
             throw new NoSuchFieldError(e.getMessage());
         }
@@ -442,5 +444,16 @@ public abstract class EJBLocator<T> implements Serializable {
     @Override
     public String toString() {
         return String.format("%s for \"%s\", view is %s, affinity is %s", getClass().getSimpleName(), identifier, getViewType(), getAffinity());
+    }
+
+    private static void secureSetAccessible(final Field field, final boolean flag) {
+        if (System.getSecurityManager() == null) {
+            field.setAccessible(flag);
+        } else {
+            AccessController.doPrivileged((PrivilegedAction<Void>) () -> {
+                field.setAccessible(flag);
+                return null;
+            });
+        }
     }
 }
