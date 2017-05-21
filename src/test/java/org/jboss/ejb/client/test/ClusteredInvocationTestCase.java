@@ -7,6 +7,7 @@ import org.jboss.ejb.client.EJBClientConnection;
 import org.jboss.ejb.client.EJBClientContext;
 import org.jboss.ejb.client.StatefulEJBLocator;
 import org.jboss.ejb.client.StatelessEJBLocator;
+import org.jboss.ejb.client.legacy.JBossEJBProperties;
 import org.jboss.ejb.client.test.common.DummyServer;
 import org.jboss.ejb.client.test.common.Echo;
 import org.jboss.ejb.client.test.common.EchoBean;
@@ -33,6 +34,7 @@ import java.util.List;
 public class ClusteredInvocationTestCase {
 
     private static final Logger logger = Logger.getLogger(ClusteredInvocationTestCase.class);
+    private static final String PROPERTIES_FILE = "clustered-jboss-ejb-client.properties";
 
     // servers
     private static final String SERVER1_NAME = "node1";
@@ -63,6 +65,9 @@ public class ClusteredInvocationTestCase {
      */
     @BeforeClass
     public static void beforeClass() throws Exception {
+        // trigger the static init of the correct properties file - this also depends on running in forkMode=always
+        JBossEJBProperties ejbProperties = JBossEJBProperties.fromClassPath(SimpleInvocationTestCase.class.getClassLoader(), PROPERTIES_FILE);
+        JBossEJBProperties.getContextManager().setGlobalDefault(ejbProperties);
     }
 
     /**
@@ -70,10 +75,6 @@ public class ClusteredInvocationTestCase {
      */
     @Before
     public void beforeTest() throws Exception {
-
-        // pick up the desired legacy config file
-        URL url = getClass().getClassLoader().getResource("clustered-jboss-ejb-client.properties");
-        System.setProperty("jboss.ejb.client.properties.file.path",url.getPath());
 
         // start a server
         servers[0] = new DummyServer("localhost", 6999, serverNames[0]);
@@ -105,19 +106,21 @@ public class ClusteredInvocationTestCase {
     public void testConfiguredConnections() {
         EJBClientContext context = EJBClientContext.getCurrent();
         List<EJBClientConnection> connections = context.getConfiguredConnections();
+
+        Assert.assertEquals("Number of configured connections for this context is incorrect", 2, connections.size());
         for (EJBClientConnection connection : connections) {
-            System.out.println("testConfiguredConnections: found connection: destination = " + connection.getDestination() + ", forDiscovery = " + connection.isForDiscovery());
+            logger.info("found connection: destination = " + connection.getDestination() + ", forDiscovery = " + connection.isForDiscovery());
         }
+
         Collection<EJBClientCluster> clusters = context.getInitialConfiguredClusters();
         for (EJBClientCluster cluster: clusters) {
-            System.out.println("testConfiguredConnections: found cluster: name = " + cluster.getName());
+            logger.info("found cluster: name = " + cluster.getName());
         }
     }
 
     /**
      * Test a basic invocation on clustered SLSB
      */
-    @Ignore("Remove when EJBCLIENT-216 is merged")
     @Test
     public void testClusteredSLSBInvocation() {
         logger.info("Testing invocation on SLSB proxy with ClusterAffinity");
@@ -140,7 +143,6 @@ public class ClusteredInvocationTestCase {
     /**
      * Test a basic invocation on clustered SFSB
      */
-    @Ignore("Remove when EJBCLIENT-216 is merged")
     @Test
     public void testClusteredSFSBInvocation() {
         logger.info("Testing invocation on SFSB proxy with ClusterAffinity");
@@ -181,7 +183,6 @@ public class ClusteredInvocationTestCase {
 
         servers[0].removeCluster(CLUSTER_NAME);
         servers[1].removeCluster(CLUSTER_NAME);
-
 
         if (serversStarted[0]) {
             try {
