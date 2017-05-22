@@ -1,8 +1,11 @@
 package org.jboss.ejb.client.test;
 
 import org.jboss.ejb.client.EJBClient;
+import org.jboss.ejb.client.EJBClientConnection;
+import org.jboss.ejb.client.EJBClientContext;
 import org.jboss.ejb.client.StatelessEJBLocator;
 import org.jboss.ejb.client.URIAffinity;
+import org.jboss.ejb.client.legacy.JBossEJBProperties;
 import org.jboss.ejb.client.test.common.DummyServer;
 import org.jboss.ejb.client.test.common.EchoBean;
 import org.jboss.ejb.client.test.common.Echo;
@@ -16,6 +19,7 @@ import org.junit.Test;
 
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.util.List;
 
 /**
  * Tests basic invocation of a bean deployed on a single server node.
@@ -25,6 +29,7 @@ import java.net.URISyntaxException;
 public class SimpleInvocationTestCase {
 
     private static final Logger logger = Logger.getLogger(SimpleInvocationTestCase.class);
+    private static final String PROPERTIES_FILE = "jboss-ejb-client.properties";
 
     private DummyServer server;
     private boolean serverStarted = false;
@@ -42,7 +47,9 @@ public class SimpleInvocationTestCase {
      */
     @BeforeClass
     public static void beforeClass() throws Exception {
-
+        // trigger the static init of the correct proeprties file - this also depends on running in forkMode=always
+        JBossEJBProperties ejbProperties = JBossEJBProperties.fromClassPath(SimpleInvocationTestCase.class.getClassLoader(), PROPERTIES_FILE);
+        JBossEJBProperties.getContextManager().setGlobalDefault(ejbProperties);
     }
 
     /**
@@ -60,10 +67,20 @@ public class SimpleInvocationTestCase {
         logger.info("Registered module ...");
     }
 
+    @Test
+    public void testConfiguredConnections() {
+        EJBClientContext context = EJBClientContext.getCurrent();
+        List<EJBClientConnection> connections = context.getConfiguredConnections();
+
+        Assert.assertEquals("Number of configured connections for this context is incorrect", 1, connections.size());
+        for (EJBClientConnection connection : connections) {
+            logger.info("found connection: destination = " + connection.getDestination() + ", forDiscovery = " + connection.isForDiscovery());
+        }
+    }
+
     /**
      * Test a basic invocation
      */
-//    @Ignore
     @Test
     public void testInvocationWithURIAffinity() {
         logger.info("Testing invocation on proxy with URIAffinity");
