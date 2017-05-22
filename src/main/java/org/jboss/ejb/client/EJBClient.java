@@ -64,6 +64,11 @@ public final class EJBClient {
     public static final String SOURCE_ADDRESS_KEY = "jboss.source-address";
 
     /**
+     * A JNDI context key which, if defined, identifies that the proxy to be created should have affinity to the cluster.
+     */
+    public static final String CLUSTER_AFFINITY = "jboss.cluster-affinity";
+
+    /**
      * Get an asynchronous view of a proxy.  Any {@code void} method on the proxy will be invoked fully asynchronously
      * without a server round-trip delay.  Any method which returns a {@link java.util.concurrent.Future Future} will
      * continue to be asynchronous.  Any other method invoked on the returned proxy will return {@code null} (the future

@@ -48,15 +48,23 @@ class EJBRootContext extends AbstractContext {
     EJBRootContext(final NamingProvider namingProvider, final FastHashtable<String, Object> env) {
         super(env);
         this.namingProvider = namingProvider;
-        final URI providerUri = namingProvider == null ? null : namingProvider.getProviderUri();
-        if (providerUri == null) {
-            affinity = Affinity.NONE;
+
+        // check if strong affinity for this context has been set in the environment
+        String clusterName = getClusterAffinityValueFromEnvironment();
+        if (clusterName != null) {
+            affinity = new ClusterAffinity(clusterName);
         } else {
-            final String scheme = providerUri.getScheme();
-            if (scheme == null) {
+            // otherwise, use the NamingProvider URI to set string affinity
+            final URI providerUri = namingProvider == null ? null : namingProvider.getProviderUri();
+            if (providerUri == null) {
                 affinity = Affinity.NONE;
             } else {
-                affinity = Affinity.forUri(providerUri);
+                final String scheme = providerUri.getScheme();
+                if (scheme == null) {
+                    affinity = Affinity.NONE;
+                } else {
+                    affinity = Affinity.forUri(providerUri);
+                }
             }
         }
     }
@@ -202,6 +210,24 @@ class EJBRootContext extends AbstractContext {
         Object val = getEnvironment().get(key);
         if (val != null && val instanceof String) {
             return Long.parseLong((String) val);
+        }
+        return null;
+    }
+
+    /**
+     * Check if the user has specified strong affinity to a cluster for this context and return the cluster name.
+     * @return String the name of the cluster
+     */
+    private String getClusterAffinityValueFromEnvironment() {
+        Object val = null;
+        try {
+            val = getEnvironment().get(EJBClient.CLUSTER_AFFINITY);
+        } catch(NamingException ne) {
+            Logs.MAIN.warn("Problem reading cluster affinity specification from env; skipping affinity assignment");
+            return null;
+        }
+        if (val != null && val instanceof String) {
+            return (String) val;
         }
         return null;
     }
