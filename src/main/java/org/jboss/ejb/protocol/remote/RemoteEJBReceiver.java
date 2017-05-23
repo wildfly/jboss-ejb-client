@@ -19,6 +19,7 @@
 package org.jboss.ejb.protocol.remote;
 
 import static java.security.AccessController.doPrivileged;
+import static java.security.AccessController.doPrivilegedWithCombiner;
 
 import java.io.IOException;
 import java.io.InterruptedIOException;
@@ -176,6 +177,6 @@ class RemoteEJBReceiver extends EJBReceiver {
         }
         final SSLContext finalSslContext = sslContext;
         final AuthenticationConfiguration finalAuthenticationConfiguration = authenticationConfiguration;
-        return doPrivileged((PrivilegedAction<IoFuture<ConnectionPeerIdentity>>) () -> Endpoint.getCurrent().getConnectedIdentity(target, finalSslContext, finalAuthenticationConfiguration));
+        return doPrivilegedWithCombiner((PrivilegedAction<IoFuture<ConnectionPeerIdentity>>) () -> Endpoint.getCurrent().getConnectedIdentity(target, finalSslContext, finalAuthenticationConfiguration));
     }
 }
