@@ -27,6 +27,9 @@ import org.wildfly.discovery.spi.RegistryProvider;
 
 @MetaInfServices
 public final class RemoteEJBDiscoveryConfigurator implements ExternalDiscoveryConfigurator {
+    public RemoteEJBDiscoveryConfigurator() {
+    }
+
     public void configure(final Consumer<DiscoveryProvider> discoveryProviderConsumer, final Consumer<RegistryProvider> registryProviderConsumer) {
         discoveryProviderConsumer.accept(RemotingEJBDiscoveryProvider.INSTANCE);
     }

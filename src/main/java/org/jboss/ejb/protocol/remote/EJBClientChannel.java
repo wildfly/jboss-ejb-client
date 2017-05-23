@@ -390,6 +390,7 @@ class EJBClientChannel {
                                 final ServiceURL.Builder concreteBuilder = new ServiceURL.Builder();
                                 concreteBuilder.setAbstractType("ejb");
                                 concreteBuilder.setAbstractTypeAuthority("jboss");
+                                concreteBuilder.addAttribute(EJBClientContext.FILTER_ATTR_CLUSTER, clusterValue);
                                 concreteBuilder.addAttribute(EJBClientContext.FILTER_ATTR_NODE, nodeValue);
                                 if (netmaskBits != 0) {
                                     // do not match all
