@@ -159,13 +159,15 @@ final class EJBInvocationHandler<T> extends Attachable implements InvocationHand
         // otherwise it's a business method
         assert methodInfo.getMethodType() == EJBProxyInformation.MT_BUSINESS;
         final EJBClientContext clientContext = EJBClientContext.getCurrent();
-        return clientContext.performLocatedAction(locatorRef.get(), (receiver, originalLocator, newAffinity, authenticationConfiguration, sslContext) -> {
+        return clientContext.performLocatedAction(locatorRef.get(), (receiver, originalLocator, newAffinity) -> {
             final EJBClientInvocationContext invocationContext = new EJBClientInvocationContext(this, clientContext, proxy, args, methodInfo);
             invocationContext.setReceiver(receiver);
             invocationContext.setLocator(locatorRef.get().withNewAffinity(newAffinity));
             invocationContext.setBlockingCaller(true);
             final AuthenticationContext context = AuthenticationContext.captureCurrent();
+            final AuthenticationConfiguration authenticationConfiguration = this.authenticationConfiguration;
             invocationContext.setAuthenticationConfiguration(authenticationConfiguration == null ? CLIENT.getAuthenticationConfiguration(newAffinity.getUri(), context, -1, "ejb", "jboss") : authenticationConfiguration);
+            final SSLContext sslContext = this.sslContext;
             invocationContext.setSSLContext(sslContext == null ? CLIENT.getSSLContext(newAffinity.getUri(), context, "ejb", "jboss") : sslContext);
             invocationContext.setWeakAffinity(getWeakAffinity());
 
@@ -210,7 +212,7 @@ final class EJBInvocationHandler<T> extends Attachable implements InvocationHand
                 }
                 throw new EJBException(e);
             }
-        }, weakAffinity, authenticationConfiguration, sslContext);
+        });
     }
 
     void setWeakAffinity(Affinity newWeakAffinity) {
