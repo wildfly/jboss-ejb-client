@@ -19,6 +19,7 @@
 package org.jboss.ejb.protocol.remote;
 
 import static java.security.AccessController.doPrivileged;
+import static java.security.AccessController.doPrivilegedWithCombiner;
 
 import java.io.IOException;
 import java.net.URI;
@@ -100,7 +101,7 @@ final class RemotingEJBDiscoveryProvider implements DiscoveryProvider {
                 countDown(connectionCount, result);
                 continue;
             }
-            final IoFuture<Connection> future = doPrivileged((PrivilegedAction<IoFuture<Connection>>) () -> endpoint.getConnection(uri, "ejb", "jboss"));
+            final IoFuture<Connection> future = doPrivilegedWithCombiner((PrivilegedAction<IoFuture<Connection>>) () -> endpoint.getConnection(uri, "ejb", "jboss"));
             cancellers.add(future::cancel);
             future.addNotifier(new IoFuture.HandlingNotifier<Connection, DiscoveryResult>() {
                 public void handleCancelled(final DiscoveryResult discoveryResult) {
