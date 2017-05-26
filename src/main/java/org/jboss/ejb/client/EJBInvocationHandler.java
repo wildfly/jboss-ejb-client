@@ -159,6 +159,10 @@ final class EJBInvocationHandler<T> extends Attachable implements InvocationHand
         // otherwise it's a business method
         assert methodInfo.getMethodType() == EJBProxyInformation.MT_BUSINESS;
         final EJBClientContext clientContext = EJBClientContext.getCurrent();
+
+        if (Logs.INVOCATION.isDebugEnabled()) {
+            Logs.INVOCATION.debugf("Calling invoke(module = %s, strong affinity = %s, weak affinity = %s): ", locatorRef.get().getIdentifier(), locatorRef.get().getAffinity(), weakAffinity);
+        }
         return clientContext.performLocatedAction(locatorRef.get(), (receiver, originalLocator, newAffinity, authenticationConfiguration, sslContext) -> {
             final EJBClientInvocationContext invocationContext = new EJBClientInvocationContext(this, clientContext, proxy, args, methodInfo);
             invocationContext.setReceiver(receiver);
