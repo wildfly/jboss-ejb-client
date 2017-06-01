@@ -3,7 +3,7 @@ package org.jboss.ejb.client.test.common;
 import org.jboss.ejb.client.EJBIdentifier;
 import org.jboss.ejb.client.EJBLocator;
 import org.jboss.ejb.client.EJBMethodLocator;
-import org.jboss.ejb.client.SessionID;
+import org.jboss.ejb.client.UUIDSessionID;
 import org.jboss.ejb.server.Association;
 import org.jboss.ejb.server.CancelHandle;
 import org.jboss.ejb.server.ClusterTopologyListener;
@@ -25,8 +25,6 @@ import javax.ejb.EJBException;
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
-import java.nio.ByteBuffer;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -204,10 +202,7 @@ public class DummyAssociationImpl implements Association {
                 return;
             }
             final UUID uuid = UUID.randomUUID();
-            ByteBuffer bb = ByteBuffer.wrap(new byte[16]);
-            bb.putLong(uuid.getMostSignificantBits());
-            bb.putLong(uuid.getLeastSignificantBits());
-            final SessionID sessionID = SessionID.createSessionID(bb.array());
+            UUIDSessionID sessionID = new UUIDSessionID(uuid);
 
             sessionOpenRequest.convertToStateful(sessionID);
         };
