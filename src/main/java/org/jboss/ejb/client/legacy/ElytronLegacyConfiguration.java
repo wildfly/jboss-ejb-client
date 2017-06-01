@@ -20,7 +20,6 @@ package org.jboss.ejb.client.legacy;
 
 import java.security.AccessController;
 import java.security.PrivilegedAction;
-import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
@@ -36,6 +35,8 @@ import org.wildfly.security.auth.client.MatchRule;
 import org.wildfly.security.sasl.localuser.LocalUserClient;
 import org.xnio.OptionMap;
 import org.xnio.Options;
+import org.xnio.Property;
+import org.xnio.Sequence;
 import org.xnio.sasl.SaslUtils;
 
 /**
@@ -46,7 +47,7 @@ import org.xnio.sasl.SaslUtils;
 @MetaInfServices
 public final class ElytronLegacyConfiguration implements LegacyConfiguration {
 
-    private static final boolean useQuietAuth = AccessController.doPrivileged((PrivilegedAction<Boolean>) () -> Boolean.valueOf(System.getProperty("jboss.sasl.local-user.quiet-auth", "true"))).booleanValue();
+    private static final String useQuietAuth = AccessController.doPrivileged((PrivilegedAction<String>) () -> System.getProperty("jboss.sasl.local-user.quiet-auth"));
     private static final String[] NO_STRINGS = new String[0];
 
     public AuthenticationContext getConfiguredAuthenticationContext() {
@@ -129,8 +130,8 @@ public final class ElytronLegacyConfiguration implements LegacyConfiguration {
         final String realm = authenticationConfiguration == null ? null : authenticationConfiguration.getMechanismRealm();
         if (realm != null) config = config.useRealm(realm);
         final ExceptionSupplier<CallbackHandler, ReflectiveOperationException> callbackHandlerSupplier = authenticationConfiguration == null ? null : authenticationConfiguration.getCallbackHandlerSupplier();
+        CallbackHandler callbackHandler = null;
         if (callbackHandlerSupplier != null) {
-            final CallbackHandler callbackHandler;
             try {
                 callbackHandler = callbackHandlerSupplier.get();
             } catch (ReflectiveOperationException e) {
@@ -141,13 +142,19 @@ public final class ElytronLegacyConfiguration implements LegacyConfiguration {
         final String password = authenticationConfiguration == null ? null : authenticationConfiguration.getPassword();
         if (password != null) config = config.usePassword(password);
 
-        final OptionMap options = configuration.getConnectionOptions();
+        OptionMap options = configuration.getConnectionOptions();
+        if (useQuietAuth != null) {
+            // legacy quiet local auth system property specified, use it
+            options = setQuietLocalAuth(options, Boolean.valueOf(useQuietAuth).booleanValue());
+        } else if (callbackHandler != null || userName != null) {
+            // disable quiet local auth
+            options = setQuietLocalAuth(options, false);
+        }
+
         @SuppressWarnings({"unchecked", "rawtypes"})
         final Map<String, String> props = (Map) SaslUtils.createPropertyMap(options, false);
         if (! props.isEmpty()) {
             config = config.useMechanismProperties(props);
-        } else {
-            config = config.useMechanismProperties(Collections.singletonMap(LocalUserClient.QUIET_AUTH, Boolean.toString(useQuietAuth)));
         }
         if (options.contains(Options.SASL_DISALLOWED_MECHANISMS)) {
             config = config.forbidSaslMechanisms(options.get(Options.SASL_DISALLOWED_MECHANISMS).toArray(NO_STRINGS));
@@ -156,5 +163,32 @@ public final class ElytronLegacyConfiguration implements LegacyConfiguration {
         }
         config = config.useProvidersFromClassLoader(ElytronLegacyConfiguration.class.getClassLoader());
         return config;
+    }
+
+    /**
+     * Set the quiet local auth property to the given value if the user hasn't already set this property.
+     *
+     * @param optionMap the option map
+     * @param useQuietAuth the value to set the quiet local auth property to
+     * @return the option map with the quiet local auth property set to the given value if the user hasn't already set this property
+     */
+    private static OptionMap setQuietLocalAuth(final OptionMap optionMap, final boolean useQuietAuth) {
+        final Sequence<Property> existingSaslProps = optionMap.get(Options.SASL_PROPERTIES);
+        if (existingSaslProps != null) {
+            for (Property prop : existingSaslProps) {
+                final String propKey = prop.getKey();
+                if (propKey.equals(LocalUserClient.QUIET_AUTH) || propKey.equals(LocalUserClient.LEGACY_QUIET_AUTH)) {
+                    // quiet local auth property was already set, do not override it
+                    return optionMap;
+                }
+            }
+            // set the quiet local auth property since it wasn't already set in SASL_PROPERTIES
+            existingSaslProps.add(Property.of(LocalUserClient.QUIET_AUTH, Boolean.toString(useQuietAuth)));
+            return optionMap;
+        }
+        // set the quiet local auth property since no SASL_PROPERTIES were set
+        final OptionMap.Builder updatedOptionMapBuilder = OptionMap.builder().addAll(optionMap);
+        updatedOptionMapBuilder.set(Options.SASL_PROPERTIES, Sequence.of(Property.of(LocalUserClient.QUIET_AUTH, Boolean.toString(useQuietAuth))));
+        return updatedOptionMapBuilder.getMap();
     }
 }
