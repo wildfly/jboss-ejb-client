@@ -25,13 +25,15 @@ import javax.transaction.HeuristicRollbackException;
 import javax.transaction.RollbackException;
 import javax.transaction.SystemException;
 
-import org.jboss.ejb.client.TransactionID;
+import org.jboss.ejb.client.UserTransactionID;
 import org.jboss.marshalling.Marshalling;
 import org.jboss.marshalling.Unmarshaller;
 import org.jboss.remoting3.MessageInputStream;
 import org.jboss.remoting3.MessageOutputStream;
 import org.jboss.remoting3.util.BlockingInvocation;
 import org.jboss.remoting3.util.InvocationTracker;
+import org.wildfly.transaction.client._private.Log;
+import org.wildfly.transaction.client.provider.remoting.SimpleIdResolver;
 import org.wildfly.transaction.client.spi.SimpleTransactionControl;
 
 /**
@@ -39,11 +41,19 @@ import org.wildfly.transaction.client.spi.SimpleTransactionControl;
  */
 class EJBSimpleTransactionControl implements SimpleTransactionControl {
     private final EJBClientChannel channel;
-    private final TransactionID transactionID;
+    private final UserTransactionID transactionID;
+    private final SimpleIdResolver simpleIdResolver;
 
     EJBSimpleTransactionControl(final EJBClientChannel channel) {
         this.channel = channel;
-        this.transactionID = channel.allocateUserTransactionID();
+        final UserTransactionID transactionID = channel.allocateUserTransactionID();
+        this.transactionID = transactionID;
+        simpleIdResolver = connection -> {
+            if (channel.getChannel().getConnection() != connection) {
+                throw Log.log.invalidTransactionConnection();
+            }
+            return transactionID.getId();
+        };
     }
 
     public void commit() throws RollbackException, HeuristicMixedException, HeuristicRollbackException, SecurityException, SystemException {
@@ -128,6 +138,9 @@ class EJBSimpleTransactionControl implements SimpleTransactionControl {
     }
 
     public <T> T getProviderInterface(final Class<T> providerInterfaceType) {
+        if (providerInterfaceType.isAssignableFrom(SimpleIdResolver.class)) {
+            return providerInterfaceType.cast(simpleIdResolver);
+        }
         return null;
     }
 }
