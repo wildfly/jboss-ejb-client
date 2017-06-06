@@ -616,13 +616,13 @@ public final class JBossEJBProperties implements Contextual<JBossEJBProperties> 
                 setConnectionOptions(getOptionMapFromProperties(properties, connectOptionsPrefix, classLoader));
 
                 // connection timeout
-                setConnectionTimeout(getLongValueFromProperties(properties, connectOptionsPrefix + "connect.timeout", defaultsBuilder == null ? 5000L : defaultsBuilder.connectionTimeout));
+                setConnectionTimeout(getLongValueFromProperties(properties, prefix + "connect.timeout", defaultsBuilder == null ? 5000L : defaultsBuilder.connectionTimeout));
 
                 // connect eagerly
-                setConnectEagerly(Boolean.parseBoolean(getProperty(properties, connectOptionsPrefix + "connect.eager", Boolean.toString(defaultsBuilder == null || defaultsBuilder.connectEagerly), true).trim()));
+                setConnectEagerly(Boolean.parseBoolean(getProperty(properties, prefix + "connect.eager", Boolean.toString(defaultsBuilder == null || defaultsBuilder.connectEagerly), true).trim()));
 
                 // callback handler class
-                final String callbackHandlerClassName = getProperty(properties, connectOptionsPrefix + PROPERTY_KEY_CALLBACK_HANDLER_CLASS, null, true);
+                final String callbackHandlerClassName = getProperty(properties, prefix + PROPERTY_KEY_CALLBACK_HANDLER_CLASS, null, true);
                 setCallbackHandlerClassName(callbackHandlerClassName);
 
                 final AuthenticationConfiguration.Builder authBuilder = new AuthenticationConfiguration.Builder();
@@ -831,7 +831,7 @@ public final class JBossEJBProperties implements Contextual<JBossEJBProperties> 
                         if (nodeNames.add(nodeName)) {
                             final ClusterNodeConfiguration.Builder builder = new ClusterNodeConfiguration.Builder();
                             builder.setNodeName(nodeName);
-                            if (builder.populateFromProperties(properties, prefix + nodeName + ".", classLoader, this)) {
+                            if (builder.populateFromProperties(properties, nodePrefix + nodeName + ".", classLoader, this)) {
                                 nodes.add(new ClusterNodeConfiguration(builder));
                             }
                         }
