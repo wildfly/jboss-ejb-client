@@ -188,7 +188,11 @@ class EJBClientChannel {
         builder.setUri(channel.getConnection().getPeerURI());
         builder.setAbstractType("ejb").setAbstractTypeAuthority("jboss");
         builder.addAttribute(EJBClientContext.FILTER_ATTR_NODE, AttributeValue.fromString(channel.getConnection().getRemoteEndpointName()));
-        nodeRegistration = serviceRegistry.registerService(builder.create());
+        ServiceURL serviceURL = builder.create();
+        nodeRegistration = serviceRegistry.registerService(serviceURL);
+
+        Logs.INVOCATION.debugf("EJB client channel created, registering ServiceURL(%s)", serviceURL);
+
         channel.addCloseHandler((c, e) -> {
             nodeRegistration.close();
             Iterator<Map.Entry<DiscKey, ServiceRegistration>> i1 = registrationsMap.entrySet().iterator();
@@ -227,6 +231,14 @@ class EJBClientChannel {
 
         public int hashCode() {
             return hashCode;
+        }
+
+        @Override
+        public String toString() {
+            // provide a readable string representation for the combination of app/module/distinct
+            return distinctName.isEmpty()
+                    ? (appName.isEmpty() ? moduleName : appName + "/" + moduleName)
+                    : (appName.isEmpty() ? (moduleName + "/" + distinctName) : (appName + "/" + moduleName + "/" + distinctName));
         }
     }
 
@@ -314,7 +326,11 @@ class EJBClientChannel {
                                 builder.addAttribute(EJBClientContext.FILTER_ATTR_EJB_MODULE_DISTINCT, AttributeValue.fromString(appName + "/" + moduleName + "/" + distinctName));
                             }
                         }
-                        final ServiceRegistration registration = serviceRegistry.registerService(builder.create());
+                        ServiceURL serviceURL = builder.create();
+                        final ServiceRegistration registration = serviceRegistry.registerService(serviceURL);
+
+                        Logs.INVOCATION.debugf("Received MODULE_AVAILABLE(%x) message for module %s, registering ServiceURL(%s)", msg, key, serviceURL);
+
                         final ServiceRegistration old = registrationsMap.put(key, registration);
                         if (old != null) {
                             old.close();
@@ -335,6 +351,7 @@ class EJBClientChannel {
                         if (old != null) {
                             old.close();
                         }
+                        Logs.INVOCATION.debugf("Received MODULE_UNAVAILABLE(%x) message for module %s, closing module registration", msg, key);
                     }
                     break;
                 }
@@ -367,7 +384,10 @@ class EJBClientChannel {
                                 Logs.REMOTING.trace("Ignoring cluster node because the URI failed to be built", e);
                                 continue;
                             }
-                            final ServiceRegistration abstractRegistration = persistentClusterRegistry.registerService(abstractBuilder.create());
+                            ServiceURL abstractServiceURL = abstractBuilder.create();
+                            final ServiceRegistration abstractRegistration = persistentClusterRegistry.registerService(abstractServiceURL);
+
+                            Logs.INVOCATION.debugf("Received CLUSTER_TOPOLOGY(%x) message, registering ServiceURL(%s)", msg, abstractServiceURL);
 
                             // dummy key for the single abstractServiceURL
                             final ClusterDiscKey abstractKey = new ClusterDiscKey(clusterName, nodeName, null, 0);
@@ -410,7 +430,11 @@ class EJBClientChannel {
                                     Logs.REMOTING.trace("Ignoring cluster node because the URI failed to be built", e);
                                     continue;
                                 }
-                                final ServiceRegistration concreteRegistration = persistentClusterRegistry.registerService(concreteBuilder.create());
+                                ServiceURL concreteServiceURL = concreteBuilder.create();
+                                final ServiceRegistration concreteRegistration = persistentClusterRegistry.registerService(concreteServiceURL);
+
+                                Logs.INVOCATION.debugf("Received CLUSTER_TOPOLOGY(%x) message, registering ServiceURL(%s)", msg, concreteServiceURL);
+
                                 final ClusterDiscKey concreteKey = new ClusterDiscKey(clusterName, nodeName, sourceIpBytes, netmaskBits);
                                 final ServiceRegistration oldConcrete = clusterRegistrationsMap.computeIfAbsent(clusterName, x -> new ConcurrentHashMap<>()).computeIfAbsent(nodeName, x -> new ConcurrentHashMap<>()).put(concreteKey, concreteRegistration);
                                 if (oldConcrete != null) {
@@ -426,6 +450,9 @@ class EJBClientChannel {
                     int clusterCount = StreamUtils.readPackedSignedInt32(message);
                     for (int i = 0; i < clusterCount; i ++) {
                         String clusterName = message.readUTF();
+
+                        Logs.INVOCATION.debugf("Received CLUSTER_TOPOLOGY_REMOVAL(%x) message for cluster %s, closing all node registrations", msg, clusterName);
+
                         final ConcurrentMap<String, ConcurrentMap<ClusterDiscKey, ServiceRegistration>> subMap = clusterRegistrationsMap.remove(clusterName);
                         if (subMap != null) {
                             for (ConcurrentMap<ClusterDiscKey, ServiceRegistration> subSubMap : subMap.values()) {
@@ -445,6 +472,9 @@ class EJBClientChannel {
                         int memberCount = StreamUtils.readPackedSignedInt32(message);
                         for (int j = 0; j < memberCount; j ++) {
                             String nodeName = message.readUTF();
+
+                            Logs.INVOCATION.debugf("Received CLUSTER_TOPOLOGY_NODE_REMOVAL(%x) message for (cluster, node) = (%s, %s),  closing node registration", msg, clusterName, nodeName);
+
                             if (subMap != null) {
                                 final ConcurrentMap<ClusterDiscKey, ServiceRegistration> subSubMap = subMap.remove(nodeName);
                                 if (subSubMap != null) for (ServiceRegistration registration : subSubMap.values()) {

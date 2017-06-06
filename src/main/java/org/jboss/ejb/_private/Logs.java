@@ -63,6 +63,7 @@ public interface Logs extends BasicLogger {
     Logs MAIN = Logger.getMessageLogger(Logs.class, "org.jboss.ejb.client");
     Logs REMOTING = Logger.getMessageLogger(Logs.class, "org.jboss.ejb.client.remoting");
     Logs TXN = Logger.getMessageLogger(Logs.class, "org.jboss.ejb.client.txn");
+    Logs INVOCATION = Logger.getMessageLogger(Logs.class, "org.jboss.ejb.client.invocation");
 
     // Greeting
 

@@ -679,6 +679,9 @@ public final class EJBClientContext extends Attachable implements Contextual<EJB
     <T> StatefulEJBLocator<T> createSession(final StatelessEJBLocator<T> statelessLocator, final AuthenticationConfiguration authenticationConfiguration, final SSLContext sslContext) throws Exception {
         final LocatedAction<StatefulEJBLocator<T>, StatelessEJBLocator<T>, T> action =
             (receiver, originalLocator, newAffinity, ac, sc) -> receiver.createSession(originalLocator.withNewAffinity(newAffinity), ac, sc);
+
+        Logs.INVOCATION.tracef("Calling createSession(locator = %s)",statelessLocator);
+
         return performLocatedAction(statelessLocator, action, Affinity.NONE, authenticationConfiguration, sslContext);
     }
 
@@ -688,6 +691,9 @@ public final class EJBClientContext extends Attachable implements Contextual<EJB
 
     <R, L extends EJBLocator<T>, T> R performLocatedAction(final L locator, final LocatedAction<R, L, T> locatedAction, final Affinity weakAffinity, final AuthenticationConfiguration authenticationConfiguration, final SSLContext sslContext) throws Exception {
         final Affinity affinity = locator.getAffinity();
+
+        Logs.INVOCATION.tracef("Calling performLocatedAction(locator = %s, weak affinity = %s)", locator, weakAffinity);
+
         final String scheme;
         if (affinity instanceof NodeAffinity) {
             return discoverAffinityNode(locator, (NodeAffinity) affinity, locatedAction, authenticationConfiguration, sslContext, null);
@@ -705,6 +711,9 @@ public final class EJBClientContext extends Attachable implements Contextual<EJB
     }
 
     <R, L extends EJBLocator<T>, T> R discoverAffinityScheme(final LocatedAction<R, L, T> locatedAction, final L locator, final String scheme, final Affinity effectiveAffinity, final AuthenticationConfiguration authenticationConfiguration, final SSLContext sslContext, final ClusterAffinity fallbackAffinity) throws Exception {
+
+        Logs.INVOCATION.tracef("Calling discoverAffinityScheme(locator = %s, scheme = %s, effective affinity = %s)", locator, scheme, effectiveAffinity);
+
         final EJBReceiver transportProvider = getTransportProvider(scheme);
         if (transportProvider == null) {
             if (fallbackAffinity != null) {
@@ -741,6 +750,8 @@ public final class EJBClientContext extends Attachable implements Contextual<EJB
 
     <R, L extends EJBLocator<T>, T> R discoverAffinityNone(L locator, final LocatedAction<R, L, T> locatedAction, final Affinity weakAffinity, final AuthenticationConfiguration authenticationConfiguration, final SSLContext sslContext) throws Exception {
         assert locator.getAffinity() == Affinity.NONE;
+
+        Logs.INVOCATION.tracef("Calling discoverAffinityNone(locator = %s, weak affinity = %s)", locator, weakAffinity);
 
         if (weakAffinity instanceof NodeAffinity) {
             return discoverAffinityNode(locator, (NodeAffinity) weakAffinity, locatedAction, authenticationConfiguration, sslContext, null);
@@ -845,6 +856,9 @@ public final class EJBClientContext extends Attachable implements Contextual<EJB
     }
 
     <R, L extends EJBLocator<T>, T> R discoverAffinityNode(final L locator, final NodeAffinity nodeAffinity, final LocatedAction<R, L, T> locatedAction, final AuthenticationConfiguration authenticationConfiguration, final SSLContext sslContext, final ClusterAffinity clusterAffinity) throws Exception {
+
+        Logs.INVOCATION.tracef("Calling discoverAffinityNode(locator = %s, node affinity = %s)", locator, nodeAffinity);
+
         // we just need to find a single location for this node; therefore, we'll exit at the first opportunity.
         try (final ServicesQueue servicesQueue = discover(getFilterSpec(nodeAffinity, clusterAffinity))) {
             // we don't recurse into node or cluster for this case; furthermore we always use the first answer.
@@ -874,6 +888,9 @@ public final class EJBClientContext extends Attachable implements Contextual<EJB
     }
 
     private <R, L extends EJBLocator<T>, T> R discoverAffinityCluster(final L locator, final ClusterAffinity clusterAffinity, final LocatedAction<R, L, T> locatedAction, final Affinity weakAffinity, final AuthenticationConfiguration authenticationConfiguration, final SSLContext sslContext) throws Exception {
+
+        Logs.INVOCATION.tracef("Calling discoverAffinityCluster(locator = %s, cluster affinity = %s, weak affinity = %s)", locator, clusterAffinity, weakAffinity);
+
         final String clusterName = clusterAffinity.getClusterName();
         final EJBClientCluster cluster = configuredClusters.get(clusterName);
         if (weakAffinity instanceof NodeAffinity) {

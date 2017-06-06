@@ -328,6 +328,10 @@ public final class EJBClientInvocationContext extends Attachable {
     }
 
     private <T> void performInvocation(EJBLocator<T> locator) throws Exception {
+
+        if (Logs.INVOCATION.isDebugEnabled()) {
+            Logs.INVOCATION.debugf("Calling performInvocation(module = %s, strong affinity = %s): ", locator.getIdentifier(), locator.getAffinity());
+        }
         ejbClientContext.performLocatedAction(locator, (receiver, originalLocator, newAffinity, authenticationConfiguration, sslContext) -> {
             if (receiver == null) {
                 throw Logs.MAIN.noEJBReceiverAvailable(getLocator());
