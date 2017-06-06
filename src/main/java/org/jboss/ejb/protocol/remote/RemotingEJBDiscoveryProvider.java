@@ -26,20 +26,20 @@ import java.security.PrivilegedAction;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import org.jboss.ejb.client.EJBClientConnection;
 import org.jboss.ejb.client.EJBClientContext;
-import org.jboss.remoting3.Connection;
+import org.jboss.remoting3.ConnectionPeerIdentity;
 import org.jboss.remoting3.Endpoint;
-import org.wildfly.discovery.Discovery;
 import org.wildfly.discovery.FilterSpec;
 import org.wildfly.discovery.ServiceType;
 import org.wildfly.discovery.ServiceURL;
-import org.wildfly.discovery.ServicesQueue;
 import org.wildfly.discovery.spi.DiscoveryProvider;
 import org.wildfly.discovery.spi.DiscoveryRequest;
 import org.wildfly.discovery.spi.DiscoveryResult;
+import org.wildfly.security.auth.client.AuthenticationContext;
 import org.xnio.IoFuture;
 import org.xnio.OptionMap;
 
@@ -50,6 +50,11 @@ import org.xnio.OptionMap;
  */
 final class RemotingEJBDiscoveryProvider implements DiscoveryProvider {
     static final RemotingEJBDiscoveryProvider INSTANCE = new RemotingEJBDiscoveryProvider();
+
+    private static final Set<String> JUST_EJB_MODULE = Collections.singleton(EJBClientContext.FILTER_ATTR_EJB_MODULE);
+    private static final Set<String> JUST_EJB_MODULE_DISTINCT = Collections.singleton(EJBClientContext.FILTER_ATTR_EJB_MODULE_DISTINCT);
+    private static final Set<String> JUST_ATTR_CLUSTER = Collections.singleton(EJBClientContext.FILTER_ATTR_CLUSTER);
+    private static final Set<String> JUST_ATTR_NODE = Collections.singleton(EJBClientContext.FILTER_ATTR_NODE);
 
     private RemotingEJBDiscoveryProvider() {
         Endpoint.getCurrent(); //this will blow up if remoting is not present, preventing this from being registered
@@ -68,99 +73,126 @@ final class RemotingEJBDiscoveryProvider implements DiscoveryProvider {
             result.complete();
             return DiscoveryRequest.NULL;
         }
-        final Endpoint endpoint = Endpoint.getCurrent();
-        final List<EJBClientConnection> connections = new ArrayList<>(ejbClientContext.getConfiguredConnections());
+        if (! (filterSpec.mayMatch(JUST_EJB_MODULE) || filterSpec.mayMatch(JUST_EJB_MODULE_DISTINCT) || filterSpec.mayMatch(JUST_ATTR_CLUSTER) || filterSpec.mayMatch(JUST_ATTR_NODE))) {
+            // this provider can only find EJB modules by name
+            result.complete();
+            return DiscoveryRequest.NULL;
+        }
+        final DiscoveryAttempt discoveryAttempt = new DiscoveryAttempt(serviceType, filterSpec, result, ejbReceiver, AuthenticationContext.captureCurrent());
 
+        for (EJBClientConnection connection : ejbClientContext.getConfiguredConnections()) {
+            discoveryAttempt.connectAndDiscover(connection);
+        }
         // attempt to obtain connection information for any cluster nodes
-        URI serviceURI;
-        try (final ServicesQueue servicesQueue = Discovery.create(ejbReceiver.getRemoteTransportProvider().getClusterDiscoveryProvider()).discover(serviceType, null)) {
-            serviceURI = servicesQueue.take();
-            while (serviceURI != null) {
-                EJBClientConnection.Builder nodeConnectionBuilder = new EJBClientConnection.Builder();
-                nodeConnectionBuilder.setDestination(serviceURI);
-                connections.add(nodeConnectionBuilder.build());
-                serviceURI = servicesQueue.take();
+        final DiscoveryRequest firstRequest = discoveryAttempt.getClusterProvider().discover(serviceType, FilterSpec.hasAttribute(EJBClientContext.FILTER_ATTR_NODE), new DiscoveryResult() {
+            public void complete() {
+                discoveryAttempt.countDown();
             }
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new IllegalStateException(e);
+
+            public void reportProblem(final Throwable description) {
+                discoveryAttempt.reportProblem(description);
+            }
+
+            public void addMatch(final ServiceURL serviceURL) {
+                EJBClientConnection.Builder nodeConnectionBuilder = new EJBClientConnection.Builder();
+                nodeConnectionBuilder.setDestination(serviceURL.getLocationURI());
+                discoveryAttempt.connectAndDiscover(nodeConnectionBuilder.build());
+            }
+        });
+        discoveryAttempt.onCancel(firstRequest::cancel);
+        return discoveryAttempt;
+    }
+
+    static final class DiscoveryAttempt implements DiscoveryRequest, DiscoveryResult {
+        private final ServiceType serviceType;
+        private final FilterSpec filterSpec;
+        private final DiscoveryResult discoveryResult;
+        private final RemoteEJBReceiver ejbReceiver;
+        private final AuthenticationContext authenticationContext;
+
+        private final Endpoint endpoint;
+        private final DiscoveryProvider clusterProvider;
+        private final AtomicInteger outstandingCount = new AtomicInteger(1); // this is '1' so that firstRequest above works
+        private final List<Runnable> cancellers = Collections.synchronizedList(new ArrayList<>());
+        private final IoFuture.HandlingNotifier<ConnectionPeerIdentity, Void> outerNotifier;
+        private final IoFuture.HandlingNotifier<EJBClientChannel, Void> innerNotifier;
+
+        DiscoveryAttempt(final ServiceType serviceType, final FilterSpec filterSpec, final DiscoveryResult discoveryResult, final RemoteEJBReceiver ejbReceiver, final AuthenticationContext authenticationContext) {
+            this.serviceType = serviceType;
+            this.filterSpec = filterSpec;
+            this.discoveryResult = discoveryResult;
+            this.ejbReceiver = ejbReceiver;
+
+            clusterProvider = ejbReceiver.getRemoteTransportProvider().getClusterDiscoveryProvider();
+            this.authenticationContext = authenticationContext;
+            endpoint = Endpoint.getCurrent();
+            outerNotifier = new IoFuture.HandlingNotifier<ConnectionPeerIdentity, Void>() {
+                public void handleCancelled(final Void nothing) {
+                    countDown();
+                }
+
+                public void handleFailed(final IOException exception, final Void nothing) {
+                    DiscoveryAttempt.this.discoveryResult.reportProblem(exception);
+                    countDown();
+                }
+
+                public void handleDone(final ConnectionPeerIdentity data, final Void nothing) {
+                    final IoFuture<EJBClientChannel> future = DiscoveryAttempt.this.ejbReceiver.serviceHandle.getClientService(data.getConnection(), OptionMap.EMPTY);
+                    onCancel(future::cancel);
+                    future.addNotifier(innerNotifier, null);
+                }
+            };
+            innerNotifier = new IoFuture.HandlingNotifier<EJBClientChannel, Void>() {
+                public void handleCancelled(final Void nothing) {
+                    countDown();
+                }
+
+                public void handleFailed(final IOException exception, final Void nothing) {
+                    DiscoveryAttempt.this.discoveryResult.reportProblem(exception);
+                    countDown();
+                }
+
+                public void handleDone(final EJBClientChannel clientChannel, final Void nothing) {
+                    final DiscoveryRequest request = clientChannel.getDiscoveryProvider().discover(
+                        DiscoveryAttempt.this.serviceType,
+                        DiscoveryAttempt.this.filterSpec,
+                        DiscoveryAttempt.this
+                    );
+                    onCancel(request::cancel);
+                }
+            };
         }
 
-        final AtomicInteger connectionCount = new AtomicInteger(connections.size() + 1);
-        final CountingResult countingResult = new CountingResult(connectionCount, result);
-        final List<Runnable> cancellers = Collections.synchronizedList(new ArrayList<>());
-        for (EJBClientConnection connection : connections) {
+        void connectAndDiscover(EJBClientConnection connection) {
             if (! connection.isForDiscovery()) {
-                countDown(connectionCount, result);
-                continue;
+                return;
             }
             final URI uri = connection.getDestination();
             final String scheme = uri.getScheme();
             if (scheme == null || ! ejbReceiver.getRemoteTransportProvider().supportsProtocol(scheme) || ! endpoint.isValidUriScheme(scheme)) {
-                countDown(connectionCount, result);
-                continue;
+                return;
             }
-            final IoFuture<Connection> future = doPrivileged((PrivilegedAction<IoFuture<Connection>>) () -> endpoint.getConnection(uri, "ejb", "jboss"));
-            cancellers.add(future::cancel);
-            future.addNotifier(new IoFuture.HandlingNotifier<Connection, DiscoveryResult>() {
-                public void handleCancelled(final DiscoveryResult discoveryResult) {
-                    countDown(connectionCount, discoveryResult);
-                }
-
-                public void handleFailed(final IOException exception, final DiscoveryResult discoveryResult) {
-                    discoveryResult.reportProblem(exception);
-                    countDown(connectionCount, discoveryResult);
-                }
-
-                public void handleDone(final Connection data, final DiscoveryResult discoveryResult) {
-                    final IoFuture<EJBClientChannel> future = ejbReceiver.serviceHandle.getClientService(data, OptionMap.EMPTY);
-                    cancellers.add(future::cancel);
-                    future.addNotifier(new IoFuture.HandlingNotifier<EJBClientChannel, DiscoveryResult>() {
-                        public void handleCancelled(final DiscoveryResult discoveryResult) {
-                            countDown(connectionCount, discoveryResult);
-                        }
-
-                        public void handleFailed(final IOException exception, final DiscoveryResult discoveryResult) {
-                            discoveryResult.reportProblem(exception);
-                            countDown(connectionCount, discoveryResult);
-                        }
-
-                        public void handleDone(final EJBClientChannel clientChannel, final DiscoveryResult discoveryResult) {
-                            final DiscoveryRequest request = clientChannel.getDiscoveryProvider().discover(serviceType, filterSpec, countingResult);
-                            cancellers.add(request::cancel);
-                        }
-                    }, discoveryResult);
-                }
-
-            }, result);
+            outstandingCount.getAndIncrement();
+            final IoFuture<ConnectionPeerIdentity> future = doPrivileged((PrivilegedAction<IoFuture<ConnectionPeerIdentity>>) () -> endpoint.getConnectedIdentity(uri, "ejb", "jboss", authenticationContext));
+            onCancel(future::cancel);
+            future.addNotifier(outerNotifier, null);
         }
-        countDown(connectionCount, result);
-        return () -> {
-            synchronized (cancellers) {
-                for (Runnable canceller : cancellers) {
-                    canceller.run();
-                }
+
+        void countDown() {
+            if (outstandingCount.decrementAndGet() == 0) {
+                // we don't need a canceller for this one because it's 100% in-memory
+                clusterProvider.discover(serviceType, filterSpec, discoveryResult);
             }
-        };
-    }
-
-    static void countDown(final AtomicInteger connectionCount, final DiscoveryResult discoveryResult) {
-        if (connectionCount.decrementAndGet() == 0) {
-            discoveryResult.complete();
         }
-    }
 
-    static class CountingResult implements DiscoveryResult {
-        private final AtomicInteger connectionCount;
-        private final DiscoveryResult discoveryResult;
-
-        CountingResult(final AtomicInteger connectionCount, final DiscoveryResult discoveryResult) {
-            this.connectionCount = connectionCount;
-            this.discoveryResult = discoveryResult;
+        DiscoveryProvider getClusterProvider() {
+            return clusterProvider;
         }
+
+        // discovery result methods
 
         public void complete() {
-            countDown(connectionCount, discoveryResult);
+            countDown();
         }
 
         public void reportProblem(final Throwable description) {
@@ -169,6 +201,24 @@ final class RemotingEJBDiscoveryProvider implements DiscoveryProvider {
 
         public void addMatch(final ServiceURL serviceURL) {
             discoveryResult.addMatch(serviceURL);
+        }
+
+        // discovery request methods
+
+        public void cancel() {
+            final List<Runnable> cancellers = this.cancellers;
+            synchronized (cancellers) {
+                for (Runnable canceller : cancellers) {
+                    canceller.run();
+                }
+            }
+        }
+
+        void onCancel(final Runnable action) {
+            final List<Runnable> cancellers = this.cancellers;
+            synchronized (cancellers) {
+                cancellers.add(action);
+            }
         }
     }
 }

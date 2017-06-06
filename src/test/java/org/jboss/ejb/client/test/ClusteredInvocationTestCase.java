@@ -19,10 +19,8 @@ import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.BeforeClass;
-import org.junit.Ignore;
 import org.junit.Test;
 
-import java.net.URL;
 import java.util.Collection;
 import java.util.List;
 
@@ -153,7 +151,7 @@ public class ClusteredInvocationTestCase {
         try {
             statefulEJBLocator = EJBClient.createSession(statelessEJBLocator);
         } catch(Exception e) {
-            logger.warn("Got exception: e = " + e.getMessage());
+            logger.warn("Got exception", e);
             Assert.fail("Can't create stateful session");
         }
 
