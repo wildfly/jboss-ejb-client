@@ -24,44 +24,36 @@ import java.util.Objects;
 import org.wildfly.common.Assert;
 
 /**
- * An identifier for an EJB located within a container.  This identifier only names the EJB; it does not specify
- * a view, which must be done using the {@link EJBLocator} family of types.
+ * An identifier for an EJB module located within a container.
  * <p>
- * EJB identifiers are suitable for use as hash keys.
+ * EJB module identifiers are suitable for use as hash keys.
  *
  * @author <a href="mailto:david.lloyd@redhat.com">David M. Lloyd</a>
  */
-public final class EJBIdentifier implements Serializable {
-    private static final long serialVersionUID = 7065644117552778408L;
+public class EJBModuleIdentifier implements Serializable {
 
-    private final EJBModuleIdentifier moduleIdentifier;
-    private final String beanName;
+    private static final long serialVersionUID = 6743739852843753760L;
+
+    private final String appName;
+    private final String moduleName;
+    private final String distinctName;
     private transient int hashCode;
 
     /**
      * Construct a new instance.
      *
-     * @param appName the application name (must not be {@code null})
+     * @param appName the application name (must not be {@code null}, but may be empty)
      * @param moduleName the module name (must not be {@code null} or empty)
-     * @param beanName the bean name (must not be {@code null} or empty)
-     * @param distinctName the distinct name (must not be {@code null})
+     * @param distinctName the distinct name (must not be {@code null}, but may be empty)
      */
-    public EJBIdentifier(final String appName, final String moduleName, final String beanName, final String distinctName) {
-        this(new EJBModuleIdentifier(appName, moduleName, distinctName), beanName);
-    }
-
-    /**
-     * Construct a new instance.
-     *
-     * @param moduleIdentifier the EJB module identifier (must not be {@code null})
-     * @param beanName the bean name (must not be {@code null} or empty)
-     */
-    public EJBIdentifier(final EJBModuleIdentifier moduleIdentifier, final String beanName) {
-        Assert.checkNotNullParam("moduleIdentifier", moduleIdentifier);
-        Assert.checkNotNullParam("beanName", beanName);
-        Assert.checkNotEmptyParam("beanName", beanName);
-        this.moduleIdentifier = moduleIdentifier;
-        this.beanName = beanName;
+    public EJBModuleIdentifier(final String appName, final String moduleName, final String distinctName) {
+        Assert.checkNotNullParam("appName", appName);
+        Assert.checkNotNullParam("moduleName", moduleName);
+        Assert.checkNotEmptyParam("moduleName", moduleName);
+        Assert.checkNotNullParam("distinctName", distinctName);
+        this.appName = appName;
+        this.moduleName = moduleName;
+        this.distinctName = distinctName;
     }
 
     /**
@@ -70,7 +62,7 @@ public final class EJBIdentifier implements Serializable {
      * @return the application name (not {@code null})
      */
     public String getAppName() {
-        return moduleIdentifier.getAppName();
+        return appName;
     }
 
     /**
@@ -79,34 +71,16 @@ public final class EJBIdentifier implements Serializable {
      * @return the module name (not {@code null})
      */
     public String getModuleName() {
-        return moduleIdentifier.getModuleName();
+        return moduleName;
     }
 
     /**
-     * Get the bean name.
-     *
-     * @return the bean name (not {@code null})
-     */
-    public String getBeanName() {
-        return beanName;
-    }
-
-    /**
-     * Get the distinct name.
+     * Get the distinct name, which may be empty.
      *
      * @return the distinct name (not {@code null})
      */
     public String getDistinctName() {
-        return moduleIdentifier.getDistinctName();
-    }
-
-    /**
-     * Get the module identifier.
-     *
-     * @return the module identifier (not {@code null})
-     */
-    public EJBModuleIdentifier getModuleIdentifier() {
-        return moduleIdentifier;
+        return distinctName;
     }
 
     /**
@@ -116,7 +90,7 @@ public final class EJBIdentifier implements Serializable {
      * @return {@code true} if the object is equal to this one, {@code false} otherwise
      */
     public boolean equals(final Object other) {
-        return other instanceof EJBIdentifier && equals((EJBIdentifier) other);
+        return other instanceof EJBModuleIdentifier && equals((EJBModuleIdentifier) other);
     }
 
     /**
@@ -125,12 +99,13 @@ public final class EJBIdentifier implements Serializable {
      * @param other the object to test
      * @return {@code true} if the object is equal to this one, {@code false} otherwise
      */
-    public boolean equals(final EJBIdentifier other) {
+    public boolean equals(final EJBModuleIdentifier other) {
         return other != null && (
             other == this ||
                 other.hashCode() == hashCode() &&
-                moduleIdentifier.equals(other.moduleIdentifier) &&
-                Objects.equals(beanName, other.beanName)
+                Objects.equals(appName, other.appName) &&
+                Objects.equals(moduleName, other.moduleName) &&
+                Objects.equals(distinctName, other.distinctName)
         );
     }
 
@@ -144,7 +119,7 @@ public final class EJBIdentifier implements Serializable {
         if (hashCode != 0) {
             return hashCode;
         }
-        hashCode = moduleIdentifier.hashCode() * 13 + beanName.hashCode();
+        hashCode = Objects.hashCode(appName) + 13 * (Objects.hashCode(moduleName) + 13 * Objects.hashCode(distinctName));
         return this.hashCode = hashCode == 0 ? 1 : hashCode;
     }
 
@@ -154,6 +129,11 @@ public final class EJBIdentifier implements Serializable {
      * @return the EJB identifier as a human-readable string (not {@code null})
      */
     public String toString() {
-        return moduleIdentifier.toString() + "/" + beanName;
+        final String distinctName = getDistinctName();
+        if (distinctName == null || distinctName.isEmpty()) {
+            return String.format("%s/%s", getAppName(), getModuleName());
+        } else {
+            return String.format("%s/%s/%s", getAppName(), getModuleName(), distinctName);
+        }
     }
 }

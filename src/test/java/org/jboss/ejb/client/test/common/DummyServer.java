@@ -1,12 +1,12 @@
 package org.jboss.ejb.client.test.common;
 
+import org.jboss.ejb.client.EJBModuleIdentifier;
 import org.jboss.ejb.protocol.remote.RemoteEJBService;
 import org.jboss.ejb.server.Association;
 import org.jboss.ejb.server.ClusterTopologyListener.ClusterInfo;
 import org.jboss.ejb.server.ClusterTopologyListener.NodeInfo;
 import org.jboss.ejb.server.ClusterTopologyListener.MappingInfo;
 import org.jboss.ejb.server.ClusterTopologyListener.ClusterRemovalInfo;
-import org.jboss.ejb.server.ModuleAvailabilityListener.ModuleIdentifier;
 import org.jboss.logging.Logger;
 import org.jboss.remoting3.Endpoint;
 import org.jboss.remoting3.EndpointBuilder;
@@ -167,19 +167,19 @@ public class DummyServer {
     }
 
     public interface EJBDeploymentRepositoryListener {
-        void moduleAvailable(List<ModuleIdentifier> modules);
-        void moduleUnavailable(List<ModuleIdentifier> modules);
+        void moduleAvailable(List<EJBModuleIdentifier> modules);
+        void moduleUnavailable(List<EJBModuleIdentifier> modules);
     }
 
     /**
      * Allows keeping track of which modules are deployed on this server.
      */
     public class EJBDeploymentRepository {
-        Map<ModuleIdentifier, Map<String,Object>> registeredEJBs = new HashMap<ModuleIdentifier, Map<String,Object>>();
-        List<EJBDeploymentRepositoryListener> listeners = new ArrayList<EJBDeploymentRepositoryListener>();
+        Map<EJBModuleIdentifier, Map<String,Object>> registeredEJBs = new HashMap<>();
+        List<EJBDeploymentRepositoryListener> listeners = new ArrayList<>();
 
         void register(final String appName, final String moduleName, final String distinctName, final String beanName, final Object instance) {
-            final ModuleIdentifier moduleID = new ModuleIdentifier(appName, moduleName, distinctName);
+            final EJBModuleIdentifier moduleID = new EJBModuleIdentifier(appName, moduleName, distinctName);
             Map<String, Object> ejbs = this.registeredEJBs.get(moduleID);
             if (ejbs == null) {
                 ejbs = new HashMap<String, Object>();
@@ -188,7 +188,7 @@ public class DummyServer {
             ejbs.put(beanName, instance);
 
             // notify listeners
-            List<ModuleIdentifier> availableModules = new ArrayList<>();
+            List<EJBModuleIdentifier> availableModules = new ArrayList<>();
             availableModules.add(moduleID);
             for (EJBDeploymentRepositoryListener listener: listeners) {
                 listener.moduleAvailable(availableModules);
@@ -196,20 +196,20 @@ public class DummyServer {
         }
 
         void unregister(final String appName, final String moduleName, final String distinctName, final String beanName) {
-            final ModuleIdentifier moduleID = new ModuleIdentifier(appName, moduleName, distinctName);
+            final EJBModuleIdentifier moduleID = new EJBModuleIdentifier(appName, moduleName, distinctName);
             Map<String, Object> ejbs = this.registeredEJBs.get(moduleID);
             if (ejbs != null) {
                 ejbs.remove(beanName);
             }
             // notify listeners
-            List<ModuleIdentifier> unavailableModules = new ArrayList<>();
+            List<EJBModuleIdentifier> unavailableModules = new ArrayList<>();
             unavailableModules.add(moduleID);
             for (EJBDeploymentRepositoryListener listener: listeners) {
                 listener.moduleUnavailable(unavailableModules);
             }
         }
 
-        Object findEJB(ModuleIdentifier module, String beanName) {
+        Object findEJB(EJBModuleIdentifier module, String beanName) {
             final Map<String, Object> ejbs = this.registeredEJBs.get(module);
             final Object beanInstance = ejbs.get(beanName);
             if (beanInstance == null) {
@@ -223,7 +223,7 @@ public class DummyServer {
             listeners.add(listener);
 
             // EJBClientChannel depends on an initial module availability report to be sent out
-            List<ModuleIdentifier> availableModules = new ArrayList<ModuleIdentifier>();
+            List<EJBModuleIdentifier> availableModules = new ArrayList<>();
             availableModules.addAll(this.registeredEJBs.keySet());
 
             listener.moduleAvailable(availableModules);

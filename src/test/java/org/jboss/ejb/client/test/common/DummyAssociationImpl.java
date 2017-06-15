@@ -3,6 +3,7 @@ package org.jboss.ejb.client.test.common;
 import org.jboss.ejb.client.EJBIdentifier;
 import org.jboss.ejb.client.EJBLocator;
 import org.jboss.ejb.client.EJBMethodLocator;
+import org.jboss.ejb.client.EJBModuleIdentifier;
 import org.jboss.ejb.client.UUIDSessionID;
 import org.jboss.ejb.server.Association;
 import org.jboss.ejb.server.CancelHandle;
@@ -10,7 +11,6 @@ import org.jboss.ejb.server.ClusterTopologyListener;
 import org.jboss.ejb.server.InvocationRequest;
 import org.jboss.ejb.server.ListenerHandle;
 import org.jboss.ejb.server.ModuleAvailabilityListener;
-import org.jboss.ejb.server.ModuleAvailabilityListener.ModuleIdentifier;
 import org.jboss.ejb.server.Request;
 import org.jboss.ejb.server.SessionOpenRequest;
 import org.jboss.logging.Logger;
@@ -58,7 +58,7 @@ public class DummyAssociationImpl implements Association {
     @Override
     public <T> CancelHandle receiveInvocationRequest(@NotNull InvocationRequest invocationRequest) {
         final EJBIdentifier ejbIdentifier = invocationRequest.getEJBIdentifier();
-        final ModuleIdentifier module = new ModuleIdentifier(ejbIdentifier.getAppName(), ejbIdentifier.getModuleName(), ejbIdentifier.getDistinctName());
+        final EJBModuleIdentifier module = ejbIdentifier.getModuleIdentifier();
         final String beanName = ejbIdentifier.getBeanName();
 
         // search the repository for the bean
@@ -182,7 +182,7 @@ public class DummyAssociationImpl implements Association {
     @Override
     public CancelHandle receiveSessionOpenRequest(@NotNull SessionOpenRequest sessionOpenRequest) {
         final EJBIdentifier ejbIdentifier = sessionOpenRequest.getEJBIdentifier();
-        final ModuleIdentifier module = new ModuleIdentifier(ejbIdentifier.getAppName(), ejbIdentifier.getModuleName(), ejbIdentifier.getDistinctName());
+        final EJBModuleIdentifier module = ejbIdentifier.getModuleIdentifier();
         final String beanName = ejbIdentifier.getBeanName();
 
         // search the repository for the bean
@@ -281,7 +281,7 @@ public class DummyAssociationImpl implements Association {
              * @param modules the list of available modules
              */
             @Override
-            public void moduleAvailable(List<ModuleIdentifier> modules) {
+            public void moduleAvailable(List<EJBModuleIdentifier> modules) {
                 moduleAvailabilityListener.moduleAvailable(modules);
             }
 
@@ -292,7 +292,7 @@ public class DummyAssociationImpl implements Association {
              * @param modules the list of unavailable modules
              */
             @Override
-            public void moduleUnavailable(List<ModuleIdentifier> modules) {
+            public void moduleUnavailable(List<EJBModuleIdentifier> modules) {
                 moduleAvailabilityListener.moduleUnavailable(modules);
             }
         };

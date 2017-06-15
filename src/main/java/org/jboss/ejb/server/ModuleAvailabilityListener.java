@@ -19,7 +19,8 @@
 package org.jboss.ejb.server;
 
 import java.util.List;
-import java.util.Objects;
+
+import org.jboss.ejb.client.EJBModuleIdentifier;
 
 /**
  * A module availability listener for no-affinity EJBs.
@@ -27,45 +28,7 @@ import java.util.Objects;
  * @author <a href="mailto:david.lloyd@redhat.com">David M. Lloyd</a>
  */
 public interface ModuleAvailabilityListener {
-    void moduleAvailable(List<ModuleIdentifier> modules);
+    void moduleAvailable(List<EJBModuleIdentifier> modules);
 
-    void moduleUnavailable(List<ModuleIdentifier> modules);
-
-    final class ModuleIdentifier {
-        private final String appName;
-        private final String moduleName;
-        private final String distinctName;
-        private final int hashCode;
-
-        public ModuleIdentifier(final String appName, final String moduleName, final String distinctName) {
-            this.appName = appName;
-            this.moduleName = moduleName;
-            this.distinctName = distinctName;
-            hashCode = Objects.hash(appName, moduleName, distinctName);
-        }
-
-        public String getAppName() {
-            return appName;
-        }
-
-        public String getModuleName() {
-            return moduleName;
-        }
-
-        public String getDistinctName() {
-            return distinctName;
-        }
-
-        public int hashCode() {
-            return hashCode;
-        }
-
-        public boolean equals(final Object obj) {
-            return obj instanceof ModuleIdentifier && equals((ModuleIdentifier) obj);
-        }
-
-        boolean equals(ModuleIdentifier obj) {
-            return this == obj || hashCode == obj.hashCode && Objects.equals(appName, obj.appName) && Objects.equals(moduleName, obj.moduleName) && Objects.equals(distinctName, obj.distinctName);
-        }
-    }
+    void moduleUnavailable(List<EJBModuleIdentifier> modules);
 }

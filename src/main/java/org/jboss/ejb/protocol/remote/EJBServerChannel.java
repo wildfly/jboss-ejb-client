@@ -55,6 +55,7 @@ import org.jboss.ejb.client.EJBClientInvocationContext;
 import org.jboss.ejb.client.EJBIdentifier;
 import org.jboss.ejb.client.EJBLocator;
 import org.jboss.ejb.client.EJBMethodLocator;
+import org.jboss.ejb.client.EJBModuleIdentifier;
 import org.jboss.ejb.client.NodeAffinity;
 import org.jboss.ejb.client.RequestSendFailedException;
 import org.jboss.ejb.client.SessionID;
@@ -1154,19 +1155,19 @@ final class EJBServerChannel {
         ModuleAvailabilityWriter() {
         }
 
-        public void moduleAvailable(final List<ModuleIdentifier> modules) {
+        public void moduleAvailable(final List<EJBModuleIdentifier> modules) {
             doWrite(true, modules);
         }
 
-        public void moduleUnavailable(final List<ModuleIdentifier> modules) {
+        public void moduleUnavailable(final List<EJBModuleIdentifier> modules) {
             doWrite(false, modules);
         }
 
-        private void doWrite(final boolean available, final List<ModuleIdentifier> modules) {
+        private void doWrite(final boolean available, final List<EJBModuleIdentifier> modules) {
             try (MessageOutputStream os = messageTracker.openMessageUninterruptibly()) {
                 os.writeByte(available ? Protocol.MODULE_AVAILABLE : Protocol.MODULE_UNAVAILABLE);
                 PackedInteger.writePackedInteger(os, modules.size());
-                for (ModuleIdentifier module : modules) {
+                for (EJBModuleIdentifier module : modules) {
                     final String appName = module.getAppName();
                     os.writeUTF(appName == null ? "" : appName);
                     final String moduleName = module.getModuleName();
