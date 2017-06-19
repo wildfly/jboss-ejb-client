@@ -22,9 +22,9 @@ import static java.security.AccessController.doPrivileged;
 
 import java.io.IOException;
 import java.io.InterruptedIOException;
+import java.net.InetSocketAddress;
 import java.net.URI;
 import java.security.PrivilegedAction;
-import java.util.concurrent.ConcurrentMap;
 
 import javax.ejb.CreateException;
 import javax.net.ssl.SSLContext;
@@ -45,8 +45,6 @@ import org.jboss.remoting3.Connection;
 import org.jboss.remoting3.ConnectionPeerIdentity;
 import org.jboss.remoting3.Endpoint;
 import org.wildfly.common.Assert;
-import org.wildfly.discovery.ServiceRegistration;
-import org.wildfly.discovery.ServiceRegistry;
 import org.wildfly.security.auth.client.AuthenticationConfiguration;
 import org.wildfly.security.auth.client.AuthenticationContext;
 import org.wildfly.security.auth.client.AuthenticationContextConfigurationClient;
@@ -62,17 +60,15 @@ class RemoteEJBReceiver extends EJBReceiver {
 
     private final RemoteTransportProvider remoteTransportProvider;
     private final EJBReceiverContext receiverContext;
-    private final ServiceRegistry persistentClusterRegistry;
-    private final ConcurrentMap<String, ConcurrentMap<String, ConcurrentMap<EJBClientChannel.ClusterDiscKey, ServiceRegistration>>> clusterRegistrationsMap;
+    private final RemotingEJBDiscoveryProvider discoveredNodeRegistry;
 
     final ClientServiceHandle<EJBClientChannel> serviceHandle;
 
-    RemoteEJBReceiver(final RemoteTransportProvider remoteTransportProvider, final EJBReceiverContext receiverContext, final ServiceRegistry persistentClusterRegistry, final ConcurrentMap<String, ConcurrentMap<String, ConcurrentMap<EJBClientChannel.ClusterDiscKey, ServiceRegistration>>> clusterRegistrationsMap) {
+    RemoteEJBReceiver(final RemoteTransportProvider remoteTransportProvider, final EJBReceiverContext receiverContext, final RemotingEJBDiscoveryProvider discoveredNodeRegistry) {
         this.remoteTransportProvider = remoteTransportProvider;
         this.receiverContext = receiverContext;
-        this.persistentClusterRegistry = persistentClusterRegistry;
-        this.clusterRegistrationsMap = clusterRegistrationsMap;
-        serviceHandle = new ClientServiceHandle<>("jboss.ejb", channel -> EJBClientChannel.construct(channel, this.persistentClusterRegistry, this.clusterRegistrationsMap));
+        this.discoveredNodeRegistry = discoveredNodeRegistry;
+        serviceHandle = new ClientServiceHandle<>("jboss.ejb", channel -> EJBClientChannel.construct(channel, this.discoveredNodeRegistry));
     }
 
     final IoFuture.HandlingNotifier<ConnectionPeerIdentity, EJBReceiverInvocationContext> notifier = new IoFuture.HandlingNotifier<ConnectionPeerIdentity, EJBReceiverInvocationContext>() {
@@ -100,6 +96,10 @@ class RemoteEJBReceiver extends EJBReceiver {
 
     RemoteTransportProvider getRemoteTransportProvider() {
         return remoteTransportProvider;
+    }
+
+    RemotingEJBDiscoveryProvider getDiscoveredNodeRegistry() {
+        return discoveredNodeRegistry;
     }
 
     EJBReceiverContext getReceiverContext() {
@@ -148,6 +148,10 @@ class RemoteEJBReceiver extends EJBReceiver {
             Thread.currentThread().interrupt();
             throw new CreateException("Stateful EJB creation interrupted");
         }
+    }
+
+    protected InetSocketAddress getSourceAddress(final InetSocketAddress destination) {
+        return Endpoint.getCurrent().getXnioWorker().getBindAddress(destination.getAddress());
     }
 
     protected boolean isConnected(final URI uri) {

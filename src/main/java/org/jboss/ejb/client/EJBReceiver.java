@@ -18,7 +18,7 @@
 
 package org.jboss.ejb.client;
 
-import java.net.SocketAddress;
+import java.net.InetSocketAddress;
 import java.net.URI;
 
 import javax.net.ssl.SSLContext;
@@ -80,10 +80,10 @@ public abstract class EJBReceiver extends Attachable {
     /**
      * Query the expected or actual source IP address configured for the given target URI.
      *
-     * @param uri the supported URI of the peer (not {@code null})
+     * @param destination the supported URI of the peer (not {@code null})
      * @return the socket address, or {@code null} if none is known
      */
-    protected SocketAddress getSourceAddress(final URI uri) {
+    protected InetSocketAddress getSourceAddress(final InetSocketAddress destination) {
         return null;
     }
 

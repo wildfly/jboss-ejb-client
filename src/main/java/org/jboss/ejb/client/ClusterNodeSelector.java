@@ -76,7 +76,7 @@ public interface ClusterNodeSelector {
      * @return the node selector (not {@code null})
      */
     static ClusterNodeSelector simpleConnectionThresholdRandomSelector(int minimum) {
-        return minimumConnectionThreshold(minimum, useRandomUnconnectedNode(FIRST_AVAILABLE), useRandomConnectedNode(FIRST_AVAILABLE));
+        return minimumConnectionThreshold(minimum, useRandomUnconnectedNode(useRandomConnectedNode(FIRST_AVAILABLE)), useRandomConnectedNode(useRandomUnconnectedNode(FIRST_AVAILABLE)));
     }
 
     /**

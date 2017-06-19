@@ -18,19 +18,12 @@
 
 package org.jboss.ejb.protocol.remote;
 
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentMap;
-
 import org.jboss.ejb.client.AttachmentKey;
 import org.jboss.ejb.client.EJBClientContext;
 import org.jboss.ejb.client.EJBReceiver;
 import org.jboss.ejb.client.EJBReceiverContext;
 import org.jboss.ejb.client.EJBTransportProvider;
 import org.kohsuke.MetaInfServices;
-import org.wildfly.discovery.ServiceRegistration;
-import org.wildfly.discovery.ServiceRegistry;
-import org.wildfly.discovery.impl.LocalRegistryAndDiscoveryProvider;
-import org.wildfly.discovery.spi.DiscoveryProvider;
 
 /**
  * The JBoss Remoting-based transport provider.
@@ -42,19 +35,12 @@ public final class RemoteTransportProvider implements EJBTransportProvider {
 
     static final AttachmentKey<RemoteEJBReceiver> ATTACHMENT_KEY = new AttachmentKey<>();
 
-    private final ServiceRegistry persistentClusterRegistry;
-    private final DiscoveryProvider persistentClusterDiscoveryProvider;
-    private final ConcurrentMap<String, ConcurrentMap<String, ConcurrentMap<EJBClientChannel.ClusterDiscKey, ServiceRegistration>>> clusterRegistrationsMap = new ConcurrentHashMap<>();
-
     public RemoteTransportProvider() {
-        final LocalRegistryAndDiscoveryProvider provider = new LocalRegistryAndDiscoveryProvider();
-        persistentClusterDiscoveryProvider = provider;
-        persistentClusterRegistry = ServiceRegistry.create(provider);
     }
 
     public void notifyRegistered(final EJBReceiverContext receiverContext) {
         final EJBClientContext clientContext = receiverContext.getClientContext();
-        clientContext.putAttachmentIfAbsent(ATTACHMENT_KEY, new RemoteEJBReceiver(this, receiverContext, persistentClusterRegistry, clusterRegistrationsMap));
+        clientContext.putAttachmentIfAbsent(ATTACHMENT_KEY, new RemoteEJBReceiver(this, receiverContext, new RemotingEJBDiscoveryProvider()));
     }
 
     public boolean supportsProtocol(final String uriScheme) {
@@ -93,9 +79,5 @@ public final class RemoteTransportProvider implements EJBTransportProvider {
                 throw new IllegalArgumentException("Unsupported EJB receiver protocol " + uriScheme);
             }
         }
-    }
-
-    DiscoveryProvider getClusterDiscoveryProvider() {
-        return persistentClusterDiscoveryProvider;
     }
 }

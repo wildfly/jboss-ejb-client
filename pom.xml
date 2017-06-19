@@ -51,12 +51,12 @@
         <version.org.jboss.remoting>5.0.0.Beta25</version.org.jboss.remoting>
         <version.org.jboss.spec.javax.ejb>1.0.0.Final</version.org.jboss.spec.javax.ejb>
         <version.org.jboss.spec.javax.transaction>1.0.1.Final</version.org.jboss.spec.javax.transaction>
-        <version.org.jboss.xnio>3.5.0.Beta7</version.org.jboss.xnio>
+        <version.org.jboss.xnio>3.5.0.Beta8-SNAPSHOT</version.org.jboss.xnio>
         <version.org.kohsuke.metainf-services>1.7</version.org.kohsuke.metainf-services>
         <version.org.wildfly.client-config>1.0.0.Beta5</version.org.wildfly.client-config>
-        <version.org.wildfly.common>1.2.0.Beta11</version.org.wildfly.common>
+        <version.org.wildfly.common>1.2.0.Beta12-SNAPSHOT</version.org.wildfly.common>
         <version.org.wildfly.naming.client>1.0.0.Beta16</version.org.wildfly.naming.client>
-        <version.org.wildfly.discovery>1.0.0.Beta12</version.org.wildfly.discovery>
+        <version.org.wildfly.discovery>1.0.0.CR1</version.org.wildfly.discovery>
         <version.org.wildfly.security.elytron>1.1.0.Beta54</version.org.wildfly.security.elytron>
         <version.org.wildfly.transaction-client>1.0.0.Beta24</version.org.wildfly.transaction-client>
     </properties>

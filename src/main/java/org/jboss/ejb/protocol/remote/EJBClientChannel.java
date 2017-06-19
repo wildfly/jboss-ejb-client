@@ -19,8 +19,6 @@
 package org.jboss.ejb.protocol.remote;
 
 import static java.lang.Math.min;
-import static java.security.AccessController.doPrivileged;
-import static org.wildfly.common.math.HashMath.multiHashOrdered;
 import static org.xnio.Bits.allAreClear;
 import static org.xnio.Bits.allAreSet;
 import static org.xnio.IoUtils.safeClose;
@@ -30,28 +28,21 @@ import java.io.DataOutput;
 import java.io.DataOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.OutputStream;
 import java.io.UnsupportedEncodingException;
 import java.lang.reflect.Method;
-import java.lang.reflect.Proxy;
-import java.net.InetAddress;
+import java.net.InetSocketAddress;
 import java.net.URI;
-import java.net.URISyntaxException;
 import java.nio.channels.ClosedChannelException;
-import java.security.PrivilegedAction;
-import java.util.Arrays;
 import java.util.HashMap;
-import java.util.Iterator;
+import java.util.HashSet;
 import java.util.Map;
-import java.util.Objects;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.zip.Deflater;
 import java.util.zip.DeflaterOutputStream;
 import java.util.zip.InflaterInputStream;
+
 import javax.ejb.CreateException;
 import javax.ejb.EJBException;
 import javax.ejb.NoSuchEJBException;
@@ -62,14 +53,13 @@ import javax.transaction.Transaction;
 import javax.transaction.xa.Xid;
 
 import org.jboss.ejb._private.Logs;
-import org.jboss.ejb._private.NetworkUtil;
 import org.jboss.ejb.client.Affinity;
 import org.jboss.ejb.client.AttachmentKey;
 import org.jboss.ejb.client.AttachmentKeys;
 import org.jboss.ejb.client.EJBClient;
-import org.jboss.ejb.client.EJBClientContext;
 import org.jboss.ejb.client.EJBClientInvocationContext;
 import org.jboss.ejb.client.EJBLocator;
+import org.jboss.ejb.client.EJBModuleIdentifier;
 import org.jboss.ejb.client.EJBReceiverInvocationContext;
 import org.jboss.ejb.client.RequestSendFailedException;
 import org.jboss.ejb.client.SessionID;
@@ -79,7 +69,6 @@ import org.jboss.ejb.client.TransactionID;
 import org.jboss.ejb.client.UserTransactionID;
 import org.jboss.ejb.client.XidTransactionID;
 import org.jboss.marshalling.ByteInput;
-import org.jboss.marshalling.ContextClassResolver;
 import org.jboss.marshalling.Marshaller;
 import org.jboss.marshalling.MarshallerFactory;
 import org.jboss.marshalling.Marshalling;
@@ -97,12 +86,7 @@ import org.jboss.remoting3.util.Invocation;
 import org.jboss.remoting3.util.InvocationTracker;
 import org.jboss.remoting3.util.StreamUtils;
 import org.wildfly.common.Assert;
-import org.wildfly.discovery.AttributeValue;
-import org.wildfly.discovery.ServiceRegistration;
-import org.wildfly.discovery.ServiceRegistry;
-import org.wildfly.discovery.ServiceURL;
-import org.wildfly.discovery.impl.LocalRegistryAndDiscoveryProvider;
-import org.wildfly.discovery.spi.DiscoveryProvider;
+import org.wildfly.common.net.CidrAddress;
 import org.wildfly.transaction.client.ContextTransactionManager;
 import org.wildfly.transaction.client.LocalTransaction;
 import org.wildfly.transaction.client.RemoteTransaction;
@@ -124,150 +108,51 @@ class EJBClientChannel {
 
     private final Channel channel;
     private final int version;
+    private final DiscoveredNodeRegistry discoveredNodeRegistry;
 
     private final InvocationTracker invocationTracker;
 
-    private final ServiceRegistry persistentClusterRegistry;
-    private final ServiceRegistry serviceRegistry;
     private final MarshallingConfiguration configuration;
-    private final ServiceRegistration nodeRegistration;
-    private final ConcurrentMap<DiscKey, ServiceRegistration> registrationsMap = new ConcurrentHashMap<>();
-    private final ConcurrentMap<String, ConcurrentMap<String, ConcurrentMap<ClusterDiscKey, ServiceRegistration>>> clusterRegistrationsMap;
     private final IntIndexMap<UserTransactionID> userTxnIds = new IntIndexHashMap<UserTransactionID>(UserTransactionID::getId);
 
     private final RemoteTransactionContext transactionContext;
     private final AtomicInteger finishedParts = new AtomicInteger(0);
     private final AtomicReference<FutureResult<EJBClientChannel>> futureResultRef;
-    private final LocalRegistryAndDiscoveryProvider discoveryProvider = new LocalRegistryAndDiscoveryProvider();
 
-    EJBClientChannel(final Channel channel, final int version, final ServiceRegistry persistentClusterRegistry, final ConcurrentMap<String, ConcurrentMap<String, ConcurrentMap<ClusterDiscKey, ServiceRegistration>>> clusterRegistrationsMap, final FutureResult<EJBClientChannel> futureResult) {
+    EJBClientChannel(final Channel channel, final int version, final DiscoveredNodeRegistry discoveredNodeRegistry, final FutureResult<EJBClientChannel> futureResult) {
         this.channel = channel;
         this.version = version;
-        this.persistentClusterRegistry = persistentClusterRegistry;
-        this.clusterRegistrationsMap = clusterRegistrationsMap;
+        this.discoveredNodeRegistry = discoveredNodeRegistry;
         marshallerFactory = Marshalling.getProvidedMarshallerFactory("river");
         MarshallingConfiguration configuration = new MarshallingConfiguration();
-        configuration.setClassResolver(new ContextClassResolver() {
-            public Class<?> resolveProxyClass(final Unmarshaller unmarshaller, final String[] interfaces) throws IOException, ClassNotFoundException {
-                final int length = interfaces.length;
-                final Class<?>[] classes = new Class<?>[length];
-
-                for(int i = 0; i < length; ++i) {
-                    classes[i] = this.loadClass(interfaces[i]);
-                }
-
-                final ClassLoader classLoader;
-                if (length == 1) {
-                    classLoader = doPrivileged((PrivilegedAction<ClassLoader>) classes[0]::getClassLoader);
-                } else {
-                    classLoader = getClassLoader();
-                }
-
-                return Proxy.getProxyClass(classLoader, classes);
-            }
-        });
+        configuration.setClassResolver(ProtocolClassResolver.INSTANCE);
+        final Connection connection = channel.getConnection();
         if (version < 3) {
             configuration.setClassTable(ProtocolV1ClassTable.INSTANCE);
             configuration.setObjectTable(ProtocolV1ObjectTable.INSTANCE);
-            configuration.setObjectResolver(new ProtocolV1ObjectResolver(channel.getConnection(), true));
+            configuration.setObjectResolver(new ProtocolV1ObjectResolver(connection, true));
             configuration.setVersion(2);
             // Do not wait for cluster topology report.
             finishedParts.set(0b10);
         } else {
             configuration.setObjectTable(ProtocolV3ObjectTable.INSTANCE);
-            configuration.setObjectResolver(new ProtocolV3ObjectResolver(channel.getConnection(), true));
+            configuration.setObjectResolver(new ProtocolV3ObjectResolver(connection, true));
             configuration.setVersion(4);
             // server does not present v3 unless the transaction service is also present
         }
         transactionContext = RemoteTransactionContext.getInstance();
-        this.serviceRegistry = ServiceRegistry.create(discoveryProvider);
         this.configuration = configuration;
         invocationTracker = new InvocationTracker(this.channel, channel.getOption(RemotingOptions.MAX_OUTBOUND_MESSAGES).intValue(), EJBClientChannel::mask);
         futureResultRef = new AtomicReference<>(futureResult);
-        final ServiceURL.Builder builder = new ServiceURL.Builder();
-        builder.setUri(channel.getConnection().getPeerURI());
-        builder.setAbstractType("ejb").setAbstractTypeAuthority("jboss");
-        builder.addAttribute(EJBClientContext.FILTER_ATTR_NODE, AttributeValue.fromString(channel.getConnection().getRemoteEndpointName()));
-        ServiceURL serviceURL = builder.create();
-        nodeRegistration = serviceRegistry.registerService(serviceURL);
-
-        Logs.INVOCATION.debugf("EJB client channel created, registering ServiceURL(%s)", serviceURL);
-
-        channel.addCloseHandler((c, e) -> {
-            nodeRegistration.close();
-            Iterator<Map.Entry<DiscKey, ServiceRegistration>> i1 = registrationsMap.entrySet().iterator();
-            while (i1.hasNext()) {
-                final Map.Entry<DiscKey, ServiceRegistration> entry = i1.next();
-                i1.remove();
-                entry.getValue().close();
-            }
-        });
+        final String nodeName = connection.getRemoteEndpointName();
+        final NodeInformation nodeInformation = discoveredNodeRegistry.getNodeInformation(nodeName);
+        nodeInformation.addAddress(this);
+        nodeInformation.setInvalid(false);
+        channel.addCloseHandler((ignored1, ignored2) -> nodeInformation.removeConnection(this));
     }
 
     static int mask(int original) {
         return original & 0xffff;
-    }
-
-    static class DiscKey {
-        private final String appName;
-        private final String moduleName;
-        private final String distinctName;
-        private final int hashCode;
-
-        DiscKey(final String appName, final String moduleName, final String distinctName) {
-            this.appName = appName;
-            this.moduleName = moduleName;
-            this.distinctName = distinctName;
-            hashCode = Objects.hash(appName, moduleName, distinctName);
-        }
-
-        public boolean equals(final Object obj) {
-            return obj instanceof DiscKey && equals((DiscKey) obj);
-        }
-
-        private boolean equals(final DiscKey other) {
-            return other == this || appName.equals(other.appName) && moduleName.equals(other.moduleName) && distinctName.equals(other.distinctName);
-        }
-
-        public int hashCode() {
-            return hashCode;
-        }
-
-        @Override
-        public String toString() {
-            // provide a readable string representation for the combination of app/module/distinct
-            return distinctName.isEmpty()
-                    ? (appName.isEmpty() ? moduleName : appName + "/" + moduleName)
-                    : (appName.isEmpty() ? (moduleName + "/" + distinctName) : (appName + "/" + moduleName + "/" + distinctName));
-        }
-    }
-
-    static class ClusterDiscKey {
-        private final String clusterName;
-        private final String nodeName;
-        private final byte[] ipBytes;
-        private final int maskBits;
-        private final int hashCode;
-
-        ClusterDiscKey(final String clusterName, final String nodeName, final byte[] ipBytes, final int maskBits) {
-            this.clusterName = clusterName;
-            this.nodeName = nodeName;
-            this.ipBytes = ipBytes;
-            this.maskBits = maskBits;
-            hashCode = multiHashOrdered(multiHashOrdered(multiHashOrdered(maskBits, Arrays.hashCode(ipBytes)), nodeName.hashCode()), clusterName.hashCode());
-        }
-
-        public boolean equals(final Object obj) {
-            return obj instanceof ClusterDiscKey && equals((ClusterDiscKey) obj);
-        }
-
-        private boolean equals(final ClusterDiscKey other) {
-            return other == this || clusterName.equals(other.clusterName) && nodeName.equals(other.nodeName) && Arrays.equals(ipBytes, other.ipBytes) && maskBits == other.maskBits;
-        }
-
-        public int hashCode() {
-            return hashCode;
-        }
     }
 
     private void processMessage(final MessageInputStream message) {
@@ -299,102 +184,47 @@ class EJBClientChannel {
                 }
                 case Protocol.MODULE_AVAILABLE: {
                     int count = StreamUtils.readPackedSignedInt32(message);
-                    final Connection connection = channel.getConnection();
-                    final URI peerURI = connection.getPeerURI();
-//                    builder.setUriSchemeAuthority(connection.getPeerURISchemeAuthority()) XXX todo
-                    final ServiceRegistry serviceRegistry = this.serviceRegistry;
-                    final ConcurrentMap<DiscKey, ServiceRegistration> registrationsMap = this.registrationsMap;
+                    final NodeInformation nodeInformation = discoveredNodeRegistry.getNodeInformation(getChannel().getConnection().getRemoteEndpointName());
+                    final EJBModuleIdentifier[] moduleList = new EJBModuleIdentifier[count];
                     for (int i = 0; i < count; i ++) {
                         final String appName = message.readUTF();
                         final String moduleName = message.readUTF();
                         final String distinctName = message.readUTF();
-                        final DiscKey key = new DiscKey(appName, moduleName, distinctName);
-                        final ServiceURL.Builder builder = new ServiceURL.Builder();
-                        builder.setUri(peerURI);
-                        builder.setAbstractType("ejb");
-                        builder.setAbstractTypeAuthority("jboss");
-                        if (distinctName.isEmpty()) {
-                            if (appName.isEmpty()) {
-                                builder.addAttribute(EJBClientContext.FILTER_ATTR_EJB_MODULE, AttributeValue.fromString(moduleName));
-                            } else {
-                                builder.addAttribute(EJBClientContext.FILTER_ATTR_EJB_MODULE, AttributeValue.fromString(appName + "/" + moduleName));
-                            }
-                        } else {
-                            if (appName.isEmpty()) {
-                                builder.addAttribute(EJBClientContext.FILTER_ATTR_EJB_MODULE_DISTINCT, AttributeValue.fromString(moduleName + "/" + distinctName));
-                            } else {
-                                builder.addAttribute(EJBClientContext.FILTER_ATTR_EJB_MODULE_DISTINCT, AttributeValue.fromString(appName + "/" + moduleName + "/" + distinctName));
-                            }
-                        }
-                        ServiceURL serviceURL = builder.create();
-                        final ServiceRegistration registration = serviceRegistry.registerService(serviceURL);
+                        final EJBModuleIdentifier moduleIdentifier = new EJBModuleIdentifier(appName, moduleName, distinctName);
+                        moduleList[i] = moduleIdentifier;
 
-                        Logs.INVOCATION.debugf("Received MODULE_AVAILABLE(%x) message for module %s, registering ServiceURL(%s)", msg, key, serviceURL);
+                        Logs.INVOCATION.debugf("Received MODULE_AVAILABLE(%x) message for module %s", msg, moduleIdentifier);
 
-                        final ServiceRegistration old = registrationsMap.put(key, registration);
-                        if (old != null) {
-                            old.close();
-                        }
                     }
+                    nodeInformation.addModules(this, moduleList);
                     finishPart(0b01);
                     break;
                 }
                 case Protocol.MODULE_UNAVAILABLE: {
                     int count = StreamUtils.readPackedSignedInt32(message);
-                    final ConcurrentMap<DiscKey, ServiceRegistration> registrationsMap = this.registrationsMap;
+                    final NodeInformation nodeInformation = discoveredNodeRegistry.getNodeInformation(getChannel().getConnection().getRemoteEndpointName());
+                    final HashSet<EJBModuleIdentifier> set = new HashSet<>(count);
                     for (int i = 0; i < count; i ++) {
                         final String appName = message.readUTF();
                         final String moduleName = message.readUTF();
                         final String distinctName = message.readUTF();
-                        final DiscKey key = new DiscKey(appName, moduleName, distinctName);
-                        final ServiceRegistration old = registrationsMap.remove(key);
-                        if (old != null) {
-                            old.close();
-                        }
-                        Logs.INVOCATION.debugf("Received MODULE_UNAVAILABLE(%x) message for module %s, closing module registration", msg, key);
+                        final EJBModuleIdentifier moduleIdentifier = new EJBModuleIdentifier(appName, moduleName, distinctName);
+                        set.add(moduleIdentifier);
+                        Logs.INVOCATION.debugf("Received MODULE_UNAVAILABLE(%x) message for module %s", msg, moduleIdentifier);
                     }
+                    nodeInformation.removeModules(this, set);
                     break;
                 }
                 case Protocol.CLUSTER_TOPOLOGY_ADDITION:
                 case Protocol.CLUSTER_TOPOLOGY_COMPLETE: {
                     int clusterCount = StreamUtils.readPackedSignedInt32(message);
-                    final Connection connection = channel.getConnection();
-                    final URI peerURI = connection.getPeerURI();
-                    final String scheme = peerURI.getScheme();
                     for (int i = 0; i < clusterCount; i ++) {
                         final String clusterName = message.readUTF();
-                        final AttributeValue clusterValue = AttributeValue.fromString(clusterName);
                         int memberCount = StreamUtils.readPackedSignedInt32(message);
                         for (int j = 0; j < memberCount; j ++) {
                             final String nodeName = message.readUTF();
-                            final AttributeValue nodeValue = AttributeValue.fromString(nodeName);
-
-                            // we need to register one abstract ServiceURL for the node and multiple concrete ServiceURLs for the client mappings
-                            //   abstract ServiceURL ejb.jboss:node:<node>;cluster=<cluster>
-                            //   concrete ServiceURL ejb.jboss.scheme://<destHost,destPort>;node=<node>,source-ip=<sourceIP/netmask>
-
-                            // create and register the abstract SrviceURL
-                            final ServiceURL.Builder abstractBuilder = new ServiceURL.Builder();
-                            abstractBuilder.setAbstractType("ejb");
-                            abstractBuilder.setAbstractTypeAuthority("jboss");
-                            abstractBuilder.addAttribute(EJBClientContext.FILTER_ATTR_CLUSTER, clusterValue);
-                            try {
-                                abstractBuilder.setUri(new URI("node", nodeName, null));
-                            } catch (URISyntaxException e) {
-                                Logs.REMOTING.trace("Ignoring cluster node because the URI failed to be built", e);
-                                continue;
-                            }
-                            ServiceURL abstractServiceURL = abstractBuilder.create();
-                            final ServiceRegistration abstractRegistration = persistentClusterRegistry.registerService(abstractServiceURL);
-
-                            Logs.INVOCATION.debugf("Received CLUSTER_TOPOLOGY(%x) message, registering ServiceURL(%s)", msg, abstractServiceURL);
-
-                            // dummy key for the single abstractServiceURL
-                            final ClusterDiscKey abstractKey = new ClusterDiscKey(clusterName, nodeName, null, 0);
-                            final ServiceRegistration oldAbstract = clusterRegistrationsMap.computeIfAbsent(clusterName, x -> new ConcurrentHashMap<>()).computeIfAbsent(nodeName, x -> new ConcurrentHashMap<>()).put(abstractKey, abstractRegistration);
-                            if (oldAbstract != null) {
-                                oldAbstract.close();
-                            }
+                            final NodeInformation nodeInformation = discoveredNodeRegistry.getNodeInformation(nodeName);
+                            Logs.INVOCATION.debugf("Received CLUSTER_TOPOLOGY(%x) message, registering cluster %s to node %s", msg, clusterName, nodeName);
 
                             // create and register the concrete ServiceURLs for each client mapping
                             int mappingCount = StreamUtils.readPackedSignedInt32(message);
@@ -404,42 +234,12 @@ class EJBClientChannel {
                                 int netmaskBits = b >>> 1;
                                 final byte[] sourceIpBytes = new byte[ip6 ? 16 : 4];
                                 message.readFully(sourceIpBytes);
+                                final CidrAddress block = CidrAddress.create(sourceIpBytes, netmaskBits);
                                 final String destHost = message.readUTF();
                                 final int destPort = message.readUnsignedShort();
-
-                                final ServiceURL.Builder concreteBuilder = new ServiceURL.Builder();
-                                concreteBuilder.setAbstractType("ejb");
-                                concreteBuilder.setAbstractTypeAuthority("jboss");
-                                concreteBuilder.addAttribute(EJBClientContext.FILTER_ATTR_CLUSTER, clusterValue);
-                                concreteBuilder.addAttribute(EJBClientContext.FILTER_ATTR_NODE, nodeValue);
-                                if (netmaskBits != 0) {
-                                    // do not match all
-                                    concreteBuilder.addAttribute(EJBClientContext.FILTER_ATTR_SOURCE_IP, AttributeValue.fromString(InetAddress.getByAddress(sourceIpBytes).getHostAddress() + "/" + netmaskBits));
-                                }
-                                try {
-                                    concreteBuilder.setUri(new URI(
-                                        scheme,
-                                        null,
-                                        NetworkUtil.formatPossibleIpv6Address(destHost),
-                                        destPort,
-                                        null,
-                                        null,
-                                        null
-                                    ));
-                                } catch (URISyntaxException e) {
-                                    Logs.REMOTING.trace("Ignoring cluster node because the URI failed to be built", e);
-                                    continue;
-                                }
-                                ServiceURL concreteServiceURL = concreteBuilder.create();
-                                final ServiceRegistration concreteRegistration = persistentClusterRegistry.registerService(concreteServiceURL);
-
-                                Logs.INVOCATION.debugf("Received CLUSTER_TOPOLOGY(%x) message, registering ServiceURL(%s)", msg, concreteServiceURL);
-
-                                final ClusterDiscKey concreteKey = new ClusterDiscKey(clusterName, nodeName, sourceIpBytes, netmaskBits);
-                                final ServiceRegistration oldConcrete = clusterRegistrationsMap.computeIfAbsent(clusterName, x -> new ConcurrentHashMap<>()).computeIfAbsent(nodeName, x -> new ConcurrentHashMap<>()).put(concreteKey, concreteRegistration);
-                                if (oldConcrete != null) {
-                                    oldConcrete.close();
-                                }
+                                final InetSocketAddress destination = new InetSocketAddress(destHost, destPort);
+                                nodeInformation.addAddress(channel.getConnection().getProtocol(), clusterName, block, destination);
+                                Logs.INVOCATION.debugf("Received CLUSTER_TOPOLOGY(%x) message block, registering block %s to address %s", msg, block, destination);
                             }
                         }
                     }
@@ -451,15 +251,10 @@ class EJBClientChannel {
                     for (int i = 0; i < clusterCount; i ++) {
                         String clusterName = message.readUTF();
 
-                        Logs.INVOCATION.debugf("Received CLUSTER_TOPOLOGY_REMOVAL(%x) message for cluster %s, closing all node registrations", msg, clusterName);
+                        Logs.INVOCATION.debugf("Received CLUSTER_TOPOLOGY_REMOVAL(%x) message for cluster %s", msg, clusterName);
 
-                        final ConcurrentMap<String, ConcurrentMap<ClusterDiscKey, ServiceRegistration>> subMap = clusterRegistrationsMap.remove(clusterName);
-                        if (subMap != null) {
-                            for (ConcurrentMap<ClusterDiscKey, ServiceRegistration> subSubMap : subMap.values()) {
-                                for (ServiceRegistration registration : subSubMap.values()) {
-                                    registration.close();
-                                }
-                            }
+                        for (NodeInformation nodeInformation : discoveredNodeRegistry.getAllNodeInformation()) {
+                            nodeInformation.removeCluster(clusterName);
                         }
                     }
                     break;
@@ -468,19 +263,14 @@ class EJBClientChannel {
                     int clusterCount = StreamUtils.readPackedSignedInt32(message);
                     for (int i = 0; i < clusterCount; i ++) {
                         String clusterName = message.readUTF();
-                        final ConcurrentMap<String, ConcurrentMap<ClusterDiscKey, ServiceRegistration>> subMap = clusterRegistrationsMap.get(clusterName);
                         int memberCount = StreamUtils.readPackedSignedInt32(message);
                         for (int j = 0; j < memberCount; j ++) {
                             String nodeName = message.readUTF();
+                            final NodeInformation nodeInformation = discoveredNodeRegistry.getNodeInformation(nodeName);
+                            nodeInformation.removeCluster(clusterName);
 
-                            Logs.INVOCATION.debugf("Received CLUSTER_TOPOLOGY_NODE_REMOVAL(%x) message for (cluster, node) = (%s, %s),  closing node registration", msg, clusterName, nodeName);
+                            Logs.INVOCATION.debugf("Received CLUSTER_TOPOLOGY_NODE_REMOVAL(%x) message for (cluster, node) = (%s, %s)", msg, clusterName, nodeName);
 
-                            if (subMap != null) {
-                                final ConcurrentMap<ClusterDiscKey, ServiceRegistration> subSubMap = subMap.remove(nodeName);
-                                if (subSubMap != null) for (ServiceRegistration registration : subSubMap.values()) {
-                                    registration.close();
-                                }
-                            }
                         }
                     }
                     break;
@@ -666,9 +456,9 @@ class EJBClientChannel {
      * compress the data that gets passed along the stream
      *
      * @param invocationContext         The EJB client invocation context
-     * @param messageOutputStream       The message outputstream that needs to be wrapped
-     * @return
-     * @throws Exception
+     * @param messageOutputStream       The message output stream that needs to be wrapped
+     * @return the compressed stream
+     * @throws IOException if a problem occurs
      */
     private MessageOutputStream handleCompression(final EJBClientInvocationContext invocationContext, final MessageOutputStream messageOutputStream) throws IOException {
         // if the negotiated protocol version doesn't support compressed messages then just return
@@ -824,7 +614,7 @@ class EJBClientChannel {
         out.writeUTF(statelessLocator.getBeanName());
     }
 
-    static IoFuture<EJBClientChannel> construct(final Channel channel, final ServiceRegistry persistentClusterRegistry, final ConcurrentMap<String, ConcurrentMap<String, ConcurrentMap<ClusterDiscKey, ServiceRegistration>>> clusterRegistrationsMap) {
+    static IoFuture<EJBClientChannel> construct(final Channel channel, final DiscoveredNodeRegistry discoveredNodeRegistry) {
         FutureResult<EJBClientChannel> futureResult = new FutureResult<>();
         // now perform opening negotiation: receive server greeting
         channel.receiveMessage(new Channel.Receiver() {
@@ -850,7 +640,7 @@ class EJBClientChannel {
                         out.writeUTF("river");
                     }
                     // almost done; wait for initial module available report
-                    final EJBClientChannel ejbClientChannel = new EJBClientChannel(channel, version, persistentClusterRegistry, clusterRegistrationsMap, futureResult);
+                    final EJBClientChannel ejbClientChannel = new EJBClientChannel(channel, version, discoveredNodeRegistry, futureResult);
                     channel.receiveMessage(new Channel.Receiver() {
                         public void handleError(final Channel channel, final IOException error) {
                             safeClose(channel);
@@ -1098,10 +888,6 @@ class EJBClientChannel {
         }
     }
 
-    DiscoveryProvider getDiscoveryProvider() {
-        return discoveryProvider;
-    }
-
     void finishPart(int bit) {
         int oldVal, newVal;
         do {
@@ -1177,6 +963,7 @@ class EJBClientChannel {
                             final SessionID sessionID = SessionID.createSessionID(encoded);
                             final EJBClientInvocationContext context = receiverInvocationContext.getClientInvocationContext();
                             EJBClient.convertToStateful(context.getInvokedProxy(), sessionID);
+//                            context.setWeakAffinity();
                         }
                     } catch (RuntimeException | IOException | RollbackException | SystemException e) {
                         receiverInvocationContext.resultReady(new EJBReceiverInvocationContext.ResultProducer.Failed(new EJBException(e)));
@@ -1188,6 +975,10 @@ class EJBClientChannel {
                 }
                 case Protocol.CANCEL_RESPONSE: {
                     free();
+                    if (version >= 3) {
+                        final XAOutflowHandle outflowHandle = getOutflowHandle();
+                        if (outflowHandle != null) outflowHandle.forgetEnlistment();
+                    }
                     receiverInvocationContext.resultReady(new EJBReceiverInvocationContext.ResultProducer.Failed(Logs.REMOTING.requestCancelled()));
                     break;
                 }
@@ -1199,7 +990,14 @@ class EJBClientChannel {
                 case Protocol.NO_SUCH_EJB: {
                     free();
                     try {
+                        if (version >= 3) {
+                            final XAOutflowHandle outflowHandle = getOutflowHandle();
+                            if (outflowHandle != null) outflowHandle.forgetEnlistment();
+                        }
                         final String message = inputStream.readUTF();
+                        final EJBModuleIdentifier moduleIdentifier = receiverInvocationContext.getClientInvocationContext().getLocator().getIdentifier().getModuleIdentifier();
+                        final NodeInformation nodeInformation = discoveredNodeRegistry.getNodeInformation(getChannel().getConnection().getRemoteEndpointName());
+                        nodeInformation.removeModule(EJBClientChannel.this, moduleIdentifier);
                         receiverInvocationContext.resultReady(new EJBReceiverInvocationContext.ResultProducer.Failed(new NoSuchEJBException(message)));
                     } catch (IOException e) {
                         receiverInvocationContext.resultReady(new EJBReceiverInvocationContext.ResultProducer.Failed(new EJBException("Failed to read 'No such EJB' response", e)));
@@ -1211,6 +1009,10 @@ class EJBClientChannel {
                 case Protocol.BAD_VIEW_TYPE: {
                     free();
                     try {
+                        if (version >= 3) {
+                            final XAOutflowHandle outflowHandle = getOutflowHandle();
+                            if (outflowHandle != null) outflowHandle.forgetEnlistment();
+                        }
                         final String message = inputStream.readUTF();
                         receiverInvocationContext.resultReady(new EJBReceiverInvocationContext.ResultProducer.Failed(Logs.REMOTING.invalidViewTypeForInvocation(message)));
                     } catch (IOException e) {
@@ -1223,6 +1025,10 @@ class EJBClientChannel {
                 case Protocol.NO_SUCH_METHOD: {
                     free();
                     try {
+                        if (version >= 3) {
+                            final XAOutflowHandle outflowHandle = getOutflowHandle();
+                            if (outflowHandle != null) outflowHandle.forgetEnlistment();
+                        }
                         final String message = inputStream.readUTF();
                         // todo: I don't think this is the best exception type for this case...
                         receiverInvocationContext.resultReady(new EJBReceiverInvocationContext.ResultProducer.Failed(new IllegalArgumentException(message)));
@@ -1236,6 +1042,10 @@ class EJBClientChannel {
                 case Protocol.SESSION_NOT_ACTIVE: {
                     free();
                     try {
+                        if (version >= 3) {
+                            final XAOutflowHandle outflowHandle = getOutflowHandle();
+                            if (outflowHandle != null) outflowHandle.forgetEnlistment();
+                        }
                         final String message = inputStream.readUTF();
                         receiverInvocationContext.resultReady(new EJBReceiverInvocationContext.ResultProducer.Failed(new EJBException(message)));
                     } catch (IOException e) {
@@ -1248,6 +1058,10 @@ class EJBClientChannel {
                 case Protocol.EJB_NOT_STATEFUL: {
                     free();
                     try {
+                        if (version >= 3) {
+                            final XAOutflowHandle outflowHandle = getOutflowHandle();
+                            if (outflowHandle != null) outflowHandle.forgetEnlistment();
+                        }
                         final String message = inputStream.readUTF();
                         receiverInvocationContext.resultReady(new EJBReceiverInvocationContext.ResultProducer.Failed(new EJBException(message)));
                     } catch (IOException e) {

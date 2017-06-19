@@ -53,8 +53,8 @@ public class ClusteredInvocationTestCase {
     private static final String NODE1_NAME = "node1";
     private static final String NODE2_NAME = "node2";
 
-    private static final NodeInfo NODE1 = DummyServer.getNodeInfo(NODE1_NAME, "localhost",6999,"127.0.0.1",24);
-    private static final NodeInfo NODE2 = DummyServer.getNodeInfo(NODE2_NAME, "localhost",7099,"127.0.0.1",24);
+    private static final NodeInfo NODE1 = DummyServer.getNodeInfo(NODE1_NAME, "localhost",6999,"0.0.0.0",0);
+    private static final NodeInfo NODE2 = DummyServer.getNodeInfo(NODE2_NAME, "localhost",7099,"0.0.0.0",0);
     private static final ClusterInfo CLUSTER = DummyServer.getClusterInfo(CLUSTER_NAME, NODE1, NODE2);
 
     /**
@@ -142,7 +142,7 @@ public class ClusteredInvocationTestCase {
      * Test a basic invocation on clustered SFSB
      */
     @Test
-    public void testClusteredSFSBInvocation() {
+    public void testClusteredSFSBInvocation() throws Exception {
         logger.info("Testing invocation on SFSB proxy with ClusterAffinity");
 
         // create a proxy for invocation
@@ -152,7 +152,7 @@ public class ClusteredInvocationTestCase {
             statefulEJBLocator = EJBClient.createSession(statelessEJBLocator);
         } catch(Exception e) {
             logger.warn("Got exception", e);
-            Assert.fail("Can't create stateful session");
+            throw e;
         }
 
         final Echo proxy = EJBClient.createProxy(statefulEJBLocator);
