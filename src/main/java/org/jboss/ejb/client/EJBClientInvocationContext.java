@@ -18,11 +18,8 @@
 
 package org.jboss.ejb.client;
 
-import java.io.Serializable;
 import java.lang.reflect.Method;
 import java.net.URI;
-import java.util.LinkedHashMap;
-import java.util.Map;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
@@ -36,7 +33,6 @@ import javax.transaction.Transaction;
 
 import org.jboss.ejb._private.Logs;
 import org.jboss.ejb.client.annotation.ClientTransactionPolicy;
-import org.wildfly.common.Assert;
 import org.wildfly.security.auth.client.AuthenticationConfiguration;
 
 /**
@@ -45,17 +41,16 @@ import org.wildfly.security.auth.client.AuthenticationConfiguration;
  * @author <a href="mailto:david.lloyd@redhat.com">David M. Lloyd</a>
  * @author Jaikiran Pai
  */
-public final class EJBClientInvocationContext extends Attachable {
+public final class EJBClientInvocationContext extends AbstractInvocationContext {
 
     private static final Logs log = Logs.MAIN;
 
     public static final String PRIVATE_ATTACHMENTS_KEY = "org.jboss.ejb.client.invocation.attachments";
-    private static final EJBReceiverInvocationContext.ResultProducer.Immediate NULL_RESPONSE = new EJBReceiverInvocationContext.ResultProducer.Immediate(null);
+
     private static final int MAX_RETRIES = 5;
 
     // Contextual stuff
     private final EJBInvocationHandler<?> invocationHandler;
-    private final EJBClientContext ejbClientContext;
 
     // Invocation data
     private final Object invokedProxy;
@@ -67,38 +62,22 @@ public final class EJBClientInvocationContext extends Attachable {
     private final Object lock = new Object();
     private EJBReceiverInvocationContext.ResultProducer resultProducer;
 
-    // selected target receiver
-    private EJBReceiver receiver;
-    private URI destination;
-    private Affinity targetAffinity;
-    private EJBLocator<?> locator;
     private State state = State.WAITING;
-    private AsyncState asyncState = AsyncState.SYNCHRONOUS;
     private Object cachedResult;
-    private Map<String, Object> contextData;
 
     private int interceptorChainIndex;
     private boolean resultDone;
     private boolean blockingCaller;
     private Transaction transaction;
-    private Affinity weakAffinity = Affinity.NONE;
     private AuthenticationConfiguration authenticationConfiguration;
     private SSLContext sslContext;
 
     EJBClientInvocationContext(final EJBInvocationHandler<?> invocationHandler, final EJBClientContext ejbClientContext, final Object invokedProxy, final Object[] parameters, final EJBProxyInformation.ProxyMethodInfo methodInfo) {
+        super(invocationHandler.getLocator(), ejbClientContext);
         this.invocationHandler = invocationHandler;
         this.invokedProxy = invokedProxy;
         this.parameters = parameters;
-        this.ejbClientContext = ejbClientContext;
         this.methodInfo = methodInfo;
-        this.locator = invocationHandler.getLocator();
-    }
-
-    enum AsyncState {
-        SYNCHRONOUS,
-        ASYNCHRONOUS,
-        ONE_WAY,
-        ;
     }
 
     enum State {
@@ -143,15 +122,6 @@ public final class EJBClientInvocationContext extends Attachable {
      */
     public <T> T removeProxyAttachment(final AttachmentKey<T> key) {
         return invocationHandler.removeAttachment(key);
-    }
-
-    /**
-     * Get the EJB client context associated with this invocation.
-     *
-     * @return the EJB client context
-     */
-    public EJBClientContext getClientContext() {
-        return ejbClientContext;
     }
 
     /**
@@ -239,41 +209,6 @@ public final class EJBClientInvocationContext extends Attachable {
     }
 
     /**
-     * Get the context data.  This same data will be made available verbatim to
-     * server-side interceptors via the {@code InvocationContext.getContextData()} method, and thus
-     * can be used to pass data from the client to the server (as long as all map values are
-     * {@link Serializable}).
-     *
-     * @return the context data
-     */
-    public Map<String, Object> getContextData() {
-        final Map<String, Object> contextData = this.contextData;
-        if (contextData == null) {
-            return this.contextData = new LinkedHashMap<String, Object>();
-        } else {
-            return contextData;
-        }
-    }
-
-    /**
-     * Get the locator for the invocation target.
-     *
-     * @return the locator
-     */
-    public EJBLocator<?> getLocator() {
-        return locator;
-    }
-
-    /**
-     * Set the locator for the invocation target.
-     *
-     * @param locator the locator for the invocation target
-     */
-    public <T> void setLocator(final EJBLocator<T> locator) {
-        this.locator = locator;
-    }
-
-    /**
      * Determine whether this invocation is currently blocking the calling thread.
      *
      * @return {@code true} if the calling thread is being blocked; {@code false} otherwise
@@ -296,46 +231,6 @@ public final class EJBClientInvocationContext extends Attachable {
     }
 
     /**
-     * Get the resolved destination of this invocation.  If the destination is not yet decided, {@code null} is
-     * returned.
-     *
-     * @return the resolved destination of this invocation, or {@code null} if it is not yet known
-     */
-    public URI getDestination() {
-        return destination;
-    }
-
-    /**
-     * Set the resolved destination of this invocation.  The destination must be decided by the end of the interceptor
-     * chain, otherwise an exception will result.
-     *
-     * @param destination the resolved destination of this invocation
-     */
-    public void setDestination(final URI destination) {
-        this.destination = destination;
-    }
-
-    /**
-     * Get the resolved target affinity of this invocation.  If the target affinity is not yet decided, {@code null}
-     * is returned.  The target affinity is retained only for the lifetime of the invocation; it may be used to aid
-     * in resolving the {@linkplain #setDestination(URI) destination to set}.
-     *
-     * @return the resolved target affinity of this invocation, or {@code null} if it is not yet known
-     */
-    public Affinity getTargetAffinity() {
-        return targetAffinity;
-    }
-
-    /**
-     * Set the resolved target affinity of this invocation.
-     *
-     * @param targetAffinity the resolved target affinity of this invocation
-     */
-    public void setTargetAffinity(final Affinity targetAffinity) {
-        this.targetAffinity = targetAffinity;
-    }
-
-    /**
      * Proceed with sending the request normally.
      *
      * @throws Exception if the request was not successfully sent
@@ -350,12 +245,9 @@ public final class EJBClientInvocationContext extends Attachable {
                     throw Logs.MAIN.sendRequestCalledDuringWrongPhase();
                 }
                 if (chain.length == idx) {
-                    final EJBReceiver receiver = this.receiver;
-                    if (receiver == null) {
-                        performInvocation(getLocator());
-                    } else {
-                        receiver.processInvocation(receiverInvocationContext);
-                    }
+                    final URI destination = getDestination();
+                    final EJBReceiver receiver = getClientContext().resolveReceiver(destination, locator);
+                    receiver.processInvocation(receiverInvocationContext);
                 } else {
                     chain[idx].getInterceptorInstance().handleInvocation(this);
                 }
@@ -368,20 +260,6 @@ public final class EJBClientInvocationContext extends Attachable {
                 throw e;
             }
         }
-    }
-
-    private <T> void performInvocation(EJBLocator<T> locator) throws Exception {
-
-        if (Logs.INVOCATION.isDebugEnabled()) {
-            Logs.INVOCATION.debugf("Calling performInvocation(module = %s, strong affinity = %s): ", locator.getIdentifier(), locator.getAffinity());
-        }
-        ejbClientContext.performLocatedAction(locator, (receiver, originalLocator, newAffinity, authenticationConfiguration, sslContext) -> {
-            if (receiver == null) {
-                throw Logs.MAIN.noEJBReceiverAvailable(getLocator());
-            }
-            receiver.processInvocation(receiverInvocationContext);
-            return null;
-        }, weakAffinity, authenticationConfiguration, sslContext);
     }
 
     /**
@@ -432,7 +310,8 @@ public final class EJBClientInvocationContext extends Attachable {
         final EJBReceiverInvocationContext.ResultProducer resultProducer = this.resultProducer;
 
         if (resultProducer == null) {
-            throw Logs.MAIN.discardResultCalledDuringWrongPhase();
+            // no result to discard
+            return;
         }
 
         resultProducer.discardResult();
@@ -453,24 +332,6 @@ public final class EJBClientInvocationContext extends Attachable {
         // for whatever reason, we don't care
         resultProducer.discardResult();
         return;
-    }
-
-    /**
-     * Get the EJB receiver associated with this invocation.
-     *
-     * @return the EJB receiver
-     */
-    EJBReceiver getReceiver() {
-        return receiver;
-    }
-
-    /**
-     * Set the EJB receiver associated with this invocation.
-     *
-     * @param receiver the EJB receiver associated with this invocation
-     */
-    void setReceiver(final EJBReceiver receiver) {
-        this.receiver = receiver;
     }
 
     /**
@@ -501,15 +362,6 @@ public final class EJBClientInvocationContext extends Attachable {
     }
 
     /**
-     * Get the invoked view class.
-     *
-     * @return the invoked view class
-     */
-    public Class<?> getViewClass() {
-        return invocationHandler.getLocator().getViewType();
-    }
-
-    /**
      * Get the transaction associated with the invocation.  If there is no transaction (i.e. transactions should not
      * be propagated), {@code null} is returned.
      *
@@ -528,25 +380,6 @@ public final class EJBClientInvocationContext extends Attachable {
      */
     public void setTransaction(final Transaction transaction) {
         this.transaction = transaction;
-    }
-
-    /**
-     * Get the invocation weak affinity.
-     *
-     * @return the invocation weak affinity, or {@link Affinity#NONE} if none (not {@code null})
-     */
-    public Affinity getWeakAffinity() {
-        return weakAffinity;
-    }
-
-    /**
-     * Set the invocation weak affinity.
-     *
-     * @param weakAffinity the invocation weak affinity (must not be {@code null})
-     */
-    public void setWeakAffinity(final Affinity weakAffinity) {
-        Assert.checkNotNullParam("weakAffinity", weakAffinity);
-        this.weakAffinity = weakAffinity;
     }
 
     AuthenticationConfiguration getAuthenticationConfiguration() {
@@ -569,21 +402,9 @@ public final class EJBClientInvocationContext extends Attachable {
         return new FutureResponse();
     }
 
-    static final Object PROCEED_ASYNC = new Object();
-
     void proceedAsynchronously() {
-        assert !holdsLock(lock);
-        synchronized (lock) {
-            if (asyncState == AsyncState.SYNCHRONOUS) {
-                blockingCaller = false;
-                if (getInvokedMethod().getReturnType() == void.class) {
-                    asyncState = AsyncState.ONE_WAY;
-                    this.resultReady(NULL_RESPONSE);
-                } else {
-                    asyncState = AsyncState.ASYNCHRONOUS;
-                }
-                lock.notifyAll();
-            }
+        if (getInvokedMethod().getReturnType() == void.class) {
+            this.discardResult();
         }
     }
 
@@ -624,13 +445,6 @@ public final class EJBClientInvocationContext extends Attachable {
                     if (invocationTimeout <= 0) {
                         // no timeout; lighter code path
                         while (state.isWaiting()) {
-                            switch (asyncState) {
-                                case ASYNCHRONOUS:
-                                    return PROCEED_ASYNC;
-                                case ONE_WAY:
-                                    this.resultReady(NULL_RESPONSE);
-                                    break;
-                            }
                             try {
                                 lock.wait();
                             } catch (InterruptedException e) {
@@ -644,19 +458,10 @@ public final class EJBClientInvocationContext extends Attachable {
                         while (state.isWaiting()) {
                             if (remaining == 0) {
                                 // timed out
-                                if (state != State.CANCEL_REQ) {
-                                    state = State.CANCEL_REQ;
-                                    cancel = true;
-                                }
-                                this.resultReady(new InvocationTimeoutResultProducer(invocationTimeout));
+                                state = State.FAILED;
+                                cancel = true;
+                                this.cachedResult = new TimeoutException("No invocation response received in " + invocationTimeout + " milliseconds");
                                 break;
-                            }
-                            switch (asyncState) {
-                                case ASYNCHRONOUS:
-                                    return PROCEED_ASYNC;
-                                case ONE_WAY:
-                                    this.resultReady(NULL_RESPONSE);
-                                    break;
                             }
                             try {
                                 lock.wait(remaining / 1_000_000L, (int) (remaining % 1_000_000L));
@@ -669,9 +474,13 @@ public final class EJBClientInvocationContext extends Attachable {
                 } finally {
                     blockingCaller = false;
                 }
+                if (state == State.FAILED) {
+                    throw (Exception) cachedResult;
+                }
             }
             if (cancel) {
-                getReceiver().cancelInvocation(receiverInvocationContext, false);
+                final EJBReceiver receiver = getReceiver();
+                if (receiver != null) receiver.cancelInvocation(receiverInvocationContext, false);
             }
             return getResult();
         } finally {
@@ -683,10 +492,6 @@ public final class EJBClientInvocationContext extends Attachable {
         assert !holdsLock(lock);
         final EJBReceiverInvocationContext.ResultProducer resultProducer;
         synchronized (lock) {
-            if (asyncState != AsyncState.ONE_WAY) {
-                asyncState = AsyncState.ONE_WAY;
-                lock.notifyAll();
-            }
             if (state == State.DONE) {
                 return;
             }
@@ -713,7 +518,7 @@ public final class EJBClientInvocationContext extends Attachable {
         }
     }
 
-    void failed(Throwable exception) {
+    void failed(Exception exception) {
         assert !holdsLock(lock);
         synchronized (lock) {
             switch (state) {
@@ -743,7 +548,8 @@ public final class EJBClientInvocationContext extends Attachable {
                 // a cancel request and change the current state
                 state = State.CANCEL_REQ;
             }
-            return getReceiver().cancelInvocation(receiverInvocationContext, mayInterruptIfRunning);
+            final EJBReceiver receiver = getReceiver();
+            return receiver != null && receiver.cancelInvocation(receiverInvocationContext, mayInterruptIfRunning);
         }
 
         public boolean isCancelled() {

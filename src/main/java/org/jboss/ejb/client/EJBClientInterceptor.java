@@ -60,4 +60,16 @@ public interface EJBClientInterceptor {
      * @throws Exception if an invocation error occurred
      */
     Object handleInvocationResult(EJBClientInvocationContext context) throws Exception;
+
+    /**
+     * Optionally handle a session creation invocation.  Explicit session creation is always a blocking operation.  The
+     * default operation forwards to the next interceptor in the chain.
+     *
+     * @param context the session creation invocation context (not {@code null})
+     * @return the stateful EJB locator (must not be {@code null})
+     * @throws Exception if an invocation error occurred
+     */
+    default StatefulEJBLocator<?> handleSessionCreation(EJBSessionCreationInvocationContext context) throws Exception {
+        return context.proceed();
+    }
 }

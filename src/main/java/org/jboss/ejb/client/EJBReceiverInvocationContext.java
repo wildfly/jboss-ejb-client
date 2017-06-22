@@ -22,6 +22,7 @@ import java.util.Arrays;
 
 import javax.net.ssl.SSLContext;
 
+import org.wildfly.common.Assert;
 import org.wildfly.security.auth.client.AuthenticationConfiguration;
 
 /**
@@ -29,7 +30,7 @@ import org.wildfly.security.auth.client.AuthenticationConfiguration;
  *
  * @author <a href="mailto:david.lloyd@redhat.com">David M. Lloyd</a>
  */
-public final class EJBReceiverInvocationContext {
+public final class EJBReceiverInvocationContext extends AbstractReceiverInvocationContext {
 
     private final EJBClientInvocationContext clientInvocationContext;
 
@@ -64,30 +65,23 @@ public final class EJBReceiverInvocationContext {
     }
 
     /**
-     * Get the client invocation context associated with this receiver invocation context.
+     * Indicate that a request failed locally with the given exception cause.
      *
-     * @return the client invocation context
+     * @param cause the failure cause (must not be {@code null})
      */
+    public void requestFailed(Exception cause) {
+        Assert.checkNotNullParam("cause", cause);
+        clientInvocationContext.failed(cause);
+    }
+
     public EJBClientInvocationContext getClientInvocationContext() {
         return clientInvocationContext;
     }
 
-    /**
-     * Get the authentication configuration of the request.  The configuration may be associated with the proxy,
-     * or it may have been inherited from the environment.
-     *
-     * @return the authentication configuration of the request (not {@code null})
-     */
     public AuthenticationConfiguration getAuthenticationConfiguration() {
         return clientInvocationContext.getAuthenticationConfiguration();
     }
 
-    /**
-     * Get the SSL context of the request.  The SSL context may be associated with the proxy,
-     * or it may have been inherited from the environment.
-     *
-     * @return the SSL context of the request, or {@code null} if no SSL context is configured
-     */
     public SSLContext getSSLContext() {
         return clientInvocationContext.getSSLContext();
     }

@@ -25,8 +25,6 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.lang.reflect.Method;
-import java.net.InetAddress;
-import java.net.InetSocketAddress;
 import java.net.URI;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
@@ -49,14 +47,8 @@ import org.jboss.ejb._private.Logs;
 import org.wildfly.common.Assert;
 import org.wildfly.common.context.ContextManager;
 import org.wildfly.common.context.Contextual;
-import org.wildfly.common.net.CidrAddress;
-import org.wildfly.common.net.Inet;
-import org.wildfly.discovery.AttributeValue;
 import org.wildfly.discovery.Discovery;
-import org.wildfly.discovery.FilterSpec;
 import org.wildfly.discovery.ServiceType;
-import org.wildfly.discovery.ServiceURL;
-import org.wildfly.discovery.ServicesQueue;
 import org.wildfly.security.auth.client.AuthenticationConfiguration;
 
 /**
@@ -78,7 +70,6 @@ public final class EJBClientContext extends Attachable implements Contextual<EJB
     private static final Supplier<EJBClientContext> GETTER = doPrivileged((PrivilegedAction<Supplier<EJBClientContext>>) CONTEXT_MANAGER::getPrivilegedSupplier);
 
     private static final EJBTransportProvider[] NO_TRANSPORT_PROVIDERS = new EJBTransportProvider[0];
-    private static final String[] NO_STRINGS = new String[0];
 
     /**
      * The discovery attribute name which contains the application and module name of the located EJB.
@@ -439,16 +430,41 @@ public final class EJBClientContext extends Attachable implements Contextual<EJB
         return null;
     }
 
-    ServicesQueue discover(final FilterSpec filterSpec) {
-        return getDiscovery().discover(EJB_SERVICE_TYPE, filterSpec);
-    }
-
     Discovery getDiscovery() {
         return DISCOVERY_SUPPLIER.get();
     }
 
     InterceptorList getInterceptors(final Class<?> invokedProxy, final Method method) {
         return proxyInfoValue.get(invokedProxy).getInterceptors(method);
+    }
+
+    InterceptorList getInterceptors(final Class<?> invokedProxy) {
+        return proxyInfoValue.get(invokedProxy).getClassInterceptors();
+    }
+
+    /**
+     * Resolve the receiver for the given destination.  If there is no handler then an exception is raised.
+     *
+     * @param destination the destination URI
+     * @param locator the locator to use for error reports (must not be {@code null})
+     * @return the resolved receiver (not {@code null})
+     */
+    EJBReceiver resolveReceiver(final URI destination, final EJBLocator<?> locator) {
+        if (destination == null) {
+            throw Logs.INVOCATION.noDestinationEstablished(locator);
+        }
+        final String scheme = destination.getScheme();
+        for (EJBTransportProvider transportProvider : transportProviders) {
+            if (transportProvider.supportsProtocol(scheme)) {
+                final EJBReceiver receiver = transportProvider.getReceiver(receiverContext, scheme);
+                if (receiver != null) return receiver;
+            }
+        }
+        throw Logs.INVOCATION.noEJBReceiverAvailable(destination);
+    }
+
+    ClusterNodeSelector getClusterNodeSelector() {
+        return clusterNodeSelector;
     }
 
     static final class ClassInterceptor {
@@ -677,210 +693,13 @@ public final class EJBClientContext extends Attachable implements Contextual<EJB
     }
 
     <T> StatefulEJBLocator<T> createSession(final StatelessEJBLocator<T> statelessLocator, final AuthenticationConfiguration authenticationConfiguration, final SSLContext sslContext) throws Exception {
-        final LocatedAction<StatefulEJBLocator<T>, StatelessEJBLocator<T>, T> action =
-            (receiver, originalLocator, newAffinity, ac, sc) -> receiver.createSession(originalLocator.withNewAffinity(newAffinity), ac, sc);
+        InterceptorList interceptorList = getInterceptors(statelessLocator.getViewType());
+        final EJBSessionCreationInvocationContext context = new EJBSessionCreationInvocationContext(statelessLocator, this, authenticationConfiguration, sslContext, interceptorList);
 
         Logs.INVOCATION.tracef("Calling createSession(locator = %s)",statelessLocator);
 
-        return performLocatedAction(statelessLocator, action, Affinity.NONE, authenticationConfiguration, sslContext);
-    }
-
-    interface LocatedAction<R, L extends EJBLocator<T>, T> {
-        R execute(EJBReceiver receiver, L originalLocator, Affinity newAffinity, final AuthenticationConfiguration authenticationConfiguration, final SSLContext sslContext) throws Exception;
-    }
-
-    <R, L extends EJBLocator<T>, T> R performLocatedAction(final L locator, final LocatedAction<R, L, T> locatedAction, final Affinity weakAffinity, final AuthenticationConfiguration authenticationConfiguration, final SSLContext sslContext) throws Exception {
-        final Affinity affinity = locator.getAffinity();
-
-        Logs.INVOCATION.tracef("Calling performLocatedAction(locator = %s, weak affinity = %s)", locator, weakAffinity);
-
-        FilterSpec filterSpec, fallbackFilterSpec;
-
-        if (affinity instanceof URIAffinity || affinity == Affinity.LOCAL) {
-            final String scheme = affinity.getUri().getScheme();
-            final EJBReceiver receiver = getTransportProvider(scheme);
-            if (receiver == null) {
-                throw Logs.MAIN.noTransportProvider(locator, scheme);
-            }
-            return locatedAction.execute(receiver, locator, affinity, authenticationConfiguration, sslContext);
-        } else if (affinity instanceof NodeAffinity) {
-            filterSpec = FilterSpec.equal(FILTER_ATTR_NODE, ((NodeAffinity) affinity).getNodeName());
-            return doFirstMatchDiscovery(locatedAction, locator, filterSpec, null, authenticationConfiguration, sslContext);
-        } else if (affinity instanceof ClusterAffinity) {
-            if (weakAffinity instanceof NodeAffinity) {
-                filterSpec = FilterSpec.all(
-                    FilterSpec.equal(FILTER_ATTR_CLUSTER, ((ClusterAffinity) affinity).getClusterName()),
-                    FilterSpec.equal(FILTER_ATTR_NODE, ((NodeAffinity) weakAffinity).getNodeName()),
-                    getFilterSpec(locator.getIdentifier().getModuleIdentifier())
-                );
-                fallbackFilterSpec = FilterSpec.all(
-                    FilterSpec.equal(FILTER_ATTR_CLUSTER, ((ClusterAffinity) affinity).getClusterName()),
-                    FilterSpec.hasAttribute(FILTER_ATTR_NODE),
-                    getFilterSpec(locator.getIdentifier().getModuleIdentifier())
-                );
-                return doFirstMatchDiscovery(locatedAction, locator, filterSpec, fallbackFilterSpec, authenticationConfiguration, sslContext);
-            } else if (weakAffinity instanceof URIAffinity || weakAffinity == Affinity.LOCAL) {
-                // try direct
-                final String scheme = affinity.getUri().getScheme();
-                final EJBReceiver receiver = getTransportProvider(scheme);
-                if (receiver != null) {
-                    return locatedAction.execute(receiver, locator, affinity, authenticationConfiguration, sslContext);
-                }
-                // otherwise, fall out
-            }
-            filterSpec = FilterSpec.all(
-                FilterSpec.equal(FILTER_ATTR_CLUSTER, ((ClusterAffinity) affinity).getClusterName()),
-                getFilterSpec(locator.getIdentifier().getModuleIdentifier())
-            );
-            return doClusterDiscovery(locatedAction, locator, filterSpec, authenticationConfiguration, sslContext);
-        } else {
-            // no affinity in particular
-            filterSpec = getFilterSpec(locator.getIdentifier().getModuleIdentifier());
-            return doFirstMatchDiscovery(locatedAction, locator, filterSpec, null, authenticationConfiguration, sslContext);
-        }
-    }
-
-    <R, L extends EJBLocator<T>, T> R doFirstMatchDiscovery(final LocatedAction<R, L, T> locatedAction, final L locator, final FilterSpec filterSpec, final FilterSpec fallbackFilterSpec, final AuthenticationConfiguration authenticationConfiguration, final SSLContext sslContext) throws Exception {
-        try (final ServicesQueue queue = discover(filterSpec)) {
-            ServiceURL serviceURL;
-            while ((serviceURL = queue.takeService()) != null) {
-                final URI location = serviceURL.getLocationURI();
-                final EJBReceiver transportProvider = getTransportProvider(location.getScheme());
-                if (transportProvider != null) {
-                    return locatedAction.execute(transportProvider, locator, new URIAffinity(location), authenticationConfiguration, sslContext);
-                }
-            }
-            if (fallbackFilterSpec != null) {
-                assert locator.getAffinity() instanceof ClusterAffinity;
-                return doClusterDiscovery(locatedAction, locator, fallbackFilterSpec, authenticationConfiguration, sslContext);
-            } else {
-                throw Logs.MAIN.noEJBReceiverAvailable(locator);
-            }
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw Logs.MAIN.operationInterrupted();
-        }
-    }
-
-    <R, L extends EJBLocator<T>, T> R doClusterDiscovery(final LocatedAction<R, L, T> locatedAction, final L locator, final FilterSpec filterSpec, final AuthenticationConfiguration authenticationConfiguration, final SSLContext sslContext) throws Exception {
-        Map<String, URI> nodes = new HashMap<>();
-        List<Throwable> problems;
-        try (final ServicesQueue queue = discover(filterSpec)) {
-            ServiceURL serviceURL;
-            while ((serviceURL = queue.takeService()) != null) {
-                final URI location = serviceURL.getLocationURI();
-                final EJBReceiver transportProvider = getTransportProvider(location.getScheme());
-                if (transportProvider != null && satisfiesSourceAddress(serviceURL, transportProvider)) {
-                    final AttributeValue nodeNameValue = serviceURL.getFirstAttributeValue(FILTER_ATTR_NODE);
-                    // should always be true, but no harm in checking
-                    if (nodeNameValue != null) {
-                        nodes.put(nodeNameValue.toString(), location);
-                    }
-                }
-            }
-            problems = queue.getProblems();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw Logs.MAIN.operationInterrupted();
-        }
-        if (nodes.isEmpty()) {
-            throw withSuppressed(Logs.MAIN.noEJBReceiverAvailable(locator), problems);
-        } else if (nodes.size() == 1) {
-            // just one choice, use it
-            final Map.Entry<String, URI> entry = nodes.entrySet().iterator().next();
-            final String nodeName = entry.getKey();
-            final URI uri = entry.getValue();
-            final EJBReceiver transportProvider = getTransportProvider(uri.getScheme());
-            if (transportProvider != null) {
-                return locatedAction.execute(transportProvider, locator, new NodeAffinity(nodeName), authenticationConfiguration, sslContext);
-            } else {
-                // special case; the provider was removed at an inopportune time; it's OK to return an error then
-                throw Logs.MAIN.noEJBReceiverAvailable(locator);
-            }
-        }
-        // we have to run through the node selection process
-        ArrayList<String> availableNodes = new ArrayList<>(nodes.size());
-        ArrayList<String> connectedNodes = new ArrayList<>(nodes.size());
-        for (Map.Entry<String, URI> entry : nodes.entrySet()) {
-            final String nodeName = entry.getKey();
-            final URI uri = entry.getValue();
-            final EJBReceiver transportProvider = getTransportProvider(uri.getScheme());
-            if (transportProvider != null) {
-                availableNodes.add(nodeName);
-                if (transportProvider.isConnected(uri)) {
-                    connectedNodes.add(nodeName);
-                }
-            }
-        }
-        final ClusterNodeSelector selector = this.clusterNodeSelector;
-        final String selectedNode = selector.selectNode(((ClusterAffinity) locator.getAffinity()).getClusterName(), connectedNodes.toArray(NO_STRINGS), availableNodes.toArray(NO_STRINGS));
-        if (selectedNode == null) {
-            throw Logs.MAIN.selectorReturnedNull(selector);
-        }
-        final URI uri = nodes.get(selectedNode);
-        if (uri == null) {
-            throw Logs.MAIN.noEJBReceiverAvailable(locator);
-        }
-        final EJBReceiver transportProvider = getTransportProvider(uri.getScheme());
-        if (transportProvider != null) {
-            return locatedAction.execute(transportProvider, locator, new URIAffinity(uri), authenticationConfiguration, sslContext);
-        } else {
-            // special case; the provider was removed at an inopportune time; it's OK to return an error then
-            throw Logs.MAIN.noEJBReceiverAvailable(locator);
-        }
-    }
-
-    FilterSpec getFilterSpec(EJBModuleIdentifier identifier) {
-        final String appName = identifier.getAppName();
-        final String moduleName = identifier.getModuleName();
-        final String distinctName = identifier.getDistinctName();
-        if (distinctName != null && ! distinctName.isEmpty()) {
-            if (appName.isEmpty()) {
-                return FilterSpec.equal(FILTER_ATTR_EJB_MODULE_DISTINCT, moduleName + '/' + distinctName);
-            } else {
-                return FilterSpec.equal(FILTER_ATTR_EJB_MODULE_DISTINCT, appName + '/' + moduleName + '/' + distinctName);
-            }
-        } else {
-            if (appName.isEmpty()) {
-                return FilterSpec.equal(FILTER_ATTR_EJB_MODULE, moduleName);
-            } else {
-                return FilterSpec.equal(FILTER_ATTR_EJB_MODULE, appName + '/' + moduleName);
-            }
-        }
-    }
-
-    boolean satisfiesSourceAddress(ServiceURL serviceURL, EJBReceiver receiver) {
-        final List<AttributeValue> values = serviceURL.getAttributeValues(FILTER_ATTR_SOURCE_IP);
-        // treat as match
-        if (values.isEmpty()) return true;
-        final URI uri = serviceURL.getLocationURI();
-        InetSocketAddress sourceAddress = receiver.getSourceAddress(new InetSocketAddress(uri.getHost(), uri.getPort()));
-        InetAddress inetAddress;
-        if (sourceAddress != null) {
-            inetAddress = sourceAddress.getAddress();
-        } else {
-            inetAddress = null;
-        }
-        for (AttributeValue value : values) {
-            if (! value.isString()) {
-                continue;
-            }
-            final CidrAddress matchAddress = Inet.parseCidrAddress(value.toString());
-            if (matchAddress == null) {
-                // invalid address
-                continue;
-            }
-
-            // now do the test
-            if (inetAddress == null) {
-                if (matchAddress.getNetmaskBits() == 0) {
-                    return true;
-                }
-            } else if (matchAddress.matches(inetAddress)) {
-                return true;
-            }
-        }
-        return false;
+        //noinspection unchecked
+        return (StatefulEJBLocator<T>) context.proceed().narrowTo(statelessLocator.getViewType());
     }
 
     InterceptorList getClassPathInterceptors() {

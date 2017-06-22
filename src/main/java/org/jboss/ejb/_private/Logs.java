@@ -24,6 +24,7 @@ import org.jboss.ejb.client.EJBIdentifier;
 import org.jboss.ejb.client.EJBLocator;
 import org.jboss.ejb.client.EJBMethodLocator;
 import org.jboss.ejb.client.EJBReceiver;
+import org.jboss.ejb.client.StatelessEJBLocator;
 import org.jboss.logging.BasicLogger;
 import org.jboss.logging.annotations.Cause;
 import org.jboss.logging.annotations.LogMessage;
@@ -46,6 +47,7 @@ import javax.transaction.SystemException;
 
 import java.io.IOException;
 import java.io.InvalidObjectException;
+import java.net.URI;
 import java.util.Set;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.ExecutionException;
@@ -147,8 +149,8 @@ public interface Logs extends BasicLogger {
 
     // @Message(id = 23, value = "EJB client interceptor %s is already registered")
 
-    @Message(id = 24, value = "Not able to find EJB matching \"%s\"")
-    IllegalStateException noEJBReceiverAvailable(final EJBLocator<?> locator);
+    @Message(id = 24, value = "No EJB receiver available for handling destination \"%s\"")
+    IllegalStateException noEJBReceiverAvailable(final URI locator);
 
     // @Message(id = 25, value = "No EJB receiver available for handling %s")
     // @Message(id = 26, value = "%s has not been associated with %s")
@@ -309,6 +311,18 @@ public interface Logs extends BasicLogger {
 
     @Message(id = 75, value = "No transport provider available for URI scheme %2$s for locator %1$s")
     IllegalStateException noTransportProvider(EJBLocator<?> locator, String scheme);
+
+    @Message(id = 76, value = "Configured selector \"%s\" returned unknown node \"%s\"")
+    IllegalStateException selectorReturnedUnknownNode(Object selector, String nodeName);
+
+    @Message(id = 77, value = "EJB receiver \"%s\" returned a null session EJB locator for EJB \"%s\"")
+    IllegalArgumentException nullSessionLocator(EJBReceiver receiver, StatelessEJBLocator<?> statelessLocator);
+
+    @Message(id = 78, value = "EJB receiver \"%s\" returned a stateful locator with the wrong view type (expected %s, but actual was %s)")
+    IllegalArgumentException viewTypeMismatch(EJBReceiver receiver, Class<?> expectedType, Class<?> actualType);
+
+    @Message(id = 79, value = "Unable to discover destination for request for EJB %s")
+    IllegalStateException noDestinationEstablished(EJBLocator<?> locator);
 
     // Proxy API errors
 

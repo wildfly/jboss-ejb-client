@@ -30,9 +30,14 @@ import org.wildfly.transaction.client.ContextTransactionManager;
  *
  * @author <a href="mailto:david.lloyd@redhat.com">David M. Lloyd</a>
  */
-@ClientInterceptorPriority(ClientInterceptorPriority.JBOSS_BEFORE + 1)
+@ClientInterceptorPriority(TransactionInterceptor.PRIORITY)
 public final class TransactionInterceptor implements EJBClientInterceptor {
     private static final ContextTransactionManager transactionManager = ContextTransactionManager.getInstance();
+
+    /**
+     * This interceptor's priority.
+     */
+    public static final int PRIORITY = ClientInterceptorPriority.JBOSS_BEFORE;
 
     /**
      * Construct a new instance.

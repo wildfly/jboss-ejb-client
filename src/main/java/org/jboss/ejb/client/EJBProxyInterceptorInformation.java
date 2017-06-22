@@ -33,11 +33,13 @@ final class EJBProxyInterceptorInformation<T> {
     private final EJBProxyInformation<T> proxyInformation;
     private final IdentityHashMap<Method, InterceptorList> interceptorsByMethod;
     private final HashMap<Method, InterceptorList> interceptorsByMethodFallback;
+    private final InterceptorList classInterceptors;
 
-    private EJBProxyInterceptorInformation(final EJBProxyInformation<T> proxyInformation, final IdentityHashMap<Method, InterceptorList> interceptorsByMethod) {
+    private EJBProxyInterceptorInformation(final EJBProxyInformation<T> proxyInformation, final IdentityHashMap<Method, InterceptorList> interceptorsByMethod, final InterceptorList classInterceptors) {
         this.proxyInformation = proxyInformation;
         this.interceptorsByMethod = interceptorsByMethod;
         this.interceptorsByMethodFallback = new HashMap<>(interceptorsByMethod);
+        this.classInterceptors = classInterceptors;
     }
 
     static <T> EJBProxyInterceptorInformation<T> construct(Class<T> clazz, EJBClientContext clientContext) {
@@ -60,7 +62,7 @@ final class EJBProxyInterceptorInformation<T> {
             final InterceptorList list6 = method.getInterceptors();
             interceptorsByMethod.put(method.getMethod(), cache.computeIfAbsent(list6.combine(list5).combine(list4).combine(tailList), Function.identity()));
         }
-        return new EJBProxyInterceptorInformation<T>(proxyInformation, interceptorsByMethod);
+        return new EJBProxyInterceptorInformation<T>(proxyInformation, interceptorsByMethod, cache.computeIfAbsent(list5.combine(tailList), Function.identity()));
     }
 
     EJBProxyInformation<T> getProxyInformation() {
@@ -70,5 +72,9 @@ final class EJBProxyInterceptorInformation<T> {
     InterceptorList getInterceptors(Method method) {
         final InterceptorList list = interceptorsByMethod.get(method);
         return list == null ? interceptorsByMethodFallback.get(method) : list;
+    }
+
+    InterceptorList getClassInterceptors() {
+        return classInterceptors;
     }
 }

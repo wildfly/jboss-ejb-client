@@ -36,6 +36,7 @@ import org.jboss.ejb.client.EJBLocator;
 import org.jboss.ejb.client.EJBReceiver;
 import org.jboss.ejb.client.EJBReceiverContext;
 import org.jboss.ejb.client.EJBReceiverInvocationContext;
+import org.jboss.ejb.client.EJBReceiverSessionCreationContext;
 import org.jboss.ejb.client.RequestSendFailedException;
 import org.jboss.ejb.client.StatefulEJBLocator;
 import org.jboss.ejb.client.StatelessEJBLocator;
@@ -120,7 +121,7 @@ class RemoteEJBReceiver extends EJBReceiver {
         final EJBLocator<?> locator = clientInvocationContext.getLocator();
         final AuthenticationConfiguration authenticationConfiguration = receiverContext.getAuthenticationConfiguration();
         final SSLContext sslContext = receiverContext.getSSLContext();
-        final IoFuture<ConnectionPeerIdentity> futureConnection = getConnection(locator, authenticationConfiguration, sslContext);
+        final IoFuture<ConnectionPeerIdentity> futureConnection = getConnection(receiverContext.getClientInvocationContext().getDestination(), authenticationConfiguration, sslContext);
         // this actually causes the invocation to move forward
         futureConnection.addNotifier(notifier, receiverContext);
     }
@@ -134,9 +135,12 @@ class RemoteEJBReceiver extends EJBReceiver {
         }
     }
 
-    protected <T> StatefulEJBLocator<T> createSession(final StatelessEJBLocator<T> statelessLocator, final AuthenticationConfiguration authenticationConfiguration, final SSLContext sslContext) throws Exception {
+    protected StatefulEJBLocator<?> createSession(final EJBReceiverSessionCreationContext context) throws Exception {
+        final StatelessEJBLocator<?> statelessLocator = context.getClientInvocationContext().getLocator().asStateless();
+        final AuthenticationConfiguration authenticationConfiguration = context.getAuthenticationConfiguration();
+        final SSLContext sslContext = context.getSSLContext();
         try {
-            IoFuture<ConnectionPeerIdentity> futureConnection = getConnection(statelessLocator, authenticationConfiguration, sslContext);
+            IoFuture<ConnectionPeerIdentity> futureConnection = getConnection(context.getClientInvocationContext().getDestination(), authenticationConfiguration, sslContext);
             final ConnectionPeerIdentity identity = futureConnection.getInterruptibly();
             final EJBClientChannel ejbClientChannel = getClientChannel(identity.getConnection());
             return ejbClientChannel.openSession(statelessLocator, identity);
@@ -164,14 +168,7 @@ class RemoteEJBReceiver extends EJBReceiver {
         }
     }
 
-    private <T> IoFuture<ConnectionPeerIdentity> getConnection(final EJBLocator<T> locator, AuthenticationConfiguration authenticationConfiguration, SSLContext sslContext) throws Exception {
-        final Affinity affinity = locator.getAffinity();
-        final URI target;
-        if (affinity instanceof URIAffinity) {
-            target = affinity.getUri();
-        } else {
-            throw new IllegalArgumentException("Invalid EJB affinity");
-        }
+    private <T> IoFuture<ConnectionPeerIdentity> getConnection(final URI target, AuthenticationConfiguration authenticationConfiguration, SSLContext sslContext) throws Exception {
         if (authenticationConfiguration == null) {
             authenticationConfiguration = CLIENT.getAuthenticationConfiguration(target, AuthenticationContext.captureCurrent(), -1, "ejb", "jboss");
         }

@@ -36,7 +36,6 @@ import javax.net.ssl.SSLContext;
 import org.jboss.ejb._private.Logs;
 import org.wildfly.common.Assert;
 import org.wildfly.security.auth.client.AuthenticationConfiguration;
-import org.wildfly.security.auth.client.AuthenticationContext;
 import org.wildfly.security.auth.client.AuthenticationContextConfigurationClient;
 
 /**
@@ -163,58 +162,51 @@ final class EJBInvocationHandler<T> extends Attachable implements InvocationHand
         if (Logs.INVOCATION.isDebugEnabled()) {
             Logs.INVOCATION.debugf("Calling invoke(module = %s, strong affinity = %s, weak affinity = %s): ", locatorRef.get().getIdentifier(), locatorRef.get().getAffinity(), weakAffinity);
         }
-        return clientContext.performLocatedAction(locatorRef.get(), (receiver, originalLocator, newAffinity, authenticationConfiguration, sslContext) -> {
-            final EJBClientInvocationContext invocationContext = new EJBClientInvocationContext(this, clientContext, proxy, args, methodInfo);
-            invocationContext.setReceiver(receiver);
-            invocationContext.setLocator(locatorRef.get().withNewAffinity(newAffinity));
-            invocationContext.setBlockingCaller(true);
-            final AuthenticationContext context = AuthenticationContext.captureCurrent();
-            invocationContext.setAuthenticationConfiguration(authenticationConfiguration == null ? CLIENT.getAuthenticationConfiguration(newAffinity.getUri(), context, -1, "ejb", "jboss") : authenticationConfiguration);
-            invocationContext.setSSLContext(sslContext == null ? CLIENT.getSSLContext(newAffinity.getUri(), context, "ejb", "jboss") : sslContext);
-            invocationContext.setWeakAffinity(getWeakAffinity());
+        final EJBClientInvocationContext invocationContext = new EJBClientInvocationContext(this, clientContext, proxy, args, methodInfo);
+        invocationContext.setLocator(locatorRef.get());
+        invocationContext.setBlockingCaller(true);
+        invocationContext.setWeakAffinity(getWeakAffinity());
+        invocationContext.setAuthenticationConfiguration(authenticationConfiguration);
+        invocationContext.setSSLContext(sslContext);
 
-            try {
-                // send the request
-                invocationContext.sendRequest();
+        try {
+            // send the request
+            invocationContext.sendRequest();
 
-                if (! async && ! methodInfo.isClientAsync()) {
-                    // wait for invocation to complete
-                    final Object value = invocationContext.awaitResponse(this);
-                    if (value != EJBClientInvocationContext.PROCEED_ASYNC) {
-                        return value;
-                    }
-                    // proceed asynchronously
-                }
-                invocationContext.setBlockingCaller(false);
-                // force async...
-                if (method.getReturnType() == Future.class) {
-                    return invocationContext.getFutureResponse();
-                } else if (method.getReturnType() == void.class) {
-                    invocationContext.setDiscardResult();
-                    // Void return
-                    return null;
-                } else {
-                    // wrap return always
-                    EJBClient.setFutureResult(invocationContext.getFutureResponse());
-                    return null;
-                }
-            } catch (RuntimeException e) {
-                throw e;
-            } catch (Exception e) {
-                boolean remoteException = false;
-                for (Class<?> exception : method.getExceptionTypes()) {
-                    if (exception.isAssignableFrom(e.getClass())) {
-                        throw e;
-                    } else if (RemoteException.class.equals(exception)) {
-                        remoteException = true;
-                    }
-                }
-                if (remoteException) {
-                    throw new RemoteException("Error", e);
-                }
-                throw new EJBException(e);
+            if (! async && ! methodInfo.isClientAsync()) {
+                // wait for invocation to complete
+                return invocationContext.awaitResponse(this);
             }
-        }, weakAffinity, authenticationConfiguration, sslContext);
+            // proceed asynchronously
+            invocationContext.setBlockingCaller(false);
+            // force async...
+            if (method.getReturnType() == Future.class) {
+                return invocationContext.getFutureResponse();
+            } else if (method.getReturnType() == void.class) {
+                invocationContext.setDiscardResult();
+                // Void return
+                return null;
+            } else {
+                // wrap return always
+                EJBClient.setFutureResult(invocationContext.getFutureResponse());
+                return null;
+            }
+        } catch (RuntimeException e) {
+            throw e;
+        } catch (Exception e) {
+            boolean remoteException = false;
+            for (Class<?> exception : method.getExceptionTypes()) {
+                if (exception.isAssignableFrom(e.getClass())) {
+                    throw e;
+                } else if (RemoteException.class.equals(exception)) {
+                    remoteException = true;
+                }
+            }
+            if (remoteException) {
+                throw new RemoteException("Error", e);
+            }
+            throw new EJBException(e);
+        }
     }
 
     void setWeakAffinity(Affinity newWeakAffinity) {
