@@ -20,6 +20,7 @@ package org.jboss.ejb.client;
 
 import java.io.Serializable;
 import java.lang.reflect.Method;
+import java.net.URI;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.concurrent.ExecutionException;
@@ -68,6 +69,8 @@ public final class EJBClientInvocationContext extends Attachable {
 
     // selected target receiver
     private EJBReceiver receiver;
+    private URI destination;
+    private Affinity targetAffinity;
     private EJBLocator<?> locator;
     private State state = State.WAITING;
     private AsyncState asyncState = AsyncState.SYNCHRONOUS;
@@ -290,6 +293,46 @@ public final class EJBClientInvocationContext extends Attachable {
         synchronized (lock) {
             this.blockingCaller = blockingCaller;
         }
+    }
+
+    /**
+     * Get the resolved destination of this invocation.  If the destination is not yet decided, {@code null} is
+     * returned.
+     *
+     * @return the resolved destination of this invocation, or {@code null} if it is not yet known
+     */
+    public URI getDestination() {
+        return destination;
+    }
+
+    /**
+     * Set the resolved destination of this invocation.  The destination must be decided by the end of the interceptor
+     * chain, otherwise an exception will result.
+     *
+     * @param destination the resolved destination of this invocation
+     */
+    public void setDestination(final URI destination) {
+        this.destination = destination;
+    }
+
+    /**
+     * Get the resolved target affinity of this invocation.  If the target affinity is not yet decided, {@code null}
+     * is returned.  The target affinity is retained only for the lifetime of the invocation; it may be used to aid
+     * in resolving the {@linkplain #setDestination(URI) destination to set}.
+     *
+     * @return the resolved target affinity of this invocation, or {@code null} if it is not yet known
+     */
+    public Affinity getTargetAffinity() {
+        return targetAffinity;
+    }
+
+    /**
+     * Set the resolved target affinity of this invocation.
+     *
+     * @param targetAffinity the resolved target affinity of this invocation
+     */
+    public void setTargetAffinity(final Affinity targetAffinity) {
+        this.targetAffinity = targetAffinity;
     }
 
     /**
