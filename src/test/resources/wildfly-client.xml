@@ -1,0 +1,17 @@
+<?xml version="1.0" ?>
+
+<configuration>
+    <authentication-client xmlns="urn:elytron:1.0">
+        <authentication-rules>
+            <rule use-configuration="all"/>
+        </authentication-rules>
+        <authentication-configurations>
+            <configuration name="all">
+                <set-user-name name="test"/>
+                <credentials>
+                    <clear-password password="test"/>
+                </credentials>
+            </configuration>
+        </authentication-configurations>
+    </authentication-client>
+</configuration>

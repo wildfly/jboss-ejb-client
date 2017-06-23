@@ -39,6 +39,7 @@ import org.wildfly.client.config.ConfigXMLParseException;
 import org.wildfly.client.config.ConfigurationXMLStreamReader;
 
 import javax.ejb.EJBException;
+import javax.ejb.NoSuchEJBException;
 import javax.naming.CommunicationException;
 import javax.naming.Name;
 import javax.naming.NamingException;
@@ -150,7 +151,7 @@ public interface Logs extends BasicLogger {
     // @Message(id = 23, value = "EJB client interceptor %s is already registered")
 
     @Message(id = 24, value = "No EJB receiver available for handling destination \"%s\"")
-    IllegalStateException noEJBReceiverAvailable(final URI locator);
+    NoSuchEJBException noEJBReceiverAvailable(final URI locator);
 
     // @Message(id = 25, value = "No EJB receiver available for handling %s")
     // @Message(id = 26, value = "%s has not been associated with %s")
@@ -310,7 +311,7 @@ public interface Logs extends BasicLogger {
     IllegalStateException selectorReturnedNull(Object selector);
 
     @Message(id = 75, value = "No transport provider available for URI scheme %2$s for locator %1$s")
-    IllegalStateException noTransportProvider(EJBLocator<?> locator, String scheme);
+    NoSuchEJBException noTransportProvider(EJBLocator<?> locator, String scheme);
 
     @Message(id = 76, value = "Configured selector \"%s\" returned unknown node \"%s\"")
     IllegalStateException selectorReturnedUnknownNode(Object selector, String nodeName);
@@ -322,7 +323,10 @@ public interface Logs extends BasicLogger {
     IllegalArgumentException viewTypeMismatch(EJBReceiver receiver, Class<?> expectedType, Class<?> actualType);
 
     @Message(id = 79, value = "Unable to discover destination for request for EJB %s")
-    IllegalStateException noDestinationEstablished(EJBLocator<?> locator);
+    NoSuchEJBException noDestinationEstablished(EJBLocator<?> locator);
+
+    @Message(id = 80, value = "Request not sent")
+    IllegalStateException requestNotSent();
 
     // Proxy API errors
 

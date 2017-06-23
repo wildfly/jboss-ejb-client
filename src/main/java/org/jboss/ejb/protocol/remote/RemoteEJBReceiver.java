@@ -29,7 +29,6 @@ import java.security.PrivilegedAction;
 import javax.ejb.CreateException;
 import javax.net.ssl.SSLContext;
 
-import org.jboss.ejb.client.Affinity;
 import org.jboss.ejb.client.AttachmentKey;
 import org.jboss.ejb.client.EJBClientInvocationContext;
 import org.jboss.ejb.client.EJBLocator;
@@ -40,7 +39,6 @@ import org.jboss.ejb.client.EJBReceiverSessionCreationContext;
 import org.jboss.ejb.client.RequestSendFailedException;
 import org.jboss.ejb.client.StatefulEJBLocator;
 import org.jboss.ejb.client.StatelessEJBLocator;
-import org.jboss.ejb.client.URIAffinity;
 import org.jboss.remoting3.ClientServiceHandle;
 import org.jboss.remoting3.Connection;
 import org.jboss.remoting3.ConnectionPeerIdentity;
@@ -79,7 +77,7 @@ class RemoteEJBReceiver extends EJBReceiver {
                 ejbClientChannel = getClientChannel(peerIdentity.getConnection());
             } catch (IOException e) {
                 // should generally not be possible but we should handle it cleanly regardless
-                attachment.resultReady(new EJBReceiverInvocationContext.ResultProducer.Failed(new RequestSendFailedException(e, true)));
+                attachment.requestFailed(new RequestSendFailedException(e + "@" + peerIdentity.getConnection().getPeerURI(), false), peerIdentity.getConnection().getEndpoint().getXnioWorker());
                 return;
             }
             attachment.getClientInvocationContext().putAttachment(EJBCC_KEY, ejbClientChannel);
@@ -91,7 +89,7 @@ class RemoteEJBReceiver extends EJBReceiver {
         }
 
         public void handleFailed(final IOException exception, final EJBReceiverInvocationContext attachment) {
-            attachment.resultReady(new EJBReceiverInvocationContext.ResultProducer.Failed(new RequestSendFailedException(exception, true)));
+            attachment.requestFailed(new RequestSendFailedException(exception, false), Endpoint.getCurrent().getXnioWorker());
         }
     };
 

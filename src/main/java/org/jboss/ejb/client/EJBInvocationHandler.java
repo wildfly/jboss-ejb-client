@@ -162,7 +162,7 @@ final class EJBInvocationHandler<T> extends Attachable implements InvocationHand
         if (Logs.INVOCATION.isDebugEnabled()) {
             Logs.INVOCATION.debugf("Calling invoke(module = %s, strong affinity = %s, weak affinity = %s): ", locatorRef.get().getIdentifier(), locatorRef.get().getAffinity(), weakAffinity);
         }
-        final EJBClientInvocationContext invocationContext = new EJBClientInvocationContext(this, clientContext, proxy, args, methodInfo);
+        final EJBClientInvocationContext invocationContext = new EJBClientInvocationContext(this, clientContext, proxy, args, methodInfo, 8);
         invocationContext.setLocator(locatorRef.get());
         invocationContext.setBlockingCaller(true);
         invocationContext.setWeakAffinity(getWeakAffinity());
@@ -171,11 +171,11 @@ final class EJBInvocationHandler<T> extends Attachable implements InvocationHand
 
         try {
             // send the request
-            invocationContext.sendRequest();
+            invocationContext.sendRequestInitial();
 
             if (! async && ! methodInfo.isClientAsync()) {
                 // wait for invocation to complete
-                return invocationContext.awaitResponse(this);
+                return invocationContext.awaitResponse();
             }
             // proceed asynchronously
             invocationContext.setBlockingCaller(false);

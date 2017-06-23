@@ -18,12 +18,14 @@
 
 package org.jboss.ejb.client;
 
-import javax.transaction.Transaction;
+import java.net.URI;
 
 import org.jboss.ejb._private.Logs;
 import org.jboss.ejb.client.annotation.ClientInterceptorPriority;
 import org.jboss.ejb.client.annotation.ClientTransactionPolicy;
+import org.wildfly.transaction.client.AbstractTransaction;
 import org.wildfly.transaction.client.ContextTransactionManager;
+import org.wildfly.transaction.client.RemoteTransaction;
 
 /**
  * The client interceptor which associates the current transaction with the invocation.
@@ -47,7 +49,13 @@ public final class TransactionInterceptor implements EJBClientInterceptor {
 
     public void handleInvocation(final EJBClientInvocationContext context) throws Exception {
         final ClientTransactionPolicy transactionPolicy = context.getTransactionPolicy();
-        final Transaction transaction = transactionManager.getTransaction();
+        final AbstractTransaction transaction = transactionManager.getTransaction();
+
+        if (transaction instanceof RemoteTransaction) {
+            final URI location = ((RemoteTransaction) transaction).getLocation();
+            // we can only route this request to one place; do not load-balance
+            context.setDestination(location);
+        }
 
         if (transactionPolicy.failIfTransactionAbsent()) {
             if (transaction == null) {

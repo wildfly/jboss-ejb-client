@@ -28,4 +28,10 @@ interface DiscoveredNodeRegistry {
     NodeInformation getNodeInformation(String nodeName);
 
     List<NodeInformation> getAllNodeInformation();
+
+    void addNode(String clusterName, String nodeName);
+
+    void removeNode(String clusterName, String nodeName);
+
+    void removeCluster(String clusterName);
 }

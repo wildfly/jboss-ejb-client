@@ -71,6 +71,8 @@ final class RemotingEJBDiscoveryProvider implements DiscoveryProvider, Discovere
 
     private final Set<URI> failedDestinations = Collections.newSetFromMap(new ConcurrentHashMap<URI, Boolean>());
 
+    private final ConcurrentHashMap<String, Set<String>> clusterNodes = new ConcurrentHashMap<>();
+
     public RemotingEJBDiscoveryProvider() {
         Endpoint.getCurrent(); //this will blow up if remoting is not present, preventing this from being registered
     }
@@ -81,6 +83,19 @@ final class RemotingEJBDiscoveryProvider implements DiscoveryProvider, Discovere
 
     public List<NodeInformation> getAllNodeInformation() {
         return new ArrayList<>(nodes.values());
+    }
+
+    public void addNode(final String clusterName, final String nodeName) {
+        clusterNodes.computeIfAbsent(clusterName, ignored -> Collections.newSetFromMap(new ConcurrentHashMap<>())).add(nodeName);
+    }
+
+    public void removeNode(final String clusterName, final String nodeName) {
+        clusterNodes.getOrDefault(clusterName, Collections.emptySet()).remove(nodeName);
+    }
+
+    public void removeCluster(final String clusterName) {
+        final Set<String> removed = clusterNodes.remove(clusterName);
+        if (removed != null) removed.clear();
     }
 
     public DiscoveryRequest discover(final ServiceType serviceType, final FilterSpec filterSpec, final DiscoveryResult result) {
@@ -115,6 +130,52 @@ final class RemotingEJBDiscoveryProvider implements DiscoveryProvider, Discovere
             }
             ok = true;
             discoveryAttempt.connectAndDiscover(uri);
+        }
+        // also establish cluster nodes if known
+        for (Map.Entry<String, Set<String>> entry : clusterNodes.entrySet()) {
+            final String clusterName = entry.getKey();
+            final Set<String> nodeSet = entry.getValue();
+            int maxConnections = ejbClientContext.getMaximumConnectedClusterNodes();
+            nodeLoop: for (String nodeName : nodeSet) {
+                if (maxConnections <= 0) break;
+                final NodeInformation nodeInformation = nodes.get(nodeName);
+                if (nodeInformation != null) {
+                    final NodeInformation.ClusterNodeInformation clusterInfo = nodeInformation.getClustersByName().get(clusterName);
+                    if (clusterInfo != null) {
+                        final Map<String, CidrAddressTable<InetSocketAddress>> tables = clusterInfo.getAddressTablesByProtocol();
+                        for (Map.Entry<String, CidrAddressTable<InetSocketAddress>> entry2 : tables.entrySet()) {
+                            final String protocol = entry2.getKey();
+                            final CidrAddressTable<InetSocketAddress> addressTable = entry2.getValue();
+                            for (CidrAddressTable.Mapping<InetSocketAddress> mapping : addressTable) {
+                                final InetSocketAddress destination = mapping.getValue();
+                                final InetSocketAddress source = ejbReceiver.getSourceAddress(destination);
+                                if (source == null ? mapping.getRange().getNetmaskBits() == 0 : source.equals(destination)) {
+                                    try {
+                                        final InetAddress destinationAddress = destination.getAddress();
+                                        String hostName = Inet.getHostNameIfResolved(destinationAddress);
+                                        if (hostName == null) {
+                                            if (destinationAddress instanceof Inet6Address) {
+                                                hostName = '[' + Inet.toOptimalString(destinationAddress) + ']';
+                                            } else {
+                                                hostName = Inet.toOptimalString(destinationAddress);
+                                            }
+                                        }
+                                        final URI uri = new URI(protocol, null, hostName, destination.getPort(), null, null, null);
+                                        if (! failedDestinations.contains(uri)) {
+                                            maxConnections--;
+                                            discoveryAttempt.connectAndDiscover(uri);
+                                            ok = true;
+                                            continue nodeLoop;
+                                        }
+                                    } catch (URISyntaxException e) {
+                                        // ignore URI and try the next one
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
         }
         // special second pass - retry everything because all were marked failed
         if (discoveryConnections && ! ok) {
@@ -277,8 +338,9 @@ final class RemotingEJBDiscoveryProvider implements DiscoveryProvider, Discovere
         void countDown() {
             if (outstandingCount.decrementAndGet() == 0) {
                 final DiscoveryResult result = this.discoveryResult;
+                final String node = filterSpec.accept(NODE_EXTRACTOR);
+                final EJBModuleIdentifier module = filterSpec.accept(MI_EXTRACTOR);
                 if (phase2) {
-                    final String node = filterSpec.accept(NODE_EXTRACTOR);
                     if (node != null) {
                         final NodeInformation information = nodes.get(node);
                         if (information != null) information.discover(serviceType, filterSpec, result);
@@ -289,8 +351,6 @@ final class RemotingEJBDiscoveryProvider implements DiscoveryProvider, Discovere
                 } else {
                     boolean ok = false;
                     // optimize for simple module identifier and node name queries
-                    final EJBModuleIdentifier module = filterSpec.accept(MI_EXTRACTOR);
-                    final String node = filterSpec.accept(NODE_EXTRACTOR);
                     if (node != null) {
                         final NodeInformation information = nodes.get(node);
                         if (information != null) {

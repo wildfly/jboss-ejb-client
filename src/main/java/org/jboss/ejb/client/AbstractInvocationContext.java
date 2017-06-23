@@ -31,11 +31,11 @@ import org.wildfly.common.Assert;
  * @author <a href="mailto:david.lloyd@redhat.com">David M. Lloyd</a>
  */
 public abstract class AbstractInvocationContext extends Attachable {
-    protected final EJBClientContext ejbClientContext;
+    private final EJBClientContext ejbClientContext;
     // selected target receiver
-    protected EJBReceiver receiver;
-    protected EJBLocator<?> locator;
-    protected Affinity weakAffinity = Affinity.NONE;
+    private EJBReceiver receiver;
+    private EJBLocator<?> locator;
+    private Affinity weakAffinity = Affinity.NONE;
     private URI destination;
     private Affinity targetAffinity;
     private Map<String, Object> contextData;
@@ -174,4 +174,9 @@ public abstract class AbstractInvocationContext extends Attachable {
     public Class<?> getViewClass() {
         return locator.getViewType();
     }
+
+    /**
+     * Request that the current operation be retried if possible.
+     */
+    public abstract void requestRetry();
 }

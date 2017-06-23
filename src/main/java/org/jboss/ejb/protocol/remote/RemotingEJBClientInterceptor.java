@@ -30,14 +30,12 @@ import org.jboss.ejb.client.EJBSessionCreationInvocationContext;
 import org.jboss.ejb.client.NodeAffinity;
 import org.jboss.ejb.client.StatefulEJBLocator;
 import org.jboss.ejb.client.annotation.ClientInterceptorPriority;
-import org.kohsuke.MetaInfServices;
 
 /**
  * The interceptor responsible for relaying invocation information back into the Remoting-based discovery system.
  *
  * @author <a href="mailto:david.lloyd@redhat.com">David M. Lloyd</a>
  */
-@MetaInfServices
 @ClientInterceptorPriority(RemotingEJBClientInterceptor.PRIORITY)
 public final class RemotingEJBClientInterceptor implements EJBClientInterceptor {
 

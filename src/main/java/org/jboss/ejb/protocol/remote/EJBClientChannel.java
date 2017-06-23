@@ -96,6 +96,7 @@ import org.wildfly.transaction.client.provider.remoting.SimpleIdResolver;
 import org.xnio.Cancellable;
 import org.xnio.FutureResult;
 import org.xnio.IoFuture;
+import org.xnio.XnioWorker;
 
 /**
  * @author <a href="mailto:david.lloyd@redhat.com">David M. Lloyd</a>
@@ -223,6 +224,7 @@ class EJBClientChannel {
                         int memberCount = StreamUtils.readPackedSignedInt32(message);
                         for (int j = 0; j < memberCount; j ++) {
                             final String nodeName = message.readUTF();
+                            discoveredNodeRegistry.addNode(clusterName, nodeName);
                             final NodeInformation nodeInformation = discoveredNodeRegistry.getNodeInformation(nodeName);
                             Logs.INVOCATION.debugf("Received CLUSTER_TOPOLOGY(%x) message, registering cluster %s to node %s", msg, clusterName, nodeName);
 
@@ -250,6 +252,7 @@ class EJBClientChannel {
                     int clusterCount = StreamUtils.readPackedSignedInt32(message);
                     for (int i = 0; i < clusterCount; i ++) {
                         String clusterName = message.readUTF();
+                        discoveredNodeRegistry.removeCluster(clusterName);
 
                         Logs.INVOCATION.debugf("Received CLUSTER_TOPOLOGY_REMOVAL(%x) message for cluster %s", msg, clusterName);
 
@@ -266,6 +269,7 @@ class EJBClientChannel {
                         int memberCount = StreamUtils.readPackedSignedInt32(message);
                         for (int j = 0; j < memberCount; j ++) {
                             String nodeName = message.readUTF();
+                            discoveredNodeRegistry.removeNode(clusterName, nodeName);
                             final NodeInformation nodeInformation = discoveredNodeRegistry.getNodeInformation(nodeName);
                             nodeInformation.removeCluster(clusterName);
 
@@ -444,9 +448,9 @@ class EJBClientChannel {
                 out.close();
             }
         } catch (IOException e) {
-            receiverContext.resultReady(new EJBReceiverInvocationContext.ResultProducer.Failed(new RequestSendFailedException(e.getMessage(), e, true)));
+            receiverContext.requestFailed(new RequestSendFailedException(e.getMessage() + " @ " + peerIdentity.getConnection().getPeerURI(), e, true), getRetryExecutor());
         } catch (RollbackException | SystemException | RuntimeException e) {
-            receiverContext.resultReady(new EJBReceiverInvocationContext.ResultProducer.Failed(new EJBException(e.getMessage(), e)));
+            receiverContext.requestFailed(new EJBException(e.getMessage(), e), getRetryExecutor());
             return;
         }
     }
@@ -794,7 +798,7 @@ class EJBClientChannel {
                     }
                     case Protocol.NO_SUCH_EJB: {
                         final String message = response.readUTF();
-                        throw new NoSuchEJBException(message);
+                        throw new NoSuchEJBException(message + " @ " + getChannel().getConnection().getPeerURI());
                     }
                     case Protocol.BAD_VIEW_TYPE: {
                         final String message = response.readUTF();
@@ -966,7 +970,7 @@ class EJBClientChannel {
 //                            context.setWeakAffinity();
                         }
                     } catch (RuntimeException | IOException | RollbackException | SystemException e) {
-                        receiverInvocationContext.resultReady(new EJBReceiverInvocationContext.ResultProducer.Failed(new EJBException(e)));
+                        receiverInvocationContext.requestFailed(new EJBException(e), getRetryExecutor());
                         safeClose(inputStream);
                         break;
                     }
@@ -979,7 +983,7 @@ class EJBClientChannel {
                         final XAOutflowHandle outflowHandle = getOutflowHandle();
                         if (outflowHandle != null) outflowHandle.forgetEnlistment();
                     }
-                    receiverInvocationContext.resultReady(new EJBReceiverInvocationContext.ResultProducer.Failed(Logs.REMOTING.requestCancelled()));
+                    receiverInvocationContext.requestCancelled();
                     break;
                 }
                 case Protocol.APPLICATION_EXCEPTION: {
@@ -998,9 +1002,9 @@ class EJBClientChannel {
                         final EJBModuleIdentifier moduleIdentifier = receiverInvocationContext.getClientInvocationContext().getLocator().getIdentifier().getModuleIdentifier();
                         final NodeInformation nodeInformation = discoveredNodeRegistry.getNodeInformation(getChannel().getConnection().getRemoteEndpointName());
                         nodeInformation.removeModule(EJBClientChannel.this, moduleIdentifier);
-                        receiverInvocationContext.resultReady(new EJBReceiverInvocationContext.ResultProducer.Failed(new NoSuchEJBException(message)));
+                        receiverInvocationContext.requestFailed(new NoSuchEJBException(message + " @ " + getChannel().getConnection().getPeerURI()), getRetryExecutor());
                     } catch (IOException e) {
-                        receiverInvocationContext.resultReady(new EJBReceiverInvocationContext.ResultProducer.Failed(new EJBException("Failed to read 'No such EJB' response", e)));
+                        receiverInvocationContext.requestFailed(new EJBException("Failed to read 'No such EJB' response", e), getRetryExecutor());
                     } finally {
                         safeClose(inputStream);
                     }
@@ -1014,9 +1018,9 @@ class EJBClientChannel {
                             if (outflowHandle != null) outflowHandle.forgetEnlistment();
                         }
                         final String message = inputStream.readUTF();
-                        receiverInvocationContext.resultReady(new EJBReceiverInvocationContext.ResultProducer.Failed(Logs.REMOTING.invalidViewTypeForInvocation(message)));
+                        receiverInvocationContext.requestFailed(Logs.REMOTING.invalidViewTypeForInvocation(message), getRetryExecutor());
                     } catch (IOException e) {
-                        receiverInvocationContext.resultReady(new EJBReceiverInvocationContext.ResultProducer.Failed(new EJBException("Failed to read 'Bad EJB view type' response", e)));
+                        receiverInvocationContext.requestFailed(new EJBException("Failed to read 'Bad EJB view type' response", e), getRetryExecutor());
                     } finally {
                         safeClose(inputStream);
                     }
@@ -1031,9 +1035,9 @@ class EJBClientChannel {
                         }
                         final String message = inputStream.readUTF();
                         // todo: I don't think this is the best exception type for this case...
-                        receiverInvocationContext.resultReady(new EJBReceiverInvocationContext.ResultProducer.Failed(new IllegalArgumentException(message)));
+                        receiverInvocationContext.requestFailed(new IllegalArgumentException(message), getRetryExecutor());
                     } catch (IOException e) {
-                        receiverInvocationContext.resultReady(new EJBReceiverInvocationContext.ResultProducer.Failed(new EJBException("Failed to read 'No such EJB method' response", e)));
+                        receiverInvocationContext.requestFailed(new EJBException("Failed to read 'No such EJB method' response", e), getRetryExecutor());
                     } finally {
                         safeClose(inputStream);
                     }
@@ -1047,9 +1051,9 @@ class EJBClientChannel {
                             if (outflowHandle != null) outflowHandle.forgetEnlistment();
                         }
                         final String message = inputStream.readUTF();
-                        receiverInvocationContext.resultReady(new EJBReceiverInvocationContext.ResultProducer.Failed(new EJBException(message)));
+                        receiverInvocationContext.requestFailed(new EJBException(message), getRetryExecutor());
                     } catch (IOException e) {
-                        receiverInvocationContext.resultReady(new EJBReceiverInvocationContext.ResultProducer.Failed(new EJBException("Failed to read 'Session not active' response", e)));
+                        receiverInvocationContext.requestFailed(new EJBException("Failed to read 'Session not active' response", e), getRetryExecutor());
                     } finally {
                         safeClose(inputStream);
                     }
@@ -1063,9 +1067,9 @@ class EJBClientChannel {
                             if (outflowHandle != null) outflowHandle.forgetEnlistment();
                         }
                         final String message = inputStream.readUTF();
-                        receiverInvocationContext.resultReady(new EJBReceiverInvocationContext.ResultProducer.Failed(new EJBException(message)));
+                        receiverInvocationContext.requestFailed(new EJBException(message), getRetryExecutor());
                     } catch (IOException e) {
-                        receiverInvocationContext.resultReady(new EJBReceiverInvocationContext.ResultProducer.Failed(new EJBException("Failed to read 'EJB not stateful' response", e)));
+                        receiverInvocationContext.requestFailed(new EJBException("Failed to read 'EJB not stateful' response"), getRetryExecutor());
                     } finally {
                         safeClose(inputStream);
                     }
@@ -1080,18 +1084,18 @@ class EJBClientChannel {
                 default: {
                     free();
                     safeClose(inputStream);
-                    receiverInvocationContext.resultReady(new EJBReceiverInvocationContext.ResultProducer.Failed(new EJBException("Unknown protocol response")));
+                    receiverInvocationContext.requestFailed(new EJBException("Unknown protocol response"), getRetryExecutor());
                     break;
                 }
             }
         }
 
         public void handleClosed() {
-            receiverInvocationContext.resultReady(new EJBReceiverInvocationContext.ResultProducer.Failed(new EJBException(new ClosedChannelException())));
+            receiverInvocationContext.requestFailed(new EJBException(new ClosedChannelException()), getRetryExecutor());
         }
 
         public void handleException(IOException cause) {
-            receiverInvocationContext.resultReady(new EJBReceiverInvocationContext.ResultProducer.Failed(new EJBException(cause)));
+            receiverInvocationContext.requestFailed(new EJBException(cause), getRetryExecutor());
         }
 
         XAOutflowHandle getOutflowHandle() {
@@ -1207,6 +1211,10 @@ class EJBClientChannel {
                 safeClose(inputStream);
             }
         }
+    }
+
+    private XnioWorker getRetryExecutor() {
+        return getChannel().getConnection().getEndpoint().getXnioWorker();
     }
 
     static class ResponseMessageInputStream extends MessageInputStream implements ByteInput {

@@ -478,7 +478,7 @@ final class EJBServerChannel {
             os.writeShort(invId);
             final Marshaller marshaller = marshallerFactory.createMarshaller(configuration);
             marshaller.start(new NoFlushByteOutput(Marshalling.createByteOutput(os)));
-            marshaller.writeObject(new RequestSendFailedException(e));
+            marshaller.writeObject(new RequestSendFailedException(e.getMessage() + "@" + channel.getConnection().getPeerURI(), e));
             marshaller.writeByte(0);
             marshaller.finish();
         } catch (IOException e2) {

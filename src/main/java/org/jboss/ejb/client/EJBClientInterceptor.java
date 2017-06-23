@@ -44,7 +44,7 @@ public interface EJBClientInterceptor {
 
     /**
      * Handle the invocation.  Implementations may short-circuit the invocation by throwing an exception.  This method
-     * should process any per-interceptor state and return.
+     * should process any per-interceptor state and call {@link EJBClientInvocationContext#sendRequest()}.
      *
      * @param context the invocation context
      * @throws Exception if an invocation error occurs
@@ -60,6 +60,10 @@ public interface EJBClientInterceptor {
      * @throws Exception if an invocation error occurred
      */
     Object handleInvocationResult(EJBClientInvocationContext context) throws Exception;
+
+    default void handleInvocationAsyncFailure(EJBClientInvocationContext context, Exception failure) {
+
+    }
 
     /**
      * Optionally handle a session creation invocation.  Explicit session creation is always a blocking operation.  The

@@ -63,6 +63,11 @@ public interface ClusterNodeSelector {
     ClusterNodeSelector RANDOM_CONNECTED = useRandomConnectedNode(useRandomUnconnectedNode(FIRST_AVAILABLE));
 
     /**
+     * Use a random available node, regardless of whether it is connected.
+     */
+    ClusterNodeSelector RANDOM = (clusterName, connectedNodes, totalAvailableNodes) -> totalAvailableNodes[ThreadLocalRandom.current().nextInt(totalAvailableNodes.length)];
+
+    /**
      * A simple default selector which uses {@link #simpleConnectionThresholdRandomSelector(int)} with a minimum of
      * 5 connections.
      */
@@ -70,13 +75,13 @@ public interface ClusterNodeSelector {
 
     /**
      * A simple threshold-based random selector.  If the minimum is met, then a random connected node is used, otherwise
-     * a random unconnected node is used, increasing the total number of connections for future invocations.
+     * a random available node is used, increasing the total number of connections for future invocations.
      *
      * @param minimum the minimum number of connected nodes to attempt to acquire
      * @return the node selector (not {@code null})
      */
     static ClusterNodeSelector simpleConnectionThresholdRandomSelector(int minimum) {
-        return minimumConnectionThreshold(minimum, useRandomUnconnectedNode(useRandomConnectedNode(FIRST_AVAILABLE)), useRandomConnectedNode(useRandomUnconnectedNode(FIRST_AVAILABLE)));
+        return minimumConnectionThreshold(minimum, RANDOM, useRandomConnectedNode(useRandomUnconnectedNode(FIRST_AVAILABLE)));
     }
 
     /**

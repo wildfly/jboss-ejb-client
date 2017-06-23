@@ -19,6 +19,8 @@
 package org.jboss.ejb.client;
 
 import java.util.Arrays;
+import java.util.concurrent.Executor;
+import java.util.function.Supplier;
 
 import javax.net.ssl.SSLContext;
 
@@ -65,13 +67,25 @@ public final class EJBReceiverInvocationContext extends AbstractReceiverInvocati
     }
 
     /**
-     * Indicate that a request failed locally with the given exception cause.
+     * Indicate that a request failed locally with the given exception cause.  Retries are called in the
+     * current thread before this method returns.
      *
      * @param cause the failure cause (must not be {@code null})
      */
     public void requestFailed(Exception cause) {
+        requestFailed(cause, Runnable::run);
+    }
+
+    /**
+     * Indicate that a request failed locally with the given exception cause.
+     *
+     * @param cause the failure cause (must not be {@code null})
+     * @param retryExecutor the executor to use for retry attempts (must not be {@code null})
+     */
+    public void requestFailed(Exception cause, Executor retryExecutor) {
         Assert.checkNotNullParam("cause", cause);
-        clientInvocationContext.failed(cause);
+        Assert.checkNotNullParam("retryExecutor", retryExecutor);
+        clientInvocationContext.failed(cause, retryExecutor);
     }
 
     public EJBClientInvocationContext getClientInvocationContext() {
@@ -92,6 +106,11 @@ public final class EJBReceiverInvocationContext extends AbstractReceiverInvocati
     public interface ResultProducer {
 
         /**
+         * A result producer which produces a {@code null} return.
+         */
+        ResultProducer NULL = new Immediate(null);
+
+        /**
          * Get the result.
          *
          * @return the result
@@ -108,7 +127,7 @@ public final class EJBReceiverInvocationContext extends AbstractReceiverInvocati
          * A result producer for failure cases.
          */
         class Failed implements ResultProducer {
-            private final Exception cause;
+            private final Supplier<Exception> cause;
 
             /**
              * Construct a new instance.
@@ -116,14 +135,35 @@ public final class EJBReceiverInvocationContext extends AbstractReceiverInvocati
              * @param cause the failure cause
              */
             public Failed(final Exception cause) {
+                this(() -> {
+                    final StackTraceElement[] stackTrace = new Throwable().getStackTrace();
+                    cause.setStackTrace(Arrays.copyOfRange(stackTrace, 2, stackTrace.length));
+                    return cause;
+                });
+                Assert.checkNotNullParam("cause", cause);
+            }
+
+            /**
+             * Construct a new instance.
+             *
+             * @param cause a supplier which yields the failure cause
+             */
+            public Failed(final Supplier<Exception> cause) {
+                Assert.checkNotNullParam("cause", cause);
                 this.cause = cause;
             }
 
             public Object getResult() throws Exception {
-                final Exception cause = this.cause;
-                final StackTraceElement[] stackTrace = new Throwable().getStackTrace();
-                cause.setStackTrace(Arrays.copyOfRange(stackTrace, 1, stackTrace.length));
-                throw cause;
+                throw cause.get();
+            }
+
+            /**
+             * Get the exception supplier.
+             *
+             * @return the exception supplier (not {@code null})
+             */
+            public Supplier<Exception> getExceptionSupplier() {
+                return cause;
             }
 
             public void discardResult() {
