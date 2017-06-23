@@ -1124,15 +1124,18 @@ class EJBClientChannel {
                     unmarshaller.start(response);
                     result = unmarshaller.readObject();
                     int attachments = unmarshaller.readUnsignedByte();
+                    final EJBClientInvocationContext clientInvocationContext = receiverInvocationContext.getClientInvocationContext();
                     for (int i = 0; i < attachments; i ++) {
                         String key = unmarshaller.readObject(String.class);
                         if (key.equals(Affinity.WEAK_AFFINITY_CONTEXT_KEY)) {
-                            receiverInvocationContext.getClientInvocationContext().putAttachment(AttachmentKeys.WEAK_AFFINITY, unmarshaller.readObject(Affinity.class));
+                            final Affinity affinity = unmarshaller.readObject(Affinity.class);
+                            clientInvocationContext.putAttachment(AttachmentKeys.WEAK_AFFINITY, affinity);
+                            clientInvocationContext.setWeakAffinity(affinity);
                         } else if (key.equals(EJBClientInvocationContext.PRIVATE_ATTACHMENTS_KEY)) {
                             // skip
                             unmarshaller.readObject();
                         } else {
-                            receiverInvocationContext.getClientInvocationContext().getContextData().put(key, unmarshaller.readObject());
+                            clientInvocationContext.getContextData().put(key, unmarshaller.readObject());
                         }
                     }
                     unmarshaller.finish();

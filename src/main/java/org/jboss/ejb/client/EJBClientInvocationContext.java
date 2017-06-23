@@ -287,7 +287,7 @@ public final class EJBClientInvocationContext extends AbstractInvocationContext 
                 return chain[idx].getInterceptorInstance().handleInvocationResult(this);
             } finally {
                 resultDone = true;
-                final Affinity weakAffinity = getAttachment(AttachmentKeys.WEAK_AFFINITY);
+                final Affinity weakAffinity = getWeakAffinity();
                 if (weakAffinity != null) {
                     invocationHandler.setWeakAffinity(weakAffinity);
                 }
