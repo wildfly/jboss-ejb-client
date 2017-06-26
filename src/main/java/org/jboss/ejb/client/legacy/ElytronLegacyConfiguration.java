@@ -32,6 +32,7 @@ import org.wildfly.security.auth.client.AuthenticationConfiguration;
 import org.wildfly.security.auth.client.AuthenticationContext;
 import org.wildfly.security.auth.client.LegacyConfiguration;
 import org.wildfly.security.auth.client.MatchRule;
+import org.wildfly.security.sasl.SaslMechanismSelector;
 import org.wildfly.security.sasl.localuser.LocalUserClient;
 import org.xnio.OptionMap;
 import org.xnio.Options;
@@ -157,9 +158,9 @@ public final class ElytronLegacyConfiguration implements LegacyConfiguration {
             config = config.useMechanismProperties(props);
         }
         if (options.contains(Options.SASL_DISALLOWED_MECHANISMS)) {
-            config = config.forbidSaslMechanisms(options.get(Options.SASL_DISALLOWED_MECHANISMS).toArray(NO_STRINGS));
+            config = config.setSaslMechanismSelector(SaslMechanismSelector.DEFAULT.forbidMechanisms(options.get(Options.SASL_DISALLOWED_MECHANISMS).toArray(NO_STRINGS)));
         } else if (options.contains(Options.SASL_MECHANISMS)) {
-            config = config.allowSaslMechanisms(options.get(Options.SASL_MECHANISMS).toArray(NO_STRINGS));
+            config = config.setSaslMechanismSelector(SaslMechanismSelector.DEFAULT.addMechanisms(options.get(Options.SASL_MECHANISMS).toArray(NO_STRINGS)));
         }
         config = config.useProvidersFromClassLoader(ElytronLegacyConfiguration.class.getClassLoader());
         return config;
