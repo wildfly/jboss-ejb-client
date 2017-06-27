@@ -26,7 +26,6 @@ import java.util.Collections;
 import java.util.Iterator;
 import java.util.ServiceConfigurationError;
 import java.util.ServiceLoader;
-import java.util.function.Supplier;
 
 import org.jboss.ejb._private.Logs;
 import org.jboss.ejb.client.legacy.LegacyPropertiesConfiguration;
@@ -43,7 +42,7 @@ import org.wildfly.common.Assert;
  *
  * @author <a href="mailto:david.lloyd@redhat.com">David M. Lloyd</a>
  */
-final class ConfigurationBasedEJBClientContextSelector implements Supplier<EJBClientContext> {
+final class ConfigurationBasedEJBClientContextSelector {
     private static final EJBClientContext configuredContext;
 
     private static final String NS_EJB_CLIENT_3_0 = "urn:jboss:wildfly-client-ejb:3.0";
@@ -51,6 +50,9 @@ final class ConfigurationBasedEJBClientContextSelector implements Supplier<EJBCl
 
     static {
         configuredContext = loadConfiguration();
+    }
+
+    private ConfigurationBasedEJBClientContextSelector() {
     }
 
     private static EJBClientContext loadConfiguration() {
@@ -258,7 +260,7 @@ final class ConfigurationBasedEJBClientContextSelector implements Supplier<EJBCl
         }
     }
 
-    public EJBClientContext get() {
+    static EJBClientContext get() {
         return configuredContext;
     }
 }

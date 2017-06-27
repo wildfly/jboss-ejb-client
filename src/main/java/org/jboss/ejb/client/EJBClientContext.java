@@ -106,7 +106,11 @@ public final class EJBClientContext extends Attachable implements Contextual<EJB
     public static final String FILTER_ATTR_SOURCE_IP = "source-ip";
 
     static {
-        CONTEXT_MANAGER.setGlobalDefaultSupplier(new ConfigurationBasedEJBClientContextSelector());
+        CONTEXT_MANAGER.setGlobalDefaultSupplier(EJBClientContext::getDefault);
+    }
+
+    static EJBClientContext getDefault() {
+        return ConfigurationBasedEJBClientContextSelector.get();
     }
 
     private final EJBTransportProvider[] transportProviders;
