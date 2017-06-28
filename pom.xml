@@ -33,7 +33,7 @@
     </parent>
 
     <artifactId>jboss-ejb-client-legacy</artifactId>
-    <version>3.0.0.CR1</version>
+    <version>3.0.0.CR2-SNAPSHOT</version>
 
     <name>JBoss EJB Legacy Client</name>
     <description>Client library for legacy EJB applications working against Wildfly</description>
