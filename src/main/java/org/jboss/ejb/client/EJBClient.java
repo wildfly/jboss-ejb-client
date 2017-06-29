@@ -168,6 +168,40 @@ public final class EJBClient {
     }
 
     /**
+     * Create a new EJB session proxy.  The returned proxy will be cluster-aware if a cluster affinity is used in the locator.
+     *
+     * @param statelessLocator the stateless locator identifying the stateful EJB
+     * @param <T> the view type
+     * @return the new EJB locator
+     * @throws CreateException if an error occurs
+     */
+    public static <T> T createSessionProxy(final StatelessEJBLocator<T> statelessLocator) throws Exception {
+        return createSessionProxy(statelessLocator, null, null);
+    }
+
+    /**
+     * Create a new EJB session proxy.  The returned proxy will be cluster-aware if a cluster affinity is used in the locator.
+     *
+     * @param statelessLocator the stateless locator identifying the stateful EJB
+     * @param authenticationConfiguration the authentication configuration to use for the request
+     * @param sslContext the SSL context to use for the request
+     * @param <T> the view type
+     * @return the new EJB locator
+     * @throws CreateException if an error occurs
+     */
+    static <T> T createSessionProxy(final StatelessEJBLocator<T> statelessLocator, AuthenticationConfiguration authenticationConfiguration, SSLContext sslContext) throws Exception {
+        final StatefulEJBLocator<T> statefulLocator = createSession(statelessLocator, authenticationConfiguration, sslContext);
+        if (statelessLocator.getAffinity() instanceof ClusterAffinity) {
+            final Affinity weakAffinity = statefulLocator.getAffinity();
+            final T proxy = createProxy(statefulLocator.withNewAffinity(statelessLocator.getAffinity()), authenticationConfiguration, sslContext);
+            setWeakAffinity(proxy, weakAffinity);
+            return proxy;
+        } else {
+            return createProxy(statefulLocator, authenticationConfiguration, sslContext);
+        }
+    }
+
+    /**
      * Create a new EJB session.
      *
      * @param viewType     the view type class

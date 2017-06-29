@@ -83,13 +83,12 @@ public final class DiscoveryEJBClientInterceptor implements EJBClientInterceptor
         try {
             context.sendRequest();
         } catch (NoSuchEJBException | RequestSendFailedException e) {
+            processMissingTarget(context);
+            throw e;
+        } finally {
             if (problems != null) for (Throwable problem : problems) {
                 context.addSuppressed(problem);
             }
-            processMissingTarget(context);
-            throw e;
-        } catch (Exception e) {
-            throw withSuppressed(e, problems);
         }
     }
 
@@ -102,8 +101,8 @@ public final class DiscoveryEJBClientInterceptor implements EJBClientInterceptor
             throw e;
         }
         final EJBLocator<?> locator = context.getLocator();
-        if (locator.isStateful() && context.getWeakAffinity() == Affinity.NONE) {
-            // set the weak affinity to the location of the session!
+        if (locator.isStateful() && locator.getAffinity() instanceof ClusterAffinity && context.getWeakAffinity() == Affinity.NONE) {
+            // set the weak affinity to the location of the session (in case it failed over)
             final Affinity targetAffinity = context.getTargetAffinity();
             if (targetAffinity != null) {
                 context.setWeakAffinity(targetAffinity);
@@ -118,18 +117,32 @@ public final class DiscoveryEJBClientInterceptor implements EJBClientInterceptor
         return result;
     }
 
-    public StatefulEJBLocator<?> handleSessionCreation(final EJBSessionCreationInvocationContext context) throws Exception {
+    public SessionID handleSessionCreation(final EJBSessionCreationInvocationContext context) throws Exception {
         List<Throwable> problems = executeDiscovery(context);
-        StatefulEJBLocator<?> locator;
+        SessionID sessionID;
         try {
-            locator = context.proceed();
+            sessionID = context.proceed();
         } catch (NoSuchEJBException | RequestSendFailedException e) {
             processMissingTarget(context);
             throw withSuppressed(e, problems);
         } catch (Exception t) {
             throw withSuppressed(t, problems);
         }
-        if ((locator.getAffinity() == Affinity.NONE || locator.getAffinity() instanceof ClusterAffinity) && context.getWeakAffinity() == Affinity.NONE) {
+        final EJBLocator<?> locator = context.getLocator();
+        if (locator.getAffinity() == Affinity.NONE) {
+            // physically relocate this EJB
+            final Affinity targetAffinity = context.getTargetAffinity();
+            if (targetAffinity != null) {
+                context.setLocator(locator.withNewAffinity(targetAffinity));
+            } else {
+                final URI destination = context.getDestination();
+                if (destination != null) {
+                    context.setLocator(locator.withNewAffinity(URIAffinity.forUri(destination)));
+                }
+                // if destination is null, then an interceptor set the location
+            }
+        }
+        if (locator.getAffinity() instanceof ClusterAffinity && context.getWeakAffinity() == Affinity.NONE) {
             // set the weak affinity to the location of the session!
             final Affinity targetAffinity = context.getTargetAffinity();
             if (targetAffinity != null) {
@@ -142,7 +155,7 @@ public final class DiscoveryEJBClientInterceptor implements EJBClientInterceptor
                 // if destination is null, then an interceptor set the location
             }
         }
-        return locator;
+        return sessionID;
     }
 
     private void processMissingTarget(final AbstractInvocationContext context) {
@@ -192,9 +205,11 @@ public final class DiscoveryEJBClientInterceptor implements EJBClientInterceptor
             // Simple; just set a fixed destination
             context.setDestination(affinity.getUri());
             context.setTargetAffinity(affinity);
+            return null;
         } else if (affinity == Affinity.NONE && weakAffinity instanceof URIAffinity) {
             context.setDestination(weakAffinity.getUri());
             context.setTargetAffinity(weakAffinity);
+            return null;
         } else if (affinity == Affinity.NONE && weakAffinity instanceof NodeAffinity) {
             filterSpec = FilterSpec.equal(FILTER_ATTR_NODE, ((NodeAffinity) weakAffinity).getNodeName());
             return doFirstMatchDiscovery(context, filterSpec, null);
@@ -216,6 +231,7 @@ public final class DiscoveryEJBClientInterceptor implements EJBClientInterceptor
                 // try direct
                 context.setDestination(weakAffinity.getUri());
                 context.setTargetAffinity(weakAffinity);
+                return null;
             } else {
                 // regular cluster discovery
                 filterSpec = FilterSpec.all(
@@ -229,7 +245,6 @@ public final class DiscoveryEJBClientInterceptor implements EJBClientInterceptor
             filterSpec = getFilterSpec(locator.getIdentifier().getModuleIdentifier());
             return doAnyDiscovery(context, filterSpec, locator);
         }
-        return null;
     }
 
     private List<Throwable> doFirstMatchDiscovery(AbstractInvocationContext context, final FilterSpec filterSpec, final FilterSpec fallbackFilterSpec) {

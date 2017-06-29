@@ -144,29 +144,27 @@ class EJBRootContext extends AbstractContext {
         } catch (ClassNotFoundException e) {
             throw Logs.MAIN.lookupFailed(name, name, e);
         }
-        EJBLocator<?> locator;
         final NamingProvider namingProvider = this.namingProvider;
         final AuthenticationConfiguration authenticationConfiguration = namingProvider == null ? null : namingProvider.getAuthenticationConfiguration();
         final SSLContext sslContext = namingProvider == null ? null : namingProvider.getSSLContext();
-        final EJBIdentifier identifier = new EJBIdentifier(appName, moduleName, beanName, distinctName);
+        final EJBModuleIdentifier moduleIdentifier = new EJBModuleIdentifier(appName, moduleName, distinctName);
+        final EJBIdentifier identifier = new EJBIdentifier(moduleIdentifier, beanName);
+        final StatelessEJBLocator<?> statelessLocator = StatelessEJBLocator.create(view, identifier, affinity);
+        final Object proxy;
         if (stateful) {
             try {
-                locator = EJBClient.createSession(StatelessEJBLocator.create(view, identifier, affinity), authenticationConfiguration, sslContext);
+                proxy = EJBClient.createSessionProxy(statelessLocator, authenticationConfiguration, sslContext);
             } catch (Exception e) {
                 throw Logs.MAIN.lookupFailed(name, name, e);
             }
-            if (locator == null) {
-                throw Logs.MAIN.nullSessionCreated(name, name, affinity, identifier);
-            }
         } else {
-            locator = StatelessEJBLocator.create(view, identifier, affinity);
+            proxy = EJBClient.createProxy(statelessLocator, authenticationConfiguration, sslContext);
         }
-        Object proxy = EJBClient.createProxy(locator, authenticationConfiguration, sslContext);
 
         // if "invocation.timeout" is set in environment properties, set this value to created proxy
         Long invocationTimeout = getLongValueFromEnvironment(PROPERTY_KEY_INVOCATION_TIMEOUT);
         if (invocationTimeout != null) {
-            EJBClient.setInvocationTimeout(proxy, invocationTimeout, TimeUnit.MILLISECONDS);
+            EJBClient.setInvocationTimeout(proxy, invocationTimeout.longValue(), TimeUnit.MILLISECONDS);
         }
 
         return proxy;

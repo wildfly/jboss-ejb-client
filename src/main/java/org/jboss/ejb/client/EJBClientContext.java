@@ -719,8 +719,16 @@ public final class EJBClientContext extends Attachable implements Contextual<EJB
 
         Logs.INVOCATION.tracef("Calling createSession(locator = %s)",statelessLocator);
 
-        //noinspection unchecked
-        return (StatefulEJBLocator<T>) context.proceed().narrowTo(statelessLocator.getViewType());
+        final SessionID sessionID = context.proceed();
+        final Affinity affinity = context.getLocator().getAffinity();
+        final Affinity weakAffinity = context.getWeakAffinity();
+        if (weakAffinity == Affinity.NONE) {
+            // in-place
+            return statelessLocator.withSessionAndAffinity(sessionID, affinity);
+        } else {
+            // located in node
+            return statelessLocator.withSessionAndAffinity(sessionID, weakAffinity);
+        }
     }
 
     InterceptorList getClassPathInterceptors() {

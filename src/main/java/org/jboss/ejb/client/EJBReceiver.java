@@ -21,6 +21,8 @@ package org.jboss.ejb.client;
 import java.net.InetSocketAddress;
 import java.net.URI;
 
+import org.wildfly.common.Assert;
+
 /**
  * A receiver for EJB invocations.  Receivers can be associated with one or more client contexts.  This interface is
  * implemented by providers for EJB invocation services.
@@ -65,11 +67,20 @@ public abstract class EJBReceiver extends Attachable {
      * returned locator should have the same view type as the requested locator.
      *
      * @param receiverContext the EJB receiver session creation context
-     * @return the EJB locator for the newly opened session
-     * @throws IllegalArgumentException if the session creation request is made for a bean which is <i>not</i> a stateful
-     *                                  session bean
+     * @return the session ID for the newly opened session
+     * @throws IllegalArgumentException if the session creation request is made for a bean which is <i>not</i> a
+     * stateful session bean
      */
-    protected abstract StatefulEJBLocator<?> createSession(final EJBReceiverSessionCreationContext receiverContext) throws Exception;
+    protected SessionID createSession(final EJBReceiverSessionCreationContext receiverContext) throws Exception {
+        return createSession$$bridge(receiverContext).getSessionId();
+    }
+
+    /**
+     * @deprecated Compatibility bridge, remove at Final.
+     */
+    protected StatefulEJBLocator<?> createSession$$bridge(final EJBReceiverSessionCreationContext receiverContext) throws Exception {
+        throw Assert.unsupported();
+    }
 
     /**
      * Query the expected or actual source IP address configured for the given target URI.

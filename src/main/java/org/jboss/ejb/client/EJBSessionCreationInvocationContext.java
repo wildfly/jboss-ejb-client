@@ -49,10 +49,10 @@ public final class EJBSessionCreationInvocationContext extends AbstractInvocatio
     /**
      * Proceed with the next interceptor in the chain, calling the resolved receiver in the end.
      *
-     * @return the stateful locator (not {@code null})
+     * @return the session ID (not {@code null})
      * @throws Exception if the EJB session creation failed for some reason
      */
-    public StatefulEJBLocator<?> proceed() throws Exception {
+    public SessionID proceed() throws Exception {
         final int idx = interceptorChainIndex++;
         try {
             final EJBClientInterceptorInformation[] chain = interceptorList.getInformation();
@@ -63,14 +63,11 @@ public final class EJBSessionCreationInvocationContext extends AbstractInvocatio
                 final URI destination = getDestination();
                 final EJBReceiver receiver = getClientContext().resolveReceiver(destination, getLocator());
                 setReceiver(receiver);
-                final StatefulEJBLocator<?> sessionLocator = receiver.createSession(new EJBReceiverSessionCreationContext(this, authenticationConfiguration, sslContext));
-                if (sessionLocator == null) {
-                    throw Logs.INVOCATION.nullSessionLocator(receiver, getLocator().asStateless());
+                final SessionID sessionID = receiver.createSession(new EJBReceiverSessionCreationContext(this, authenticationConfiguration, sslContext));
+                if (sessionID == null) {
+                    throw Logs.INVOCATION.nullSessionID(receiver, getLocator().asStateless());
                 }
-                if (sessionLocator.getViewType() != getViewClass()) {
-                    throw Logs.INVOCATION.viewTypeMismatch(receiver, getViewClass(), sessionLocator.getViewType());
-                }
-                return sessionLocator;
+                return sessionID;
             } else {
                 return chain[idx].getInterceptorInstance().handleSessionCreation(this);
             }

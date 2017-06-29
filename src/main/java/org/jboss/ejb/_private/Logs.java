@@ -316,8 +316,8 @@ public interface Logs extends BasicLogger {
     @Message(id = 76, value = "Configured selector \"%s\" returned unknown node \"%s\"")
     IllegalStateException selectorReturnedUnknownNode(Object selector, String nodeName);
 
-    @Message(id = 77, value = "EJB receiver \"%s\" returned a null session EJB locator for EJB \"%s\"")
-    IllegalArgumentException nullSessionLocator(EJBReceiver receiver, StatelessEJBLocator<?> statelessLocator);
+    @Message(id = 77, value = "EJB receiver \"%s\" returned a null session ID for EJB \"%s\"")
+    IllegalArgumentException nullSessionID(EJBReceiver receiver, StatelessEJBLocator<?> statelessLocator);
 
     @Message(id = 78, value = "EJB receiver \"%s\" returned a stateful locator with the wrong view type (expected %s, but actual was %s)")
     IllegalArgumentException viewTypeMismatch(EJBReceiver receiver, Class<?> expectedType, Class<?> actualType);

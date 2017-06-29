@@ -73,7 +73,7 @@ public interface EJBClientInterceptor {
      * @return the stateful EJB locator (must not be {@code null})
      * @throws Exception if an invocation error occurred
      */
-    default StatefulEJBLocator<?> handleSessionCreation(EJBSessionCreationInvocationContext context) throws Exception {
+    default SessionID handleSessionCreation(EJBSessionCreationInvocationContext context) throws Exception {
         return context.proceed();
     }
 }

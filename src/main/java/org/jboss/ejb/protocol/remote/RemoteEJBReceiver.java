@@ -37,6 +37,7 @@ import org.jboss.ejb.client.EJBReceiverContext;
 import org.jboss.ejb.client.EJBReceiverInvocationContext;
 import org.jboss.ejb.client.EJBReceiverSessionCreationContext;
 import org.jboss.ejb.client.RequestSendFailedException;
+import org.jboss.ejb.client.SessionID;
 import org.jboss.ejb.client.StatefulEJBLocator;
 import org.jboss.ejb.client.StatelessEJBLocator;
 import org.jboss.remoting3.ClientServiceHandle;
@@ -133,7 +134,7 @@ class RemoteEJBReceiver extends EJBReceiver {
         }
     }
 
-    protected StatefulEJBLocator<?> createSession(final EJBReceiverSessionCreationContext context) throws Exception {
+    protected SessionID createSession(final EJBReceiverSessionCreationContext context) throws Exception {
         final StatelessEJBLocator<?> statelessLocator = context.getClientInvocationContext().getLocator().asStateless();
         final AuthenticationConfiguration authenticationConfiguration = context.getAuthenticationConfiguration();
         final SSLContext sslContext = context.getSSLContext();
@@ -141,7 +142,12 @@ class RemoteEJBReceiver extends EJBReceiver {
             IoFuture<ConnectionPeerIdentity> futureConnection = getConnection(context.getClientInvocationContext().getDestination(), authenticationConfiguration, sslContext);
             final ConnectionPeerIdentity identity = futureConnection.getInterruptibly();
             final EJBClientChannel ejbClientChannel = getClientChannel(identity.getConnection());
-            return ejbClientChannel.openSession(statelessLocator, identity);
+            final StatefulEJBLocator<?> result = ejbClientChannel.openSession(statelessLocator, identity);
+            if (statelessLocator.getAffinity() != result.getAffinity()) {
+                // older protocol wants to assert a weak affinity; let it
+                context.getClientInvocationContext().setWeakAffinity(result.getAffinity());
+            }
+            return result.getSessionId();
         } catch (IOException e) {
             final CreateException createException = new CreateException("Failed to create stateful EJB: " + e.getMessage());
             createException.initCause(e);

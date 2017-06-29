@@ -382,7 +382,11 @@ public final class EJBClientInvocationContext extends AbstractInvocationContext 
                             return;
                         }
                         // retry SENDING
+                        if (pendingFailure != null) {
+                            addSuppressed(pendingFailure);
+                        }
                         setReceiver(null);
+                        this.pendingFailure = null;
                         transition(State.SENDING);
                         retryRequested = false;
                         remainingRetries --;
@@ -611,10 +615,9 @@ public final class EJBClientInvocationContext extends AbstractInvocationContext 
                 throw t;
             } finally {
                 if (idx == 0) {
-                    final Affinity weakAffinity = getWeakAffinity();
-                    if (weakAffinity != null) {
-                        invocationHandler.setWeakAffinity(weakAffinity);
-                    }
+                    // relocate the EJB
+                    invocationHandler.setWeakAffinity(getWeakAffinity());
+                    invocationHandler.setStrongAffinity(getLocator().getAffinity());
                 }
             }
         } finally {

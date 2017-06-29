@@ -59,6 +59,8 @@
         <version.org.wildfly.discovery>1.0.0.CR1</version.org.wildfly.discovery>
         <version.org.wildfly.security.elytron>1.1.0.Beta54</version.org.wildfly.security.elytron>
         <version.org.wildfly.transaction-client>1.0.0.Beta24</version.org.wildfly.transaction-client>
+
+        <version.org.jboss.bridger>1.1.Final</version.org.jboss.bridger>
     </properties>
 
     <build>
@@ -94,6 +96,21 @@
             </plugin>
             <plugin>
                 <artifactId>maven-compiler-plugin</artifactId>
+            </plugin>
+            <plugin>
+                <groupId>org.jboss.bridger</groupId>
+                <artifactId>bridger</artifactId>
+                <version>1.1.Final</version>
+                <executions>
+                    <!-- run after "compile", runs bridger on main classes -->
+                    <execution>
+                        <id>weave</id>
+                        <phase>process-classes</phase>
+                        <goals>
+                            <goal>transform</goal>
+                        </goals>
+                    </execution>
+                </executions>
             </plugin>
         </plugins>
     </build>

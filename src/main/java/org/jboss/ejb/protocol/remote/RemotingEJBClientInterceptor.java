@@ -28,7 +28,7 @@ import org.jboss.ejb.client.EJBClientInterceptor;
 import org.jboss.ejb.client.EJBClientInvocationContext;
 import org.jboss.ejb.client.EJBSessionCreationInvocationContext;
 import org.jboss.ejb.client.NodeAffinity;
-import org.jboss.ejb.client.StatefulEJBLocator;
+import org.jboss.ejb.client.SessionID;
 import org.jboss.ejb.client.annotation.ClientInterceptorPriority;
 
 /**
@@ -61,7 +61,7 @@ public final class RemotingEJBClientInterceptor implements EJBClientInterceptor 
         }
     }
 
-    public StatefulEJBLocator<?> handleSessionCreation(final EJBSessionCreationInvocationContext context) throws Exception {
+    public SessionID handleSessionCreation(final EJBSessionCreationInvocationContext context) throws Exception {
         try {
             return context.proceed();
         } catch (NoSuchEJBException e) {
