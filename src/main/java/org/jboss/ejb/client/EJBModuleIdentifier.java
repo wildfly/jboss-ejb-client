@@ -57,6 +57,25 @@ public class EJBModuleIdentifier implements Serializable {
     }
 
     /**
+     * Construct a new instance.
+     *
+     * @param appName the application name (must not be {@code null}, but may be empty)
+     * @param moduleName the module name (must not be {@code null} or empty)
+     */
+    public EJBModuleIdentifier(final String appName, final String moduleName) {
+        this(appName, moduleName, "");
+    }
+
+    /**
+     * Construct a new instance.
+     *
+     * @param moduleName the module name (must not be {@code null} or empty)
+     */
+    public EJBModuleIdentifier(final String moduleName) {
+        this("", moduleName);
+    }
+
+    /**
      * Get the application name, which may be empty.
      *
      * @return the application name (not {@code null})
