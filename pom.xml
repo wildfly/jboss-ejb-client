@@ -28,7 +28,7 @@
     </parent>
 
     <artifactId>jboss-ejb-client</artifactId>
-    <version>4.0.0.CR2-SNAPSHOT</version>
+    <version>4.0.0.CR2</version>
 
     <name>JBoss EJB client</name>
     <description>Client library for EJB applications working against Wildfly</description>
