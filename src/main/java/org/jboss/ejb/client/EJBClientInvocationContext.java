@@ -637,7 +637,7 @@ public final class EJBClientInvocationContext extends AbstractInvocationContext 
     void resultReady(EJBReceiverInvocationContext.ResultProducer resultProducer) {
         Assert.checkNotNullParam("resultProducer", resultProducer);
         synchronized (lock) {
-            if (state.isWaiting()) {
+            if (state.isWaiting() && this.resultProducer == null) {
                 this.resultProducer = resultProducer;
                 if (state == State.WAITING) {
                     transition(State.READY);
@@ -649,7 +649,6 @@ public final class EJBClientInvocationContext extends AbstractInvocationContext 
         }
         // for whatever reason, we don't care
         resultProducer.discardResult();
-        return;
     }
 
     /**
