@@ -18,77 +18,44 @@
 
 package org.jboss.ejb.client;
 
-import java.security.Permission;
+import org.wildfly.common.Assert;
+import org.wildfly.security.permission.AbstractNameSetOnlyPermission;
+import org.wildfly.security.util.StringEnumeration;
+import org.wildfly.security.util.StringMapping;
 
 /**
  * The class for various general EJB client permissions.
  *
  * @author <a href="mailto:david.lloyd@redhat.com">David M. Lloyd</a>
  */
-public final class EJBClientPermission extends Permission {
+public final class EJBClientPermission extends AbstractNameSetOnlyPermission<EJBClientPermission> {
 
     private static final long serialVersionUID = 8406360684253911321L;
 
-    enum Name {
-        createContext,
-        createReceiver,
-        changeWeakAffinity,
-        changeStrongAffinity,
-        ;
+    private static final StringEnumeration names = StringEnumeration.of(
+        "createContext",
+        "createReceiver",
+        "changeWeakAffinity",
+        "changeStrongAffinity"
+    );
 
-        public static Name of(final String name) {
-            try {
-                return valueOf(name);
-            } catch (IllegalArgumentException ignored) {
-                throw new IllegalArgumentException("Invalid permission name " + name);
-            }
-        }
+    private static final StringMapping<EJBClientPermission> mapping = new StringMapping<>(names, EJBClientPermission::new);
 
-    }
-
-    private transient Name name;
+    private static final EJBClientPermission ALL = new EJBClientPermission("*");
 
     public EJBClientPermission(final String name) {
-        this(Name.of(name));
+        super(name, names);
     }
 
     public EJBClientPermission(final String name, @SuppressWarnings("unused") final String actions) {
-        this(Name.of(name));
+        super(name, names);
         if (actions != null && ! actions.isEmpty()) {
             throw new IllegalArgumentException("Unsupported actions string '" + actions + "'");
         }
     }
 
-    EJBClientPermission(final Name name) {
-        super(name.name());
-        this.name = name;
-    }
-
-    public boolean implies(final Permission permission) {
-        return permission instanceof EJBClientPermission && implies((EJBClientPermission) permission);
-    }
-
-    public boolean implies(final EJBClientPermission permission) {
-        return permission != null && name == permission.name;
-    }
-
-    public boolean equals(final Object obj) {
-        return obj instanceof EJBClientPermission && equals((EJBClientPermission) obj);
-    }
-
-    public boolean equals(final Permission obj) {
-        return obj instanceof EJBClientPermission && equals((EJBClientPermission) obj);
-    }
-
-    public boolean equals(final EJBClientPermission obj) {
-        return obj != null && name == obj.name;
-    }
-
-    public int hashCode() {
-        return name.ordinal();
-    }
-
-    public String getActions() {
-        return "";
+    public EJBClientPermission withName(final String name) {
+        Assert.checkNotNullParam("name", name);
+        return "*".equals(name) ? ALL : mapping.getItemByString(name);
     }
 }
