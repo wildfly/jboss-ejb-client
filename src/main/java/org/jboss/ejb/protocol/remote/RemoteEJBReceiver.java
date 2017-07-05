@@ -30,8 +30,6 @@ import javax.ejb.CreateException;
 import javax.net.ssl.SSLContext;
 
 import org.jboss.ejb.client.AttachmentKey;
-import org.jboss.ejb.client.EJBClientInvocationContext;
-import org.jboss.ejb.client.EJBLocator;
 import org.jboss.ejb.client.EJBReceiver;
 import org.jboss.ejb.client.EJBReceiverContext;
 import org.jboss.ejb.client.EJBReceiverInvocationContext;
@@ -116,8 +114,6 @@ class RemoteEJBReceiver extends EJBReceiver {
     }
 
     protected void processInvocation(final EJBReceiverInvocationContext receiverContext) throws Exception {
-        final EJBClientInvocationContext clientInvocationContext = receiverContext.getClientInvocationContext();
-        final EJBLocator<?> locator = clientInvocationContext.getLocator();
         final AuthenticationConfiguration authenticationConfiguration = receiverContext.getAuthenticationConfiguration();
         final SSLContext sslContext = receiverContext.getSSLContext();
         final IoFuture<ConnectionPeerIdentity> futureConnection = getConnection(receiverContext.getClientInvocationContext().getDestination(), authenticationConfiguration, sslContext);
@@ -172,7 +168,7 @@ class RemoteEJBReceiver extends EJBReceiver {
         }
     }
 
-    private <T> IoFuture<ConnectionPeerIdentity> getConnection(final URI target, AuthenticationConfiguration authenticationConfiguration, SSLContext sslContext) throws Exception {
+    private IoFuture<ConnectionPeerIdentity> getConnection(final URI target, AuthenticationConfiguration authenticationConfiguration, SSLContext sslContext) throws Exception {
         if (authenticationConfiguration == null) {
             authenticationConfiguration = CLIENT.getAuthenticationConfiguration(target, AuthenticationContext.captureCurrent(), -1, "ejb", "jboss");
         }
