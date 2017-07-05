@@ -18,8 +18,6 @@
 
 package org.jboss.ejb.client;
 
-import static java.security.AccessController.doPrivileged;
-
 import java.io.Serializable;
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
@@ -36,7 +34,6 @@ import javax.net.ssl.SSLContext;
 import org.jboss.ejb._private.Logs;
 import org.wildfly.common.Assert;
 import org.wildfly.security.auth.client.AuthenticationConfiguration;
-import org.wildfly.security.auth.client.AuthenticationContextConfigurationClient;
 
 /**
  * @param <T> the proxy view type
@@ -45,7 +42,6 @@ import org.wildfly.security.auth.client.AuthenticationContextConfigurationClient
 final class EJBInvocationHandler<T> extends Attachable implements InvocationHandler, Serializable {
 
     private static final long serialVersionUID = 946555285095057230L;
-    private static final AuthenticationContextConfigurationClient CLIENT = doPrivileged(AuthenticationContextConfigurationClient.ACTION);
 
     private final transient boolean async;
 

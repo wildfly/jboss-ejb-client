@@ -438,7 +438,7 @@ final class EJBServerChannel {
                 identity = connection.getLocalIdentity();
             }
             final RemotingInvocationRequest request = new RemotingInvocationRequest(
-                invId, connection, association, identifier, methodLocator, classResolver, unmarshaller, identity
+                invId, identifier, methodLocator, classResolver, unmarshaller, identity
             );
             invocations.put(new InProgress(request, association.receiveInvocationRequest(request)));
         }
@@ -695,18 +695,14 @@ final class EJBServerChannel {
     }
 
     final class RemotingInvocationRequest extends RemotingRequest implements InvocationRequest {
-        final Connection connection;
-        final Association association;
         final EJBIdentifier identifier;
         final EJBMethodLocator methodLocator;
         final ServerClassResolver classResolver;
         final Unmarshaller remaining;
         int txnCmd = 0; // assume nobody will ask about the transaction
 
-        RemotingInvocationRequest(final int invId, final Connection connection, final Association association, final EJBIdentifier identifier, final EJBMethodLocator methodLocator, final ServerClassResolver classResolver, final Unmarshaller remaining, final SecurityIdentity identity) {
+        RemotingInvocationRequest(final int invId, final EJBIdentifier identifier, final EJBMethodLocator methodLocator, final ServerClassResolver classResolver, final Unmarshaller remaining, final SecurityIdentity identity) {
             super(invId, identity);
-            this.connection = connection;
-            this.association = association;
             this.identifier = identifier;
             this.methodLocator = methodLocator;
             this.classResolver = classResolver;
@@ -799,10 +795,10 @@ final class EJBServerChannel {
                     //version 2 did not send compression information in the response stream
                     //instead it must be read from the class
                     Method invokedMethod = findMethod(locator.getViewType(), methodLocator);
-                    CompressionHint compressionHint = invokedMethod.getAnnotation(CompressionHint.class);
+                    CompressionHint compressionHint = invokedMethod == null ? null : invokedMethod.getAnnotation(CompressionHint.class);
                     // then class level
                     if (compressionHint == null) {
-                        compressionHint = invokedMethod.getDeclaringClass().getAnnotation(CompressionHint.class);
+                        compressionHint = invokedMethod == null ? null : invokedMethod.getDeclaringClass().getAnnotation(CompressionHint.class);
                     }
                     if(compressionHint != null) {
                         if(compressionHint.compressResponse()) {

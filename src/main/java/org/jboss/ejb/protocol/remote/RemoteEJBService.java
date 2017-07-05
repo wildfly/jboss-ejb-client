@@ -41,14 +41,10 @@ import org.wildfly.transaction.client.provider.remoting.RemotingTransactionServi
  * @author <a href="mailto:david.lloyd@redhat.com">David M. Lloyd</a>
  */
 public final class RemoteEJBService {
-    private final Association association;
-    private final RemotingTransactionService transactionService;
     private final OpenListener openListener;
     private final CallbackBuffer callbackBuffer = new CallbackBuffer();
 
     private RemoteEJBService(final Association association, final RemotingTransactionService transactionService) {
-        this.association = association;
-        this.transactionService = transactionService;
         openListener = new OpenListener() {
             public void channelOpened(final Channel channel) {
                 final MessageTracker messageTracker = new MessageTracker(channel, channel.getOption(RemotingOptions.MAX_OUTBOUND_MESSAGES).intValue());

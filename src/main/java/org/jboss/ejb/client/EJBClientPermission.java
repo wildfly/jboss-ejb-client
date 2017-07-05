@@ -46,8 +46,6 @@ public final class EJBClientPermission extends Permission {
 
     }
 
-    static final Name[] values = Name.values();
-
     private transient Name name;
 
     public EJBClientPermission(final String name) {
