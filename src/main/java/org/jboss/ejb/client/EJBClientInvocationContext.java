@@ -40,6 +40,7 @@ import org.jboss.ejb._private.Logs;
 import org.jboss.ejb.client.annotation.ClientTransactionPolicy;
 import org.wildfly.common.Assert;
 import org.wildfly.security.auth.client.AuthenticationConfiguration;
+import org.wildfly.security.auth.client.AuthenticationContext;
 
 /**
  * An invocation context for EJB invocations from an EJB client
@@ -55,6 +56,7 @@ public final class EJBClientInvocationContext extends AbstractInvocationContext 
 
     // Contextual stuff
     private final EJBInvocationHandler<?> invocationHandler;
+    private final AuthenticationContext authenticationContext;
 
     // Invocation data
     private final Object invokedProxy;
@@ -86,6 +88,7 @@ public final class EJBClientInvocationContext extends AbstractInvocationContext 
     EJBClientInvocationContext(final EJBInvocationHandler<?> invocationHandler, final EJBClientContext ejbClientContext, final Object invokedProxy, final Object[] parameters, final EJBProxyInformation.ProxyMethodInfo methodInfo, final int allowedRetries) {
         super(invocationHandler.getLocator(), ejbClientContext);
         this.invocationHandler = invocationHandler;
+        authenticationContext = AuthenticationContext.captureCurrent();
         this.invokedProxy = invokedProxy;
         this.parameters = parameters;
         this.methodInfo = methodInfo;
@@ -300,7 +303,7 @@ public final class EJBClientInvocationContext extends AbstractInvocationContext 
         for (;;) {
             assert interceptorChainIndex == 0;
             try {
-                sendRequest();
+                authenticationContext.runExConsumer(EJBClientInvocationContext::sendRequest, this);
                 // back to the start of the chain; decide what to do next.
                 synchronized (lock) {
                     try {
