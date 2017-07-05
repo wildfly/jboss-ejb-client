@@ -426,7 +426,7 @@ public final class EJBClient {
         Assert.checkNotNullParam("newAffinity", newAffinity);
         final SecurityManager sm = System.getSecurityManager();
         if (sm != null) {
-            sm.checkPermission(new EJBClientPermission(EJBClientPermission.Name.changeStrongAffinity));
+            sm.checkPermission(EJBClientPermission.CHANGE_STRONG_AFFINITY);
         }
         EJBInvocationHandler.forProxy(proxy).setStrongAffinity(newAffinity);
     }
@@ -464,7 +464,7 @@ public final class EJBClient {
         }
         final SecurityManager sm = System.getSecurityManager();
         if (sm != null) {
-            sm.checkPermission(new EJBClientPermission(EJBClientPermission.Name.changeStrongAffinity));
+            sm.checkPermission(EJBClientPermission.CHANGE_STRONG_AFFINITY);
         }
         return invocationHandler.compareAndSetStrongAffinity(expectedAffinity, newAffinity);
     }
@@ -490,7 +490,7 @@ public final class EJBClient {
         }
         final SecurityManager sm = System.getSecurityManager();
         if (sm != null) {
-            sm.checkPermission(new EJBClientPermission(EJBClientPermission.Name.changeStrongAffinity));
+            sm.checkPermission(EJBClientPermission.CHANGE_STRONG_AFFINITY);
         }
         while (! invocationHandler.compareAndSetStrongAffinity(oldAffinity, newAffinity)) {
             oldAffinity = invocationHandler.getLocator().getAffinity();
@@ -515,7 +515,7 @@ public final class EJBClient {
         Assert.checkNotNullParam("newAffinity", newAffinity);
         final SecurityManager sm = System.getSecurityManager();
         if (sm != null) {
-            sm.checkPermission(new EJBClientPermission(EJBClientPermission.Name.changeWeakAffinity));
+            sm.checkPermission(EJBClientPermission.CHANGE_WEAK_AFFINITY);
         }
         EJBInvocationHandler.forProxy(proxy).setWeakAffinity(newAffinity);
     }

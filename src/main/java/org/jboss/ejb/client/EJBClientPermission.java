@@ -41,6 +41,11 @@ public final class EJBClientPermission extends AbstractNameSetOnlyPermission<EJB
 
     private static final StringMapping<EJBClientPermission> mapping = new StringMapping<>(names, EJBClientPermission::new);
 
+    public static final EJBClientPermission CREATE_CONTEXT = mapping.getItemById(0);
+    public static final EJBClientPermission CREATE_RECEIVER = mapping.getItemById(1);
+    public static final EJBClientPermission CHANGE_WEAK_AFFINITY = mapping.getItemById(2);
+    public static final EJBClientPermission CHANGE_STRONG_AFFINITY = mapping.getItemById(3);
+
     private static final EJBClientPermission ALL = new EJBClientPermission("*");
 
     public EJBClientPermission(final String name) {
