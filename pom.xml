@@ -24,7 +24,7 @@
     <parent>
         <groupId>org.jboss</groupId>
         <artifactId>jboss-parent</artifactId>
-        <version>22</version>
+        <version>24</version>
     </parent>
 
     <artifactId>jboss-ejb-client</artifactId>
@@ -42,9 +42,10 @@
     </licenses>
 
     <properties>
-        <version.org.jboss.invocation>1.5.0.Beta4</version.org.jboss.invocation>
-        <version.org.jboss.logging.jboss-logging>3.3.0.Final</version.org.jboss.logging.jboss-logging>
-        <version.org.jboss.logging.jboss-logging-tools>2.0.1.Final</version.org.jboss.logging.jboss-logging-tools>
+        <version.org.jboss.invocation>1.5.0.CR1</version.org.jboss.invocation>
+        <version.org.jboss.logging.jboss-logging>3.3.1.Final</version.org.jboss.logging.jboss-logging>
+        <!-- 2.1.x also work on JDK9-->
+        <version.org.jboss.logging.jboss-logging-tools>2.1.0.Alpha2</version.org.jboss.logging.jboss-logging-tools>
         <version.org.jboss.logmanager>2.0.5.Final</version.org.jboss.logmanager>
         <version.org.jboss.marshalling>2.0.0.CR1</version.org.jboss.marshalling>
         <version.org.jboss.modules>1.6.0.CR1</version.org.jboss.modules>
@@ -59,8 +60,6 @@
         <version.org.wildfly.discovery>1.0.0.CR1</version.org.wildfly.discovery>
         <version.org.wildfly.security.elytron>1.1.0.CR2</version.org.wildfly.security.elytron>
         <version.org.wildfly.transaction-client>1.0.0.CR2</version.org.wildfly.transaction-client>
-
-        <version.org.jboss.bridger>1.1.Final</version.org.jboss.bridger>
     </properties>
 
     <build>
@@ -82,7 +81,6 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-surefire-plugin</artifactId>
-                <version>2.11</version>
                 <configuration>
                     <forkMode>always</forkMode>
                     <redirectTestOutputToFile>true</redirectTestOutputToFile>
@@ -93,24 +91,6 @@
                         </property>
                     </systemProperties>
                 </configuration>
-            </plugin>
-            <plugin>
-                <artifactId>maven-compiler-plugin</artifactId>
-            </plugin>
-            <plugin>
-                <groupId>org.jboss.bridger</groupId>
-                <artifactId>bridger</artifactId>
-                <version>1.1.Final</version>
-                <executions>
-                    <!-- run after "compile", runs bridger on main classes -->
-                    <execution>
-                        <id>weave</id>
-                        <phase>process-classes</phase>
-                        <goals>
-                            <goal>transform</goal>
-                        </goals>
-                    </execution>
-                </executions>
             </plugin>
         </plugins>
     </build>
@@ -248,7 +228,7 @@
         <dependency>
             <groupId>junit</groupId>
             <artifactId>junit</artifactId>
-            <version>4.8.2</version>
+            <version>4.12</version>
             <scope>test</scope>
         </dependency>
 
