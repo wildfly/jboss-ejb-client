@@ -54,7 +54,7 @@ public final class TransactionInterceptor implements EJBClientInterceptor {
         if (transaction instanceof RemoteTransaction) {
             final URI location = ((RemoteTransaction) transaction).getLocation();
             // we can only route this request to one place; do not load-balance
-            context.setDestination(location);
+            context.setLocator(context.getLocator().withNewAffinity(Affinity.forUri(location)));
         }
 
         if (transactionPolicy.failIfTransactionAbsent()) {
