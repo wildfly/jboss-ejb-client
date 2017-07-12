@@ -160,6 +160,7 @@ public final class DiscoveryEJBClientInterceptor implements EJBClientInterceptor
 
     private void processMissingTarget(final AbstractInvocationContext context) {
         final URI destination = context.getDestination();
+
         if (destination == null) {
             // nothing we can/should do.
             return;
@@ -172,6 +173,9 @@ public final class DiscoveryEJBClientInterceptor implements EJBClientInterceptor
                 set = appearing;
             }
         }
+
+        Logs.INVOCATION.tracef("Calling processMissingTarget(locator = %s, weak affinity = %s, missing target = %s)", context.getLocator(), context.getWeakAffinity(), destination);
+
         set.add(destination);
         // clear the weak affinity so that cluster invocations can be re-targeted.
         context.setWeakAffinity(Affinity.NONE);
@@ -248,7 +252,7 @@ public final class DiscoveryEJBClientInterceptor implements EJBClientInterceptor
     }
 
     private List<Throwable> doFirstMatchDiscovery(AbstractInvocationContext context, final FilterSpec filterSpec, final FilterSpec fallbackFilterSpec) {
-        Logs.INVOCATION.tracef("Performing first-match discovery(locator = %s, weak affinity = %s, filter spec = %s", context.getLocator(), context.getWeakAffinity(), filterSpec);
+        Logs.INVOCATION.tracef("Performing first-match discovery(locator = %s, weak affinity = %s, filter spec = %s)", context.getLocator(), context.getWeakAffinity(), filterSpec);
         final List<Throwable> problems;
         final Set<URI> set = context.getAttachment(BL_KEY);
         try (final ServicesQueue queue = discover(filterSpec)) {
@@ -265,6 +269,7 @@ public final class DiscoveryEJBClientInterceptor implements EJBClientInterceptor
                         context.setTargetAffinity(URIAffinity.forUri(location));
                     }
                     context.setDestination(location);
+                    Logs.INVOCATION.tracef("Performed first-match discovery(target affinity = %s, destination = %s)", context.getTargetAffinity(), context.getDestination());
                     return queue.getProblems();
                 }
             }
@@ -276,6 +281,7 @@ public final class DiscoveryEJBClientInterceptor implements EJBClientInterceptor
         // No good; fall back to cluster discovery.
         if (fallbackFilterSpec != null) {
             assert context.getLocator().getAffinity() instanceof ClusterAffinity;
+            Logs.INVOCATION.tracef("Performed first-match discovery, no match, falling back to cluster discovery");
             final List<Throwable> problems2 = doClusterDiscovery(context, fallbackFilterSpec);
             if (problems2.isEmpty()) {
                 return problems;
@@ -289,12 +295,13 @@ public final class DiscoveryEJBClientInterceptor implements EJBClientInterceptor
             }
         } else {
             // no match!
+            Logs.INVOCATION.tracef("Performed first-match discovery, no match");
         }
         return problems;
     }
 
     private List<Throwable> doAnyDiscovery(AbstractInvocationContext context, final FilterSpec filterSpec, final EJBLocator<?> locator) {
-        Logs.INVOCATION.tracef("Performing any discovery(locator = %s, weak affinity = %s, filter spec = %s", context.getLocator(), context.getWeakAffinity(), filterSpec);
+        Logs.INVOCATION.tracef("Performing any discovery(locator = %s, weak affinity = %s, filter spec = %s)", context.getLocator(), context.getWeakAffinity(), filterSpec);
         final List<Throwable> problems;
         // blacklist
         final Set<URI> blacklist = context.getAttachment(BL_KEY);
@@ -332,6 +339,7 @@ public final class DiscoveryEJBClientInterceptor implements EJBClientInterceptor
 
         if (nodes.isEmpty()) {
             // no match
+            Logs.INVOCATION.tracef("Performed any discovery, no match");
             return problems;
         }
         URI location;
@@ -340,6 +348,7 @@ public final class DiscoveryEJBClientInterceptor implements EJBClientInterceptor
             final Map.Entry<URI, String> entry = nodes.entrySet().iterator().next();
             location = entry.getKey();
             nodeName = entry.getValue();
+            Logs.INVOCATION.tracef("Performed first-match discovery(target affinity(node) = %s, destination = %s)", nodeName, location);
         } else if (nodeless == 0) {
             // use the deployment node selector
             // todo: configure on client context
@@ -352,6 +361,7 @@ public final class DiscoveryEJBClientInterceptor implements EJBClientInterceptor
             if (location == null) {
                 throw Logs.INVOCATION.selectorReturnedUnknownNode(selector, nodeName);
             }
+            Logs.INVOCATION.tracef("Performed first-match discovery, nodes > 1, deployment selector used(target affinity(node) = %s, destination = %s)", nodeName, location);
         } else {
             // todo: configure on client context
             DiscoveredURISelector selector = DiscoveredURISelector.RANDOM;
@@ -363,6 +373,7 @@ public final class DiscoveryEJBClientInterceptor implements EJBClientInterceptor
             if (nodeName == null) {
                 throw Logs.INVOCATION.selectorReturnedUnknownNode(selector, location.toString());
             }
+            Logs.INVOCATION.tracef("Performed first-match discovery, nodes > 1, URI selector used(target affinity(node) = %s, destination = %s)", nodeName, location);
         }
 
         context.setDestination(location);
@@ -371,7 +382,7 @@ public final class DiscoveryEJBClientInterceptor implements EJBClientInterceptor
     }
 
     private List<Throwable> doClusterDiscovery(AbstractInvocationContext context, final FilterSpec filterSpec) {
-        Logs.INVOCATION.tracef("Performing cluster discovery(locator = %s, weak affinity = %s, filter spec = %s", context.getLocator(), context.getWeakAffinity(), filterSpec);
+        Logs.INVOCATION.tracef("Performing cluster discovery(locator = %s, weak affinity = %s, filter spec = %s)", context.getLocator(), context.getWeakAffinity(), filterSpec);
         Map<String, URI> nodes = new HashMap<>();
         final EJBClientContext clientContext = context.getClientContext();
         final List<Throwable> problems;
@@ -397,7 +408,11 @@ public final class DiscoveryEJBClientInterceptor implements EJBClientInterceptor
             throw Logs.MAIN.operationInterrupted();
         }
         final EJBLocator<?> locator = context.getLocator();
+
         if (nodes.isEmpty()) {
+
+            Logs.INVOCATION.tracef("Performed cluster discovery, nodes is empty");
+
             return problems;
         } else if (nodes.size() == 1) {
             // just one choice, use it
@@ -406,6 +421,9 @@ public final class DiscoveryEJBClientInterceptor implements EJBClientInterceptor
             final URI uri = entry.getValue();
             context.setTargetAffinity(new NodeAffinity(nodeName));
             context.setDestination(uri);
+
+            Logs.INVOCATION.tracef("Performed cluster discovery (target affinity = %s, destination = %s)", context.getTargetAffinity(), context.getDestination());
+
             return problems;
         }
         // we have to run through the node selection process
@@ -422,6 +440,8 @@ public final class DiscoveryEJBClientInterceptor implements EJBClientInterceptor
                 }
             }
         }
+        Logs.INVOCATION.tracef("Performing cluster discovery (connected nodes = %s, available nodes = %s)", connectedNodes, availableNodes);
+
         final ClusterNodeSelector selector = clientContext.getClusterNodeSelector();
         final String selectedNode = selector.selectNode(((ClusterAffinity) locator.getAffinity()).getClusterName(), connectedNodes.toArray(NO_STRINGS), availableNodes.toArray(NO_STRINGS));
         if (selectedNode == null) {
@@ -434,6 +454,9 @@ public final class DiscoveryEJBClientInterceptor implements EJBClientInterceptor
         // got it!
         context.setDestination(uri);
         context.setTargetAffinity(new NodeAffinity(selectedNode));
+
+        Logs.INVOCATION.tracef("Performed cluster discovery (target affinity = %s, destination = %s)", context.getTargetAffinity(), context.getDestination());
+
         return problems;
     }
 

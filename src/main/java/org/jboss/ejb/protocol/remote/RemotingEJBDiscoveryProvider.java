@@ -40,6 +40,7 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import org.jboss.ejb._private.Logs;
 import org.jboss.ejb.client.EJBClientConnection;
 import org.jboss.ejb.client.EJBClientContext;
 import org.jboss.ejb.client.EJBModuleIdentifier;
@@ -126,9 +127,11 @@ final class RemotingEJBDiscoveryProvider implements DiscoveryProvider, Discovere
             discoveryConnections = true;
             final URI uri = connection.getDestination();
             if (failedDestinations.contains(uri)) {
+                Logs.INVOCATION.tracef("EJB discovery provider: attempting to connect to configured connection %s, skipping because marked as failed", uri);
                 continue;
             }
             ok = true;
+            Logs.INVOCATION.tracef("EJB discovery provider: attempting to connect to configured connection %s", uri);
             discoveryAttempt.connectAndDiscover(uri);
         }
         // also establish cluster nodes if known
@@ -163,6 +166,7 @@ final class RemotingEJBDiscoveryProvider implements DiscoveryProvider, Discovere
                                         final URI uri = new URI(protocol, null, hostName, destination.getPort(), null, null, null);
                                         if (! failedDestinations.contains(uri)) {
                                             maxConnections--;
+                                            Logs.INVOCATION.tracef("EJB discovery provider: attempting to connect to cluster %s connection %s", clusterName, uri);
                                             discoveryAttempt.connectAndDiscover(uri);
                                             ok = true;
                                             continue nodeLoop;
@@ -179,11 +183,14 @@ final class RemotingEJBDiscoveryProvider implements DiscoveryProvider, Discovere
         }
         // special second pass - retry everything because all were marked failed
         if (discoveryConnections && ! ok) {
+            Logs.INVOCATION.tracef("EJB discovery provider: all connections marked failed, retrying ...");
             for (EJBClientConnection connection : configuredConnections) {
                 if (! connection.isForDiscovery()) {
                     continue;
                 }
-                discoveryAttempt.connectAndDiscover(connection.getDestination());
+                URI destination = connection.getDestination();
+                Logs.INVOCATION.tracef("EJB discovery provider: attempting to connect to connection %s", destination);
+                discoveryAttempt.connectAndDiscover(destination);
             }
         }
 
