@@ -868,7 +868,8 @@ public final class EJBClientInvocationContext extends AbstractInvocationContext 
                                         intr = true;
                                     }
                                 } else {
-                                    long remaining = max(0L, timeout - max(0L, System.nanoTime() - startTime));
+                                    // timeout in ms, elapsed time in nanosecs
+                                    long remaining = max(0L, timeout * 1_000_000L - max(0L, System.nanoTime() - startTime));
                                     if (remaining == 0L) {
                                         // timed out
                                         timedOut = true;
@@ -1069,7 +1070,8 @@ public final class EJBClientInvocationContext extends AbstractInvocationContext 
             final long handlerInvTimeout = invocationHandler.getInvocationTimeout();
             final long invocationTimeout = handlerInvTimeout != -1 ? handlerInvTimeout : getClientContext().getInvocationTimeout();
             final long ourStart = System.nanoTime();
-            if (unit.convert(max(0L, invocationTimeout - max(0L, ourStart - startTime)), TimeUnit.NANOSECONDS) <= timeout) {
+            // invocationTimeout in ms, elapsed time in nanosecs
+            if (unit.convert(max(0L, invocationTimeout * 1_000_000L - max(0L, ourStart - startTime)), TimeUnit.NANOSECONDS) <= timeout) {
                 // the invocation will expire before we finish
                 return get();
             }
