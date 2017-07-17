@@ -202,13 +202,19 @@ public final class DiscoveryEJBClientInterceptor implements EJBClientInterceptor
         FilterSpec filterSpec, fallbackFilterSpec;
 
         if (affinity instanceof URIAffinity || affinity == Affinity.LOCAL) {
-            // Simple; just set a fixed destination
-            context.setDestination(affinity.getUri());
-            context.setTargetAffinity(affinity);
+            final Set<URI> blacklist = context.getAttachment(BL_KEY);
+            if (blacklist == null || ! blacklist.contains(affinity.getUri())) {
+                // Simple; just set a fixed destination
+                context.setDestination(affinity.getUri());
+                context.setTargetAffinity(affinity);
+            }
             return null;
         } else if (affinity == Affinity.NONE && weakAffinity instanceof URIAffinity) {
-            context.setDestination(weakAffinity.getUri());
-            context.setTargetAffinity(weakAffinity);
+            final Set<URI> blacklist = context.getAttachment(BL_KEY);
+            if (blacklist == null || ! blacklist.contains(weakAffinity.getUri())) {
+                context.setDestination(weakAffinity.getUri());
+                context.setTargetAffinity(weakAffinity);
+            }
             return null;
         } else if (affinity == Affinity.NONE && weakAffinity instanceof NodeAffinity) {
             filterSpec = FilterSpec.equal(FILTER_ATTR_NODE, ((NodeAffinity) weakAffinity).getNodeName());
