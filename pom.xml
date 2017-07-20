@@ -38,6 +38,14 @@
     <name>JBoss EJB Legacy Client</name>
     <description>Client library for legacy EJB applications working against Wildfly</description>
 
+    <licenses>
+        <license>
+            <name>GNU Lesser General Public License v2.1 only</name>
+            <url>http://repository.jboss.org/licenses/lgpl-2.1.txt</url>
+            <distribution>repo</distribution>
+        </license>
+    </licenses>
+
     <properties>
         <version.checkstyle.plugin>2.9.1</version.checkstyle.plugin>
         <version.org.jboss.byteman>3.0.1</version.org.jboss.byteman>
