@@ -93,6 +93,7 @@ final class ConfigurationBasedEJBClientContextSelector {
         if (streamReader.getAttributeCount() > 0) {
             throw streamReader.unexpectedAttribute(0);
         }
+        boolean gotInvocationTimeout = false;
         boolean gotGlobalInterceptors = false;
         boolean gotConnections = false;
         for (;;) {
@@ -102,7 +103,11 @@ final class ConfigurationBasedEJBClientContextSelector {
                     throw streamReader.unexpectedElement();
                 }
                 final String localName = streamReader.getLocalName();
-                if (localName.equals("global-interceptors") && ! gotGlobalInterceptors) {
+                if (localName.equals("invocation-timeout") && ! gotInvocationTimeout) {
+                    gotInvocationTimeout = true;
+                    parseInvocationTimeoutType(streamReader, builder);
+                }
+                else if (localName.equals("global-interceptors") && ! gotGlobalInterceptors) {
                     gotGlobalInterceptors = true;
                     parseInterceptorsType(streamReader, builder);
                 } else if (localName.equals("connections") && ! gotConnections) {
@@ -117,6 +122,30 @@ final class ConfigurationBasedEJBClientContextSelector {
                 throw Assert.unreachableCode();
             }
         }
+    }
+
+    private static void parseInvocationTimeoutType(final ConfigurationXMLStreamReader streamReader, final EJBClientContext.Builder builder) throws ConfigXMLParseException {
+        final int attributeCount = streamReader.getAttributeCount();
+        int timeout = -1 ;
+        for (int i = 0; i < attributeCount; i++) {
+            if (streamReader.getAttributeNamespace(i) != null && ! streamReader.getAttributeNamespace(i).isEmpty()) {
+                throw streamReader.unexpectedAttribute(i);
+            }
+            final String name = streamReader.getAttributeLocalName(i);
+            if (name.equals("seconds")) {
+                timeout = streamReader.getIntAttributeValueResolved(i);
+            } else {
+                throw streamReader.unexpectedAttribute(i);
+            }
+            // convert timeout in seconds to ms
+            long timeoutInMs = timeout == -1 ? timeout : timeout * 1000;
+            builder.setInvocationTimeout(timeoutInMs);
+        }
+        final int next = streamReader.nextTag();
+        if (next == END_ELEMENT) {
+            return;
+        }
+        throw streamReader.unexpectedElement();
     }
 
     private static void parseInterceptorsType(final ConfigurationXMLStreamReader streamReader, final EJBClientContext.Builder builder) throws ConfigXMLParseException {

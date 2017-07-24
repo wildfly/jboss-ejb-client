@@ -14,4 +14,9 @@
             </configuration>
         </authentication-configurations>
     </authentication-client>
+    <jboss-ejb-client xmlns="urn:jboss:wildfly-client-ejb:3.0">
+        <invocation-timeout seconds="10"/>
+        <global-interceptors/>
+        <connections/>
+    </jboss-ejb-client>
 </configuration>

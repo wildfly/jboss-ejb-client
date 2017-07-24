@@ -33,9 +33,14 @@
 
     <xsd:complexType name="ejb-client-type">
         <xsd:all minOccurs="1" maxOccurs="1">
+            <xsd:element name="invocation-timeout" type="invocation-timeout-type" minOccurs="0" maxOccurs="1"/>
             <xsd:element name="global-interceptors" type="interceptors-type" minOccurs="0" maxOccurs="1"/>
             <xsd:element name="connections" type="connections-type" minOccurs="0" maxOccurs="1"/>
         </xsd:all>
+    </xsd:complexType>
+
+    <xsd:complexType name="invocation-timeout-type">
+        <xsd:attribute name="seconds" type="xsd:integer" use="required"/>
     </xsd:complexType>
 
     <!-- Interceptors -->
