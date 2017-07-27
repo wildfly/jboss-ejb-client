@@ -29,9 +29,11 @@ import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
 import java.rmi.RemoteException;
 import java.rmi.UnmarshalException;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.Future;
 
@@ -197,7 +199,7 @@ final class EJBInvocationHandler<T> extends Attachable implements InvocationHand
 
         try {
             // send the request
-            sendRequestWithPossibleRetries(invocationContext, true);
+            sendRequestWithPossibleRetries(invocationContext, true, new ArrayList<String>());
 
             if (!async) {
                 // wait for invocation to complete
@@ -248,7 +250,7 @@ final class EJBInvocationHandler<T> extends Attachable implements InvocationHand
      * @param firstAttempt            True if this is a first attempt at sending the request, false if this is a retry
      * @throws Exception
      */
-    private static void sendRequestWithPossibleRetries(final EJBClientInvocationContext clientInvocationContext, final boolean firstAttempt) throws Exception {
+    private static void sendRequestWithPossibleRetries(final EJBClientInvocationContext clientInvocationContext, final boolean firstAttempt, final List<String> failedNodes) throws Exception {
         try {
             // this is the first attempt so use the sendRequest API
             if (firstAttempt) {
@@ -277,12 +279,11 @@ final class EJBInvocationHandler<T> extends Attachable implements InvocationHand
             }
             // retry the request
             final String failedNodeName = rsfe.getFailedNodeName();
-            if (failedNodeName != null) {
+            if (failedNodeName != null && !failedNodes.contains(failedNodeName)) {
+                failedNodes.add(failedNodeName);
                 Logs.MAIN.debugf(rsfe, "Retrying invocation %s which failed on node: %s due to:", clientInvocationContext, failedNodeName);
-                // exclude this failed node, during the retry
-                clientInvocationContext.markNodeAsExcluded(failedNodeName);
                 // retry
-                sendRequestWithPossibleRetries(clientInvocationContext, false);
+                sendRequestWithPossibleRetries(clientInvocationContext, false, failedNodes);
             } else {
                 throw rsfe;
             }
