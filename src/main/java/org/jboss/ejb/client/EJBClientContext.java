@@ -565,7 +565,11 @@ public final class EJBClientContext extends Attachable implements Closeable {
         EJBClientInterceptor.Registration[] oldRegistrations, newRegistrations;
         do {
             oldRegistrations = registrations;
-            for (EJBClientInterceptor.Registration oldRegistration : oldRegistrations) {
+            for (final EJBClientInterceptor.Registration oldRegistration : oldRegistrations) {
+                // check if more than one interceptor instance is being registered with same priority (which we shouldn't allow)
+                if (oldRegistration.getPriority() == priority && oldRegistration.getInterceptor() != clientInterceptor) {
+                    throw Logs.MAIN.duplicatePriorityEJBClientInterceptorRegistration(clientInterceptor, priority);
+                }
                 if (oldRegistration.getInterceptor() == clientInterceptor) {
                     if (oldRegistration.compareTo(newRegistration) == 0) {
                         // This means that a client interceptor which has already been added to this context,

@@ -74,6 +74,10 @@ public interface EJBClientInterceptor {
             return interceptor;
         }
 
+        int getPriority() {
+            return this.priority;
+        }
+
         public int compareTo(final Registration o) {
             return Integer.signum(priority - o.priority);
         }
