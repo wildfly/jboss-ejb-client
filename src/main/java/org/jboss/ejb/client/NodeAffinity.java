@@ -21,6 +21,8 @@ package org.jboss.ejb.client;
 import java.net.URI;
 import java.net.URISyntaxException;
 
+import org.wildfly.common.Assert;
+
 /**
  * A single node affinity specification.
  *
@@ -35,9 +37,10 @@ public final class NodeAffinity extends Affinity {
     /**
      * Construct a new instance.
      *
-     * @param nodeName the associated node name
+     * @param nodeName the associated node name (must not be {@code null})
      */
     public NodeAffinity(final String nodeName) {
+        Assert.checkNotNullParam("nodeName", nodeName);
         this.nodeName = nodeName;
     }
 

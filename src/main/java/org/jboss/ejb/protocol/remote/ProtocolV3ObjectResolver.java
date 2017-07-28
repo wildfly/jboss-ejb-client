@@ -36,8 +36,10 @@ final class ProtocolV3ObjectResolver implements ObjectResolver {
     private final boolean preferUri;
 
     ProtocolV3ObjectResolver(final Connection connection, final boolean preferUri) {
-        peerNodeAffinity = new NodeAffinity(connection.getRemoteEndpointName());
-        selfNodeAffinity = new NodeAffinity(connection.getEndpoint().getName());
+        final String remoteEndpointName = connection.getRemoteEndpointName();
+        peerNodeAffinity = remoteEndpointName == null ? null : new NodeAffinity(remoteEndpointName);
+        final String localEndpointName = connection.getEndpoint().getName();
+        selfNodeAffinity = localEndpointName == null ? null : new NodeAffinity(localEndpointName);
         this.preferUri = preferUri;
         final URI peerURI = connection.getPeerURI();
         peerUriAffinity = peerURI == null ? null : (URIAffinity) Affinity.forUri(peerURI);
@@ -46,11 +48,11 @@ final class ProtocolV3ObjectResolver implements ObjectResolver {
     public Object readResolve(final Object replacement) {
         if (replacement == Affinity.LOCAL) {
             // This shouldn't be possible.  If it happens though, we will guess that it is the peer talking about itself
-            return preferUri && peerUriAffinity != null ? peerUriAffinity : peerNodeAffinity;
+            return preferUri && peerUriAffinity != null ? peerUriAffinity : peerNodeAffinity != null ? peerNodeAffinity : Affinity.NONE;
         } else if (replacement instanceof NodeAffinity) {
-            if (replacement.equals(selfNodeAffinity)) {
+            if (selfNodeAffinity != null && replacement.equals(selfNodeAffinity)) {
                 return Affinity.LOCAL;
-            } else if (preferUri && peerUriAffinity != null && replacement.equals(peerNodeAffinity)) {
+            } else if (preferUri && peerUriAffinity != null && peerNodeAffinity != null && replacement.equals(peerNodeAffinity)) {
                 // the peer is talking about itself; use the more specific URI if we have one
                 return peerUriAffinity;
             }
@@ -59,10 +61,10 @@ final class ProtocolV3ObjectResolver implements ObjectResolver {
     }
 
     public Object writeReplace(final Object original) {
-        if (original == Affinity.LOCAL) {
+        if (original == Affinity.LOCAL && selfNodeAffinity != null) {
             // we don't know the peer's view URI of us, if there even is one, so switch it to node affinity and let the peer sort it out
             return selfNodeAffinity;
-        } else if (peerUriAffinity != null && original instanceof URIAffinity && original.equals(peerUriAffinity)) {
+        } else if (peerUriAffinity != null && original instanceof URIAffinity && original.equals(peerUriAffinity) && peerNodeAffinity != null) {
             // it's the peer node; the peer won't know its own URI though, so send its node affinity instead
             return peerNodeAffinity;
         }

@@ -149,7 +149,7 @@ class EJBRootContext extends AbstractContext {
         } else {
             proxy = EJBClient.createProxy(statelessLocator, authenticationConfiguration, sslContext);
         }
-        EJBClient.putProxyAttachment(proxy, NAMING_PROVIDER_ATTACHMENT_KEY, namingProvider);
+        if (namingProvider != null) EJBClient.putProxyAttachment(proxy, NAMING_PROVIDER_ATTACHMENT_KEY, namingProvider);
 
         // if "invocation.timeout" is set in environment properties, set this value to created proxy
         Long invocationTimeout = getLongValueFromEnvironment(PROPERTY_KEY_INVOCATION_TIMEOUT);

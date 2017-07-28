@@ -383,7 +383,7 @@ public final class DiscoveryEJBClientInterceptor implements EJBClientInterceptor
         }
 
         context.setDestination(location);
-        context.setTargetAffinity(new NodeAffinity(nodeName));
+        if (nodeName != null) context.setTargetAffinity(new NodeAffinity(nodeName));
         return problems;
     }
 
