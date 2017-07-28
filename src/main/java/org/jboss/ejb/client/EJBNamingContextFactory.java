@@ -33,6 +33,12 @@ import org.wildfly.naming.client.util.FastHashtable;
  */
 @MetaInfServices
 public final class EJBNamingContextFactory implements NamingContextFactory {
+    /**
+     * Construct a new instance.
+     */
+    public EJBNamingContextFactory() {
+    }
+
     public boolean supportsUriScheme(final NamingProvider namingProvider, final String nameScheme) {
         return "ejb".equals(nameScheme);
     }

@@ -34,6 +34,7 @@ import org.jboss.ejb._private.Logs;
 import org.wildfly.common.Assert;
 import org.wildfly.discovery.FilterSpec;
 import org.wildfly.discovery.ServicesQueue;
+import org.wildfly.naming.client.NamingProvider;
 import org.wildfly.security.auth.client.AuthenticationConfiguration;
 import org.wildfly.transaction.client.RemoteTransactionContext;
 
@@ -201,6 +202,20 @@ public final class EJBClient {
         }
     }
 
+    // Special hook method for naming; let's replace this sometime soon.
+    static <T> T createSessionProxy(final StatelessEJBLocator<T> statelessLocator, AuthenticationConfiguration authenticationConfiguration, SSLContext sslContext, NamingProvider namingProvider) throws Exception {
+        final EJBClientContext clientContext = EJBClientContext.getCurrent();
+        final StatefulEJBLocator<T> statefulLocator = clientContext.createSession(statelessLocator, authenticationConfiguration, sslContext, namingProvider);
+        if (statelessLocator.getAffinity() instanceof ClusterAffinity) {
+            final Affinity weakAffinity = statefulLocator.getAffinity();
+            final T proxy = createProxy(statefulLocator.withNewAffinity(statelessLocator.getAffinity()), authenticationConfiguration, sslContext);
+            setWeakAffinity(proxy, weakAffinity);
+            return proxy;
+        } else {
+            return createProxy(statefulLocator, authenticationConfiguration, sslContext);
+        }
+    }
+
     /**
      * Create a new EJB session.
      *
@@ -324,7 +339,7 @@ public final class EJBClient {
      */
     static <T> StatefulEJBLocator<T> createSession(StatelessEJBLocator<T> statelessLocator, AuthenticationConfiguration authenticationConfiguration, SSLContext sslContext) throws Exception {
         final EJBClientContext clientContext = EJBClientContext.getCurrent();
-        return clientContext.createSession(statelessLocator, authenticationConfiguration, sslContext);
+        return clientContext.createSession(statelessLocator, authenticationConfiguration, sslContext, null);
     }
 
     /**
@@ -571,5 +586,121 @@ public final class EJBClient {
             throw Logs.MAIN.userTxNotSupportedByTxContext();
         }
         return RemoteTransactionContext.getInstance().getUserTransaction(uri);
+    }
+
+    /**
+     * Get a proxy attachment.
+     *
+     * @param proxy the proxy (must not be {@code null})
+     * @param attachmentKey the attachment key to use (must not be {@code null})
+     * @param <T> the value type
+     * @return the attachment value or {@code null} if the attachment is not present
+     * @throws IllegalArgumentException if a required parameter is {@code null} or if the object is not a valid EJB client proxy
+     */
+    public static <T> T getProxyAttachment(Object proxy, AttachmentKey<T> attachmentKey) throws IllegalArgumentException {
+        Assert.checkNotNullParam("proxy", proxy);
+        Assert.checkNotNullParam("attachmentKey", attachmentKey);
+        return EJBInvocationHandler.forProxy(proxy).getAttachment(attachmentKey);
+    }
+
+    /**
+     * Set a proxy attachment.
+     *
+     * @param proxy the proxy (must not be {@code null})
+     * @param attachmentKey the attachment key to use (must not be {@code null})
+     * @param newValue the new value to set (must not be {@code null})
+     * @param <T> the value type
+     * @return the previous attachment value or {@code null} if the attachment previously did not exist
+     * @throws IllegalArgumentException if a required parameter is {@code null} or if the object is not a valid EJB client proxy
+     */
+    public static <T> T putProxyAttachment(Object proxy, AttachmentKey<T> attachmentKey, T newValue) throws IllegalArgumentException {
+        Assert.checkNotNullParam("proxy", proxy);
+        Assert.checkNotNullParam("attachmentKey", attachmentKey);
+        Assert.checkNotNullParam("newValue", newValue);
+        return EJBInvocationHandler.forProxy(proxy).putAttachment(attachmentKey, newValue);
+    }
+
+    /**
+     * Set a proxy attachment if it is not already set.
+     *
+     * @param proxy the proxy (must not be {@code null})
+     * @param attachmentKey the attachment key to use (must not be {@code null})
+     * @param newValue the new value to set (must not be {@code null})
+     * @param <T> the value type
+     * @return the previous attachment value or {@code null} if the attachment previously did not exist
+     * @throws IllegalArgumentException if a required parameter is {@code null} or if the object is not a valid EJB client proxy
+     */
+    public static <T> T putProxyAttachmentIfAbsent(Object proxy, AttachmentKey<T> attachmentKey, T newValue) throws IllegalArgumentException {
+        Assert.checkNotNullParam("proxy", proxy);
+        Assert.checkNotNullParam("attachmentKey", attachmentKey);
+        Assert.checkNotNullParam("newValue", newValue);
+        return EJBInvocationHandler.forProxy(proxy).putAttachmentIfAbsent(attachmentKey, newValue);
+    }
+
+    /**
+     * Remove a proxy attachment.
+     *
+     * @param proxy the proxy (must not be {@code null})
+     * @param attachmentKey the attachment key to use (must not be {@code null})
+     * @param <T> the value type
+     * @return the previous attachment value or {@code null} if the attachment previously did not exist
+     * @throws IllegalArgumentException if a required parameter is {@code null} or if the object is not a valid EJB client proxy
+     */
+    public static <T> T removeProxyAttachment(Object proxy, AttachmentKey<T> attachmentKey) throws IllegalArgumentException {
+        Assert.checkNotNullParam("proxy", proxy);
+        Assert.checkNotNullParam("attachmentKey", attachmentKey);
+        return EJBInvocationHandler.forProxy(proxy).removeAttachment(attachmentKey);
+    }
+
+    /**
+     * Remove a proxy attachment with a particular value.
+     *
+     * @param proxy the proxy (must not be {@code null})
+     * @param attachmentKey the attachment key to use (must not be {@code null})
+     * @param oldValue the new value to set (must not be {@code null})
+     * @param <T> the value type
+     * @return {@code true} if the attachment was removed, or {@code false} if the value did not match or was not present
+     * @throws IllegalArgumentException if a required parameter is {@code null} or if the object is not a valid EJB client proxy
+     */
+    public static <T> boolean removeProxyAttachment(Object proxy, AttachmentKey<T> attachmentKey, T oldValue) throws IllegalArgumentException {
+        Assert.checkNotNullParam("proxy", proxy);
+        Assert.checkNotNullParam("attachmentKey", attachmentKey);
+        Assert.checkNotNullParam("oldValue", oldValue);
+        return EJBInvocationHandler.forProxy(proxy).removeAttachment(attachmentKey, oldValue);
+    }
+
+    /**
+     * Replace a proxy attachment if it is already present.
+     *
+     * @param proxy the proxy (must not be {@code null})
+     * @param attachmentKey the attachment key to use (must not be {@code null})
+     * @param newValue the new value to set (must not be {@code null})
+     * @param <T> the value type
+     * @return the previous attachment value or {@code null} if the attachment previously did not exist
+     * @throws IllegalArgumentException if a required parameter is {@code null} or if the object is not a valid EJB client proxy
+     */
+    public static <T> T replaceProxyAttachment(Object proxy, AttachmentKey<T> attachmentKey, T newValue) throws IllegalArgumentException {
+        Assert.checkNotNullParam("proxy", proxy);
+        Assert.checkNotNullParam("attachmentKey", attachmentKey);
+        Assert.checkNotNullParam("newValue", newValue);
+        return EJBInvocationHandler.forProxy(proxy).replaceAttachment(attachmentKey, newValue);
+    }
+
+    /**
+     * Replace a proxy attachment if it is already present.
+     *
+     * @param proxy the proxy (must not be {@code null})
+     * @param attachmentKey the attachment key to use (must not be {@code null})
+     * @param newValue the old value to replace (must not be {@code null})
+     * @param <T> the value type
+     * @return {@code true} if the attachment value was replaced, {@code false} otherwise
+     * @throws IllegalArgumentException if a required parameter is {@code null} or if the object is not a valid EJB client proxy
+     */
+    public static <T> boolean replaceProxyAttachment(Object proxy, AttachmentKey<T> attachmentKey, T oldValue, T newValue) throws IllegalArgumentException {
+        Assert.checkNotNullParam("proxy", proxy);
+        Assert.checkNotNullParam("attachmentKey", attachmentKey);
+        Assert.checkNotNullParam("oldValue", oldValue);
+        Assert.checkNotNullParam("newValue", newValue);
+        return EJBInvocationHandler.forProxy(proxy).replaceAttachment(attachmentKey, oldValue, newValue);
     }
 }

@@ -18,7 +18,6 @@
 
 package org.jboss.ejb.client;
 
-import java.net.URI;
 import java.security.AccessController;
 import java.security.PrivilegedAction;
 import java.util.concurrent.TimeUnit;
@@ -40,9 +39,10 @@ import org.wildfly.security.auth.client.AuthenticationConfiguration;
 
 class EJBRootContext extends AbstractContext {
 
-    private static final String PROPERTY_KEY_INVOCATION_TIMEOUT = "invocation.timeout";
+    static final AttachmentKey<NamingProvider> NAMING_PROVIDER_ATTACHMENT_KEY = new AttachmentKey<>();
 
-    private final Affinity affinity;
+    private static final String PROPERTY_KEY_INVOCATION_TIMEOUT = "invocation.timeout";
+    private final Affinity baseAffinity;
     private final NamingProvider namingProvider;
 
     EJBRootContext(final NamingProvider namingProvider, final FastHashtable<String, Object> env) {
@@ -52,20 +52,9 @@ class EJBRootContext extends AbstractContext {
         // check if strong affinity for this context has been set in the environment
         String clusterName = getClusterAffinityValueFromEnvironment();
         if (clusterName != null) {
-            affinity = new ClusterAffinity(clusterName);
+            baseAffinity = new ClusterAffinity(clusterName);
         } else {
-            // otherwise, use the NamingProvider URI to set string affinity
-            final URI providerUri = namingProvider == null ? null : namingProvider.getProviderUri();
-            if (providerUri == null) {
-                affinity = Affinity.NONE;
-            } else {
-                final String scheme = providerUri.getScheme();
-                if (scheme == null) {
-                    affinity = Affinity.NONE;
-                } else {
-                    affinity = Affinity.forUri(providerUri);
-                }
-            }
+            baseAffinity = Affinity.NONE;
         }
     }
 
@@ -149,17 +138,18 @@ class EJBRootContext extends AbstractContext {
         final SSLContext sslContext = namingProvider == null ? null : namingProvider.getSSLContext();
         final EJBModuleIdentifier moduleIdentifier = new EJBModuleIdentifier(appName, moduleName, distinctName);
         final EJBIdentifier identifier = new EJBIdentifier(moduleIdentifier, beanName);
-        final StatelessEJBLocator<?> statelessLocator = StatelessEJBLocator.create(view, identifier, affinity);
+        final StatelessEJBLocator<?> statelessLocator = StatelessEJBLocator.create(view, identifier, baseAffinity);
         final Object proxy;
         if (stateful) {
             try {
-                proxy = EJBClient.createSessionProxy(statelessLocator, authenticationConfiguration, sslContext);
+                proxy = EJBClient.createSessionProxy(statelessLocator, authenticationConfiguration, sslContext, namingProvider);
             } catch (Exception e) {
                 throw Logs.MAIN.lookupFailed(name, name, e);
             }
         } else {
             proxy = EJBClient.createProxy(statelessLocator, authenticationConfiguration, sslContext);
         }
+        EJBClient.putProxyAttachment(proxy, NAMING_PROVIDER_ATTACHMENT_KEY, namingProvider);
 
         // if "invocation.timeout" is set in environment properties, set this value to created proxy
         Long invocationTimeout = getLongValueFromEnvironment(PROPERTY_KEY_INVOCATION_TIMEOUT);

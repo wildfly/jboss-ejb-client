@@ -50,6 +50,7 @@ import org.wildfly.common.context.ContextManager;
 import org.wildfly.common.context.Contextual;
 import org.wildfly.discovery.Discovery;
 import org.wildfly.discovery.ServiceType;
+import org.wildfly.naming.client.NamingProvider;
 import org.wildfly.security.auth.client.AuthenticationConfiguration;
 
 /**
@@ -116,6 +117,7 @@ public final class EJBClientContext extends Attachable implements Contextual<EJB
 
     static final InterceptorList defaultInterceptors = new InterceptorList(new EJBClientInterceptorInformation[] {
         EJBClientInterceptorInformation.forClass(TransactionInterceptor.class),
+        EJBClientInterceptorInformation.forClass(NamingEJBClientInterceptor.class),
         EJBClientInterceptorInformation.forClass(DiscoveryEJBClientInterceptor.class),
         EJBClientInterceptorInformation.forClass(RemotingEJBClientInterceptor.class),
     });
@@ -713,9 +715,11 @@ public final class EJBClientContext extends Attachable implements Contextual<EJB
         return getCurrent();
     }
 
-    <T> StatefulEJBLocator<T> createSession(final StatelessEJBLocator<T> statelessLocator, final AuthenticationConfiguration authenticationConfiguration, final SSLContext sslContext) throws Exception {
+    <T> StatefulEJBLocator<T> createSession(final StatelessEJBLocator<T> statelessLocator, final AuthenticationConfiguration authenticationConfiguration, final SSLContext sslContext, final NamingProvider namingProvider) throws Exception {
         InterceptorList interceptorList = getInterceptors(statelessLocator.getViewType());
         final EJBSessionCreationInvocationContext context = new EJBSessionCreationInvocationContext(statelessLocator, this, authenticationConfiguration, sslContext, interceptorList);
+        // Special hook for naming; let's replace this sometime soon.
+        if (namingProvider != null) context.putAttachment(EJBRootContext.NAMING_PROVIDER_ATTACHMENT_KEY, namingProvider);
 
         Logs.INVOCATION.tracef("Calling createSession(locator = %s)",statelessLocator);
 
