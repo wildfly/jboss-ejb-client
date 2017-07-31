@@ -702,6 +702,22 @@ public final class EJBClientInvocationContext extends AbstractInvocationContext 
         this.transaction = transaction;
     }
 
+    /**
+     * Get the remaining invocation time in the given unit.  If there is no invocation timeout, {@link Long#MAX_VALUE} is
+     * always returned.  If the invocation time has elapsed, 0 is returned.
+     *
+     * @param timeUnit the time unit (must not be {@code null})
+     * @return the invocation's remaining time in the provided unit
+     */
+    public long getRemainingInvocationTime(TimeUnit timeUnit) {
+        Assert.checkNotNullParam("timeUnit", timeUnit);
+        final long timeout = this.timeout;
+        if (timeout <= 0L) {
+            return Long.MAX_VALUE;
+        }
+        return max(0L, timeUnit.convert(timeout - (System.nanoTime() - startTime) / 1_000_000L, TimeUnit.MILLISECONDS));
+    }
+
     AuthenticationConfiguration getAuthenticationConfiguration() {
         return authenticationConfiguration;
     }
