@@ -66,6 +66,7 @@ import org.xnio.Options;
  * @author Jaikiran Pai
  * @author <a href=mailto:tadamski@redhat.com>Tomasz Adamski</a>
  * @author <a href="mailto:david.lloyd@redhat.com">David M. Lloyd</a>
+ * @author <a href="mailto:jbaesner@redhat.com">Joerg Baesner</a>
  */
 public final class JBossEJBProperties implements Contextual<JBossEJBProperties> {
 
@@ -295,11 +296,20 @@ public final class JBossEJBProperties implements Contextual<JBossEJBProperties> 
         }
     }
 
+    private static ClassLoader getJBossEJBPropertiesClassLoader() {
+        ClassLoader classLoader = JBossEJBProperties.class.getClassLoader();
+
+        // according to the Javadoc of getClassLoader() some implementations may use null to represent the bootstrap class
+        // loader. As this is not handled in the code we're going to return the context ClassLoader for the current Thread if
+        // getClassLoader has returned null (see EJBCLIENT-254)
+        return (classLoader != null) ? classLoader : Thread.currentThread().getContextClassLoader();
+    }
+
     public static JBossEJBProperties fromProperties(final String fileName, final Properties properties) {
         Assert.checkNotNullParam("fileName", fileName);
         Assert.checkNotNullParam("properties", properties);
 
-        final ClassLoader classLoader = JBossEJBProperties.class.getClassLoader();
+        final ClassLoader classLoader = getJBossEJBPropertiesClassLoader();
 
         final Builder builder = new Builder();
 
@@ -448,7 +458,7 @@ public final class JBossEJBProperties implements Contextual<JBossEJBProperties> 
     }
 
     public static JBossEJBProperties fromClassPath() throws IOException {
-        return fromClassPath(JBossEJBProperties.class.getClassLoader(), DEFAULT_PATH_NAME);
+        return fromClassPath(getJBossEJBPropertiesClassLoader(), DEFAULT_PATH_NAME);
     }
 
     static JBossEJBProperties getCurrent() {
