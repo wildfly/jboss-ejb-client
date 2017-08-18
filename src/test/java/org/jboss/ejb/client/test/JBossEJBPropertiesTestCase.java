@@ -245,4 +245,9 @@ public class JBossEJBPropertiesTestCase {
     public static void afterClass() {
     }
 
+    public static void main(String[] args) throws Exception {
+        JBossEJBPropertiesTestCase props = new JBossEJBPropertiesTestCase();
+        props.testLegacyProperties();
+    }
+
 }
