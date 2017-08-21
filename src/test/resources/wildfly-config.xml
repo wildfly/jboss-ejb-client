@@ -30,9 +30,9 @@
         </authentication-rules>
         <authentication-configurations>
             <configuration name="config">
-                <allow-sasl-mechanisms names="ANONYMOUS"/>
+                <sasl-mechanism-selector selector="ANONYMOUS"/>
                 <set-anonymous/>
-                <use-service-loader-providers />
+                <providers><use-service-loader/></providers>
             </configuration>
         </authentication-configurations>
     </authentication-client>
