@@ -76,4 +76,37 @@ public interface EJBClientInterceptor {
     default SessionID handleSessionCreation(EJBSessionCreationInvocationContext context) throws Exception {
         return context.proceed();
     }
+
+    /**
+     * An interceptor registration handle.
+     *
+     * @deprecated Please use EJBClientContext.Builder to manipulate the EJBClientInterceptors.
+     */
+    @Deprecated
+    class Registration implements Comparable<Registration> {
+        private final EJBClientContext clientContext;
+        private final EJBClientInterceptor interceptor;
+        private final int priority;
+
+        Registration(final EJBClientContext clientContext, final EJBClientInterceptor interceptor, final int priority) {
+            this.clientContext = clientContext;
+            this.interceptor = interceptor;
+            this.priority = priority;
+        }
+
+        /**
+         * Remove this registration.
+         */
+        public void remove() {
+            clientContext.removeInterceptor(this);
+        }
+
+        EJBClientInterceptor getInterceptor() {
+            return interceptor;
+        }
+
+        public int compareTo(final Registration o) {
+            return Integer.signum(priority - o.priority);
+        }
+    }
 }
