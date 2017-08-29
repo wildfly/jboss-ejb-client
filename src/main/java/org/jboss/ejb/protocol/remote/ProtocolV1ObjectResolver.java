@@ -39,8 +39,10 @@ final class ProtocolV1ObjectResolver implements ObjectResolver {
     private final boolean preferUri;
 
     ProtocolV1ObjectResolver(final Connection connection, final boolean preferUri) {
-        peerNodeAffinity = new NodeAffinity(connection.getRemoteEndpointName());
-        selfNodeAffinity = new NodeAffinity(connection.getEndpoint().getName());
+        final String remoteEndpointName = connection.getRemoteEndpointName();
+        peerNodeAffinity = remoteEndpointName == null ? null : new NodeAffinity(remoteEndpointName);
+        final String localEndpointName = connection.getEndpoint().getName();
+        selfNodeAffinity = localEndpointName == null ? null : new NodeAffinity(localEndpointName);
         this.preferUri = preferUri;
         final URI peerURI = connection.getPeerURI();
         peerUriAffinity = peerURI == null ? null : (URIAffinity) Affinity.forUri(peerURI);
@@ -65,11 +67,11 @@ final class ProtocolV1ObjectResolver implements ObjectResolver {
 
     public Object writeReplace(final Object original) {
         if (original instanceof URIAffinity) {
-            if (peerUriAffinity != null && original.equals(peerUriAffinity)) {
+            if (peerUriAffinity != null && original.equals(peerUriAffinity) && peerNodeAffinity != null) {
                 return peerNodeAffinity;
             }
             return Affinity.NONE;
-        } else if (original == Affinity.LOCAL) {
+        } else if (original == Affinity.LOCAL && selfNodeAffinity != null) {
             // Swap a local affinity with a node affinity with the name of this node
             return selfNodeAffinity;
         } else if (original instanceof AbstractEJBMetaData) {
