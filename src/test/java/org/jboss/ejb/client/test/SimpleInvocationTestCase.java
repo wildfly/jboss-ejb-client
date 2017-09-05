@@ -17,52 +17,50 @@
  */
 package org.jboss.ejb.client.test;
 
+import org.jboss.ejb.client.Affinity;
 import org.jboss.ejb.client.EJBClient;
 import org.jboss.ejb.client.EJBClientConnection;
 import org.jboss.ejb.client.EJBClientContext;
+import org.jboss.ejb.client.EJBIdentifier;
+import org.jboss.ejb.client.EJBModuleIdentifier;
+import org.jboss.ejb.client.StatefulEJBLocator;
 import org.jboss.ejb.client.StatelessEJBLocator;
 import org.jboss.ejb.client.URIAffinity;
+import org.jboss.ejb.client.NodeAffinity;
 import org.jboss.ejb.client.legacy.JBossEJBProperties;
 import org.jboss.ejb.client.test.common.DummyServer;
-import org.jboss.ejb.client.test.common.EchoBean;
 import org.jboss.ejb.client.test.common.Echo;
+import org.jboss.ejb.client.test.common.EchoBean;
+import org.jboss.ejb.client.test.common.Result;
+import org.jboss.ejb.client.test.common.StatefulEchoBean;
+import org.jboss.ejb.client.test.common.StatelessEchoBean;
 import org.jboss.logging.Logger;
 import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.BeforeClass;
+import org.junit.Ignore;
 import org.junit.Test;
-import org.wildfly.common.context.ContextManager;
-import org.wildfly.common.context.Contextual;
 
-import java.lang.reflect.Field;
-import java.lang.reflect.Method;
-import java.lang.reflect.Modifier;
+import javax.ejb.NoSuchEJBException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.List;
 
 /**
- * Tests basic invocation of a bean deployed on a single server node.
+ * Tests basic features of proxies for invocation of a bean deployed on a single server node.
+ *
+ * The server environment consists of two singleton nodes:
+ * on node1: beans StatefulEchoBean, StatelessEchoBean are deployed, non-clustered
+ * on node2: beans StatefulEchoBean, StatelessEchoBean are deployed, non-clustered
  *
  * @author <a href="mailto:rachmato@redhat.com">Richard Achmatowicz</a>
  */
-public class SimpleInvocationTestCase {
+public class SimpleInvocationTestCase extends AbstractEJBClientTestCase {
 
     private static final Logger logger = Logger.getLogger(SimpleInvocationTestCase.class);
     private static final String PROPERTIES_FILE = "jboss-ejb-client.properties";
-
-    private DummyServer server;
-    private boolean serverStarted = false;
-
-    // module
-    private static final String APP_NAME = "my-foo-app";
-    private static final String MODULE_NAME = "my-bar-module";
-    private static final String DISTINCT_NAME = "";
-
-    private static final String SERVER_NAME = "test-server";
-
 
     /**
      * Do any general setup here
@@ -83,70 +81,383 @@ public class SimpleInvocationTestCase {
      */
     @Before
     public void beforeTest() throws Exception {
-        // start a server
-        server = new DummyServer("localhost", 6999, SERVER_NAME);
-        server.start();
-        serverStarted = true;
-        logger.info("Started server ...");
+        // start servers
+        for (int i = 0; i < 2; i++) {
+            startServer(i, 6999 + (i*100));
+            // deploy a stateful bean
+            deployStateful(i);
+            // deploy a stateless bean
+            deployStateless(i);
+        }
+     }
 
-        server.register(APP_NAME, MODULE_NAME, DISTINCT_NAME, Echo.class.getSimpleName(), new EchoBean());
-        logger.info("Registered module ...");
-    }
-
+    /**
+     * Test number of configured connections in EJBClientContext.
+     */
     @Test
     public void testConfiguredConnections() {
+        logger.info("=== Testing EJBClientContext for correct number of configured connections ===");
+
         EJBClientContext context = EJBClientContext.getCurrent();
         List<EJBClientConnection> connections = context.getConfiguredConnections();
 
-        Assert.assertEquals("Number of configured connections for this context is incorrect", 1, connections.size());
+        Assert.assertEquals("Number of configured connections for this context is incorrect", 2, connections.size());
         for (EJBClientConnection connection : connections) {
             logger.info("found connection: destination = " + connection.getDestination() + ", forDiscovery = " + connection.isForDiscovery());
         }
     }
 
     /**
-     * Test a basic invocation
+     * Test invocation with URIAffinity
+     *
+     * scenario:
+     *   invoked bean available on two targets
+     * expected result:
+     *   invocation always chooses target identified by URI
      */
     @Test
     public void testInvocationWithURIAffinity() {
-        logger.info("Testing invocation on proxy with URIAffinity");
+        logger.info("=== Testing invocation on proxy with URIAffinity ===");
 
         // create a proxy for invocation
-        final StatelessEJBLocator<Echo> statelessEJBLocator = new StatelessEJBLocator<Echo>(Echo.class, APP_NAME, MODULE_NAME, Echo.class.getSimpleName(), DISTINCT_NAME);
-        final Echo proxy = EJBClient.createProxy(statelessEJBLocator);
         URI uri = null;
         try {
             uri = new URI("remote", null,"localhost", 6999, null, null,null);
         } catch(URISyntaxException use) {
             //
         }
-        EJBClient.setStrongAffinity(proxy, URIAffinity.forUri(uri));
+        final Affinity expectedStrongAffinity = URIAffinity.forUri(uri);
+
+        final StatelessEJBLocator<Echo> statelessEJBLocator = StatelessEJBLocator.create(Echo.class, STATELESS_IDENTIFIER, expectedStrongAffinity);
+        final Echo proxy = EJBClient.createProxy(statelessEJBLocator);
         Assert.assertNotNull("Received a null proxy", proxy);
         logger.info("Created proxy for Echo: " + proxy.toString());
 
+        // invoke on the proxy
         logger.info("Invoking on proxy...");
-        // invoke on the proxy (use a URIAffinity for now)
         final String message = "hello!";
-        final String echo = proxy.echo(message);
-        Assert.assertEquals("Got an unexpected echo", echo, message);
+        final Result<String> echoResult = proxy.echo(message);
+
+        // check the message contents and the target
+        Assert.assertEquals("Got an unexpected echo", echoResult.getValue(), message);
+        Assert.assertEquals("Got an unexpected node for invocation target", echoResult.getNode(), SERVER1_NAME);
     }
 
     /**
-     * Do any test-specific tear down here.
+     * Test invocation with URIAffinity
+     *
+     * scenario:
+     *   invoked bean available on one target, not pointed to by URI
+     * expected result:
+     *   invocation always chooses target identified by URI, NoSuchEJBException
+     */
+    @Test
+    public void testInvocationWithURIAffinityNoFailover() {
+        logger.info("=== Testing invocation on proxy with URIAffinity does not failover ===");
+
+        // create a proxy for invocation
+        URI uri = null;
+        try {
+            uri = new URI("remote", null,"localhost", 6999, null, null,null);
+        } catch(URISyntaxException use) {
+            //
+        }
+        final Affinity expectedStrongAffinity = URIAffinity.forUri(uri);
+
+        final StatelessEJBLocator<Echo> statelessEJBLocator = StatelessEJBLocator.create(Echo.class, STATELESS_IDENTIFIER, expectedStrongAffinity);
+        final Echo proxy = EJBClient.createProxy(statelessEJBLocator);
+        Assert.assertNotNull("Received a null proxy", proxy);
+        logger.info("Created proxy for Echo: " + proxy.toString());
+
+        // undeploy the bean from host pointed by URI
+        undeployStateless(0);
+
+        // invoke on the proxy
+        logger.info("Invoking on proxy...");
+        final String message = "hello!";
+        boolean gotNoSuchEJBException;
+        Result<String> echoResult ;
+        try {
+            echoResult = proxy.echo(message);
+            gotNoSuchEJBException = false;
+        } catch(NoSuchEJBException e) {
+            gotNoSuchEJBException = true;
+            echoResult = null;
+        }
+        Assert.assertEquals("NoSuchEJBException was expected", true, gotNoSuchEJBException);
+
+        // redeploy the bean on the server
+        deployStateless(0);
+    }
+
+    /**
+     * Test SFSB default proxy initialization (legacy behaviour)
+     *
+     * scenario:
+     *   invoked bean available on one target, node2
+     * expected result:
+     *   SFSB session is created on that target, strong affinity = Node(node2), weakAffinity = NONE
+     */
+    @Test
+    public void testSFSBDefaultProxyInitialization() {
+        logger.info("=== Testing SFSB default proxy initialization ===");
+
+        // undeploy the bean from host node1
+        undeployStateful(0);
+
+        Affinity expectedStrongAffinity = new NodeAffinity("node2");
+        // this is what should give, but what follows is equivalent
+        // Affinity expectedWeakAffinity = Affinity.NONE;
+        Affinity expectedWeakAffinity = new NodeAffinity("node2");
+
+        // create a proxy for SFSB, with a default value for strong affinity
+        final StatelessEJBLocator<Echo> statefulEJBLocator = StatelessEJBLocator.create(Echo.class, STATEFUL_IDENTIFIER, Affinity.NONE);
+        Echo proxy ;
+        try {
+            proxy = EJBClient.createSessionProxy(statefulEJBLocator);
+        } catch (Exception e) {
+            Assert.fail("Unexpected exception when creating session proxy: e = " + e.getMessage());
+            proxy = null;
+        }
+        Assert.assertNotNull("Received a null proxy", proxy);
+
+        // check affinity assignments
+        Affinity strongAffinity = EJBClient.getStrongAffinity(proxy);
+        Affinity weakAffinity = EJBClient.getWeakAffinity(proxy);
+        logger.info("strong affinity = " + strongAffinity + ", weak affinity = " + weakAffinity);
+        Assert.assertEquals("Expected strong affinity != " + expectedStrongAffinity, expectedStrongAffinity, strongAffinity);
+        Assert.assertEquals("Expected weak affinity != " + expectedWeakAffinity, expectedWeakAffinity, weakAffinity);
+
+        // redeploy the bean on the server
+        deployStateful(0);
+    }
+
+    /**
+     * Test SFSB programmatic proxy initialization
+     *
+     * scenario:
+     *   invoked bean available on two targets, node1, node2
+     *   strong affinity is set to point to one of the two targets, node2
+     * expected result:
+     *   SFSB session is created on that target, strong affinity = Node(node2), weakAffinity = NONE
+     */
+    @Test
+    public void testSFSBProgrammaticProxyInitialization() {
+        logger.info("=== Testing SFSB programmatic proxy initialization ===");
+
+        Affinity expectedStrongAffinity = new NodeAffinity("node2");
+        // Affinity expectedWeakAffinity = Affinity.NONE;
+        // TODO: fix this affinity assignment
+        Affinity expectedWeakAffinity = new NodeAffinity("node2");
+
+        // create a proxy for SFSB, with a NodeAffinity which points to node2
+        final StatelessEJBLocator<Echo> statefulEJBLocator = StatelessEJBLocator.create(Echo.class, STATEFUL_IDENTIFIER, expectedStrongAffinity);
+        Echo proxy ;
+        try {
+            proxy = EJBClient.createSessionProxy(statefulEJBLocator);
+        } catch (Exception e) {
+            Assert.fail("Unexpected exception when creating session proxy: e = " + e.getMessage());
+            proxy = null;
+        }
+        Assert.assertNotNull("Received a null proxy", proxy);
+
+        // check affinity assignments
+        Affinity strongAffinity = EJBClient.getStrongAffinity(proxy);
+        Affinity weakAffinity = EJBClient.getWeakAffinity(proxy);
+        logger.info("strong affinity = " + strongAffinity + ", weak affinity = " + weakAffinity);
+        Assert.assertEquals("Expected strong affinity != " + expectedStrongAffinity, expectedStrongAffinity, strongAffinity);
+        Assert.assertEquals("Expected weak affinity != " + expectedWeakAffinity, expectedWeakAffinity, weakAffinity);
+    }
+
+    /**
+     * Test SFSB invocation
+     *
+     * scenario:
+     *   invoked bean available on two targets, node1, node2
+     *   strong affinity is set to point to one of the two targets, node2
+     * expected result:
+     *   the invocation occurs on node2
+     */
+    @Test
+    public void testSFSBInvocationation() {
+        logger.info("=== Testing SFSB invocation ===");
+
+        Affinity expectedStrongAffinity = new NodeAffinity("node2");
+        // Affinity expectedWeakAffinity = Affinity.NONE;
+
+        // create a proxy for SFSB, with a NodeAffinity which points to node2
+        final StatelessEJBLocator<Echo> statefulEJBLocator = StatelessEJBLocator.create(Echo.class, STATEFUL_IDENTIFIER, expectedStrongAffinity);
+        Echo proxy ;
+        try {
+            proxy = EJBClient.createSessionProxy(statefulEJBLocator);
+        } catch (Exception e) {
+            Assert.fail("Unexpected exception when creating session proxy: e = " + e.getMessage());
+            proxy = null;
+        }
+        Assert.assertNotNull("Received a null proxy", proxy);
+
+        // invoke on the proxy
+        logger.info("Invoking on proxy...");
+        final String message = "hello!";
+        final Result<String> echoResult = proxy.echo(message);
+        logger.info("SFSB invocation had target " + echoResult.getNode());
+
+        // check the message contents and the target
+        Assert.assertEquals("Got an unexpected echo", echoResult.getValue(), message);
+        Assert.assertEquals("Got an unexpected node for invocation target", echoResult.getNode(), SERVER2_NAME);
+    }
+
+    /**
+     * Test SFSB invocation with failover
+     *
+     * NOTE: the failover feature only applies to clustered deployments
+     *
+     * scenario:
+     *   invoked bean available on one target, node2
+     *   strong affinity is set to point to one of the two targets, node1
+     *   invoke on the proxy
+     *   undeploy the bean from node1
+     *   invoke on the proxy
+     * expected result:
+     *   the first invocation occurs on node1
+     *   the second invocation returns NoSuchEJBException
+     */
+    @Test
+    public void testSFSBInvocationationNoFailover() {
+        logger.info("=== Testing SFSB invocation with failover ===");
+
+        Affinity expectedStrongAffinity = new NodeAffinity("node1");
+        // Affinity expectedWeakAffinity = Affinity.NONE;
+
+        // create a proxy for SFSB, with a NodeAffinity which points to node2
+        final StatelessEJBLocator<Echo> statefulEJBLocator = StatelessEJBLocator.create(Echo.class, STATEFUL_IDENTIFIER, expectedStrongAffinity);
+        Echo proxy ;
+        try {
+            proxy = EJBClient.createSessionProxy(statefulEJBLocator);
+        } catch (Exception e) {
+            Assert.fail("Unexpected exception when creating session proxy: e = " + e.getMessage());
+            proxy = null;
+        }
+        Assert.assertNotNull("Received a null proxy", proxy);
+
+        // invoke on the proxy
+        logger.info("Invoking on proxy...");
+        final String message = "hello!";
+        Result<String> echoResult = proxy.echo(message);
+
+        // check the message contents and the target
+        Assert.assertEquals("Got an unexpected echo", echoResult.getValue(), message);
+        Assert.assertEquals("Got an unexpected node for invocation target", echoResult.getNode(), SERVER1_NAME);
+
+        // undeploy the bean on the server - this will trigger failover
+        undeployStateful(0);
+
+        // invoke on the proxy
+        logger.info("Invoking on proxy...again");
+        boolean gotNoSuchEJBException;
+        try {
+            echoResult = proxy.echo(message);
+            gotNoSuchEJBException = false;
+        } catch(NoSuchEJBException e) {
+            gotNoSuchEJBException = true;
+            echoResult = null;
+        }
+        Assert.assertEquals("NoSuchEJBException was expected", true, gotNoSuchEJBException);
+
+        // redeploy the bean on the server
+        deployStateful(0);
+    }
+
+    /**
+     * Test SLSB invocation
+     *
+     * scenario:
+     *   invoked bean available on two targets, node1, node2
+     *   strong affinity is set to Affinity.NONE
+     * expected result:
+     *   the invocation occurs on either node1 or node2
+     */
+    @Test
+    public void testSLSBInvocation() {
+        logger.info("=== Testing SLSB invocation ===");
+
+        Affinity expectedStrongAffinity = Affinity.NONE;
+
+        // create a proxy for SLSB
+        final StatelessEJBLocator<Echo> statelessEJBLocator = StatelessEJBLocator.create(Echo.class, STATELESS_IDENTIFIER, expectedStrongAffinity);
+        Echo proxy = EJBClient.createProxy(statelessEJBLocator);
+        Assert.assertNotNull("Received a null proxy", proxy);
+
+        // invoke on the proxy
+        logger.info("Invoking on proxy...");
+        final String message = "hello!";
+        final Result<String> echoResult = proxy.echo(message);
+        logger.info("SLSB invocation had target " + echoResult.getNode());
+
+        // check the message contents and the target
+        Assert.assertEquals("Got an unexpected echo", echoResult.getValue(), message);
+        Assert.assertTrue("Got an unexpected node for invocation target", echoResult.getNode().equals(SERVER1_NAME) || echoResult.getNode().equals(SERVER2_NAME));
+    }
+
+    /**
+     * Test SLSB invocation with failed node
+     *
+     * scenario:
+     *   invoked bean available on two nodes, node1, node2
+     *   strong affinity is set to NONE
+     *   invoke on the proxy
+     *   undeploy the bean from node1
+     *   invoke on the proxy
+     * expected result:
+     *   the first invocation occurs on either node1 or node2
+     *   the second invocation occurs on the remaining node2
+     */
+    @Test
+    public void testSLSBInvocationWithFailedNode() {
+        logger.info("=== Testing SLSB invocation with failed node ===");
+
+        Affinity expectedStrongAffinity = Affinity.NONE;
+
+        // create a proxy for SLSB
+        final StatelessEJBLocator<Echo> statelessEJBLocator = StatelessEJBLocator.create(Echo.class, STATELESS_IDENTIFIER, expectedStrongAffinity);
+        Echo proxy = EJBClient.createProxy(statelessEJBLocator);
+        Assert.assertNotNull("Received a null proxy", proxy);
+
+        // invoke on the proxy
+        logger.info("Invoking on proxy...");
+        final String message = "hello!";
+        Result<String> echoResult = proxy.echo(message);
+        logger.info("SLSB invocation had target " + echoResult.getNode());
+
+        // check the message contents and the target
+        Assert.assertEquals("Got an unexpected echo", echoResult.getValue(), message);
+        Assert.assertTrue("Got an unexpected node for invocation target", echoResult.getNode().equals(SERVER1_NAME) || echoResult.getNode().equals(SERVER2_NAME));
+
+        undeployStateless(0);
+
+        // invoke on the proxy
+        logger.info("Invoking on proxy...");
+        echoResult = proxy.echo(message);
+        logger.info("SLSB invocation had target " + echoResult.getNode());
+
+        // check the message contents and the target
+        Assert.assertEquals("Got an unexpected echo", echoResult.getValue(), message);
+        Assert.assertTrue("Got an unexpected node for invocation target", echoResult.getNode().equals(SERVER2_NAME));
+
+        deployStateless(0);
+    }
+
+    /**
+      * Do any test-specific tear down here.
      */
     @After
     public void afterTest() {
-        server.unregister(APP_NAME, MODULE_NAME, DISTINCT_NAME, Echo.class.getName());
-        logger.info("Unregistered module ...");
-
-        if (serverStarted) {
-            try {
-                this.server.stop();
-            } catch (Throwable t) {
-                logger.info("Could not stop server", t);
-            }
+        // undeploy server
+        for (int i = 0; i < 2; i++) {
+            undeployStateful(i);
+            undeployStateless(i);
+            stopServer(i);
         }
-        logger.info("Stopped server ...");
     }
 
     /**
@@ -155,5 +466,4 @@ public class SimpleInvocationTestCase {
     @AfterClass
     public static void afterClass() {
     }
-
-}
+ }

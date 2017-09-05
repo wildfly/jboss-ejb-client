@@ -1,6 +1,6 @@
 /*
  * JBoss, Home of Professional Open Source.
- * Copyright 2017 Red Hat, Inc., and individual contributors
+ * Copyright 2019 Red Hat, Inc., and individual contributors
  * as indicated by the @author tags.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -17,12 +17,29 @@
  */
 package org.jboss.ejb.client.test.common;
 
-import javax.ejb.Stateful;
+import java.io.Serializable;
 
 /**
- * User: jpai
+ * /**
+ * A wrapper for a return value that includes the node on which the result was generated.
+ * @author Paul Ferraro
  */
-public interface Foo {
 
-    Result<String> echo(String msg);
+public class Result<T> implements Serializable {
+    private static final long servialVersionUID = 12345L ;
+    private final T value;
+    private final String node;
+
+    public Result(T value, String node) {
+        this.value = value;
+        this.node = node;
+    }
+
+    public T getValue() {
+        return value;
+    }
+
+    public String getNode() {
+        return node;
+    }
 }
