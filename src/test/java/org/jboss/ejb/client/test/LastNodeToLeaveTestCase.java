@@ -25,6 +25,7 @@ import org.jboss.ejb.client.legacy.JBossEJBProperties;
 import org.jboss.ejb.client.test.common.DummyServer;
 import org.jboss.ejb.client.test.common.Echo;
 import org.jboss.ejb.client.test.common.EchoBean;
+import org.jboss.ejb.client.test.common.Result;
 import org.jboss.ejb.server.ClusterTopologyListener;
 import org.jboss.ejb.server.ClusterTopologyListener.ClusterInfo;
 import org.jboss.ejb.server.ClusterTopologyListener.NodeInfo;
@@ -211,12 +212,12 @@ public class LastNodeToLeaveTestCase {
                     // one second delay between invocations
                     Thread.sleep(INVOCATION_DELAY_SECS * 1000);
 
-                    String echo = null;
+                    Result<String> echo = null;
                     try {
                         echo = proxy.echo(message);
                     } catch(NoSuchEJBException e) {
                         logger.info("Got NoSuchEJBException from node, skipping...");
-                        echo = message;
+                        echo = new Result<String>(message, "unknown");
                     }
                     Assert.assertEquals("Got an unexpected echo", echo, message);
                 }

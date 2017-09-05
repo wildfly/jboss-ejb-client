@@ -106,6 +106,18 @@ public class DummyServer implements AutoCloseable {
         this.startTxServer = startTxService;
     }
 
+    public int getPort() {
+        return port;
+    }
+
+    public String getHost() {
+        return host;
+    }
+
+    public String getEndpointName() {
+        return endpointName;
+    }
+
     public void start() throws Exception {
         logger.info("Starting " + this);
 
@@ -161,7 +173,7 @@ public class DummyServer implements AutoCloseable {
 
         // set up an association to handle invocations, session creations and module/toopology listensrs
         // the association makes use of a module deployment repository as well a sa  cluster registry
-        Association dummyAssociation = new DummyAssociationImpl(deploymentRepository, clusterRegistry);
+        Association dummyAssociation = new DummyAssociationImpl(this, deploymentRepository, clusterRegistry);
 
         // set up a remoting transaction service
         RemotingTransactionService.Builder txnServiceBuilder = RemotingTransactionService.builder();
@@ -290,12 +302,12 @@ public class DummyServer implements AutoCloseable {
 
         Object findEJB(EJBModuleIdentifier module, String beanName) {
             final Map<String, Object> ejbs = this.registeredEJBs.getOrDefault(module, Collections.emptyMap());
-            final Object beanInstance = ejbs.get(beanName);
-            if (beanInstance == null) {
+            final Object instance = ejbs.get(beanName);
+            if (instance == null) {
                 // any exception will be handled by the caller on seeing null
                 return null;
             }
-            return beanInstance ;
+            return instance ;
         }
 
         void addListener(EJBDeploymentRepositoryListener listener) {
@@ -310,6 +322,13 @@ public class DummyServer implements AutoCloseable {
 
         void removeListener(EJBDeploymentRepositoryListener listener) {
             listeners.remove(listener);
+        }
+
+        void dumpRegistry() {
+            System.out.println("\n");
+            System.out.println("Dumping registered EJBs");
+            System.out.println(registeredEJBs.toString());
+            System.out.println("\n");
         }
     }
 
@@ -332,6 +351,10 @@ public class DummyServer implements AutoCloseable {
         List<EJBClusterRegistryListener> listeners = new ArrayList<EJBClusterRegistryListener>();
 
         EJBClusterRegistry() {
+        }
+
+        boolean isClusterMember(String clusterName) {
+            return joinedClusters.keySet().contains(clusterName);
         }
 
         void addCluster(ClusterInfo cluster) {

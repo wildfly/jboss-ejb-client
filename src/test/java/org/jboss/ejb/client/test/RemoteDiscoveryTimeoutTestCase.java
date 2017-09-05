@@ -31,6 +31,7 @@ import org.jboss.ejb.client.legacy.JBossEJBProperties;
 import org.jboss.ejb.client.test.common.DummyServer;
 import org.jboss.ejb.client.test.common.Echo;
 import org.jboss.ejb.client.test.common.EchoBean;
+import org.jboss.ejb.client.test.common.Result;
 import org.jboss.logging.Logger;
 import org.junit.After;
 import org.junit.Assert;
@@ -119,7 +120,8 @@ public class RemoteDiscoveryTimeoutTestCase {
          logger.info("Invoking on proxy...");
          // Invoke on the proxy. This should fail in 10 seconds or else it'll hang.
          final String message = "hello!";
-         final String echo = proxy.echo(message);
+         final Result<String> echo = proxy.echo(message);
+         Assert.assertNull(echo);
       } catch (NoSuchEJBException nsee) {
          errorMessage = nsee.getMessage();
       }

@@ -19,26 +19,26 @@ package org.jboss.ejb.client.test.common;
 
 import org.jboss.logging.Logger;
 
+import javax.ejb.Stateful;
+
 /**
  * User: jpai
  */
+@Stateful
 public class FooBean implements Echo {
 
     private static final Logger logger = Logger.getLogger(FooBean.class);
 
     @Override
-    public String echo(String msg) {
+    public Result<String> echo(String msg) {
         logger.info(this.getClass().getSimpleName() + " echoing message " + msg);
-        return msg;
+        return new Result<String>(msg, "no idea!");
     }
 
     @Override
-    public String whoAreYou() {
-        return "no idea!";
+    public Result<String> echoNonTx(String msg) {
+        logger.info(this.getClass().getSimpleName() + " echoing message " + msg);
+        return new Result<String>(msg, "no idea!");
     }
 
-    @Override
-    public String whoAreYouNonTX() {
-        return "no idea!";
-    }
 }

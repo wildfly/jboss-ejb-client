@@ -17,7 +17,6 @@
  */
 package org.jboss.ejb.client.test;
 
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 
@@ -33,6 +32,8 @@ import org.jboss.ejb.client.legacy.JBossEJBProperties;
 import org.jboss.ejb.client.test.common.DummyServer;
 import org.jboss.ejb.client.test.common.Echo;
 import org.jboss.ejb.client.test.common.EchoBean;
+import org.jboss.ejb.client.test.common.StatefulEchoBean;
+import org.jboss.ejb.client.test.common.StatelessEchoBean;
 import org.jboss.ejb.server.ClusterTopologyListener.ClusterInfo;
 import org.jboss.ejb.server.ClusterTopologyListener.NodeInfo;
 import org.jboss.logging.Logger;
@@ -49,33 +50,10 @@ import org.junit.Test;
  * @author Jason T. Greene
  * @author <a href="mailto:rachmato@redhat.com">Richard Achmatowicz</a>
  */
-public class ClusterNodeSelectorTestCase {
+public class ClusterNodeSelectorTestCase extends AbstractEJBClientTestCase {
 
     private static final Logger logger = Logger.getLogger(ClusterNodeSelectorTestCase.class);
     private static final String PROPERTIES_FILE = "cluster-node-selector-jboss-ejb-client.properties";
-
-    // servers
-    private static final String SERVER1_NAME = "node1";
-    private static final String SERVER2_NAME = "node2";
-
-    private DummyServer[] servers = new DummyServer[2];
-    private static String[] serverNames = {SERVER1_NAME, SERVER2_NAME};
-    private boolean[] serversStarted = new boolean[2] ;
-
-    // module
-    private static final String APP_NAME = "my-foo-app";
-    private static final String MODULE_NAME = "my-bar-module";
-    private static final String DISTINCT_NAME = "";
-
-    // cluster
-    // note: node names and server names should match!
-    private static final String CLUSTER_NAME = "ejb";
-    private static final String NODE1_NAME = "node1";
-    private static final String NODE2_NAME = "node2";
-
-    private static final NodeInfo NODE1 = DummyServer.getNodeInfo(NODE1_NAME, "localhost",6999,"0.0.0.0",0);
-    private static final NodeInfo NODE2 = DummyServer.getNodeInfo(NODE2_NAME, "localhost",7099,"0.0.0.0",0);
-    private static final ClusterInfo CLUSTER = DummyServer.getClusterInfo(CLUSTER_NAME, NODE1, NODE2);
 
     public static class TestSelector implements ClusterNodeSelector  {
         private static volatile String PICK_NODE = null;
@@ -111,29 +89,18 @@ public class ClusterNodeSelectorTestCase {
     public void beforeTest() throws Exception {
 
         // start a server
-        servers[0] = new DummyServer("localhost", 6999, serverNames[0]);
-        servers[0].start();
-        serversStarted[0] = true;
-        logger.info("Started server " + serverNames[0]);
-
-        // start a server
-        servers[1] = new DummyServer("localhost", 7099, serverNames[1]);
-        servers[1].start();
-        serversStarted[1] = true;
-        logger.info("Started server " + serverNames[1]);
+        startServer(0, 6999);
+        startServer(1, 7099);
 
         // deploy modules
-        servers[0].register(APP_NAME, MODULE_NAME, DISTINCT_NAME, Echo.class.getSimpleName(), new EchoBean(NODE1_NAME));
-        logger.info("Registered module on server " + servers[0]);
-
-        servers[1].register(APP_NAME, MODULE_NAME, DISTINCT_NAME, Echo.class.getSimpleName(), new EchoBean(NODE2_NAME));
-        logger.info("Registered module on server " + servers[1]);
+        deployStateful(0);
+        deployStateless(0);
+        deployStateful(1);
+        deployStateless(1);
 
         // define clusters
-        servers[0].addCluster(CLUSTER);
-        logger.info("Added node to cluster " + CLUSTER_NAME + ": server " + servers[1]);
-        servers[1].addCluster(CLUSTER);
-        logger.info("Added node to cluster " +  CLUSTER_NAME +":  server " + servers[1]);
+        defineCluster(0, CLUSTER);
+        defineCluster(1, CLUSTER);
     }
 
     @Test
@@ -160,7 +127,7 @@ public class ClusterNodeSelectorTestCase {
         logger.info("Testing invocation on SLSB proxy with ClusterAffinity");
 
         // create a proxy for invocation
-        final StatelessEJBLocator<Echo> statelessEJBLocator = new StatelessEJBLocator<Echo>(Echo.class, APP_NAME, MODULE_NAME, Echo.class.getSimpleName(), DISTINCT_NAME);
+        final StatelessEJBLocator<Echo> statelessEJBLocator = new StatelessEJBLocator<Echo>(Echo.class, APP_NAME, MODULE_NAME, StatelessEchoBean.class.getSimpleName(), DISTINCT_NAME);
         final Echo proxy = EJBClient.createProxy(statelessEJBLocator);
 
         EJBClient.setStrongAffinity(proxy, new ClusterAffinity("ejb"));
@@ -171,12 +138,12 @@ public class ClusterNodeSelectorTestCase {
 
         TestSelector.PICK_NODE = NODE1_NAME;
         for (int i = 0; i < 10; i++) {
-            Assert.assertEquals(NODE1_NAME, proxy.whoAreYou());
+            Assert.assertEquals(NODE1_NAME, proxy.echo("someMsg").getNode());
         }
 
         TestSelector.PICK_NODE = NODE2_NAME;
         for (int i = 0; i < 10; i++) {
-            Assert.assertEquals(NODE2_NAME, proxy.whoAreYou());
+            Assert.assertEquals(NODE2_NAME, proxy.echo("someMsg").getNode());
         }
     }
 
@@ -189,14 +156,14 @@ public class ClusterNodeSelectorTestCase {
 
         TestSelector.PICK_NODE = NODE2_NAME;
         // create a proxy for invocation
-        final StatelessEJBLocator<Echo> statelessEJBLocator = new StatelessEJBLocator<Echo>(Echo.class, APP_NAME, MODULE_NAME, Echo.class.getSimpleName(), DISTINCT_NAME);
+        final StatelessEJBLocator<Echo> statelessEJBLocator = new StatelessEJBLocator<Echo>(Echo.class, APP_NAME, MODULE_NAME, StatefulEchoBean.class.getSimpleName(), DISTINCT_NAME);
         StatefulEJBLocator<Echo> statefulEJBLocator = null;
         statefulEJBLocator = EJBClient.createSession(statelessEJBLocator.withNewAffinity(new ClusterAffinity("ejb")));
 
         Echo proxy = EJBClient.createProxy(statefulEJBLocator);
         Assert.assertNotNull("Received a null proxy", proxy);
         for (int i = 0; i < 10; i++) {
-            Assert.assertEquals(NODE2_NAME, proxy.whoAreYou());
+            Assert.assertEquals(NODE2_NAME, proxy.echo("someMsg").getNode());
         }
 
         TestSelector.PICK_NODE = NODE1_NAME;
@@ -204,7 +171,7 @@ public class ClusterNodeSelectorTestCase {
         proxy = EJBClient.createProxy(statefulEJBLocator);
 
         for (int i = 0; i < 10; i++) {
-            Assert.assertEquals(NODE1_NAME, proxy.whoAreYou());
+            Assert.assertEquals(NODE1_NAME, proxy.echo("someMsg").getNode());
         }
     }
 
@@ -213,32 +180,17 @@ public class ClusterNodeSelectorTestCase {
      */
     @After
     public void afterTest() {
-        servers[0].unregister(APP_NAME, MODULE_NAME, DISTINCT_NAME, Echo.class.getName());
-        logger.info("Unregistered module from " + serverNames[0]);
+        undeployStateless(0);
+        undeployStateful(0);
 
-        servers[1].unregister(APP_NAME, MODULE_NAME, DISTINCT_NAME, Echo.class.getName());
-        logger.info("Unregistered module from " + serverNames[1]);
+        undeployStateless(1);
+        undeployStateful(1);
 
-        servers[0].removeCluster(CLUSTER_NAME);
-        servers[1].removeCluster(CLUSTER_NAME);
+        removeCluster(0, CLUSTER_NAME);
+        removeCluster(1, CLUSTER_NAME);
 
-        if (serversStarted[0]) {
-            try {
-                this.servers[0].stop();
-            } catch (Throwable t) {
-                logger.info("Could not stop server", t);
-            }
-        }
-        logger.info("Stopped server " + serverNames[0]);
-
-        if (serversStarted[1]) {
-            try {
-                this.servers[1].stop();
-            } catch (Throwable t) {
-                logger.info("Could not stop server", t);
-            }
-        }
-        logger.info("Stopped server " + serverNames[1]);
+        stopServer(0);
+        stopServer(1);
     }
 
     /**
