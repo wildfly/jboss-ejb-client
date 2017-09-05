@@ -27,27 +27,26 @@ import org.jboss.logging.Logger;
 public class EchoBean implements Echo {
 
     private static final Logger logger = Logger.getLogger(EchoBean.class);
-    private final String whoami;
+    private final String node;
 
     public EchoBean() {
-        this("noidea");
+        this("unknown");
     }
 
-    public EchoBean(String whoami) {
-        this.whoami = whoami;
+    public EchoBean(String node) {
+        this.node = node;
     }
 
     @Override
-    public String echo(String msg) {
+    public Result<String> echo(String msg) {
         logger.info(this.getClass().getSimpleName() + " echoing message " + msg);
-        return msg;
+        return new Result<String>(msg, node);
     }
 
-    public String whoAreYou() {
-        return whoami;
+    @Override
+    public Result<String> echoNonTx(String msg) {
+        logger.info(this.getClass().getSimpleName() + " echoing message (NonTx) " + msg);
+        return new Result<String>(msg, node);
     }
 
-    public String whoAreYouNonTX() {
-        return whoAreYou();
-    }
 }

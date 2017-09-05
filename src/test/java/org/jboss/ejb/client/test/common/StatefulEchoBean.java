@@ -20,9 +20,13 @@ package org.jboss.ejb.client.test.common;
 import javax.ejb.Stateful;
 
 /**
+ * An instance of Echo marked explicitly as stateful.
+ *
  * User: jpai
  */
-public interface Foo {
-
-    Result<String> echo(String msg);
+@Stateful
+public class StatefulEchoBean extends EchoBean {
+    public StatefulEchoBean(String node) {
+        super(node);
+    }
 }
