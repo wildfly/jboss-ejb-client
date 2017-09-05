@@ -17,10 +17,8 @@
  */
 package org.jboss.ejb.client.test;
 
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -36,15 +34,16 @@ import com.arjuna.ats.jta.common.jtaPropertyManager;
 import org.jboss.ejb.client.test.common.DummyServer;
 import org.jboss.ejb.client.test.common.Echo;
 import org.jboss.ejb.client.test.common.EchoBean;
+import org.jboss.ejb.client.test.common.StatefulEchoBean;
+import org.jboss.ejb.client.test.common.StatelessEchoBean;
 import org.jboss.logging.Logger;
 import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.BeforeClass;
+import org.junit.Ignore;
 import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
 import org.wildfly.naming.client.WildFlyInitialContextFactory;
 import org.wildfly.naming.client.WildFlyRootContext;
 import org.wildfly.naming.client.util.FastHashtable;
@@ -61,24 +60,10 @@ import org.wildfly.transaction.client.provider.jboss.JBossLocalTransactionProvid
  * @author Jason T. Greene
  * @author <a href="mailto:rachmato@redhat.com">Richard Achmatowicz</a>
  */
-public class TransactionTestCase {
+public class TransactionTestCase extends AbstractEJBClientTestCase {
     private static final Logger logger = Logger.getLogger(TransactionTestCase.class);
     private static ContextTransactionManager txManager;
     private static ContextTransactionSynchronizationRegistry txSyncRegistry;
-
-    private DummyServer server1, server2, server3, server4;
-    private boolean serverStarted = false;
-
-    // module
-    private static final String APP_NAME = "my-foo-app";
-    private static final String OTHER_APP = "my-other-app";
-    private static final String MODULE_NAME = "my-bar-module";
-    private static final String DISTINCT_NAME = "";
-
-    private static final String SERVER1_NAME = "server1";
-    private static final String SERVER2_NAME = "server2";
-    private static final String SERVER3_NAME = "server3";
-    private static final String SERVER4_NAME = "server4";
 
     /**
      * Do any general setup here
@@ -107,24 +92,25 @@ public class TransactionTestCase {
     @Before
     public void beforeTest() throws Exception {
         // start a server
-        server1 = new DummyServer("localhost", 6999, SERVER1_NAME, true);
-        server2 = new DummyServer("localhost", 7999, SERVER2_NAME, true);
-        server3 = new DummyServer("localhost", 8999, SERVER3_NAME, true);
-        server4 = new DummyServer("localhost", 9999, SERVER4_NAME, true);
-        server1.start();
-        server2.start();
-        server3.start();
-        server4.start();
-        serverStarted = true;
-        logger.info("Started servers ...");
+        for (int i = 0; i < 4; i++) {
+            startServer(i, 6999 + (i*100), true);
+        }
 
-        server1.register(APP_NAME, MODULE_NAME, DISTINCT_NAME, EchoBean.class.getSimpleName(), new EchoBean(SERVER1_NAME));
-        server3.register(APP_NAME, MODULE_NAME, DISTINCT_NAME, EchoBean.class.getSimpleName(), new EchoBean(SERVER3_NAME));
-        server4.register(APP_NAME, MODULE_NAME, DISTINCT_NAME, EchoBean.class.getSimpleName(), new EchoBean(SERVER4_NAME));
+        deployStateless(0);
+        deployStateful(0);
+        // don't deploy on server 2 (index 1)
+        deployStateless(2);
+        deployStateful(2);
+        deployStateless(3);
+        deployStateful(3);
 
-        server2.register(OTHER_APP, MODULE_NAME, DISTINCT_NAME, EchoBean.class.getSimpleName(), new EchoBean(SERVER2_NAME));
-        server3.register(OTHER_APP, MODULE_NAME, DISTINCT_NAME, EchoBean.class.getSimpleName(), new EchoBean(SERVER3_NAME));
-        server4.register(OTHER_APP, MODULE_NAME, DISTINCT_NAME, EchoBean.class.getSimpleName(), new EchoBean(SERVER4_NAME));
+        // don't deploy on server 1 (index 0)
+        deployOtherStateful(1);
+        deployOtherStateless(1);
+        deployOtherStateful(2);
+        deployOtherStateless(2);
+        deployOtherStateful(3);
+        deployOtherStateless(3);
     }
 
     @Test
@@ -152,10 +138,10 @@ public class TransactionTestCase {
         verifyNonTxBehavior(false, false);
     }
 
-    @Test
+   @Test
     public void testStatefulNonPropagatingInvocation() throws Exception {
         // Session open is sticky, resulting in a weak affinity and therefore
-        // sticykness even with non-propogating method calls.
+        // stickiness even with non-propagating method calls.
         verifyNonTxBehavior(true, true);
     }
 
@@ -173,7 +159,7 @@ public class TransactionTestCase {
         FastHashtable<String, Object> props = new FastHashtable<>();
 
         // Include all servers, so that retries are also tested
-        props.put("java.naming.provider.url", "remote://localhost:6999, remote://localhost:7999, remote://localhost:8999, remote://localhost:9999");
+        props.put("java.naming.provider.url", "remote://localhost:6999, remote://localhost:7099, remote://localhost:7199, remote://localhost:7299");
         props.put("java.naming.factory.initial", WildFlyInitialContextFactory.class.getName());
         WildFlyRootContext context = new WildFlyRootContext(props);
 
@@ -184,10 +170,12 @@ public class TransactionTestCase {
             HashMap<String, Integer> replies = new HashMap<>();
             String id = null;
             for (int i = 0; i < 20; i++) {
+                // get the correct bean name and interface depending on case
+                String beanInterface = Echo.class.getName();
+                String beanName = stateful ? StatefulEchoBean.class.getSimpleName() : StatelessEchoBean.class.getSimpleName();
 
-                Echo echo = (Echo) context.lookup("ejb:" + APP_NAME + "/" + MODULE_NAME + "/" + EchoBean.class.getSimpleName() + "!"
-                        + Echo.class.getName() + (stateful ? "?stateful" : ""));
-                id = echo.whoAreYou();
+                Echo echo = (Echo) context.lookup("ejb:" + APP_NAME + "/" + MODULE_NAME + "/" + beanName + "!" + beanInterface + (stateful ? "?stateful" : ""));
+                id = echo.echo("someMsg").getNode();
                 Integer existing = replies.get(id);
                 replies.put(id, existing == null ? 1 : existing + 1);
             }
@@ -200,13 +188,14 @@ public class TransactionTestCase {
         }
 
         // After 20 tries, we should have hit ever server but server2, which is missing the bean
-        Assert.assertEquals(Stream.of("server1", "server3", "server4").collect(Collectors.toSet()), ids);
+        Assert.assertEquals(Stream.of("node1", "node3", "node4").collect(Collectors.toSet()), ids);
     }
+
     private void verifyNonTxBehavior(boolean stateful, boolean sticky) throws Exception {
         FastHashtable<String, Object> props = new FastHashtable<>();
 
         // Include all servers, so that retries are also tested
-        props.put("java.naming.provider.url", "remote://localhost:6999, remote://localhost:7999, remote://localhost:8999, remote://localhost:9999");
+        props.put("java.naming.provider.url", "remote://localhost:6999, remote://localhost:7099, remote://localhost:7199, remote://localhost:7299");
         props.put("java.naming.factory.initial", WildFlyInitialContextFactory.class.getName());
         WildFlyRootContext context = new WildFlyRootContext(props);
 
@@ -217,10 +206,13 @@ public class TransactionTestCase {
             HashMap<String, Integer> replies = new HashMap<>();
             String id = null;
             for (int i = 0; i < 30; i++) {
+                // get the correct bean name and interface depending on case
+                String beanInterface = Echo.class.getName();
+                String beanName = stateful ? StatefulEchoBean.class.getSimpleName() : StatelessEchoBean.class.getSimpleName();
 
-                Echo echo = (Echo) context.lookup("ejb:" + APP_NAME + "/" + MODULE_NAME + "/" + EchoBean.class.getSimpleName() + "!"
-                        + Echo.class.getName() + (stateful ? "?stateful" : ""));
-                id = echo.whoAreYouNonTX();
+                Echo echo = (Echo) context.lookup("ejb:" + APP_NAME + "/" + MODULE_NAME + "/" + beanName + "!" + beanInterface + (stateful ? "?stateful" : ""));
+                // invoke the non-transactional version of echo
+                id = echo.echoNonTx("someMsg").getNode();
                 Integer existing = replies.get(id);
                 replies.put(id, existing == null ? 1 : existing + 1);
             }
@@ -235,19 +227,19 @@ public class TransactionTestCase {
         }
 
         // After 20 tries, we should have hit ever server but server2, which is missing the bean
-        Assert.assertEquals(Stream.of("server1", "server3", "server4").collect(Collectors.toSet()), ids);
+        Assert.assertEquals(Stream.of("node1", "node3", "node4").collect(Collectors.toSet()), ids);
     }
 
 
     @Test
     public void testTransactionPreference() throws Exception {
         FastHashtable<String, Object> props = new FastHashtable<>();
-        props.put("java.naming.provider.url", "remote://localhost:8999");
+        props.put("java.naming.provider.url", "remote://localhost:7199");
         props.put("java.naming.factory.initial", WildFlyInitialContextFactory.class.getName());
         WildFlyRootContext context2 = new WildFlyRootContext(props);
 
         props = new FastHashtable<>();
-        props.put("java.naming.provider.url", "remote://localhost:6999, remote://localhost:7999, remote://localhost:8999, remote://localhost:9999");
+        props.put("java.naming.provider.url", "remote://localhost:6999, remote://localhost:7099, remote://localhost:7199, remote://localhost:7299");
         props.put("java.naming.factory.initial", WildFlyInitialContextFactory.class.getName());
         WildFlyRootContext context1 = new WildFlyRootContext(props);
 
@@ -259,8 +251,8 @@ public class TransactionTestCase {
             String id1 = null;
             for (int i = 0; i < 20; i++) {
 
-                Echo echo = (Echo) context1.lookup("ejb:" + APP_NAME + "/" + MODULE_NAME + "/" + EchoBean.class.getSimpleName() + "!" + Echo.class.getName());
-                id1 = echo.whoAreYou();
+                Echo echo = (Echo) context1.lookup("ejb:" + APP_NAME + "/" + MODULE_NAME + "/" + StatefulEchoBean.class.getSimpleName() + "!" + Echo.class.getName());
+                id1 = echo.echo("someMsg").getNode();
                 Integer existing = replies.get(id1);
                 replies.put(id1, existing == null ? 1 : existing + 1);
             }
@@ -274,8 +266,8 @@ public class TransactionTestCase {
             String id2 = null;
             for (int i = 0; i < 20; i++) {
 
-                Echo echo = (Echo) context1.lookup("ejb:" + OTHER_APP + "/" + MODULE_NAME + "/" + EchoBean.class.getSimpleName() + "!" + Echo.class.getName());
-                id2 = echo.whoAreYou();
+                Echo echo = (Echo) context1.lookup("ejb:" + OTHER_APP + "/" + MODULE_NAME + "/" + StatefulEchoBean.class.getSimpleName() + "!" + Echo.class.getName());
+                id2 = echo.echo("someMsg").getNode();
                 Integer existing = replies.get(id1);
                 replies.put(id1, existing == null ? 1 : existing + 1);
             }
@@ -285,20 +277,19 @@ public class TransactionTestCase {
             Assert.assertEquals(20, replies.values().iterator().next().intValue());
 
             System.out.println(id1 + ":" + id2);
-            if (id1.equals("server1")) {
-                Assert.assertTrue(Stream.of("server2", "server3", "server4").collect(Collectors.toSet()).contains(id2));
+            if (id1.equals("node1")) {
+                Assert.assertTrue(Stream.of("node2", "node3", "node4").collect(Collectors.toSet()).contains(id2));
             } else {
                 Assert.assertEquals(id1, id2);
             }
-
 
             id2s.add(id2);
             txManager.commit();
         }
 
         // After 80 tries, we should have hit every server for each app
-        Assert.assertEquals(Stream.of("server1", "server3", "server4").collect(Collectors.toSet()), id1s);
-        Assert.assertEquals(Stream.of("server2", "server3", "server4").collect(Collectors.toSet()), id2s);
+        Assert.assertEquals(Stream.of("node1", "node3", "node4").collect(Collectors.toSet()), id1s);
+        Assert.assertEquals(Stream.of("node2", "node3", "node4").collect(Collectors.toSet()), id2s);
     }
 
     /**
@@ -306,27 +297,24 @@ public class TransactionTestCase {
      */
     @After
     public void afterTest() {
-        server1.unregister(APP_NAME, MODULE_NAME, DISTINCT_NAME, Echo.class.getName());
-        server2.unregister(APP_NAME, MODULE_NAME, DISTINCT_NAME, Echo.class.getName());
-        server3.unregister(APP_NAME, MODULE_NAME, DISTINCT_NAME, Echo.class.getName());
-        server4.unregister(APP_NAME, MODULE_NAME, DISTINCT_NAME, Echo.class.getName());
-        server1.unregister(OTHER_APP, MODULE_NAME, DISTINCT_NAME, Echo.class.getName());
-        server2.unregister(OTHER_APP, MODULE_NAME, DISTINCT_NAME, Echo.class.getName());
-        server3.unregister(OTHER_APP, MODULE_NAME, DISTINCT_NAME, Echo.class.getName());
-        server4.unregister(OTHER_APP, MODULE_NAME, DISTINCT_NAME, Echo.class.getName());
-        logger.info("Unregistered module ...");
 
-        if (serverStarted) {
-            try {
-                this.server1.stop();
-                this.server2.stop();
-                this.server3.stop();
-                this.server4.stop();
-            } catch (Throwable t) {
-                logger.info("Could not stop server", t);
-            }
+        undeployStateless(0);
+        undeployStateful(0);
+        undeployStateless(2);
+        undeployStateful(2);
+        undeployStateless(3);
+        undeployStateful(3);
+
+        undeployOtherStateful(1);
+        undeployOtherStateless(1);
+        undeployOtherStateful(2);
+        undeployOtherStateless(2);
+        undeployOtherStateful(3);
+        undeployOtherStateless(3);
+
+        for (int i = 0; i < 4; i++) {
+            stopServer(i);
         }
-        logger.info("Stopped server ...");
     }
 
     /**

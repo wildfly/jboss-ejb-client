@@ -17,21 +17,6 @@
  */
 package org.jboss.ejb.client.test;
 
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
-
-import javax.transaction.TransactionManager;
-import javax.transaction.TransactionSynchronizationRegistry;
-import javax.transaction.UserTransaction;
-
-import com.arjuna.ats.internal.jbossatx.jta.jca.XATerminator;
-import com.arjuna.ats.internal.jta.transaction.arjunacore.TransactionManagerImple;
-import com.arjuna.ats.internal.jta.transaction.arjunacore.TransactionSynchronizationRegistryImple;
-import com.arjuna.ats.jta.common.JTAEnvironmentBean;
-import com.arjuna.ats.jta.common.jtaPropertyManager;
-import org.jboss.ejb.client.ClusterAffinity;
 import org.jboss.ejb.client.DeploymentNodeSelector;
 import org.jboss.ejb.client.EJBClient;
 import org.jboss.ejb.client.StatefulEJBLocator;
@@ -40,22 +25,18 @@ import org.jboss.ejb.client.legacy.JBossEJBProperties;
 import org.jboss.ejb.client.test.common.DummyServer;
 import org.jboss.ejb.client.test.common.Echo;
 import org.jboss.ejb.client.test.common.EchoBean;
+import org.jboss.ejb.client.test.common.StatefulEchoBean;
+import org.jboss.ejb.client.test.common.StatelessEchoBean;
 import org.jboss.logging.Logger;
 import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.BeforeClass;
+import org.junit.Ignore;
 import org.junit.Test;
-import org.wildfly.naming.client.WildFlyInitialContextFactory;
-import org.wildfly.naming.client.WildFlyRootContext;
-import org.wildfly.naming.client.util.FastHashtable;
 import org.wildfly.transaction.client.ContextTransactionManager;
 import org.wildfly.transaction.client.ContextTransactionSynchronizationRegistry;
-import org.wildfly.transaction.client.LocalTransactionContext;
-import org.wildfly.transaction.client.LocalUserTransaction;
-import org.wildfly.transaction.client.RemoteTransactionContext;
-import org.wildfly.transaction.client.provider.jboss.JBossLocalTransactionProvider;
 
 /**
  * Tests DeploymentNodeSelector
@@ -63,21 +44,10 @@ import org.wildfly.transaction.client.provider.jboss.JBossLocalTransactionProvid
  * @author Jason T. Greene
  * @author <a href="mailto:rachmato@redhat.com">Richard Achmatowicz</a>
  */
-public class DeploymentNodeSelectorTestCase {
+public class DeploymentNodeSelectorTestCase extends AbstractEJBClientTestCase {
     private static final Logger logger = Logger.getLogger(DeploymentNodeSelectorTestCase.class);
     private static ContextTransactionManager txManager;
     private static ContextTransactionSynchronizationRegistry txSyncRegistry;
-
-    private DummyServer server1, server2, server3, server4;
-    private boolean serverStarted = false;
-
-    // module
-    private static final String APP_NAME = "my-foo-app";
-    private static final String MODULE_NAME = "my-bar-module";
-    private static final String DISTINCT_NAME = "";
-
-    private static final String SERVER1_NAME = "server1";
-    private static final String SERVER2_NAME = "server2";
 
     /**
      * Do any general setup here
@@ -100,16 +70,13 @@ public class DeploymentNodeSelectorTestCase {
      */
     @Before
     public void beforeTest() throws Exception {
-        // start a server
-        server1 = new DummyServer("localhost", 6999, SERVER1_NAME, true);
-        server2 = new DummyServer("localhost", 7999, SERVER2_NAME, true);
-        server1.start();
-        server2.start();
-        serverStarted = true;
-        logger.info("Started servers ...");
 
-        server1.register(APP_NAME, MODULE_NAME, DISTINCT_NAME, EchoBean.class.getSimpleName(), new EchoBean(SERVER1_NAME));
-        server2.register(APP_NAME, MODULE_NAME, DISTINCT_NAME, EchoBean.class.getSimpleName(), new EchoBean(SERVER2_NAME));
+        for (int i = 0; i < 2; i++) {
+            // start a server
+            startServer(i, 6999 + (i*100), true);
+            deployStateful(i);
+            deployStateless(i);
+        }
     }
 
     public static class TestSelector implements DeploymentNodeSelector {
@@ -127,7 +94,7 @@ public class DeploymentNodeSelectorTestCase {
     @Test
       public void testSLSBInvocation() {
           // create a proxy for invocation
-          final StatelessEJBLocator<Echo> statelessEJBLocator = new StatelessEJBLocator<Echo>(Echo.class, APP_NAME, MODULE_NAME, EchoBean.class.getSimpleName(), DISTINCT_NAME);
+          final StatelessEJBLocator<Echo> statelessEJBLocator = new StatelessEJBLocator<Echo>(Echo.class, APP_NAME, MODULE_NAME, StatelessEchoBean.class.getSimpleName(), DISTINCT_NAME);
           final Echo proxy = EJBClient.createProxy(statelessEJBLocator);
 
           Assert.assertNotNull("Received a null proxy", proxy);
@@ -137,12 +104,12 @@ public class DeploymentNodeSelectorTestCase {
 
           TestSelector.PICK_NODE = SERVER1_NAME;
           for (int i = 0; i < 10; i++) {
-              Assert.assertEquals(SERVER1_NAME, proxy.whoAreYou());
+              Assert.assertEquals(SERVER1_NAME, proxy.echo("someMsg").getNode());
           }
 
           TestSelector.PICK_NODE = SERVER2_NAME;
           for (int i = 0; i < 10; i++) {
-              Assert.assertEquals(SERVER2_NAME, proxy.whoAreYou());
+              Assert.assertEquals(SERVER2_NAME, proxy.echo("someMsg").getNode());
           }
       }
 
@@ -153,21 +120,21 @@ public class DeploymentNodeSelectorTestCase {
       public void testSFSBInvocation() throws Exception {
           TestSelector.PICK_NODE = SERVER2_NAME;
           // create a proxy for invocation
-          final StatelessEJBLocator<Echo> statelessEJBLocator = new StatelessEJBLocator<Echo>(Echo.class, APP_NAME, MODULE_NAME, EchoBean.class.getSimpleName(), DISTINCT_NAME);
+          final StatelessEJBLocator<Echo> statelessEJBLocator = new StatelessEJBLocator<Echo>(Echo.class, APP_NAME, MODULE_NAME, StatefulEchoBean.class.getSimpleName(), DISTINCT_NAME);
           StatefulEJBLocator<Echo> statefulEJBLocator = null;
           statefulEJBLocator = EJBClient.createSession(statelessEJBLocator);
 
           Echo proxy = EJBClient.createProxy(statefulEJBLocator);
           Assert.assertNotNull("Received a null proxy", proxy);
           for (int i = 0; i < 10; i++) {
-              Assert.assertEquals(SERVER2_NAME, proxy.whoAreYou());
+              Assert.assertEquals(SERVER2_NAME, proxy.echo("someMsg").getNode());
           }
 
           TestSelector.PICK_NODE = SERVER1_NAME;
           statefulEJBLocator = EJBClient.createSession(statelessEJBLocator);
           proxy = EJBClient.createProxy(statefulEJBLocator);
           for (int i = 0; i < 10; i++) {
-              Assert.assertEquals(SERVER1_NAME, proxy.whoAreYou());
+              Assert.assertEquals(SERVER1_NAME, proxy.echo("someMsg").getNode());
           }
       }
     /**
@@ -175,19 +142,13 @@ public class DeploymentNodeSelectorTestCase {
      */
     @After
     public void afterTest() {
-        server1.unregister(APP_NAME, MODULE_NAME, DISTINCT_NAME, Echo.class.getName());
-        server2.unregister(APP_NAME, MODULE_NAME, DISTINCT_NAME, Echo.class.getName());
-        logger.info("Unregistered module ...");
 
-        if (serverStarted) {
-            try {
-                this.server1.stop();
-                this.server2.stop();
-            } catch (Throwable t) {
-                logger.info("Could not stop server", t);
-            }
+        for (int i = 0; i < 2; i++) {
+            // stop a server
+            undeployStateful(i);
+            undeployStateless(i);
+            stopServer(i);
         }
-        logger.info("Stopped server ...");
     }
 
     /**

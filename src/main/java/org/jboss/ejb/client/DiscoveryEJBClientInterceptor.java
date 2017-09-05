@@ -114,6 +114,11 @@ public final class DiscoveryEJBClientInterceptor implements EJBClientInterceptor
         try {
             result = context.getResult();
         } catch (NoSuchEJBException | RequestSendFailedException e) {
+
+            if (Logs.INVOCATION.isDebugEnabled()) {
+                Logs.INVOCATION.debugf("DiscoveryEJBClientInterceptor: handleInvocationResult: (exception = %s)", e.getMessage());
+            }
+
             processMissingTarget(context);
             throw e;
         }
