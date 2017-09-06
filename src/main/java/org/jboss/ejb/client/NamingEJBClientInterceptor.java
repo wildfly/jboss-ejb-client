@@ -44,12 +44,15 @@ public final class NamingEJBClientInterceptor implements EJBClientInterceptor {
      */
     public static final int PRIORITY = ClientInterceptorPriority.JBOSS_AFTER + 50;
 
+    private static final AttachmentKey<Boolean> SKIP_MISSING_TARGET = new AttachmentKey<>();
+
     public NamingEJBClientInterceptor() {
     }
 
     public void handleInvocation(final EJBClientInvocationContext context) throws Exception {
         final NamingProvider namingProvider = context.getProxyAttachment(EJBRootContext.NAMING_PROVIDER_ATTACHMENT_KEY);
-        if (namingProvider == null) {
+        if (namingProvider == null || context.getDestination() != null) {
+            context.putAttachment(SKIP_MISSING_TARGET, Boolean.TRUE);
             context.sendRequest();
         } else {
             if (setDestination(context, namingProvider)) try {
@@ -67,14 +70,18 @@ public final class NamingEJBClientInterceptor implements EJBClientInterceptor {
         try {
             return context.getResult();
         } catch (NoSuchEJBException | RequestSendFailedException e) {
-            processMissingTarget(context);
+            if (context.getAttachment(SKIP_MISSING_TARGET) != Boolean.TRUE) {
+                processMissingTarget(context);
+            }
             throw e;
+        } finally {
+            context.removeAttachment(SKIP_MISSING_TARGET);
         }
     }
 
     public SessionID handleSessionCreation(final EJBSessionCreationInvocationContext context) throws Exception {
         final NamingProvider namingProvider = context.getAttachment(EJBRootContext.NAMING_PROVIDER_ATTACHMENT_KEY);
-        if (namingProvider == null) {
+        if (namingProvider == null || context.getDestination() != null) {
             return context.proceed();
         } else {
             if (setDestination(context, namingProvider)) try {
@@ -123,11 +130,8 @@ public final class NamingEJBClientInterceptor implements EJBClientInterceptor {
 
     private void processMissingTarget(final AbstractInvocationContext context) {
         final URI destination = context.getDestination();
+        assert destination != null;
 
-        if (destination == null) {
-            // nothing we can/should do.
-            return;
-        }
         // Oops, we got some wrong information!
         addBlackListedDestination(context, destination);
 
