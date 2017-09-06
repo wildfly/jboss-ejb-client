@@ -43,6 +43,7 @@ import javax.ejb.NoSuchEJBException;
 
 import org.jboss.ejb._private.Logs;
 import org.jboss.ejb.client.annotation.ClientInterceptorPriority;
+import org.wildfly.common.Assert;
 import org.wildfly.common.net.CidrAddress;
 import org.wildfly.common.net.Inet;
 import org.wildfly.discovery.AttributeValue;
@@ -166,22 +167,36 @@ public final class DiscoveryEJBClientInterceptor implements EJBClientInterceptor
             return;
         }
         // Oops, we got some wrong information!
-        Set<URI> set = context.getAttachment(BL_KEY);
-        if (set == null) {
-            final Set<URI> appearing = context.putAttachmentIfAbsent(BL_KEY, set = new HashSet<>());
-            if (appearing != null) {
-                set = appearing;
-            }
-        }
+        addBlackListedDestination(context, destination);
 
-        Logs.INVOCATION.tracef("Calling processMissingTarget(locator = %s, weak affinity = %s, missing target = %s)", context.getLocator(), context.getWeakAffinity(), destination);
-
-        set.add(destination);
         // clear the weak affinity so that cluster invocations can be re-targeted.
         context.setWeakAffinity(Affinity.NONE);
         context.setTargetAffinity(null);
         context.setDestination(null);
         context.requestRetry();
+    }
+
+    static boolean addBlackListedDestination(AbstractInvocationContext context, URI destination) {
+        Assert.checkNotNullParam("context", context);
+        if (destination != null) {
+            Set<URI> set = context.getAttachment(BL_KEY);
+            if (set == null) {
+                final Set<URI> appearing = context.putAttachmentIfAbsent(BL_KEY, set = new HashSet<>());
+                if (appearing != null) {
+                    set = appearing;
+                }
+            }
+            Logs.INVOCATION.tracef("Blacklisting destination (locator = %s, weak affinity = %s, missing target = %s)", context.getLocator(), context.getWeakAffinity(), destination);
+
+            return set.add(destination);
+        } else {
+            return false;
+        }
+    }
+
+    static boolean isBlackListed(AbstractInvocationContext context, URI destination) {
+        final Set<URI> blacklist = context.getAttachment(BL_KEY);
+        return blacklist != null && blacklist.contains(destination);
     }
 
     ServicesQueue discover(final FilterSpec filterSpec) {
@@ -206,16 +221,14 @@ public final class DiscoveryEJBClientInterceptor implements EJBClientInterceptor
         FilterSpec filterSpec, fallbackFilterSpec;
 
         if (affinity instanceof URIAffinity || affinity == Affinity.LOCAL) {
-            final Set<URI> blacklist = context.getAttachment(BL_KEY);
-            if (blacklist == null || ! blacklist.contains(affinity.getUri())) {
+            if (! isBlackListed(context, affinity.getUri())) {
                 // Simple; just set a fixed destination
                 context.setDestination(affinity.getUri());
                 context.setTargetAffinity(affinity);
             }
             return null;
         } else if (affinity == Affinity.NONE && weakAffinity instanceof URIAffinity) {
-            final Set<URI> blacklist = context.getAttachment(BL_KEY);
-            if (blacklist == null || ! blacklist.contains(weakAffinity.getUri())) {
+            if (! isBlackListed(context, weakAffinity.getUri())) {
                 context.setDestination(weakAffinity.getUri());
                 context.setTargetAffinity(weakAffinity);
             }
