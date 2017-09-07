@@ -18,10 +18,17 @@
 
 package org.jboss.ejb.client;
 
+import static org.jboss.ejb.client.DiscoveryEJBClientInterceptor.addBlackListedDestination;
+import static org.jboss.ejb.client.DiscoveryEJBClientInterceptor.isBlackListed;
+
 import java.net.URI;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ThreadLocalRandom;
 
+import javax.ejb.NoSuchEJBException;
+
+import org.jboss.ejb._private.Logs;
 import org.jboss.ejb.client.annotation.ClientInterceptorPriority;
 import org.wildfly.naming.client.NamingProvider;
 
@@ -41,20 +48,47 @@ public final class NamingEJBClientInterceptor implements EJBClientInterceptor {
     }
 
     public void handleInvocation(final EJBClientInvocationContext context) throws Exception {
-        setDestination(context, context.getProxyAttachment(EJBRootContext.NAMING_PROVIDER_ATTACHMENT_KEY));
-        context.sendRequest();
+        final NamingProvider namingProvider = context.getProxyAttachment(EJBRootContext.NAMING_PROVIDER_ATTACHMENT_KEY);
+        if (namingProvider == null) {
+            context.sendRequest();
+        } else {
+            if (setDestination(context, namingProvider)) try {
+                context.sendRequest();
+            } catch (NoSuchEJBException | RequestSendFailedException e) {
+                processMissingTarget(context);
+                throw e;
+            } else {
+                throw Logs.INVOCATION.noMoreDestinations();
+            }
+        }
     }
 
     public Object handleInvocationResult(final EJBClientInvocationContext context) throws Exception {
-        return context.getResult();
+        try {
+            return context.getResult();
+        } catch (NoSuchEJBException | RequestSendFailedException e) {
+            processMissingTarget(context);
+            throw e;
+        }
     }
 
     public SessionID handleSessionCreation(final EJBSessionCreationInvocationContext context) throws Exception {
-        setDestination(context, context.getAttachment(EJBRootContext.NAMING_PROVIDER_ATTACHMENT_KEY));
-        return context.proceed();
+        final NamingProvider namingProvider = context.getAttachment(EJBRootContext.NAMING_PROVIDER_ATTACHMENT_KEY);
+        if (namingProvider == null) {
+            return context.proceed();
+        } else {
+            if (setDestination(context, namingProvider)) try {
+                return context.proceed();
+            } catch (NoSuchEJBException | RequestSendFailedException e) {
+                processMissingTarget(context);
+                throw e;
+            } else {
+                throw Logs.INVOCATION.noMoreDestinations();
+            }
+        }
     }
 
-    private static void setDestination(final AbstractInvocationContext context, final NamingProvider namingProvider) {
+    private static boolean setDestination(final AbstractInvocationContext context, final NamingProvider namingProvider) {
         if (namingProvider != null) {
             final URI destination = context.getDestination();
             if (destination == null) {
@@ -63,14 +97,44 @@ public final class NamingEJBClientInterceptor implements EJBClientInterceptor {
                     final Affinity weakAffinity = context.getWeakAffinity();
                     if (weakAffinity == Affinity.NONE || weakAffinity instanceof ClusterAffinity) {
                         final List<NamingProvider.Location> locations = namingProvider.getLocations();
-                        if (locations.size() == 1) {
-                            context.setDestination(locations.get(0).getUri());
-                        } else if (locations.size() > 0) {
-                            context.setDestination(locations.get(ThreadLocalRandom.current().nextInt(locations.size())).getUri());
+                        final List<URI> uris = new ArrayList<>(locations.size());
+                        for (NamingProvider.Location location : locations) {
+                            final URI uri = location.getUri();
+                            if (! isBlackListed(context, uri)) {
+                                uris.add(uri);
+                            }
+                        }
+                        final int size = uris.size();
+                        if (size == 0) {
+                            // we can't discover the location; fail
+                            return false;
+                        } else if (size == 1) {
+                            context.setDestination(uris.get(0));
+                            return true;
+                        } else {
+                            context.setDestination(uris.get(ThreadLocalRandom.current().nextInt(size)));
                         }
                     }
                 }
             }
         }
+        return true;
+    }
+
+    private void processMissingTarget(final AbstractInvocationContext context) {
+        final URI destination = context.getDestination();
+
+        if (destination == null) {
+            // nothing we can/should do.
+            return;
+        }
+        // Oops, we got some wrong information!
+        addBlackListedDestination(context, destination);
+
+        // clear the weak affinity so that cluster invocations can be re-targeted.
+        context.setWeakAffinity(Affinity.NONE);
+        context.setTargetAffinity(null);
+        context.setDestination(null);
+        context.requestRetry();
     }
 }

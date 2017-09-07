@@ -24,6 +24,7 @@ import org.jboss.ejb.client.EJBIdentifier;
 import org.jboss.ejb.client.EJBLocator;
 import org.jboss.ejb.client.EJBMethodLocator;
 import org.jboss.ejb.client.EJBReceiver;
+import org.jboss.ejb.client.RequestSendFailedException;
 import org.jboss.ejb.client.StatelessEJBLocator;
 import org.jboss.logging.BasicLogger;
 import org.jboss.logging.annotations.Cause;
@@ -376,6 +377,9 @@ public interface Logs extends BasicLogger {
     // @Message(id = 405, value = "An EJB client context is already registered for EJB client context identifier %s")
     // @Message(id = 406, value = "Unexpected exception when discarding invocation result")
     // @message(id = 407, value = "Issue regarding unmarshalling of EJB parameters (possible Out of Memory issue).")
+
+    @Message(id = 409, value = "No more destinations are available")
+    RequestSendFailedException noMoreDestinations();
 
     // Server exceptions and messages
 
