@@ -51,7 +51,7 @@ public final class NamingEJBClientInterceptor implements EJBClientInterceptor {
 
     public void handleInvocation(final EJBClientInvocationContext context) throws Exception {
         final NamingProvider namingProvider = context.getProxyAttachment(EJBRootContext.NAMING_PROVIDER_ATTACHMENT_KEY);
-        if (namingProvider == null || context.getDestination() != null) {
+        if (namingProvider == null || context.getDestination() != null || ! isNoneOrCluster(context.getLocator().getAffinity())) {
             context.putAttachment(SKIP_MISSING_TARGET, Boolean.TRUE);
             context.sendRequest();
         } else {
@@ -64,6 +64,10 @@ public final class NamingEJBClientInterceptor implements EJBClientInterceptor {
                 throw Logs.INVOCATION.noMoreDestinations();
             }
         }
+    }
+
+    private boolean isNoneOrCluster(final Affinity affinity) {
+        return affinity == Affinity.NONE || affinity instanceof ClusterAffinity;
     }
 
     public Object handleInvocationResult(final EJBClientInvocationContext context) throws Exception {
@@ -81,7 +85,7 @@ public final class NamingEJBClientInterceptor implements EJBClientInterceptor {
 
     public SessionID handleSessionCreation(final EJBSessionCreationInvocationContext context) throws Exception {
         final NamingProvider namingProvider = context.getAttachment(EJBRootContext.NAMING_PROVIDER_ATTACHMENT_KEY);
-        if (namingProvider == null || context.getDestination() != null) {
+        if (namingProvider == null || context.getDestination() != null || ! isNoneOrCluster(context.getLocator().getAffinity())) {
             return context.proceed();
         } else {
             if (setDestination(context, namingProvider)) try {
@@ -130,11 +134,19 @@ public final class NamingEJBClientInterceptor implements EJBClientInterceptor {
 
     private void processMissingTarget(final AbstractInvocationContext context) {
         final URI destination = context.getDestination();
-        assert destination != null;
+        if (destination == null) {
+            // some later interceptor cleared it out on us
+            return;
+        }
 
         // Oops, we got some wrong information!
         addBlackListedDestination(context, destination);
 
+        final EJBLocator<?> locator = context.getLocator();
+        if (! (locator.getAffinity() instanceof ClusterAffinity)) {
+            // it *was* "none" affinity, but it has been relocated; locate it back again
+            context.setLocator(locator.withNewAffinity(Affinity.NONE));
+        }
         // clear the weak affinity so that cluster invocations can be re-targeted.
         context.setWeakAffinity(Affinity.NONE);
         context.setTargetAffinity(null);
