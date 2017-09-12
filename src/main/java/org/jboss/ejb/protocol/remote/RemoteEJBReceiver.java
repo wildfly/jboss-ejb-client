@@ -62,11 +62,13 @@ class RemoteEJBReceiver extends EJBReceiver {
 
     final ClientServiceHandle<EJBClientChannel> serviceHandle;
 
+    private final RetryExecutorWrapper retryExecutorWrapper = new RetryExecutorWrapper();
+
     RemoteEJBReceiver(final RemoteTransportProvider remoteTransportProvider, final EJBReceiverContext receiverContext, final RemotingEJBDiscoveryProvider discoveredNodeRegistry) {
         this.remoteTransportProvider = remoteTransportProvider;
         this.receiverContext = receiverContext;
         this.discoveredNodeRegistry = discoveredNodeRegistry;
-        serviceHandle = new ClientServiceHandle<>("jboss.ejb", channel -> EJBClientChannel.construct(channel, this.discoveredNodeRegistry));
+        serviceHandle = new ClientServiceHandle<>("jboss.ejb", channel -> EJBClientChannel.construct(channel, this.discoveredNodeRegistry, retryExecutorWrapper));
     }
 
     final IoFuture.HandlingNotifier<ConnectionPeerIdentity, EJBReceiverInvocationContext> notifier = new IoFuture.HandlingNotifier<ConnectionPeerIdentity, EJBReceiverInvocationContext>() {
@@ -78,11 +80,11 @@ class RemoteEJBReceiver extends EJBReceiver {
                     ejbClientChannel = ioFuture.getInterruptibly();
                 } catch (IOException e) {
                     // should generally not be possible but we should handle it cleanly regardless
-                    attachment1.requestFailed(new RequestSendFailedException(e + "@" + peerIdentity.getConnection().getPeerURI(), false), peerIdentity.getConnection().getEndpoint().getXnioWorker());
+                    attachment1.requestFailed(new RequestSendFailedException(e + "@" + peerIdentity.getConnection().getPeerURI(), false), retryExecutorWrapper.getExecutor(peerIdentity.getConnection().getEndpoint().getXnioWorker()));
                     return;
                 } catch (InterruptedException e) {
                     Thread.currentThread().interrupt();
-                    attachment1.requestFailed(new RequestSendFailedException(e + "@" + peerIdentity.getConnection().getPeerURI(), false), peerIdentity.getConnection().getEndpoint().getXnioWorker());
+                    attachment1.requestFailed(new RequestSendFailedException(e + "@" + peerIdentity.getConnection().getPeerURI(), false), retryExecutorWrapper.getExecutor(peerIdentity.getConnection().getEndpoint().getXnioWorker()));
                     return;
                 }
                 attachment1.getClientInvocationContext().putAttachment(EJBCC_KEY, ejbClientChannel);
@@ -96,7 +98,7 @@ class RemoteEJBReceiver extends EJBReceiver {
         }
 
         public void handleFailed(final IOException exception, final EJBReceiverInvocationContext attachment) {
-            attachment.requestFailed(new RequestSendFailedException(exception, false), Endpoint.getCurrent().getXnioWorker());
+            attachment.requestFailed(new RequestSendFailedException(exception, false), retryExecutorWrapper.getExecutor(Endpoint.getCurrent().getXnioWorker()));
         }
     };
 
