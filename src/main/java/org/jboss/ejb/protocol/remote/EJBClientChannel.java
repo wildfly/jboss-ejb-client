@@ -26,6 +26,7 @@ import static org.xnio.IoUtils.safeClose;
 import java.io.DataInputStream;
 import java.io.DataOutput;
 import java.io.DataOutputStream;
+import java.io.EOFException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.UnsupportedEncodingException;
@@ -647,10 +648,12 @@ class EJBClientChannel {
                     final EJBClientChannel ejbClientChannel = new EJBClientChannel(channel, version, discoveredNodeRegistry, futureResult);
                     channel.receiveMessage(new Channel.Receiver() {
                         public void handleError(final Channel channel, final IOException error) {
+                            futureResult.setException(error);
                             safeClose(channel);
                         }
 
                         public void handleEnd(final Channel channel) {
+                            futureResult.setException(new EOFException());
                             safeClose(channel);
                         }
 
