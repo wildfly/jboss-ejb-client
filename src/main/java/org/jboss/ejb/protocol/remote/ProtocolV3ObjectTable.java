@@ -62,8 +62,10 @@ import org.jboss.ejb.client.EJBClientPermission;
 import org.jboss.ejb.client.EJBHandle;
 import org.jboss.ejb.client.EJBHomeHandle;
 import org.jboss.ejb.client.EJBHomeLocator;
+import org.jboss.ejb.client.EJBIdentifier;
 import org.jboss.ejb.client.EJBLocator;
 import org.jboss.ejb.client.EJBMethodLocator;
+import org.jboss.ejb.client.EJBModuleIdentifier;
 import org.jboss.ejb.client.EntityEJBLocator;
 import org.jboss.ejb.client.EntityEJBMetaData;
 import org.jboss.ejb.client.NodeAffinity;
@@ -164,6 +166,8 @@ final class ProtocolV3ObjectTable implements ObjectTable {
             AttachmentKey.class.getName(),
             EJBClientPermission.class.getName(),
             AsyncResult.class.getName(),
+            EJBModuleIdentifier.class.getName(),
+            EJBIdentifier.class.getName(),
             "detailMessage",
             "cause",
             "stackTrace",
@@ -177,6 +181,17 @@ final class ProtocolV3ObjectTable implements ObjectTable {
             "ejbPassivate",
             "ejbLoad",
             "ejbStore",
+            "appName",
+            "moduleName",
+            "distinctName",
+            "methodName",
+            "parameterTypeNames",
+            "viewType",
+            "beanName",
+            "moduleIdentifier",
+            "clusterName",
+            "identifier",
+            "affinity"
         };
         final AbstractWritingExternalizer[] extByIdTmp = new AbstractWritingExternalizer[simpleObjects.length];
         final Map<Object, AbstractWritingExternalizer> objMap = new IdentityHashMap<>();
