@@ -81,6 +81,11 @@ public final class DiscoveryEJBClientInterceptor implements EJBClientInterceptor
     }
 
     public void handleInvocation(final EJBClientInvocationContext context) throws Exception {
+        if (context.getDestination() != null) {
+            // already discovered!
+            context.sendRequest();
+            return;
+        }
         List<Throwable> problems = executeDiscovery(context);
         try {
             context.sendRequest();
@@ -131,6 +136,10 @@ public final class DiscoveryEJBClientInterceptor implements EJBClientInterceptor
     }
 
     public SessionID handleSessionCreation(final EJBSessionCreationInvocationContext context) throws Exception {
+        if (context.getDestination() != null) {
+            // already discovered!
+            return context.proceed();
+        }
         List<Throwable> problems = executeDiscovery(context);
         SessionID sessionID;
         try {
@@ -222,10 +231,7 @@ public final class DiscoveryEJBClientInterceptor implements EJBClientInterceptor
     }
 
     private List<Throwable> executeDiscovery(AbstractInvocationContext context) {
-        if (context.getDestination() != null) {
-            // Someone else discovered already!
-            return null;
-        }
+        assert context.getDestination() == null;
         final EJBLocator<?> locator = context.getLocator();
         final Affinity affinity = locator.getAffinity();
         final Affinity weakAffinity = context.getWeakAffinity();
