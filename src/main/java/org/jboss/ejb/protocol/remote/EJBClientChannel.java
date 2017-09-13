@@ -37,6 +37,7 @@ import java.nio.channels.ClosedChannelException;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
+import java.util.concurrent.Executor;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
@@ -121,10 +122,13 @@ class EJBClientChannel {
     private final AtomicInteger finishedParts = new AtomicInteger(0);
     private final AtomicReference<FutureResult<EJBClientChannel>> futureResultRef;
 
-    EJBClientChannel(final Channel channel, final int version, final DiscoveredNodeRegistry discoveredNodeRegistry, final FutureResult<EJBClientChannel> futureResult) {
+    private final RetryExecutorWrapper retryExecutorWrapper;
+
+    EJBClientChannel(final Channel channel, final int version, final DiscoveredNodeRegistry discoveredNodeRegistry, final FutureResult<EJBClientChannel> futureResult, RetryExecutorWrapper retryExecutorWrapper) {
         this.channel = channel;
         this.version = version;
         this.discoveredNodeRegistry = discoveredNodeRegistry;
+        this.retryExecutorWrapper = retryExecutorWrapper;
         marshallerFactory = Marshalling.getProvidedMarshallerFactory("river");
         MarshallingConfiguration configuration = new MarshallingConfiguration();
         configuration.setClassResolver(ProtocolClassResolver.INSTANCE);
@@ -619,7 +623,7 @@ class EJBClientChannel {
         out.writeUTF(statelessLocator.getBeanName());
     }
 
-    static IoFuture<EJBClientChannel> construct(final Channel channel, final DiscoveredNodeRegistry discoveredNodeRegistry) {
+    static IoFuture<EJBClientChannel> construct(final Channel channel, final DiscoveredNodeRegistry discoveredNodeRegistry, RetryExecutorWrapper retryExecutorWrapper) {
         FutureResult<EJBClientChannel> futureResult = new FutureResult<>();
         // now perform opening negotiation: receive server greeting
         channel.receiveMessage(new Channel.Receiver() {
@@ -645,7 +649,7 @@ class EJBClientChannel {
                         out.writeUTF("river");
                     }
                     // almost done; wait for initial module available report
-                    final EJBClientChannel ejbClientChannel = new EJBClientChannel(channel, version, discoveredNodeRegistry, futureResult);
+                    final EJBClientChannel ejbClientChannel = new EJBClientChannel(channel, version, discoveredNodeRegistry, futureResult, retryExecutorWrapper);
                     channel.receiveMessage(new Channel.Receiver() {
                         public void handleError(final Channel channel, final IOException error) {
                             futureResult.setException(error);
@@ -1216,8 +1220,8 @@ class EJBClientChannel {
         }
     }
 
-    private XnioWorker getRetryExecutor() {
-        return getChannel().getConnection().getEndpoint().getXnioWorker();
+    private Executor getRetryExecutor() {
+        return retryExecutorWrapper.getExecutor(getChannel().getConnection().getEndpoint().getXnioWorker());
     }
 
     static class ResponseMessageInputStream extends MessageInputStream implements ByteInput {

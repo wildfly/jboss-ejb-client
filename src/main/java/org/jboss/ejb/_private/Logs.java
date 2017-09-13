@@ -408,6 +408,10 @@ public interface Logs extends BasicLogger {
     @Message(id = 507, value = "Internal server error occurred while processing a transaction")
     SystemException internalSystemErrorWithTx(@Cause Throwable t);
 
+    @LogMessage(level = ERROR)
+    @Message(id = 508, value = "Failed to execute Runnable %s")
+    void taskFailed(Runnable runnable, @Cause  Throwable t);
+
     // Remote messages; no ID for brevity but should be translated
 
     @Message(value = "No such EJB: %s")
