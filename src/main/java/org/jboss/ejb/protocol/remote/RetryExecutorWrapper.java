@@ -7,12 +7,12 @@ import java.util.concurrent.Executor;
 /**
  * @author Stuart Douglas
  */
-public class RetryExecutorWrapper {
+class RetryExecutorWrapper {
 
     private final Object lock = new Object();
     private Task last = null;
 
-    public Executor getExecutor(Executor executor) {
+    Executor getExecutor(Executor executor) {
         return runnable -> {
             synchronized (lock) {
                 Task task = new Task(runnable, executor);
