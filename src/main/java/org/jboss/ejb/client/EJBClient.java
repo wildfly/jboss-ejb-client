@@ -24,18 +24,16 @@ import java.net.SocketAddress;
 import java.net.URI;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Supplier;
 import java.util.function.UnaryOperator;
 
 import javax.ejb.CreateException;
-import javax.net.ssl.SSLContext;
 import javax.transaction.UserTransaction;
 
 import org.jboss.ejb._private.Logs;
 import org.wildfly.common.Assert;
-import org.wildfly.discovery.FilterSpec;
-import org.wildfly.discovery.ServicesQueue;
 import org.wildfly.naming.client.NamingProvider;
-import org.wildfly.security.auth.client.AuthenticationConfiguration;
+import org.wildfly.security.auth.client.AuthenticationContext;
 import org.wildfly.transaction.client.RemoteTransactionContext;
 
 /**
@@ -150,12 +148,12 @@ public final class EJBClient {
      * @throws IllegalArgumentException if the locator parameter is {@code null} or is invalid
      */
     public static <T> T createProxy(final EJBLocator<T> locator) throws IllegalArgumentException {
-        return createProxy(locator, null, null);
+        return createProxy(locator, null);
     }
 
-    static <T> T createProxy(final EJBLocator<T> locator, final AuthenticationConfiguration authenticationConfiguration, final SSLContext sslContext) {
+    static <T> T createProxy(final EJBLocator<T> locator, final Supplier<AuthenticationContext> authenticationContextSupplier) {
         Assert.checkNotNullParam("locator", locator);
-        return locator.createProxyInstance(new EJBInvocationHandler<T>(locator, authenticationConfiguration, sslContext));
+        return locator.createProxyInstance(new EJBInvocationHandler<T>(locator, authenticationContextSupplier));
     }
 
     /**
@@ -180,39 +178,24 @@ public final class EJBClient {
         return createSessionProxy(statelessLocator, null, null);
     }
 
-    /**
-     * Create a new EJB session proxy.  The returned proxy will be cluster-aware if a cluster affinity is used in the locator.
-     *
-     * @param statelessLocator the stateless locator identifying the stateful EJB
-     * @param authenticationConfiguration the authentication configuration to use for the request
-     * @param sslContext the SSL context to use for the request
-     * @param <T> the view type
-     * @return the new EJB locator
-     * @throws CreateException if an error occurs
-     */
-    static <T> T createSessionProxy(final StatelessEJBLocator<T> statelessLocator, AuthenticationConfiguration authenticationConfiguration, SSLContext sslContext) throws Exception {
-        final StatefulEJBLocator<T> statefulLocator = createSession(statelessLocator, authenticationConfiguration, sslContext);
-        if (statelessLocator.getAffinity() instanceof ClusterAffinity) {
-            final Affinity weakAffinity = statefulLocator.getAffinity();
-            final T proxy = createProxy(statefulLocator.withNewAffinity(statelessLocator.getAffinity()), authenticationConfiguration, sslContext);
-            setWeakAffinity(proxy, weakAffinity);
-            return proxy;
-        } else {
-            return createProxy(statefulLocator, authenticationConfiguration, sslContext);
-        }
-    }
-
     // Special hook method for naming; let's replace this sometime soon.
-    static <T> T createSessionProxy(final StatelessEJBLocator<T> statelessLocator, AuthenticationConfiguration authenticationConfiguration, SSLContext sslContext, NamingProvider namingProvider) throws Exception {
+    static <T> T createSessionProxy(final StatelessEJBLocator<T> statelessLocator, Supplier<AuthenticationContext> authenticationContextSupplier, NamingProvider namingProvider) throws Exception {
         final EJBClientContext clientContext = EJBClientContext.getCurrent();
-        final StatefulEJBLocator<T> statefulLocator = clientContext.createSession(statelessLocator, authenticationConfiguration, sslContext, namingProvider);
+        // this is the auth context to use just for the invocation
+        final AuthenticationContext authenticationContext;
+        if (authenticationContextSupplier != null) {
+            authenticationContext = authenticationContextSupplier.get();
+        } else {
+            authenticationContext = AuthenticationContext.captureCurrent();
+        }
+        final StatefulEJBLocator<T> statefulLocator = clientContext.createSession(statelessLocator, authenticationContext, namingProvider);
         if (statelessLocator.getAffinity() instanceof ClusterAffinity) {
             final Affinity weakAffinity = statefulLocator.getAffinity();
-            final T proxy = createProxy(statefulLocator.withNewAffinity(statelessLocator.getAffinity()), authenticationConfiguration, sslContext);
+            final T proxy = createProxy(statefulLocator.withNewAffinity(statelessLocator.getAffinity()), authenticationContextSupplier);
             setWeakAffinity(proxy, weakAffinity);
             return proxy;
         } else {
-            return createProxy(statefulLocator, authenticationConfiguration, sslContext);
+            return createProxy(statefulLocator, authenticationContextSupplier);
         }
     }
 
@@ -324,22 +307,21 @@ public final class EJBClient {
      * @throws CreateException if an error occurs
      */
     public static <T> StatefulEJBLocator<T> createSession(StatelessEJBLocator<T> statelessLocator) throws Exception {
-        return createSession(statelessLocator, null, null);
+        return createSession(statelessLocator, null);
     }
 
     /**
      * Create a new EJB session.
      *
      * @param statelessLocator the stateless locator identifying the stateful EJB
-     * @param authenticationConfiguration the authentication configuration to use for the request
-     * @param sslContext the SSL context to use for the request
+     * @param authenticationContext the authentication context to use for the request and the resultant proxy
      * @param <T> the view type
      * @return the new EJB locator
      * @throws CreateException if an error occurs
      */
-    static <T> StatefulEJBLocator<T> createSession(StatelessEJBLocator<T> statelessLocator, AuthenticationConfiguration authenticationConfiguration, SSLContext sslContext) throws Exception {
+    static <T> StatefulEJBLocator<T> createSession(StatelessEJBLocator<T> statelessLocator, AuthenticationContext authenticationContext) throws Exception {
         final EJBClientContext clientContext = EJBClientContext.getCurrent();
-        return clientContext.createSession(statelessLocator, authenticationConfiguration, sslContext, null);
+        return clientContext.createSession(statelessLocator, authenticationContext, null);
     }
 
     /**
@@ -566,26 +548,14 @@ public final class EJBClient {
     /**
      * Get a {@code UserTransaction} object instance which can be used to control transactions on a specific node.
      *
-     * @param targetNodeName the node name
+     * @param targetNodeName the node name (ignored)
      * @return the {@code UserTransaction} instance
      * @throws IllegalStateException if the transaction context isn't set or cannot provide a {@code UserTransaction} instance
      */
     @Deprecated
     @SuppressWarnings("unused")
     public static UserTransaction getUserTransaction(String targetNodeName) {
-        final URI uri;
-        try (final ServicesQueue queue = EJBClientContext.getCurrent().getDiscovery().discover(
-            EJBClientContext.EJB_SERVICE_TYPE, FilterSpec.equal(EJBClientContext.FILTER_ATTR_NODE, targetNodeName)
-        )) {
-            uri = queue.take();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new IllegalStateException(e);
-        }
-        if (uri == null) {
-            throw Logs.MAIN.userTxNotSupportedByTxContext();
-        }
-        return RemoteTransactionContext.getInstance().getUserTransaction(uri);
+        return RemoteTransactionContext.getInstance().getUserTransaction();
     }
 
     /**

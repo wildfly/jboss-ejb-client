@@ -23,9 +23,11 @@ import java.io.IOException;
 import java.io.ObjectInput;
 import java.io.ObjectOutput;
 import java.net.URI;
+import java.util.function.Supplier;
 
 import org.wildfly.common.Assert;
 import org.wildfly.naming.client.NamingProvider;
+import org.wildfly.security.auth.client.AuthenticationContext;
 
 /**
  * A serialized EJB invocation handler.
@@ -131,16 +133,8 @@ public final class SerializedEJBInvocationHandler implements Externalizable {
      * @return the invocation handler
      */
     private static <T> EJBInvocationHandler<T> readResolve(EJBLocator<T> locator) {
-        NamingProvider namingProvider = NamingProvider.getCurrentNamingProvider();
-        if (namingProvider != null) {
-            final URI providerUri = namingProvider.getProviderUri();
-            if (providerUri.equals(locator.getAffinity().getUri())) {
-                return new EJBInvocationHandler<T>(locator, namingProvider.getAuthenticationConfiguration(), namingProvider.getSSLContext());
-            } else {
-                return new EJBInvocationHandler<T>(locator, null, null);
-            }
-        } else {
-            return new EJBInvocationHandler<T>(locator, null, null);
-        }
+        final NamingProvider namingProvider = NamingProvider.getCurrentNamingProvider();
+        final Supplier<AuthenticationContext> supplier = namingProvider != null ? namingProvider.getProviderEnvironment().getAuthenticationContextSupplier() : CaptureCurrentAuthCtxSupplier.INSTANCE;
+        return new EJBInvocationHandler<T>(locator, supplier);
     }
 }

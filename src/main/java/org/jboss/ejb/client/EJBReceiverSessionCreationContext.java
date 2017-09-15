@@ -18,9 +18,7 @@
 
 package org.jboss.ejb.client;
 
-import javax.net.ssl.SSLContext;
-
-import org.wildfly.security.auth.client.AuthenticationConfiguration;
+import org.wildfly.security.auth.client.AuthenticationContext;
 
 /**
  * The session creation context for a selected receiver.
@@ -29,24 +27,18 @@ import org.wildfly.security.auth.client.AuthenticationConfiguration;
  */
 public final class EJBReceiverSessionCreationContext extends AbstractReceiverInvocationContext {
     private final EJBSessionCreationInvocationContext invocationContext;
-    private final AuthenticationConfiguration authenticationConfiguration;
-    private final SSLContext sslContext;
+    private final AuthenticationContext authenticationContext;
 
-    EJBReceiverSessionCreationContext(final EJBSessionCreationInvocationContext invocationContext, final AuthenticationConfiguration authenticationConfiguration, final SSLContext sslContext) {
+    EJBReceiverSessionCreationContext(final EJBSessionCreationInvocationContext invocationContext, final AuthenticationContext authenticationContext) {
         this.invocationContext = invocationContext;
-        this.authenticationConfiguration = authenticationConfiguration;
-        this.sslContext = sslContext;
+        this.authenticationContext = authenticationContext;
     }
 
     public EJBSessionCreationInvocationContext getClientInvocationContext() {
         return invocationContext;
     }
 
-    public AuthenticationConfiguration getAuthenticationConfiguration() {
-        return authenticationConfiguration;
-    }
-
-    public SSLContext getSSLContext() {
-        return sslContext;
+    public AuthenticationContext getAuthenticationContext() {
+        return authenticationContext == null ? AuthenticationContext.captureCurrent() : authenticationContext;
     }
 }
