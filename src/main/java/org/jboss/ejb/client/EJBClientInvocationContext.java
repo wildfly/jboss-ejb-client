@@ -546,8 +546,9 @@ public final class EJBClientInvocationContext extends AbstractInvocationContext 
                             }
                         } else if (state != State.READY) {
                             throw Logs.MAIN.getResultCalledDuringWrongPhase();
+                        } else {
+                            transition(State.CONSUMING);
                         }
-                        transition(State.CONSUMING);
                     }
                 }
                 resultProducer = this.resultProducer;
