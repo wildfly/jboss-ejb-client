@@ -98,7 +98,6 @@ import org.wildfly.transaction.client.provider.remoting.SimpleIdResolver;
 import org.xnio.Cancellable;
 import org.xnio.FutureResult;
 import org.xnio.IoFuture;
-import org.xnio.XnioWorker;
 
 /**
  * @author <a href="mailto:david.lloyd@redhat.com">David M. Lloyd</a>
@@ -518,7 +517,9 @@ class EJBClientChannel {
         final URI location = channel.getConnection().getPeerURI();
         Assert.assertNotNull(transaction);
         if (transaction instanceof RemoteTransaction) {
-            final SimpleIdResolver ir = ((RemoteTransaction) transaction).getProviderInterface(SimpleIdResolver.class);
+            final RemoteTransaction remoteTransaction = (RemoteTransaction) transaction;
+            remoteTransaction.setLocation(location);
+            final SimpleIdResolver ir = remoteTransaction.getProviderInterface(SimpleIdResolver.class);
             if (ir == null) throw Logs.TXN.cannotEnlistTx();
             return new UserTransactionID(channel.getConnection().getRemoteEndpointName(), ir.getTransactionId(channel.getConnection()));
         } else if (transaction instanceof LocalTransaction) {
@@ -538,12 +539,14 @@ class EJBClientChannel {
             dataOutput.writeByte(0);
             return null;
         } else if (transaction instanceof RemoteTransaction) {
+            final RemoteTransaction remoteTransaction = (RemoteTransaction) transaction;
+            remoteTransaction.setLocation(location);
             dataOutput.writeByte(1);
-            final SimpleIdResolver ir = ((RemoteTransaction) transaction).getProviderInterface(SimpleIdResolver.class);
+            final SimpleIdResolver ir = remoteTransaction.getProviderInterface(SimpleIdResolver.class);
             if (ir == null) throw Logs.TXN.cannotEnlistTx();
             final int id = ir.getTransactionId(channel.getConnection());
             dataOutput.writeInt(id);
-            PackedInteger.writePackedInteger(dataOutput, ((RemoteTransaction) transaction).getEstimatedRemainingTime());
+            PackedInteger.writePackedInteger(dataOutput, remoteTransaction.getEstimatedRemainingTime());
             return null;
         } else if (transaction instanceof LocalTransaction) {
             final LocalTransaction localTransaction = (LocalTransaction) transaction;

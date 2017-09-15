@@ -33,13 +33,12 @@ import java.util.function.Supplier;
 import static java.lang.Math.max;
 import static java.lang.Thread.holdsLock;
 
-import javax.net.ssl.SSLContext;
 import javax.transaction.Transaction;
 
 import org.jboss.ejb._private.Logs;
 import org.jboss.ejb.client.annotation.ClientTransactionPolicy;
 import org.wildfly.common.Assert;
-import org.wildfly.security.auth.client.AuthenticationConfiguration;
+import org.wildfly.common.annotation.NotNull;
 import org.wildfly.security.auth.client.AuthenticationContext;
 
 /**
@@ -82,13 +81,11 @@ public final class EJBClientInvocationContext extends AbstractInvocationContext 
     private int interceptorChainIndex;
     private boolean blockingCaller;
     private Transaction transaction;
-    private AuthenticationConfiguration authenticationConfiguration;
-    private SSLContext sslContext;
 
-    EJBClientInvocationContext(final EJBInvocationHandler<?> invocationHandler, final EJBClientContext ejbClientContext, final Object invokedProxy, final Object[] parameters, final EJBProxyInformation.ProxyMethodInfo methodInfo, final int allowedRetries) {
+    EJBClientInvocationContext(final EJBInvocationHandler<?> invocationHandler, final EJBClientContext ejbClientContext, final Object invokedProxy, final Object[] parameters, final EJBProxyInformation.ProxyMethodInfo methodInfo, final int allowedRetries, final Supplier<AuthenticationContext> authenticationContextSupplier) {
         super(invocationHandler.getLocator(), ejbClientContext);
         this.invocationHandler = invocationHandler;
-        authenticationContext = AuthenticationContext.captureCurrent();
+        authenticationContext = authenticationContextSupplier != null ? authenticationContextSupplier.get() : AuthenticationContext.captureCurrent();
         this.invokedProxy = invokedProxy;
         this.parameters = parameters;
         this.methodInfo = methodInfo;
@@ -719,20 +716,9 @@ public final class EJBClientInvocationContext extends AbstractInvocationContext 
         return max(0L, timeUnit.convert(timeout - (System.nanoTime() - startTime) / 1_000_000L, TimeUnit.MILLISECONDS));
     }
 
-    AuthenticationConfiguration getAuthenticationConfiguration() {
-        return authenticationConfiguration;
-    }
-
-    void setAuthenticationConfiguration(final AuthenticationConfiguration authenticationConfiguration) {
-        this.authenticationConfiguration = authenticationConfiguration;
-    }
-
-    SSLContext getSSLContext() {
-        return sslContext;
-    }
-
-    void setSSLContext(final SSLContext sslContext) {
-        this.sslContext = sslContext;
+    @NotNull
+    AuthenticationContext getAuthenticationContext() {
+        return authenticationContext;
     }
 
     Future<?> getFutureResponse() {

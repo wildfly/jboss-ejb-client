@@ -18,29 +18,21 @@
 
 package org.jboss.ejb.client;
 
-import org.wildfly.security.auth.client.AuthenticationContext;
+import java.util.function.Supplier;
 
 /**
- * The base class of receiver invocation contexts.
+ * A fixed supplier.
  *
  * @author <a href="mailto:david.lloyd@redhat.com">David M. Lloyd</a>
  */
-public abstract class AbstractReceiverInvocationContext {
-    AbstractReceiverInvocationContext() {
+final class FixedSupplier<T> implements Supplier<T> {
+    private final T item;
+
+    FixedSupplier(final T item) {
+        this.item = item;
     }
 
-    /**
-     * Get the invocation context associated with this receiver invocation context.
-     *
-     * @return the invocation context
-     */
-    public abstract AbstractInvocationContext getClientInvocationContext();
-
-    /**
-     * Get the authentication context of the request.  The configuration may be associated with the proxy,
-     * or it may have been inherited from the environment.
-     *
-     * @return the authentication configuration of the request (not {@code null})
-     */
-    public abstract AuthenticationContext getAuthenticationContext();
+    public T get() {
+        return item;
+    }
 }

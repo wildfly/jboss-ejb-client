@@ -26,7 +26,6 @@ import javax.naming.Binding;
 import javax.naming.Name;
 import javax.naming.NameClassPair;
 import javax.naming.NamingException;
-import javax.net.ssl.SSLContext;
 
 import org.jboss.ejb._private.Logs;
 import org.wildfly.naming.client.AbstractContext;
@@ -35,7 +34,7 @@ import org.wildfly.naming.client.NamingProvider;
 import org.wildfly.naming.client.SimpleName;
 import org.wildfly.naming.client.store.RelativeContext;
 import org.wildfly.naming.client.util.FastHashtable;
-import org.wildfly.security.auth.client.AuthenticationConfiguration;
+import org.wildfly.security.auth.client.AuthenticationContext;
 
 class EJBRootContext extends AbstractContext {
 
@@ -134,20 +133,18 @@ class EJBRootContext extends AbstractContext {
             throw Logs.MAIN.lookupFailed(name, name, e);
         }
         final NamingProvider namingProvider = this.namingProvider;
-        final AuthenticationConfiguration authenticationConfiguration = namingProvider == null ? null : namingProvider.getAuthenticationConfiguration();
-        final SSLContext sslContext = namingProvider == null ? null : namingProvider.getSSLContext();
         final EJBModuleIdentifier moduleIdentifier = new EJBModuleIdentifier(appName, moduleName, distinctName);
         final EJBIdentifier identifier = new EJBIdentifier(moduleIdentifier, beanName);
         final StatelessEJBLocator<?> statelessLocator = StatelessEJBLocator.create(view, identifier, baseAffinity);
         final Object proxy;
         if (stateful) {
             try {
-                proxy = EJBClient.createSessionProxy(statelessLocator, authenticationConfiguration, sslContext, namingProvider);
+                proxy = EJBClient.createSessionProxy(statelessLocator, namingProvider == null ? null : namingProvider.getProviderEnvironment().getAuthenticationContextSupplier() , namingProvider);
             } catch (Exception e) {
                 throw Logs.MAIN.lookupFailed(name, name, e);
             }
         } else {
-            proxy = EJBClient.createProxy(statelessLocator, authenticationConfiguration, sslContext);
+            proxy = EJBClient.createProxy(statelessLocator, namingProvider == null ? null : namingProvider.getProviderEnvironment().getAuthenticationContextSupplier());
         }
         if (namingProvider != null) EJBClient.putProxyAttachment(proxy, NAMING_PROVIDER_ATTACHMENT_KEY, namingProvider);
 
@@ -197,7 +194,7 @@ class EJBRootContext extends AbstractContext {
     private Long getLongValueFromEnvironment(String key) throws NamingException {
         Object val = getEnvironment().get(key);
         if (val != null && val instanceof String) {
-            return Long.parseLong((String) val);
+            return Long.valueOf(Long.parseLong((String) val));
         }
         return null;
     }
@@ -207,7 +204,7 @@ class EJBRootContext extends AbstractContext {
      * @return String the name of the cluster
      */
     private String getClusterAffinityValueFromEnvironment() {
-        Object val = null;
+        Object val;
         try {
             val = getEnvironment().get(EJBClient.CLUSTER_AFFINITY);
         } catch(NamingException ne) {

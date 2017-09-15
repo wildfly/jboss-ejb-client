@@ -22,10 +22,8 @@ import java.util.Arrays;
 import java.util.concurrent.Executor;
 import java.util.function.Supplier;
 
-import javax.net.ssl.SSLContext;
-
 import org.wildfly.common.Assert;
-import org.wildfly.security.auth.client.AuthenticationConfiguration;
+import org.wildfly.security.auth.client.AuthenticationContext;
 
 /**
  * The context used for an EJB receiver to return the result of an invocation.
@@ -92,12 +90,8 @@ public final class EJBReceiverInvocationContext extends AbstractReceiverInvocati
         return clientInvocationContext;
     }
 
-    public AuthenticationConfiguration getAuthenticationConfiguration() {
-        return clientInvocationContext.getAuthenticationConfiguration();
-    }
-
-    public SSLContext getSSLContext() {
-        return clientInvocationContext.getSSLContext();
+    public AuthenticationContext getAuthenticationContext() {
+        return clientInvocationContext.getAuthenticationContext();
     }
 
     /**

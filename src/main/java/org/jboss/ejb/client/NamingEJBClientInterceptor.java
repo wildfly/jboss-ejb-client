@@ -31,6 +31,7 @@ import javax.ejb.NoSuchEJBException;
 import org.jboss.ejb._private.Logs;
 import org.jboss.ejb.client.annotation.ClientInterceptorPriority;
 import org.wildfly.naming.client.NamingProvider;
+import org.wildfly.naming.client.ProviderEnvironment;
 
 /**
  * EJB client interceptor to discover a target location based on naming context information in the EJB proxy.
@@ -107,10 +108,10 @@ public final class NamingEJBClientInterceptor implements EJBClientInterceptor {
                 if (locator.getAffinity() == Affinity.NONE || locator.getAffinity() instanceof ClusterAffinity) {
                     final Affinity weakAffinity = context.getWeakAffinity();
                     if (weakAffinity == Affinity.NONE || weakAffinity instanceof ClusterAffinity) {
-                        final List<NamingProvider.Location> locations = namingProvider.getLocations();
-                        final List<URI> uris = new ArrayList<>(locations.size());
-                        for (NamingProvider.Location location : locations) {
-                            final URI uri = location.getUri();
+                        final ProviderEnvironment providerEnvironment = namingProvider.getProviderEnvironment();
+                        final List<URI> providerUris = providerEnvironment.getProviderUris();
+                        final List<URI> uris = new ArrayList<>(providerUris.size());
+                        for (URI uri : providerUris) {
                             if (! isBlackListed(context, uri)) {
                                 uris.add(uri);
                             }
