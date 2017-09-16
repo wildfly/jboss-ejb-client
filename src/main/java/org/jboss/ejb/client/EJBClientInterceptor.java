@@ -61,10 +61,6 @@ public interface EJBClientInterceptor {
      */
     Object handleInvocationResult(EJBClientInvocationContext context) throws Exception;
 
-    default void handleInvocationAsyncFailure(EJBClientInvocationContext context, Exception failure) {
-
-    }
-
     /**
      * Optionally handle a session creation invocation.  Explicit session creation is always a blocking operation.  The
      * default operation forwards to the next interceptor in the chain.
