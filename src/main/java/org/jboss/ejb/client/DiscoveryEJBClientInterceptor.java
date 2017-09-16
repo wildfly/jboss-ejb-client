@@ -52,6 +52,7 @@ import org.wildfly.discovery.Discovery;
 import org.wildfly.discovery.FilterSpec;
 import org.wildfly.discovery.ServiceURL;
 import org.wildfly.discovery.ServicesQueue;
+import org.wildfly.naming.client.NamingProvider;
 
 /**
  * The EJB client interceptor responsible for discovering the destination of a request.  If a destination is already
@@ -450,7 +451,12 @@ public final class DiscoveryEJBClientInterceptor implements EJBClientInterceptor
 
         if (nodes.isEmpty()) {
 
-            Logs.INVOCATION.tracef("Performed cluster discovery, nodes is empty");
+            Logs.INVOCATION.tracef("Performed cluster discovery, nodes is empty; trying an initial ");
+
+            final NamingProvider namingProvider = context.getAttachment(EJBRootContext.NAMING_PROVIDER_ATTACHMENT_KEY);
+            if (namingProvider != null) {
+                NamingEJBClientInterceptor.setNamingDestination(context, namingProvider);
+            }
 
             return problems;
         } else if (nodes.size() == 1) {

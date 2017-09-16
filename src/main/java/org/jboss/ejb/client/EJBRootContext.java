@@ -34,7 +34,6 @@ import org.wildfly.naming.client.NamingProvider;
 import org.wildfly.naming.client.SimpleName;
 import org.wildfly.naming.client.store.RelativeContext;
 import org.wildfly.naming.client.util.FastHashtable;
-import org.wildfly.security.auth.client.AuthenticationContext;
 
 class EJBRootContext extends AbstractContext {
 
