@@ -71,6 +71,8 @@ public final class JBossEJBProperties implements Contextual<JBossEJBProperties> 
 
     public static final String DEFAULT_PATH_NAME = "jboss-ejb-client.properties";
 
+    public static final String PROPERTY_KEY_CLUSTERS = "remote.clusters";
+
     private static final ContextManager<JBossEJBProperties> CONTEXT_MANAGER = new ContextManager<>(JBossEJBProperties.class, "org.jboss.ejb.client.legacy-properties");
     private static final Supplier<JBossEJBProperties> SUPPLIER = doPrivileged((PrivilegedAction<Supplier<JBossEJBProperties>>) CONTEXT_MANAGER::getPrivilegedSupplier);
 
@@ -107,8 +109,6 @@ public final class JBossEJBProperties implements Contextual<JBossEJBProperties> 
     private static final String PROPERTY_KEY_PORT = "port";
     private static final String PROPERTY_KEY_PROTOCOL = "protocol";
     private static final String DEFAULT_PROTOCOL = "http-remoting";
-
-    private static final String PROPERTY_KEY_CLUSTERS = "remote.clusters";
 
     private static final boolean expandPasswords;
     private static final String CONFIGURED_PATH_NAME;

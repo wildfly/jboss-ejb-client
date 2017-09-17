@@ -28,6 +28,7 @@ import javax.naming.NameClassPair;
 import javax.naming.NamingException;
 
 import org.jboss.ejb._private.Logs;
+import org.jboss.ejb.client.legacy.JBossEJBProperties;
 import org.wildfly.naming.client.AbstractContext;
 import org.wildfly.naming.client.CloseableNamingEnumeration;
 import org.wildfly.naming.client.NamingProvider;
@@ -206,13 +207,31 @@ class EJBRootContext extends AbstractContext {
         Object val;
         try {
             val = getEnvironment().get(EJBClient.CLUSTER_AFFINITY);
+
+            if (val != null && val instanceof String) {
+                return (String) val;
+            }
+
+            return getLegacyClusterAffinity();
         } catch(NamingException ne) {
             Logs.MAIN.warn("Problem reading cluster affinity specification from env; skipping affinity assignment");
             return null;
         }
+    }
+
+    private String getLegacyClusterAffinity() throws NamingException {
+        Object val = getEnvironment().get(JBossEJBProperties.PROPERTY_KEY_CLUSTERS);
         if (val != null && val instanceof String) {
-            return (String) val;
+            String str = (String) val;
+
+            // Pick the first definition for affinity
+            int index = str.indexOf(',');
+            if (index > -1) {
+                str = str.substring(0, index);
+            }
+            return str.trim();
         }
+
         return null;
     }
 }
