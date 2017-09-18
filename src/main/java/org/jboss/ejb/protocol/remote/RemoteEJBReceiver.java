@@ -143,11 +143,8 @@ class RemoteEJBReceiver extends EJBReceiver {
             IoFuture<ConnectionPeerIdentity> futureConnection = getConnection(context.getClientInvocationContext().getDestination(), authenticationContext);
             final ConnectionPeerIdentity identity = futureConnection.getInterruptibly();
             final EJBClientChannel ejbClientChannel = getClientChannel(identity.getConnection());
-            final StatefulEJBLocator<?> result = ejbClientChannel.openSession(statelessLocator, identity);
-            if (statelessLocator.getAffinity() != result.getAffinity()) {
-                // older protocol wants to assert a weak affinity; let it
-                context.getClientInvocationContext().setWeakAffinity(result.getAffinity());
-            }
+            final StatefulEJBLocator<?> result = ejbClientChannel.openSession(statelessLocator, identity, context.getClientInvocationContext());
+
             return result.getSessionId();
         } catch (IOException e) {
             final CreateException createException = new CreateException("Failed to create stateful EJB: " + e.getMessage());

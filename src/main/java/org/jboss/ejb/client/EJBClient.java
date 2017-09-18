@@ -188,15 +188,17 @@ public final class EJBClient {
         } else {
             authenticationContext = AuthenticationContext.captureCurrent();
         }
-        final StatefulEJBLocator<T> statefulLocator = clientContext.createSession(statelessLocator, authenticationContext, namingProvider);
-        if (statelessLocator.getAffinity() instanceof ClusterAffinity) {
-            final Affinity weakAffinity = statefulLocator.getAffinity();
-            final T proxy = createProxy(statefulLocator.withNewAffinity(statelessLocator.getAffinity()), authenticationContextSupplier);
+
+        final EJBSessionCreationInvocationContext context = clientContext.createSessionCreationInvocationContext(statelessLocator, authenticationContext);
+        final StatefulEJBLocator<T> statefulLocator = clientContext.createSession(context, statelessLocator, namingProvider);
+        final T proxy = createProxy(statefulLocator, authenticationContextSupplier);
+        final Affinity weakAffinity = context.getWeakAffinity();
+
+        if (weakAffinity != null && Affinity.NONE != weakAffinity) {
             setWeakAffinity(proxy, weakAffinity);
-            return proxy;
-        } else {
-            return createProxy(statefulLocator, authenticationContextSupplier);
         }
+
+        return proxy;
     }
 
     /**

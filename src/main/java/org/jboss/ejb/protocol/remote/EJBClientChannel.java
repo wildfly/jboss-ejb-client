@@ -65,6 +65,7 @@ import org.jboss.ejb.client.EJBClientInvocationContext;
 import org.jboss.ejb.client.EJBLocator;
 import org.jboss.ejb.client.EJBModuleIdentifier;
 import org.jboss.ejb.client.EJBReceiverInvocationContext;
+import org.jboss.ejb.client.EJBSessionCreationInvocationContext;
 import org.jboss.ejb.client.NodeAffinity;
 import org.jboss.ejb.client.RequestSendFailedException;
 import org.jboss.ejb.client.SessionID;
@@ -601,8 +602,8 @@ class EJBClientChannel {
         return marshallerFactory.createMarshaller(configuration);
     }
 
-    public <T> StatefulEJBLocator<T> openSession(final StatelessEJBLocator<T> statelessLocator, final ConnectionPeerIdentity identity) throws Exception {
-        SessionOpenInvocation<T> invocation = invocationTracker.addInvocation(id -> new SessionOpenInvocation<>(id, statelessLocator));
+    public <T> StatefulEJBLocator<T> openSession(final StatelessEJBLocator<T> statelessLocator, final ConnectionPeerIdentity identity, EJBSessionCreationInvocationContext clientInvocationContext) throws Exception {
+        SessionOpenInvocation<T> invocation = invocationTracker.addInvocation(id -> new SessionOpenInvocation<>(id, statelessLocator, clientInvocationContext));
         try (MessageOutputStream out = invocationTracker.allocateMessage()) {
             out.write(Protocol.OPEN_SESSION_REQUEST);
             out.writeShort(invocation.getIndex());
@@ -699,14 +700,16 @@ class EJBClientChannel {
     final class SessionOpenInvocation<T> extends Invocation {
 
         private final StatelessEJBLocator<T> statelessLocator;
+        private final EJBSessionCreationInvocationContext clientInvocationContext;
         private int id;
         private MessageInputStream inputStream;
         private XAOutflowHandle outflowHandle;
         private IOException ex;
 
-        protected SessionOpenInvocation(final int index, final StatelessEJBLocator<T> statelessLocator) {
+        protected SessionOpenInvocation(final int index, final StatelessEJBLocator<T> statelessLocator, EJBSessionCreationInvocationContext clientInvocationContext) {
             super(index);
             this.statelessLocator = statelessLocator;
+            this.clientInvocationContext = clientInvocationContext;
         }
 
         public void handleResponse(final int id, final MessageInputStream inputStream) {
@@ -775,7 +778,7 @@ class EJBClientChannel {
                             if (allAreSet(updateBits, Protocol.UPDATE_BIT_WEAK_AFFINITY)) {
                                 final byte[] b = new byte[PackedInteger.readPackedInteger(response)];
                                 response.readFully(b);
-                                // todo: we don't have API space to accept this hint yet, but that's OK
+                                clientInvocationContext.setWeakAffinity(new NodeAffinity(new String(b, StandardCharsets.UTF_8)));
                             }
                             if (allAreSet(updateBits, Protocol.UPDATE_BIT_STRONG_AFFINITY)) {
                                 final byte[] b = new byte[PackedInteger.readPackedInteger(response)];
@@ -784,7 +787,9 @@ class EJBClientChannel {
                                 affinity = new ClusterAffinity(clusterName);
                             }
                         }
-                        return statelessLocator.withSessionAndAffinity(SessionID.createSessionID(bytes), affinity);
+                        StatefulEJBLocator<T> locator = statelessLocator.withSessionAndAffinity(SessionID.createSessionID(bytes), affinity);
+                        clientInvocationContext.setLocator(locator);
+                        return locator;
                     }
                     case Protocol.APPLICATION_EXCEPTION: {
                         if (version >= 3) {

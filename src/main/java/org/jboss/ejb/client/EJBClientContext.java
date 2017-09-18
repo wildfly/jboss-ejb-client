@@ -713,9 +713,18 @@ public final class EJBClientContext extends Attachable implements Contextual<EJB
         return getCurrent();
     }
 
+
     <T> StatefulEJBLocator<T> createSession(final StatelessEJBLocator<T> statelessLocator, final AuthenticationContext authenticationContext, final NamingProvider namingProvider) throws Exception {
-        InterceptorList interceptorList = getInterceptors(statelessLocator.getViewType());
-        final EJBSessionCreationInvocationContext context = new EJBSessionCreationInvocationContext(statelessLocator, this, authenticationContext, interceptorList);
+        EJBSessionCreationInvocationContext context = createSessionCreationInvocationContext(statelessLocator, authenticationContext);
+        return createSession(context, statelessLocator, namingProvider);
+    }
+
+    <T> EJBSessionCreationInvocationContext createSessionCreationInvocationContext(StatelessEJBLocator<T> statelessLocator, AuthenticationContext authenticationContext) {
+        EJBClientContext.InterceptorList interceptorList = getInterceptors(statelessLocator.getViewType());
+        return new EJBSessionCreationInvocationContext(statelessLocator, this, authenticationContext, interceptorList);
+    }
+
+    <T> StatefulEJBLocator<T> createSession(final EJBSessionCreationInvocationContext context, final StatelessEJBLocator<T> statelessLocator, final NamingProvider namingProvider) throws Exception {
         // Special hook for naming; let's replace this sometime soon.
         if (namingProvider != null) context.putAttachment(EJBRootContext.NAMING_PROVIDER_ATTACHMENT_KEY, namingProvider);
 
@@ -723,14 +732,8 @@ public final class EJBClientContext extends Attachable implements Contextual<EJB
 
         final SessionID sessionID = context.proceed();
         final Affinity affinity = context.getLocator().getAffinity();
-        final Affinity weakAffinity = context.getWeakAffinity();
-        if (weakAffinity == Affinity.NONE) {
-            // in-place
-            return statelessLocator.withSessionAndAffinity(sessionID, affinity);
-        } else {
-            // located in node
-            return statelessLocator.withSessionAndAffinity(sessionID, weakAffinity);
-        }
+
+        return statelessLocator.withSessionAndAffinity(sessionID, affinity);
     }
 
     InterceptorList getClassPathInterceptors() {
