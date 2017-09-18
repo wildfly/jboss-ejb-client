@@ -932,6 +932,9 @@ final class EJBServerChannel {
                             marshaller.start(new NoFlushByteOutput(Marshalling.createByteOutput(os)));
                             marshaller.writeObject(result);
                             attachments.remove(EJBClient.SOURCE_ADDRESS_KEY);
+                            if (version >= 3) {
+                                attachments.remove(Affinity.WEAK_AFFINITY_CONTEXT_KEY);
+                            }
                             int count = attachments.size();
                             if (count > 255) {
                                 marshaller.writeByte(255);

@@ -1168,7 +1168,7 @@ class EJBClientChannel {
                     final EJBClientInvocationContext clientInvocationContext = receiverInvocationContext.getClientInvocationContext();
                     for (int i = 0; i < attachments; i ++) {
                         String key = unmarshaller.readObject(String.class);
-                        if (key.equals(Affinity.WEAK_AFFINITY_CONTEXT_KEY)) {
+                        if (version < 3 && key.equals(Affinity.WEAK_AFFINITY_CONTEXT_KEY)) {
                             final Affinity affinity = unmarshaller.readObject(Affinity.class);
                             clientInvocationContext.putAttachment(AttachmentKeys.WEAK_AFFINITY, affinity);
                             clientInvocationContext.setWeakAffinity(affinity);
