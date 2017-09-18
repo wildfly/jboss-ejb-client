@@ -34,6 +34,7 @@ import java.lang.reflect.Method;
 import java.net.InetSocketAddress;
 import java.net.URI;
 import java.nio.channels.ClosedChannelException;
+import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
@@ -58,11 +59,13 @@ import org.jboss.ejb._private.Logs;
 import org.jboss.ejb.client.Affinity;
 import org.jboss.ejb.client.AttachmentKey;
 import org.jboss.ejb.client.AttachmentKeys;
+import org.jboss.ejb.client.ClusterAffinity;
 import org.jboss.ejb.client.EJBClient;
 import org.jboss.ejb.client.EJBClientInvocationContext;
 import org.jboss.ejb.client.EJBLocator;
 import org.jboss.ejb.client.EJBModuleIdentifier;
 import org.jboss.ejb.client.EJBReceiverInvocationContext;
+import org.jboss.ejb.client.NodeAffinity;
 import org.jboss.ejb.client.RequestSendFailedException;
 import org.jboss.ejb.client.SessionID;
 import org.jboss.ejb.client.StatefulEJBLocator;
@@ -740,7 +743,7 @@ class EJBClientChannel {
             try (ResponseMessageInputStream response = removeInvocationResult()) {
                 switch (id) {
                     case Protocol.OPEN_SESSION_RESPONSE: {
-                        final Affinity affinity;
+                        Affinity affinity;
                         int size = StreamUtils.readPackedUnsignedInt32(response);
                         byte[] bytes = new byte[size];
                         response.readFully(bytes);
@@ -767,6 +770,18 @@ class EJBClientChannel {
                                 } else if (cmd == 2) {
                                     outflowHandle.nonMasterEnlistment();
                                 }
+                            }
+                            final int updateBits = response.readUnsignedByte();
+                            if (allAreSet(updateBits, Protocol.UPDATE_BIT_WEAK_AFFINITY)) {
+                                final byte[] b = new byte[PackedInteger.readPackedInteger(response)];
+                                response.readFully(b);
+                                // todo: we don't have API space to accept this hint yet, but that's OK
+                            }
+                            if (allAreSet(updateBits, Protocol.UPDATE_BIT_STRONG_AFFINITY)) {
+                                final byte[] b = new byte[PackedInteger.readPackedInteger(response)];
+                                response.readFully(b);
+                                String clusterName = new String(b, StandardCharsets.UTF_8);
+                                affinity = new ClusterAffinity(clusterName);
                             }
                         }
                         return statelessLocator.withSessionAndAffinity(SessionID.createSessionID(bytes), affinity);
@@ -971,13 +986,25 @@ class EJBClientChannel {
                                 outflowHandle.nonMasterEnlistment();
                             }
                         }
-                        if (inputStream.readBoolean()) {
+                        final EJBClientInvocationContext context = receiverInvocationContext.getClientInvocationContext();
+                        final int updateBits = inputStream.readUnsignedByte();
+                        if (allAreSet(updateBits, Protocol.UPDATE_BIT_SESSION_ID)) {
                             byte[] encoded = new byte[PackedInteger.readPackedInteger(inputStream)];
-                            inputStream.read(encoded);
+                            inputStream.readFully(encoded);
                             final SessionID sessionID = SessionID.createSessionID(encoded);
-                            final EJBClientInvocationContext context = receiverInvocationContext.getClientInvocationContext();
-                            EJBClient.convertToStateful(context.getInvokedProxy(), sessionID);
-//                            context.setWeakAffinity();
+                            final Object invokedProxy = context.getInvokedProxy();
+                            EJBClient.convertToStateful(invokedProxy, sessionID);
+                            context.setLocator(EJBClient.getLocatorFor(invokedProxy));
+                        }
+                        if (allAreSet(updateBits, Protocol.UPDATE_BIT_WEAK_AFFINITY)) {
+                            byte[] b = new byte[PackedInteger.readPackedInteger(inputStream)];
+                            inputStream.readFully(b);
+                            context.setWeakAffinity(new NodeAffinity(new String(b, StandardCharsets.UTF_8)));
+                        }
+                        if (allAreSet(updateBits, Protocol.UPDATE_BIT_STRONG_AFFINITY)) {
+                            byte[] b = new byte[PackedInteger.readPackedInteger(inputStream)];
+                            inputStream.readFully(b);
+                            context.setLocator(context.getLocator().withNewAffinity(new ClusterAffinity(new String(b, StandardCharsets.UTF_8))));
                         }
                     } catch (RuntimeException | IOException | RollbackException | SystemException e) {
                         receiverInvocationContext.requestFailed(new EJBException(e), getRetryExecutor());
@@ -1141,7 +1168,7 @@ class EJBClientChannel {
                     final EJBClientInvocationContext clientInvocationContext = receiverInvocationContext.getClientInvocationContext();
                     for (int i = 0; i < attachments; i ++) {
                         String key = unmarshaller.readObject(String.class);
-                        if (key.equals(Affinity.WEAK_AFFINITY_CONTEXT_KEY)) {
+                        if (version < 3 && key.equals(Affinity.WEAK_AFFINITY_CONTEXT_KEY)) {
                             final Affinity affinity = unmarshaller.readObject(Affinity.class);
                             clientInvocationContext.putAttachment(AttachmentKeys.WEAK_AFFINITY, affinity);
                             clientInvocationContext.setWeakAffinity(affinity);

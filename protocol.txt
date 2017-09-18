@@ -78,9 +78,21 @@ Version is 0x01 or 0x02 or 0x03. 0x00 is reserved for test purposes.
         │   Session ID  │  Variable length bytes
         ┊               ┊
  V1 & 2 │               │  V3
-┌───────┴───────┬───────┴───────┐ V1-2: Marshalled Affinity object
+┌───────┴───────┬───────┴───────┐ V1-2: Marshalled (strong) Affinity object
 │   Affinity    │  Enlistment   │ V3+: 0 = Forget tx enlistment, 1 = commit enlistment, 2 = not master, 3 = unknown or no txn
-└───────────────┴───────────────┘
+└───────────────┼───────────────┤
+                │   Loc Flags   │ V3+: bit 2: Update strong cluster affinity, bit 1: Update weak node affinity
+                ├───────────────┤
+                │    ID Size    │  Variable length integer (if bit 1 is set above)
+                ├───────────────┤
+                │   Node Name   │  Variable length bytes of node name
+                ┊               ┊
+                ├───────────────┤
+                │    ID Size    │  Variable length integer (if bit 2 is set above)
+                ├───────────────┤
+                │ Cluster Name  │  Variable length bytes of cluster name
+                ┊               ┊
+                └───────────────┘
 
 2.2¾. EJB Verify Request
 
@@ -117,11 +129,11 @@ Version is 0x01 or 0x02 or 0x03. 0x00 is reserved for test purposes.
 │   Dist. Name  │  Sec. Context │ V1,2: Marshalled String object; V3: SecurityIdentity ID (4 bytes)
 ├───────────────┼───────────────┤
 │   Bean Name   │ Weak Affinity │ V1,2: Marshalled String object; V3: Marshalled Affinity object
-└───────────────┼─┬─┬─┬─┬───────┤
+└───────────────┼─┬─┬─┬─┬───────┤ ← V2: switch class loader here
                 │0│0│0│0│ Level │ V1,2: Marshalled String object; V3: Response Compression level 0 = no compression, 15 = default compression
                 ├─┴─┴─┴─┴───────┤
                 │   Txn. Type   │ V1,2: Marshalled String object; V3: Transaction Type; 0 = none, 1 = remote, 2 = xa
-                │ ← V2: switch class loader here
+                │               │
                 │    Txn. Id    │ V3: Transaction ID; if "none", 0 bytes; if "remote", 4 bytes + packed timeout; if "xa", length + global XID + packed timeout:
         ┌───────┴───────┬───────┘     XID format: packed format ID + one byte gtid length + gtid bytes + one byte bqid length + bqid bytes
         │  EJB Locator  │  Marshalled EJBLocator object
@@ -213,11 +225,21 @@ Note.  As of protocol V3, this message is no longer used.  Asynchronous void met
     └───────┬───────┴───────┐
             │  Enlistment   │ V3+: 0 = Forget tx enlistment, 1 = commit enlistment, 2 = not master, 3 = unknown
             ├───────────────┤
-            │  SessionFix   │ V3+: 0 = Invocation OK, 1 = stateless → stateful conversion happened, Session ID follows
+            │   Loc Flags   │ V3+: bit 2: 1 = Update strong cluster affinity, bit 1: 1 = Update weak node affinity, bit 0: session ID updated
             ├───────────────┤
-            │    ID Size    │  Variable length integer (if 1 above)
+            │    ID Size    │  Variable length integer (if bit 0 is set above)
             ├───────────────┤
-            │   Session ID  │  Variable length bytes
+            │   Session ID  │  Variable length bytes of session ID
+            ┊               ┊
+            ├───────────────┤
+            │    ID Size    │  Variable length integer (if bit 1 is set above)
+            ├───────────────┤
+            │   Node Name   │  Variable length bytes of node name
+            ┊               ┊
+            ├───────────────┤
+            │    ID Size    │  Variable length integer (if bit 2 is set above)
+            ├───────────────┤
+            │ Cluster Name  │  Variable length bytes of cluster name
             ┊               ┊
     ┌───────┴───────┬───────┘
     │    Result     │  Variable length
