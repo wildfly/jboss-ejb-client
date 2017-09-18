@@ -124,7 +124,7 @@ final class ProtocolV1ClassTable implements ClassTable {
             Throwable.class, // <--
             Exception.class, // <--
             RuntimeException.class, // <--
-            StackTraceElement.class,
+            StackTraceElement4.class,
             SessionID.Serialized.class,
             TransactionID.class,
             TransactionID.Serialized.class,
