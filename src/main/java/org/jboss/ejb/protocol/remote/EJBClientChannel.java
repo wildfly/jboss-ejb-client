@@ -609,7 +609,7 @@ class EJBClientChannel {
             writeRawIdentifier(statelessLocator, out);
             if (version >= 3) {
                 out.writeInt(identity.getId());
-                writeTransaction(ContextTransactionManager.getInstance().getTransaction(), out);
+                invocation.setOutflowHandle(writeTransaction(ContextTransactionManager.getInstance().getTransaction(), out));
             }
         } catch (IOException e) {
             CreateException createException = new CreateException(e.getMessage());
