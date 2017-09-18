@@ -191,7 +191,18 @@ final class ProtocolV3ObjectTable implements ObjectTable {
             "moduleIdentifier",
             "clusterName",
             "identifier",
-            "affinity"
+            "affinity",
+            "classLoaderName",
+            "moduleName",
+            "moduleVersion",
+            "declaringClass",
+            "methodName",
+            "fileName",
+            "lineNumber",
+            "format",
+            "java.base",
+            "java.naming",
+            "java.sql",
         };
         final AbstractWritingExternalizer[] extByIdTmp = new AbstractWritingExternalizer[simpleObjects.length];
         final Map<Object, AbstractWritingExternalizer> objMap = new IdentityHashMap<>();

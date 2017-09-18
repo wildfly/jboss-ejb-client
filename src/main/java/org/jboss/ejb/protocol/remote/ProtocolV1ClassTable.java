@@ -23,14 +23,9 @@ import org.jboss.ejb.client.BasicSessionID;
 import org.jboss.ejb.client.ClusterAffinity;
 import org.jboss.ejb.client.EJBHandle;
 import org.jboss.ejb.client.EJBHomeHandle;
-import org.jboss.ejb.client.EJBHomeLocator;
-import org.jboss.ejb.client.EJBLocator;
-import org.jboss.ejb.client.EntityEJBLocator;
 import org.jboss.ejb.client.NodeAffinity;
 import org.jboss.ejb.client.SerializedEJBInvocationHandler;
 import org.jboss.ejb.client.SessionID;
-import org.jboss.ejb.client.StatefulEJBLocator;
-import org.jboss.ejb.client.StatelessEJBLocator;
 import org.jboss.ejb.client.TransactionID;
 import org.jboss.ejb.client.UnknownSessionID;
 import org.jboss.ejb.client.UserTransactionID;
@@ -63,10 +58,8 @@ import javax.transaction.TransactionRequiredException;
 import javax.transaction.TransactionRolledbackException;
 import java.io.IOException;
 import java.rmi.RemoteException;
-import java.util.HashSet;
 import java.util.IdentityHashMap;
 import java.util.Map;
-import java.util.Set;
 import java.util.concurrent.Future;
 
 /**
@@ -124,7 +117,7 @@ final class ProtocolV1ClassTable implements ClassTable {
             Throwable.class,
             Exception.class,
             RuntimeException.class,
-            StackTraceElement.class,
+            StackTraceElement4.class,
             SessionID.Serialized.class,
             TransactionID.class,
             TransactionID.Serialized.class,
@@ -135,25 +128,15 @@ final class ProtocolV1ClassTable implements ClassTable {
     };
 
     static {
-        final Set<Class<?>> deprecatedClassTableClasses = new HashSet<Class<?>>();
-        deprecatedClassTableClasses.add(Throwable.class);
-        deprecatedClassTableClasses.add(Exception.class);
-        deprecatedClassTableClasses.add(RuntimeException.class);
-        deprecatedClassTableClasses.add(EJBLocator.class);
-        deprecatedClassTableClasses.add(EJBHomeLocator.class);
-        deprecatedClassTableClasses.add(StatefulEJBLocator.class);
-        deprecatedClassTableClasses.add(StatelessEJBLocator.class);
-        deprecatedClassTableClasses.add(EntityEJBLocator.class);
-
         final Map<Class<?>, ByteWriter> map = new IdentityHashMap<Class<?>, ByteWriter>();
         final Class<?>[] classes = ProtocolV1ClassTable.classes;
         for (int i = 0, length = classes.length; i < length; i++) {
-            // Certain classes should no longer use the ClassTable to write out the class descriptor.
-            // So we skip such classes and instead let them use the normal mechanism while marshaling
-            if (deprecatedClassTableClasses.contains(classes[i])) {
+            final Class<?> clazz = classes[i];
+            if (Throwable.class.isAssignableFrom(clazz)) {
+                // don't write out exception types as class table items since they're out of our control
                 continue;
             }
-            map.put(classes[i], new ByteWriter((byte) i));
+            map.put(clazz, new ByteWriter((byte) i));
         }
         writers = map;
     }
