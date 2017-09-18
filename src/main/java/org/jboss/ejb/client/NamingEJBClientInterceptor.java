@@ -31,6 +31,7 @@ import javax.ejb.NoSuchEJBException;
 import org.jboss.ejb._private.Logs;
 import org.jboss.ejb.client.annotation.ClientInterceptorPriority;
 import org.wildfly.naming.client.NamingProvider;
+import org.wildfly.naming.client.ProviderEnvironment;
 
 /**
  * EJB client interceptor to discover a target location based on naming context information in the EJB proxy.
@@ -51,7 +52,11 @@ public final class NamingEJBClientInterceptor implements EJBClientInterceptor {
 
     public void handleInvocation(final EJBClientInvocationContext context) throws Exception {
         final NamingProvider namingProvider = context.getProxyAttachment(EJBRootContext.NAMING_PROVIDER_ATTACHMENT_KEY);
-        if (namingProvider == null || context.getDestination() != null || ! isNoneOrCluster(context.getLocator().getAffinity())) {
+        if (namingProvider != null) {
+            // make sure the naming provider is available to invocations
+            context.putAttachment(EJBRootContext.NAMING_PROVIDER_ATTACHMENT_KEY, namingProvider);
+        }
+        if (namingProvider == null || context.getDestination() != null || context.getLocator().getAffinity() != Affinity.NONE) {
             context.putAttachment(SKIP_MISSING_TARGET, Boolean.TRUE);
             context.sendRequest();
         } else {
@@ -64,10 +69,6 @@ public final class NamingEJBClientInterceptor implements EJBClientInterceptor {
                 throw Logs.INVOCATION.noMoreDestinations();
             }
         }
-    }
-
-    private boolean isNoneOrCluster(final Affinity affinity) {
-        return affinity == Affinity.NONE || affinity instanceof ClusterAffinity;
     }
 
     public Object handleInvocationResult(final EJBClientInvocationContext context) throws Exception {
@@ -85,7 +86,7 @@ public final class NamingEJBClientInterceptor implements EJBClientInterceptor {
 
     public SessionID handleSessionCreation(final EJBSessionCreationInvocationContext context) throws Exception {
         final NamingProvider namingProvider = context.getAttachment(EJBRootContext.NAMING_PROVIDER_ATTACHMENT_KEY);
-        if (namingProvider == null || context.getDestination() != null || ! isNoneOrCluster(context.getLocator().getAffinity())) {
+        if (namingProvider == null || context.getDestination() != null || context.getLocator().getAffinity() != Affinity.NONE) {
             return context.proceed();
         } else {
             if (setDestination(context, namingProvider)) try {
@@ -104,30 +105,35 @@ public final class NamingEJBClientInterceptor implements EJBClientInterceptor {
             final URI destination = context.getDestination();
             if (destination == null) {
                 final EJBLocator<?> locator = context.getLocator();
-                if (locator.getAffinity() == Affinity.NONE || locator.getAffinity() instanceof ClusterAffinity) {
+                if (locator.getAffinity() == Affinity.NONE) {
                     final Affinity weakAffinity = context.getWeakAffinity();
-                    if (weakAffinity == Affinity.NONE || weakAffinity instanceof ClusterAffinity) {
-                        final List<NamingProvider.Location> locations = namingProvider.getLocations();
-                        final List<URI> uris = new ArrayList<>(locations.size());
-                        for (NamingProvider.Location location : locations) {
-                            final URI uri = location.getUri();
-                            if (! isBlackListed(context, uri)) {
-                                uris.add(uri);
-                            }
-                        }
-                        final int size = uris.size();
-                        if (size == 0) {
-                            // we can't discover the location; fail
-                            return false;
-                        } else if (size == 1) {
-                            context.setDestination(uris.get(0));
-                            return true;
-                        } else {
-                            context.setDestination(uris.get(ThreadLocalRandom.current().nextInt(size)));
-                        }
+                    if (weakAffinity == Affinity.NONE) {
+                        return setNamingDestination(context, namingProvider);
                     }
                 }
             }
+        }
+        return true;
+    }
+
+    static boolean setNamingDestination(final AbstractInvocationContext context, final NamingProvider namingProvider) {
+        final ProviderEnvironment providerEnvironment = namingProvider.getProviderEnvironment();
+        final List<URI> providerUris = providerEnvironment.getProviderUris();
+        final List<URI> uris = new ArrayList<>(providerUris.size());
+        for (URI uri : providerUris) {
+            if (! isBlackListed(context, uri)) {
+                uris.add(uri);
+            }
+        }
+        final int size = uris.size();
+        if (size == 0) {
+            // we can't discover the location; fail
+            return false;
+        } else if (size == 1) {
+            context.setDestination(uris.get(0));
+            return true;
+        } else {
+            context.setDestination(uris.get(ThreadLocalRandom.current().nextInt(size)));
         }
         return true;
     }

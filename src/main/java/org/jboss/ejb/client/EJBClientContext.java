@@ -41,8 +41,6 @@ import java.util.Map;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
-import javax.net.ssl.SSLContext;
-
 import org.jboss.ejb._private.Logs;
 import org.jboss.ejb.protocol.remote.RemotingEJBClientInterceptor;
 import org.wildfly.common.Assert;
@@ -51,7 +49,7 @@ import org.wildfly.common.context.Contextual;
 import org.wildfly.discovery.Discovery;
 import org.wildfly.discovery.ServiceType;
 import org.wildfly.naming.client.NamingProvider;
-import org.wildfly.security.auth.client.AuthenticationConfiguration;
+import org.wildfly.security.auth.client.AuthenticationContext;
 
 /**
  * The public API for an EJB client context.  An EJB client context may be associated with (and used by) one or more threads concurrently.
@@ -715,9 +713,9 @@ public final class EJBClientContext extends Attachable implements Contextual<EJB
         return getCurrent();
     }
 
-    <T> StatefulEJBLocator<T> createSession(final StatelessEJBLocator<T> statelessLocator, final AuthenticationConfiguration authenticationConfiguration, final SSLContext sslContext, final NamingProvider namingProvider) throws Exception {
+    <T> StatefulEJBLocator<T> createSession(final StatelessEJBLocator<T> statelessLocator, final AuthenticationContext authenticationContext, final NamingProvider namingProvider) throws Exception {
         InterceptorList interceptorList = getInterceptors(statelessLocator.getViewType());
-        final EJBSessionCreationInvocationContext context = new EJBSessionCreationInvocationContext(statelessLocator, this, authenticationConfiguration, sslContext, interceptorList);
+        final EJBSessionCreationInvocationContext context = new EJBSessionCreationInvocationContext(statelessLocator, this, authenticationContext, interceptorList);
         // Special hook for naming; let's replace this sometime soon.
         if (namingProvider != null) context.putAttachment(EJBRootContext.NAMING_PROVIDER_ATTACHMENT_KEY, namingProvider);
 

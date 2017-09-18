@@ -30,6 +30,7 @@ import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
 import java.net.Inet6Address;
 import java.net.SocketAddress;
+import java.nio.charset.StandardCharsets;
 import java.security.PrivilegedAction;
 import java.util.HashMap;
 import java.util.List;
@@ -50,6 +51,7 @@ import javax.transaction.xa.Xid;
 import org.jboss.ejb._private.Logs;
 import org.jboss.ejb.client.Affinity;
 import org.jboss.ejb.client.AttachmentKeys;
+import org.jboss.ejb.client.ClusterAffinity;
 import org.jboss.ejb.client.EJBClient;
 import org.jboss.ejb.client.EJBClientInvocationContext;
 import org.jboss.ejb.client.EJBIdentifier;
@@ -491,6 +493,8 @@ final class EJBServerChannel {
         final int invId;
         SessionID sessionId;
         final SecurityIdentity identity;
+        ClusterAffinity strongAffinityUpdate;
+        NodeAffinity weakAffinityUpdate;
 
         RemotingRequest(final int invId, final SecurityIdentity identity) {
             this.invId = invId;
@@ -621,6 +625,20 @@ final class EJBServerChannel {
                 invocations.removeKey(invId);
             }
         }
+
+        public void updateStrongAffinity(@NotNull final Affinity affinity) {
+            Assert.checkNotNullParam("affinity", affinity);
+            if (affinity instanceof ClusterAffinity) {
+                strongAffinityUpdate = (ClusterAffinity) affinity;
+            }
+        }
+
+        public void updateWeakAffinity(@NotNull final Affinity affinity) {
+            Assert.checkNotNullParam("affinity", affinity);
+            if (affinity instanceof NodeAffinity) {
+                weakAffinityUpdate = (NodeAffinity) affinity;
+            }
+        }
     }
 
     final class RemotingSessionOpenRequest extends RemotingRequest implements SessionOpenRequest {
@@ -680,12 +698,35 @@ final class EJBServerChannel {
                 if (1 <= version && version <= 2) {
                     final Marshaller marshaller = marshallerFactory.createMarshaller(configuration);
                     marshaller.start(new NoFlushByteOutput(Marshalling.createByteOutput(os)));
-                    // V2 needs weak affinity to the current node
-                    marshaller.writeObject(new NodeAffinity(channel.getConnection().getEndpoint().getName()));
+                    if (weakAffinityUpdate != null) {
+                        marshaller.writeObject(weakAffinityUpdate);
+                    } else {
+                        marshaller.writeObject(new NodeAffinity(channel.getConnection().getEndpoint().getName()));
+                    }
                     marshaller.finish();
                 } else {
                     assert version >= 3;
                     os.writeByte(txnCmd);
+                    int updateBits = 0;
+                    if (weakAffinityUpdate != null) {
+                        updateBits |= Protocol.UPDATE_BIT_WEAK_AFFINITY;
+                    }
+                    if (strongAffinityUpdate != null) {
+                        updateBits |= Protocol.UPDATE_BIT_STRONG_AFFINITY;
+                    }
+                    os.writeByte(updateBits);
+                    if (weakAffinityUpdate != null) {
+                        final String nodeName = weakAffinityUpdate.getNodeName();
+                        final byte[] bytes = nodeName.getBytes(StandardCharsets.UTF_8);
+                        PackedInteger.writePackedInteger(os, bytes.length);
+                        os.write(bytes);
+                    }
+                    if (strongAffinityUpdate != null) {
+                        final String clusterName = strongAffinityUpdate.getClusterName();
+                        final byte[] bytes = clusterName.getBytes(StandardCharsets.UTF_8);
+                        PackedInteger.writePackedInteger(os, bytes.length);
+                        os.write(bytes);
+                    }
                 }
             } catch (IOException e) {
                 // nothing to do at this point; the client doesn't want the response
@@ -858,11 +899,31 @@ final class EJBServerChannel {
                             os.writeShort(invId);
                             if (version >= 3) {
                                 os.writeByte(txnCmd);
-                                if (sessionId == null) {
-                                    os.writeBoolean(false);
-                                } else {
-                                    os.writeBoolean(true);
+                                int updateBits = 0;
+                                if (sessionId != null) {
+                                    updateBits |= Protocol.UPDATE_BIT_SESSION_ID;
+                                }
+                                if (weakAffinityUpdate != null) {
+                                    updateBits |= Protocol.UPDATE_BIT_WEAK_AFFINITY;
+                                }
+                                if (strongAffinityUpdate != null) {
+                                    updateBits |= Protocol.UPDATE_BIT_STRONG_AFFINITY;
+                                }
+                                os.writeByte(updateBits);
+                                if (sessionId != null) {
                                     final byte[] bytes = sessionId.getEncodedForm();
+                                    PackedInteger.writePackedInteger(os, bytes.length);
+                                    os.write(bytes);
+                                }
+                                if (weakAffinityUpdate != null) {
+                                    final String nodeName = weakAffinityUpdate.getNodeName();
+                                    final byte[] bytes = nodeName.getBytes(StandardCharsets.UTF_8);
+                                    PackedInteger.writePackedInteger(os, bytes.length);
+                                    os.write(bytes);
+                                }
+                                if (strongAffinityUpdate != null) {
+                                    final String clusterName = strongAffinityUpdate.getClusterName();
+                                    final byte[] bytes = clusterName.getBytes(StandardCharsets.UTF_8);
                                     PackedInteger.writePackedInteger(os, bytes.length);
                                     os.write(bytes);
                                 }
@@ -871,6 +932,9 @@ final class EJBServerChannel {
                             marshaller.start(new NoFlushByteOutput(Marshalling.createByteOutput(os)));
                             marshaller.writeObject(result);
                             attachments.remove(EJBClient.SOURCE_ADDRESS_KEY);
+                            if (version >= 3) {
+                                attachments.remove(Affinity.WEAK_AFFINITY_CONTEXT_KEY);
+                            }
                             int count = attachments.size();
                             if (count > 255) {
                                 marshaller.writeByte(255);

@@ -20,11 +20,9 @@ package org.jboss.ejb.client;
 
 import java.net.URI;
 
-import javax.net.ssl.SSLContext;
-
 import org.jboss.ejb._private.Logs;
 import org.wildfly.common.Assert;
-import org.wildfly.security.auth.client.AuthenticationConfiguration;
+import org.wildfly.security.auth.client.AuthenticationContext;
 
 /**
  * The context object for handling explicit (not implicit) EJB 3.x stateful session bean creation.  Implicit session
@@ -34,15 +32,13 @@ import org.wildfly.security.auth.client.AuthenticationConfiguration;
  */
 public final class EJBSessionCreationInvocationContext extends AbstractInvocationContext {
 
-    private final AuthenticationConfiguration authenticationConfiguration;
-    private final SSLContext sslContext;
+    private final AuthenticationContext authenticationContext;
     private final EJBClientContext.InterceptorList interceptorList;
     private int interceptorChainIndex;
 
-    EJBSessionCreationInvocationContext(final StatelessEJBLocator<?> locator, final EJBClientContext ejbClientContext, AuthenticationConfiguration authenticationConfiguration, SSLContext sslContext, final EJBClientContext.InterceptorList interceptorList) {
+    EJBSessionCreationInvocationContext(final StatelessEJBLocator<?> locator, final EJBClientContext ejbClientContext, AuthenticationContext authenticationContext, final EJBClientContext.InterceptorList interceptorList) {
         super(locator, ejbClientContext);
-        this.authenticationConfiguration = authenticationConfiguration;
-        this.sslContext = sslContext;
+        this.authenticationContext = authenticationContext;
         this.interceptorList = interceptorList;
     }
 
@@ -63,7 +59,7 @@ public final class EJBSessionCreationInvocationContext extends AbstractInvocatio
                 final URI destination = getDestination();
                 final EJBReceiver receiver = getClientContext().resolveReceiver(destination, getLocator());
                 setReceiver(receiver);
-                final SessionID sessionID = receiver.createSession(new EJBReceiverSessionCreationContext(this, authenticationConfiguration, sslContext));
+                final SessionID sessionID = receiver.createSession(new EJBReceiverSessionCreationContext(this, authenticationContext));
                 if (sessionID == null) {
                     throw Logs.INVOCATION.nullSessionID(receiver, getLocator().asStateless());
                 }

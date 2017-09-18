@@ -21,8 +21,10 @@ package org.jboss.ejb.server;
 import java.net.SocketAddress;
 import java.util.concurrent.Executor;
 
+import org.jboss.ejb.client.Affinity;
 import org.jboss.ejb.client.EJBIdentifier;
 import org.jboss.ejb.client.SessionID;
+import org.wildfly.common.Assert;
 import org.wildfly.common.annotation.NotNull;
 import org.wildfly.security.auth.server.SecurityIdentity;
 
@@ -129,6 +131,26 @@ public interface Request {
      * @throws IllegalStateException if the invocation was already converted to be stateful with a different session ID
      */
     void convertToStateful(@NotNull SessionID sessionId) throws IllegalArgumentException, IllegalStateException;
+
+    /**
+     * Hint to the implementation that the strong affinity of the client proxy should be updated if possible.  Not
+     * all transports support all affinity types; as this is only a hint, the transport is free to ignore these calls.
+     *
+     * @param affinity the affinity to set (must not be {@code null})
+     */
+    default void updateStrongAffinity(@NotNull Affinity affinity) {
+        Assert.checkNotNullParam("affinity", affinity);
+    }
+
+    /**
+     * Hint to the implementation that the weak affinity of the client proxy should be updated if possible.  Not
+     * all transports support all affinity types; as this is only a hint, the transport is free to ignore these calls.
+     *
+     * @param affinity the affinity to set (must not be {@code null})
+     */
+    default void updateWeakAffinity(@NotNull Affinity affinity) {
+        Assert.checkNotNullParam("affinity", affinity);
+    }
 
     /**
      * Get the provider interface associated with the request.

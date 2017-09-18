@@ -25,15 +25,15 @@ import java.lang.reflect.Proxy;
 import java.rmi.RemoteException;
 import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Supplier;
 
 import javax.ejb.EJBException;
 import javax.ejb.EJBHome;
 import javax.ejb.EJBObject;
-import javax.net.ssl.SSLContext;
 
 import org.jboss.ejb._private.Logs;
 import org.wildfly.common.Assert;
-import org.wildfly.security.auth.client.AuthenticationConfiguration;
+import org.wildfly.security.auth.client.AuthenticationContext;
 
 /**
  * @param <T> the proxy view type
@@ -56,25 +56,19 @@ final class EJBInvocationHandler<T> extends Attachable implements InvocationHand
     private volatile long invocationTimeout = -1L;
 
     /**
-     * The sticky authentication configuration for this proxy.
+     * The sticky authentication context supplier for this proxy.
      */
-    private volatile AuthenticationConfiguration authenticationConfiguration;
-    /**
-     * The sticky SSL context for this proxy.
-     */
-    private volatile SSLContext sslContext;
+    private volatile Supplier<AuthenticationContext> authenticationContextSupplier;
 
     /**
      * Construct a new instance.
      *
      * @param locator the initial EJB locator (not {@code null})
-     * @param authenticationConfiguration the sticky authentication configuration, or {@code null} to use a dynamic identity
-     * @param sslContext the sticky SSL context, or {@code null} to use a dynamic SSL context
+     * @param authenticationContextSupplier the sticky authentication context supplier, or {@code null} to always capture the current context
      */
-    EJBInvocationHandler(final EJBLocator<T> locator, final AuthenticationConfiguration authenticationConfiguration, final SSLContext sslContext) {
-        this.authenticationConfiguration = authenticationConfiguration;
-        this.sslContext = sslContext;
+    EJBInvocationHandler(final EJBLocator<T> locator, final Supplier<AuthenticationContext> authenticationContextSupplier) {
         Assert.checkNotNullParam("locator", locator);
+        this.authenticationContextSupplier = authenticationContextSupplier;
         this.locatorRef = new AtomicReference<>(locator);
         async = false;
         if (locator instanceof StatefulEJBLocator) {
@@ -92,8 +86,7 @@ final class EJBInvocationHandler<T> extends Attachable implements InvocationHand
         super(other);
         final EJBLocator<T> locator = other.locatorRef.get();
         locatorRef = new AtomicReference<>(locator);
-        authenticationConfiguration = other.authenticationConfiguration;
-        sslContext = other.sslContext;
+        authenticationContextSupplier = other.authenticationContextSupplier;
         async = true;
         if (locator instanceof StatefulEJBLocator) {
             // set the weak affinity to the node on which the session was created
@@ -158,12 +151,10 @@ final class EJBInvocationHandler<T> extends Attachable implements InvocationHand
         if (Logs.INVOCATION.isDebugEnabled()) {
             Logs.INVOCATION.debugf("Calling invoke(module = %s, strong affinity = %s, weak affinity = %s): ", locatorRef.get().getIdentifier(), locatorRef.get().getAffinity(), weakAffinity);
         }
-        final EJBClientInvocationContext invocationContext = new EJBClientInvocationContext(this, clientContext, proxy, args, methodInfo, 8);
+        final EJBClientInvocationContext invocationContext = new EJBClientInvocationContext(this, clientContext, proxy, args, methodInfo, 8, authenticationContextSupplier);
         invocationContext.setLocator(locatorRef.get());
         invocationContext.setBlockingCaller(true);
         invocationContext.setWeakAffinity(getWeakAffinity());
-        invocationContext.setAuthenticationConfiguration(authenticationConfiguration);
-        invocationContext.setSSLContext(sslContext);
 
         try {
             // send the request

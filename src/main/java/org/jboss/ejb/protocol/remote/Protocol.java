@@ -64,6 +64,10 @@ final class Protocol {
     // v3 and up
     public static final int BAD_VIEW_TYPE         = 0x1C; // s → c
 
+    static final int UPDATE_BIT_STRONG_AFFINITY = 0b100;
+    static final int UPDATE_BIT_WEAK_AFFINITY   = 0b010;
+    static final int UPDATE_BIT_SESSION_ID      = 0b001;
+
     private Protocol() {
     }
 }

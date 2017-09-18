@@ -67,7 +67,7 @@ public class LegacyPropertiesConfiguration {
                 try {
                     deploymentNodeSelector = deploymentNodeSelectorSupplier.get();
                 } catch (ReflectiveOperationException e) {
-                    throw Logs.MAIN.cannotInstantiateDeploymentNodeSelector(properties.getDefaultCallbackHandlerClassName(), e);
+                    throw Logs.MAIN.cannotInstantiateDeploymentNodeSelector(properties.getDeploymentNodeSelectorClassName(), e);
                 }
                 builder.setDeploymentNodeSelector(deploymentNodeSelector);
             }

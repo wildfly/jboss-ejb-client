@@ -27,7 +27,6 @@ import java.net.URI;
 import java.security.PrivilegedAction;
 
 import javax.ejb.CreateException;
-import javax.net.ssl.SSLContext;
 
 import org.jboss.ejb.client.AttachmentKey;
 import org.jboss.ejb.client.EJBReceiver;
@@ -43,9 +42,8 @@ import org.jboss.remoting3.Connection;
 import org.jboss.remoting3.ConnectionPeerIdentity;
 import org.jboss.remoting3.Endpoint;
 import org.wildfly.common.Assert;
-import org.wildfly.security.auth.client.AuthenticationConfiguration;
+import org.wildfly.common.annotation.NotNull;
 import org.wildfly.security.auth.client.AuthenticationContext;
-import org.wildfly.security.auth.client.AuthenticationContextConfigurationClient;
 import org.xnio.IoFuture;
 import org.xnio.OptionMap;
 
@@ -54,7 +52,6 @@ import org.xnio.OptionMap;
  */
 class RemoteEJBReceiver extends EJBReceiver {
     static final AttachmentKey<EJBClientChannel> EJBCC_KEY = new AttachmentKey<>();
-    private static final AuthenticationContextConfigurationClient CLIENT = doPrivileged(AuthenticationContextConfigurationClient.ACTION);
 
     private final RemoteTransportProvider remoteTransportProvider;
     private final EJBReceiverContext receiverContext;
@@ -124,9 +121,8 @@ class RemoteEJBReceiver extends EJBReceiver {
     }
 
     protected void processInvocation(final EJBReceiverInvocationContext receiverContext) throws Exception {
-        final AuthenticationConfiguration authenticationConfiguration = receiverContext.getAuthenticationConfiguration();
-        final SSLContext sslContext = receiverContext.getSSLContext();
-        final IoFuture<ConnectionPeerIdentity> futureConnection = getConnection(receiverContext.getClientInvocationContext().getDestination(), authenticationConfiguration, sslContext);
+        final AuthenticationContext authenticationContext = receiverContext.getAuthenticationContext();
+        final IoFuture<ConnectionPeerIdentity> futureConnection = getConnection(receiverContext.getClientInvocationContext().getDestination(), authenticationContext);
         // this actually causes the invocation to move forward
         futureConnection.addNotifier(notifier, receiverContext);
     }
@@ -142,10 +138,9 @@ class RemoteEJBReceiver extends EJBReceiver {
 
     protected SessionID createSession(final EJBReceiverSessionCreationContext context) throws Exception {
         final StatelessEJBLocator<?> statelessLocator = context.getClientInvocationContext().getLocator().asStateless();
-        final AuthenticationConfiguration authenticationConfiguration = context.getAuthenticationConfiguration();
-        final SSLContext sslContext = context.getSSLContext();
+        final AuthenticationContext authenticationContext = context.getAuthenticationContext();
         try {
-            IoFuture<ConnectionPeerIdentity> futureConnection = getConnection(context.getClientInvocationContext().getDestination(), authenticationConfiguration, sslContext);
+            IoFuture<ConnectionPeerIdentity> futureConnection = getConnection(context.getClientInvocationContext().getDestination(), authenticationContext);
             final ConnectionPeerIdentity identity = futureConnection.getInterruptibly();
             final EJBClientChannel ejbClientChannel = getClientChannel(identity.getConnection());
             final StatefulEJBLocator<?> result = ejbClientChannel.openSession(statelessLocator, identity);
@@ -178,15 +173,7 @@ class RemoteEJBReceiver extends EJBReceiver {
         }
     }
 
-    private IoFuture<ConnectionPeerIdentity> getConnection(final URI target, AuthenticationConfiguration authenticationConfiguration, SSLContext sslContext) throws Exception {
-        if (authenticationConfiguration == null) {
-            authenticationConfiguration = CLIENT.getAuthenticationConfiguration(target, AuthenticationContext.captureCurrent(), -1, "ejb", "jboss");
-        }
-        if (sslContext == null) {
-            sslContext = CLIENT.getSSLContext(target, AuthenticationContext.captureCurrent(), "ejb", "jboss");
-        }
-        final SSLContext finalSslContext = sslContext;
-        final AuthenticationConfiguration finalAuthenticationConfiguration = authenticationConfiguration;
-        return doPrivileged((PrivilegedAction<IoFuture<ConnectionPeerIdentity>>) () -> Endpoint.getCurrent().getConnectedIdentity(target, finalSslContext, finalAuthenticationConfiguration));
+    private IoFuture<ConnectionPeerIdentity> getConnection(final URI target, @NotNull AuthenticationContext authenticationContext) throws Exception {
+        return doPrivileged((PrivilegedAction<IoFuture<ConnectionPeerIdentity>>) () -> Endpoint.getCurrent().getConnectedIdentity(target, "ejb", "jboss", authenticationContext));
     }
 }
