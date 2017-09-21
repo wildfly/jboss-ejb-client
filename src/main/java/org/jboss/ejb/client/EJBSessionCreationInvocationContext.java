@@ -35,6 +35,7 @@ public final class EJBSessionCreationInvocationContext extends AbstractInvocatio
     private final AuthenticationContext authenticationContext;
     private final EJBClientContext.InterceptorList interceptorList;
     private int interceptorChainIndex;
+    private boolean retry;
 
     EJBSessionCreationInvocationContext(final StatelessEJBLocator<?> locator, final EJBClientContext ejbClientContext, AuthenticationContext authenticationContext, final EJBClientContext.InterceptorList interceptorList) {
         super(locator, ejbClientContext);
@@ -63,6 +64,7 @@ public final class EJBSessionCreationInvocationContext extends AbstractInvocatio
                 if (sessionID == null) {
                     throw Logs.INVOCATION.nullSessionID(receiver, getLocator().asStateless());
                 }
+                retry = false;
                 return sessionID;
             } else {
                 return chain[idx].getInterceptorInstance().handleSessionCreation(this);
@@ -73,6 +75,10 @@ public final class EJBSessionCreationInvocationContext extends AbstractInvocatio
     }
 
     public void requestRetry() {
-        // no operation for now
+        retry = true;
+    }
+
+    boolean shouldRetry() {
+        return retry;
     }
 }
