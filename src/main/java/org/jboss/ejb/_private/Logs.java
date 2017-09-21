@@ -412,6 +412,10 @@ public interface Logs extends BasicLogger {
     @Message(id = 508, value = "Failed to execute Runnable %s")
     void taskFailed(Runnable runnable, @Cause  Throwable t);
 
+    @LogMessage(level = ERROR)
+    @Message(id = 509, value = "Unexpected exception processing EJB request")
+    void unexpectedException(@Cause Throwable t);
+
     // Remote messages; no ID for brevity but should be translated
 
     @Message(value = "No such EJB: %s")
@@ -428,4 +432,5 @@ public interface Logs extends BasicLogger {
 
     @Message(value = "EJB view is not remote: %s")
     String remoteMessageBadViewType(EJBIdentifier ejbIdentifier);
+
 }
