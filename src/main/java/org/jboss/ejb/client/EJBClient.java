@@ -68,6 +68,11 @@ public final class EJBClient {
     public static final String CLUSTER_AFFINITY = "jboss.cluster-affinity";
 
     /**
+     * A JNDI context key which, if defined, disables learning in the case of an unspecified {@link EJBClient#CLUSTER_AFFINITY}
+     */
+    public static final String DISABLE_AFFINITY_LEARNING = "jboss.disable-affinity-learning";
+
+    /**
      * Get an asynchronous view of a proxy.  Any {@code void} method on the proxy will be invoked fully asynchronously
      * without a server round-trip delay.  Any method which returns a {@link java.util.concurrent.Future Future} will
      * continue to be asynchronous.  Any other method invoked on the returned proxy will return {@code null} (the future

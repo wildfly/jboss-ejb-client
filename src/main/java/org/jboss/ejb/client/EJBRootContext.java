@@ -18,6 +18,9 @@
 
 package org.jboss.ejb.client;
 
+import java.io.IOException;
+import java.io.ObjectOutputStream;
+import java.io.Serializable;
 import java.security.AccessController;
 import java.security.PrivilegedAction;
 import java.util.concurrent.TimeUnit;
@@ -41,20 +44,33 @@ class EJBRootContext extends AbstractContext {
     static final AttachmentKey<NamingProvider> NAMING_PROVIDER_ATTACHMENT_KEY = new AttachmentKey<>();
 
     private static final String PROPERTY_KEY_INVOCATION_TIMEOUT = "invocation.timeout";
-    private final Affinity baseAffinity;
+    private static final String LEARNED_AFFINITY_KEY = "__jboss.learned-affinity";
+
+    private final LearnedAffinity baseAffinity;
     private final NamingProvider namingProvider;
 
+    private static FastHashtable<String, Object> clone(FastHashtable<String, Object> env) {
+        return env.clone();
+    }
+
     EJBRootContext(final NamingProvider namingProvider, final FastHashtable<String, Object> env) {
-        super(env);
+        super(clone(env)); // Clone to avoid accidental sharing between contexts
         this.namingProvider = namingProvider;
 
-        // check if strong affinity for this context has been set in the environment
-        String clusterName = getClusterAffinityValueFromEnvironment();
-        if (clusterName != null) {
-            baseAffinity = new ClusterAffinity(clusterName);
-        } else {
-            baseAffinity = Affinity.NONE;
+        // TODO, Switch to providerEnvironment using WildFLy Naming, when attachments are added
+        Object learned = env.get(LEARNED_AFFINITY_KEY);
+        if (learned == null || ! (learned instanceof LearnedAffinity)) {
+            // check if strong affinity for this context has been set in the environment
+            String clusterName = getClusterAffinityValueFromEnvironment();
+            if (clusterName != null) {
+                learned = new LearnedAffinity(new ClusterAffinity(clusterName));
+            } else {
+                learned = new LearnedAffinity(shouldLearnAffinity() ? null : Affinity.NONE);
+            }
+            env.put(LEARNED_AFFINITY_KEY, learned);
         }
+
+        this.baseAffinity = (LearnedAffinity) learned;
     }
 
     protected Object lookupNative(final Name name) throws NamingException {
@@ -135,7 +151,7 @@ class EJBRootContext extends AbstractContext {
         final NamingProvider namingProvider = this.namingProvider;
         final EJBModuleIdentifier moduleIdentifier = new EJBModuleIdentifier(appName, moduleName, distinctName);
         final EJBIdentifier identifier = new EJBIdentifier(moduleIdentifier, beanName);
-        final StatelessEJBLocator<?> statelessLocator = StatelessEJBLocator.create(view, identifier, baseAffinity);
+        final StatelessEJBLocator<?> statelessLocator = StatelessEJBLocator.create(view, identifier, baseAffinity.get());
         final Object proxy;
         if (stateful) {
             try {
@@ -147,6 +163,10 @@ class EJBRootContext extends AbstractContext {
             proxy = EJBClient.createProxy(statelessLocator, namingProvider == null ? null : namingProvider.getProviderEnvironment().getAuthenticationContextSupplier());
         }
         if (namingProvider != null) EJBClient.putProxyAttachment(proxy, NAMING_PROVIDER_ATTACHMENT_KEY, namingProvider);
+
+        if (baseAffinity.isUnset()) {
+            EJBClient.putProxyAttachment(proxy, ClusterAffinityInterest.KEY, baseAffinity);
+        }
 
         // if "invocation.timeout" is set in environment properties, set this value to created proxy
         Long invocationTimeout = getLongValueFromEnvironment(PROPERTY_KEY_INVOCATION_TIMEOUT);
@@ -200,6 +220,20 @@ class EJBRootContext extends AbstractContext {
     }
 
     /**
+     * Check if the user has disabled affinity learning
+     */
+    private boolean shouldLearnAffinity() {
+        Object val = null;
+        try {
+            val = getEnvironment().get(EJBClient.DISABLE_AFFINITY_LEARNING);
+        } catch(NamingException ne) {
+            Logs.MAIN.warn("Problem reading cluster affinity specification from env; skipping affinity assignment");
+        }
+
+        return val == null || "false".equalsIgnoreCase(val.toString());
+    }
+
+    /**
      * Check if the user has specified strong affinity to a cluster for this context and return the cluster name.
      * @return String the name of the cluster
      */
@@ -233,5 +267,32 @@ class EJBRootContext extends AbstractContext {
         }
 
         return null;
+    }
+
+    private static class LearnedAffinity implements ClusterAffinityInterest, Serializable {
+
+        volatile transient Affinity affinity;
+
+        LearnedAffinity(Affinity affinity) {
+            this.affinity = affinity;
+        }
+
+        public void notifyAssignment(ClusterAffinity affinity) {
+            if (affinity != null && this.affinity == null) {
+                this.affinity = affinity;
+            }
+        }
+
+        Affinity get() {
+            return affinity == null ? Affinity.NONE : affinity;
+        }
+
+        boolean isUnset() {
+            return affinity == null;
+        }
+
+        private Object writeReplace() {
+            return null;
+        }
     }
 }

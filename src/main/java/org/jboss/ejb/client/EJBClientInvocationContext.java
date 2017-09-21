@@ -716,6 +716,19 @@ public final class EJBClientInvocationContext extends AbstractInvocationContext 
         return max(0L, timeUnit.convert(timeout - (System.nanoTime() - startTime) / 1_000_000L, TimeUnit.MILLISECONDS));
     }
 
+    @Override
+    public <T> void setLocator(EJBLocator<T> locator) {
+        super.setLocator(locator);
+
+        Affinity affinity = locator.getAffinity();
+        if (affinity instanceof ClusterAffinity) {
+            ClusterAffinityInterest interest = invocationHandler.getAttachment(ClusterAffinityInterest.KEY);
+            if (interest != null) {
+                interest.notifyAssignment((ClusterAffinity)affinity);
+            }
+        }
+    }
+
     @NotNull
     AuthenticationContext getAuthenticationContext() {
         return authenticationContext;
