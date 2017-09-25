@@ -270,6 +270,7 @@ public class DummyProtocolHandler {
         final MarshallingConfiguration marshallingConfiguration = new MarshallingConfiguration();
         marshallingConfiguration.setClassTable(ProtocolV1ClassTable.INSTANCE);
         marshallingConfiguration.setObjectTable(ProtocolV1ObjectTable.INSTANCE);
+        marshallingConfiguration.setObjectPreResolver(ProtocolV1ObjectPreResolver.INSTANCE);
         marshallingConfiguration.setVersion(2);
 
         return marshallerFactory.createMarshaller(marshallingConfiguration);
@@ -315,6 +316,7 @@ public class DummyProtocolHandler {
         marshallingConfiguration.setVersion(2);
         marshallingConfiguration.setClassTable(ProtocolV1ClassTable.INSTANCE);
         marshallingConfiguration.setObjectTable(ProtocolV1ObjectTable.INSTANCE);
+        marshallingConfiguration.setObjectPreResolver(ProtocolV1ObjectPreResolver.INSTANCE);
         marshallingConfiguration.setClassResolver(TCCLClassResolver.INSTANCE);
 
         return marshallerFactory.createUnmarshaller(marshallingConfiguration);

@@ -74,6 +74,7 @@ abstract class ProtocolMessageHandler {
         marshallingConfiguration.setVersion(2);
         marshallingConfiguration.setClassTable(ProtocolV1ClassTable.INSTANCE);
         marshallingConfiguration.setObjectTable(ProtocolV1ObjectTable.INSTANCE);
+        marshallingConfiguration.setObjectPreResolver(ProtocolV1ObjectPreResolver.INSTANCE);
         marshallingConfiguration.setClassResolver(TCCLClassResolver.INSTANCE);
         final Unmarshaller unmarshaller = marshallerFactory.createUnmarshaller(marshallingConfiguration);
         // start the unmarshaller

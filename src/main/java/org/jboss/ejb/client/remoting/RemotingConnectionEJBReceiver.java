@@ -334,6 +334,7 @@ public final class RemotingConnectionEJBReceiver extends EJBReceiver {
                     final MarshallingConfiguration marshallingConfiguration = new MarshallingConfiguration();
                     marshallingConfiguration.setClassTable(ProtocolV1ClassTable.INSTANCE);
                     marshallingConfiguration.setObjectTable(ProtocolV1ObjectTable.INSTANCE);
+                    marshallingConfiguration.setObjectPreResolver(ProtocolV1ObjectPreResolver.INSTANCE);
                     marshallingConfiguration.setVersion(2);
                     final Marshaller marshaller = marshallerFactory.createMarshaller(marshallingConfiguration);
                     final ByteOutput byteOutput = Marshalling.createByteOutput(dataOutputStream);
