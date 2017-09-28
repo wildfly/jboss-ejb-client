@@ -80,7 +80,6 @@ public final class EJBClientInvocationContext extends AbstractInvocationContext 
 
     private int interceptorChainIndex;
     private boolean blockingCaller;
-    private Transaction transaction;
 
     EJBClientInvocationContext(final EJBInvocationHandler<?> invocationHandler, final EJBClientContext ejbClientContext, final Object invokedProxy, final Object[] parameters, final EJBProxyInformation.ProxyMethodInfo methodInfo, final int allowedRetries, final Supplier<AuthenticationContext> authenticationContextSupplier) {
         super(invocationHandler.getLocator(), ejbClientContext);
@@ -677,27 +676,6 @@ public final class EJBClientInvocationContext extends AbstractInvocationContext 
      */
     public Object[] getParameters() {
         return parameters;
-    }
-
-    /**
-     * Get the transaction associated with the invocation.  If there is no transaction (i.e. transactions should not
-     * be propagated), {@code null} is returned.
-     *
-     * @return the transaction associated with the invocation, or {@code null} if no transaction should be propagated
-     */
-    public Transaction getTransaction() {
-        return transaction;
-    }
-
-    /**
-     * Set the transaction associated with the invocation.  If there is no transaction (i.e. transactions should not
-     * be propagated), {@code null} should be set.
-     *
-     * @param transaction the transaction associated with the invocation, or {@code null} if no transaction should be
-     *  propagated
-     */
-    public void setTransaction(final Transaction transaction) {
-        this.transaction = transaction;
     }
 
     /**

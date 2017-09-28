@@ -69,6 +69,8 @@ public class DummyServer {
     private final int port;
     private final String host;
     private final String endpointName;
+    private final boolean startTxServer;
+
 
     private Registration registration;
     private AcceptingChannel<org.xnio.StreamConnection> server;
@@ -80,9 +82,14 @@ public class DummyServer {
     }
 
     public DummyServer(final String host, final int port, final String endpointName) {
+        this(host, port, endpointName, false);
+    }
+
+    public DummyServer(final String host, final int port, final String endpointName, boolean startTxService) {
         this.host = host;
         this.port = port;
         this.endpointName = endpointName;
+        this.startTxServer = startTxService;
     }
 
     public void start() throws Exception {
@@ -94,6 +101,15 @@ public class DummyServer {
         endpointBuilder.setEndpointName(this.endpointName);
         endpointBuilder.buildXnioWorker(Xnio.getInstance()).populateFromOptions(options).build();
         endpoint = endpointBuilder.build();
+
+
+        if (startTxServer) {
+            final RemotingTransactionService remotingTransactionService = RemotingTransactionService.builder().setEndpoint(endpoint)
+                    .setTransactionContext(LocalTransactionContext.getCurrent()).build();
+
+            remotingTransactionService.register();
+        }
+
 
         // add a connection provider factory for the URI scheme "remote"
         // endpoint.addConnectionProvider("remote", new RemoteConnectionProviderFactory(), OptionMap.create(Options.SSL_ENABLED, Boolean.FALSE));

@@ -23,6 +23,8 @@ import static org.jboss.ejb.client.DiscoveryEJBClientInterceptor.isBlackListed;
 
 import java.net.URI;
 import java.util.ArrayList;
+import java.util.Collection;
+import java.util.HashSet;
 import java.util.List;
 import java.util.concurrent.ThreadLocalRandom;
 
@@ -119,12 +121,17 @@ public final class NamingEJBClientInterceptor implements EJBClientInterceptor {
     static boolean setNamingDestination(final AbstractInvocationContext context, final NamingProvider namingProvider) {
         final ProviderEnvironment providerEnvironment = namingProvider.getProviderEnvironment();
         final List<URI> providerUris = providerEnvironment.getProviderUris();
-        final List<URI> uris = new ArrayList<>(providerUris.size());
-        for (URI uri : providerUris) {
-            if (! isBlackListed(context, uri)) {
-                uris.add(uri);
+
+        List<URI> uris = findPreferredURIs(context, providerUris);
+        if (uris == null) {
+            uris = new ArrayList<>(providerUris.size());
+            for (URI uri : providerUris) {
+                if (!isBlackListed(context, uri)) {
+                    uris.add(uri);
+                }
             }
         }
+
         final int size = uris.size();
         if (size == 0) {
             // we can't discover the location; fail
@@ -135,7 +142,32 @@ public final class NamingEJBClientInterceptor implements EJBClientInterceptor {
         } else {
             context.setDestination(uris.get(ThreadLocalRandom.current().nextInt(size)));
         }
+
+        if (context instanceof EJBSessionCreationInvocationContext) {
+            DiscoveryEJBClientInterceptor.setupSessionAffinities((EJBSessionCreationInvocationContext)context);
+        }
+
         return true;
+    }
+
+    private static List<URI> findPreferredURIs(AbstractInvocationContext context, List<URI> uris) {
+        Collection<URI> attachment = context.getAttachment(TransactionInterceptor.PREFERRED_DESTINATIONS);
+        if (attachment == null) {
+            return null;
+        }
+
+        HashSet<URI> preferred = new HashSet<>(attachment);
+        List<URI> result = null;
+        for (URI check : uris) {
+            if (preferred.contains(check) && !isBlackListed(context, check)) {
+                if (result == null) {
+                    result = new ArrayList<>(preferred.size());
+                }
+                result.add(check);
+            }
+        }
+
+        return result;
     }
 
     private void processMissingTarget(final AbstractInvocationContext context) {

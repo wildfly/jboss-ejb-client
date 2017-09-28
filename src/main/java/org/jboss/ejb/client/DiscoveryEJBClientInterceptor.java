@@ -32,6 +32,7 @@ import java.net.InetSocketAddress;
 import java.net.URI;
 import java.security.PrivilegedAction;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -153,6 +154,20 @@ public final class DiscoveryEJBClientInterceptor implements EJBClientInterceptor
         } catch (Exception t) {
             throw withSuppressed(t, problems);
         }
+        setupSessionAffinities(context);
+        return sessionID;
+    }
+
+
+    /**
+     * Intended to be called by interceptors which assign a new destination
+     * in response to a session creation request. It will assign a new
+     * affinity (or weak affinity if clustered) in the case that an affinity
+     * (weak affinity if clustered) has not yet been set
+     *
+     * @param context the invocation context.
+     */
+    static void setupSessionAffinities(EJBSessionCreationInvocationContext context) {
         final EJBLocator<?> locator = context.getLocator();
         if (locator.getAffinity() == Affinity.NONE) {
             // physically relocate this EJB
@@ -180,7 +195,6 @@ public final class DiscoveryEJBClientInterceptor implements EJBClientInterceptor
                 // if destination is null, then an interceptor set the location
             }
         }
-        return sessionID;
     }
 
     private void processMissingTarget(final AbstractInvocationContext context) {
@@ -447,6 +461,10 @@ public final class DiscoveryEJBClientInterceptor implements EJBClientInterceptor
             Thread.currentThread().interrupt();
             throw Logs.MAIN.operationInterrupted();
         }
+
+        // Prefer nodes associated with a transaction, if possible
+        nodes = tryFilterToPreferredNodes(context, nodes);
+
         final EJBLocator<?> locator = context.getLocator();
 
         if (nodes.isEmpty()) {
@@ -503,6 +521,27 @@ public final class DiscoveryEJBClientInterceptor implements EJBClientInterceptor
         Logs.INVOCATION.tracef("Performed cluster discovery (target affinity = %s, destination = %s)", context.getTargetAffinity(), context.getDestination());
 
         return problems;
+    }
+
+    @SuppressWarnings("Java8CollectionRemoveIf")
+    private Map<String, URI> tryFilterToPreferredNodes(AbstractInvocationContext context, Map<String, URI> nodes) {
+        Collection<URI> attachment = context.getAttachment(TransactionInterceptor.PREFERRED_DESTINATIONS);
+        if (attachment == null) {
+            return nodes;
+        }
+
+        HashSet<URI> preferred = new HashSet<>(attachment);
+        Map<String, URI> result = null;
+        for (Map.Entry<String, URI> check : nodes.entrySet()) {
+            if (preferred.contains(check.getValue())) {
+                if (result == null) {
+                    result = new HashMap<>(attachment.size());
+                }
+                result.put(check.getKey(), check.getValue());
+            }
+        }
+
+        return result == null ? nodes : result;
     }
 
     FilterSpec getFilterSpec(EJBModuleIdentifier identifier) {

@@ -17,10 +17,18 @@
  */
 package org.jboss.ejb.client.test.common;
 
+import org.jboss.ejb.client.annotation.ClientTransaction;
+import org.jboss.ejb.client.annotation.ClientTransactionPolicy;
+
 /**
  * User: jpai
  */
 public interface Echo {
 
     String echo(String msg);
+
+    String whoAreYou();
+
+    @ClientTransaction(ClientTransactionPolicy.NOT_SUPPORTED)
+    String whoAreYouNonTX();
 }

@@ -56,6 +56,7 @@ import javax.transaction.Transaction;
 import javax.transaction.xa.Xid;
 
 import org.jboss.ejb._private.Logs;
+import org.jboss.ejb.client.AbstractInvocationContext;
 import org.jboss.ejb.client.Affinity;
 import org.jboss.ejb.client.AttachmentKey;
 import org.jboss.ejb.client.AttachmentKeys;
@@ -93,7 +94,7 @@ import org.jboss.remoting3.util.InvocationTracker;
 import org.jboss.remoting3.util.StreamUtils;
 import org.wildfly.common.Assert;
 import org.wildfly.common.net.CidrAddress;
-import org.wildfly.transaction.client.ContextTransactionManager;
+import org.wildfly.transaction.client.AbstractTransaction;
 import org.wildfly.transaction.client.LocalTransaction;
 import org.wildfly.transaction.client.RemoteTransaction;
 import org.wildfly.transaction.client.RemoteTransactionContext;
@@ -611,7 +612,7 @@ class EJBClientChannel {
             writeRawIdentifier(statelessLocator, out);
             if (version >= 3) {
                 out.writeInt(identity.getId());
-                invocation.setOutflowHandle(writeTransaction(ContextTransactionManager.getInstance().getTransaction(), out));
+                invocation.setOutflowHandle(writeTransaction(clientInvocationContext.getTransaction(), out));
             }
         } catch (IOException e) {
             CreateException createException = new CreateException(e.getMessage());
@@ -825,17 +826,37 @@ class EJBClientChannel {
                         break;
                     }
                     case Protocol.CANCEL_RESPONSE: {
+                        if (version >= 3) {
+                            final XAOutflowHandle outflowHandle = getOutflowHandle();
+                            if (outflowHandle != null) outflowHandle.forgetEnlistment();
+                        }
+                        disassociateRemoteTxIfPossible(clientInvocationContext);
                         throw Logs.REMOTING.requestCancelled();
                     }
                     case Protocol.NO_SUCH_EJB: {
+                        if (version >= 3) {
+                            final XAOutflowHandle outflowHandle = getOutflowHandle();
+                            if (outflowHandle != null) outflowHandle.forgetEnlistment();
+                        }
+                        disassociateRemoteTxIfPossible(clientInvocationContext);
                         final String message = response.readUTF();
                         throw new NoSuchEJBException(message + " @ " + getChannel().getConnection().getPeerURI());
                     }
                     case Protocol.BAD_VIEW_TYPE: {
+                        if (version >= 3) {
+                            final XAOutflowHandle outflowHandle = getOutflowHandle();
+                            if (outflowHandle != null) outflowHandle.forgetEnlistment();
+                        }
+                        disassociateRemoteTxIfPossible(clientInvocationContext);
                         final String message = response.readUTF();
                         throw Logs.REMOTING.invalidViewTypeForInvocation(message);
                     }
                     case Protocol.EJB_NOT_STATEFUL: {
+                        if (version >= 3) {
+                            final XAOutflowHandle outflowHandle = getOutflowHandle();
+                            if (outflowHandle != null) outflowHandle.forgetEnlistment();
+                        }
+                        disassociateRemoteTxIfPossible(clientInvocationContext);
                         final String message = response.readUTF();
                         // todo: I don't think this is the best exception type for this case...
                         throw new IllegalArgumentException(message);
@@ -1041,6 +1062,7 @@ class EJBClientChannel {
                             final XAOutflowHandle outflowHandle = getOutflowHandle();
                             if (outflowHandle != null) outflowHandle.forgetEnlistment();
                         }
+                        disassociateRemoteTxIfPossible(receiverInvocationContext.getClientInvocationContext());
                         final String message = inputStream.readUTF();
                         final EJBModuleIdentifier moduleIdentifier = receiverInvocationContext.getClientInvocationContext().getLocator().getIdentifier().getModuleIdentifier();
                         final NodeInformation nodeInformation = discoveredNodeRegistry.getNodeInformation(getChannel().getConnection().getRemoteEndpointName());
@@ -1060,6 +1082,7 @@ class EJBClientChannel {
                             final XAOutflowHandle outflowHandle = getOutflowHandle();
                             if (outflowHandle != null) outflowHandle.forgetEnlistment();
                         }
+                        disassociateRemoteTxIfPossible(receiverInvocationContext.getClientInvocationContext());
                         final String message = inputStream.readUTF();
                         receiverInvocationContext.requestFailed(Logs.REMOTING.invalidViewTypeForInvocation(message), getRetryExecutor());
                     } catch (IOException e) {
@@ -1076,6 +1099,7 @@ class EJBClientChannel {
                             final XAOutflowHandle outflowHandle = getOutflowHandle();
                             if (outflowHandle != null) outflowHandle.forgetEnlistment();
                         }
+                        disassociateRemoteTxIfPossible(receiverInvocationContext.getClientInvocationContext());
                         final String message = inputStream.readUTF();
                         // todo: I don't think this is the best exception type for this case...
                         receiverInvocationContext.requestFailed(new IllegalArgumentException(message), getRetryExecutor());
@@ -1093,6 +1117,7 @@ class EJBClientChannel {
                             final XAOutflowHandle outflowHandle = getOutflowHandle();
                             if (outflowHandle != null) outflowHandle.forgetEnlistment();
                         }
+                        disassociateRemoteTxIfPossible(receiverInvocationContext.getClientInvocationContext());
                         final String message = inputStream.readUTF();
                         receiverInvocationContext.requestFailed(new EJBException(message), getRetryExecutor());
                     } catch (IOException e) {
@@ -1109,6 +1134,7 @@ class EJBClientChannel {
                             final XAOutflowHandle outflowHandle = getOutflowHandle();
                             if (outflowHandle != null) outflowHandle.forgetEnlistment();
                         }
+                        disassociateRemoteTxIfPossible(receiverInvocationContext.getClientInvocationContext());
                         final String message = inputStream.readUTF();
                         receiverInvocationContext.requestFailed(new EJBException(message), getRetryExecutor());
                     } catch (IOException e) {
@@ -1252,6 +1278,16 @@ class EJBClientChannel {
 
             public void discardResult() {
                 safeClose(inputStream);
+            }
+        }
+    }
+
+    private static void disassociateRemoteTxIfPossible(AbstractInvocationContext context) {
+        AbstractTransaction transaction = context.getTransaction();
+        if (transaction instanceof RemoteTransaction) {
+            RemoteTransaction remote = (RemoteTransaction) transaction;
+            if (!remote.tryClearLocation()) {
+                Logs.TXN.tracef("Could not disassociate remote transaction (already in-use or completed) from %s", remote.getLocation());
             }
         }
     }
