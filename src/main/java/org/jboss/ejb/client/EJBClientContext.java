@@ -39,6 +39,7 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
@@ -72,6 +73,10 @@ public final class EJBClientContext extends Attachable implements Contextual<EJB
     private static final Supplier<EJBClientContext> GETTER = doPrivileged((PrivilegedAction<Supplier<EJBClientContext>>) CONTEXT_MANAGER::getPrivilegedSupplier);
 
     private static final EJBTransportProvider[] NO_TRANSPORT_PROVIDERS = new EJBTransportProvider[0];
+
+    private static final EJBClientInterceptor.Registration[] NO_INTERCEPTORS = new EJBClientInterceptor.Registration[0];
+    private static final AtomicReferenceFieldUpdater<EJBClientContext, EJBClientInterceptor.Registration[]> registrationsUpdater = AtomicReferenceFieldUpdater.newUpdater(EJBClientContext.class, EJBClientInterceptor.Registration[].class, "registrations");
+    private volatile EJBClientInterceptor.Registration[] registrations = NO_INTERCEPTORS;
 
     /**
      * The discovery attribute name which contains the application and module name of the located EJB.
@@ -330,6 +335,90 @@ public final class EJBClientContext extends Attachable implements Contextual<EJB
         } catch (IOException e) {
             return InterceptorList.EMPTY;
         }
+    }
+
+    /**
+     * Register a client interceptor with this client context.
+     * <p/>
+     * If the passed <code>clientInterceptor</code> is already added to this context, then this method just returns the
+     * old {@link org.jboss.ejb.client.EJBClientInterceptor.Registration}.
+     *
+     * <p>
+     * Note: If an interceptor is added or removed after a proxy is used, this will not affect the proxy interceptor list.
+     *</p>
+     *
+     * @param priority          the absolute priority of this interceptor (lower runs earlier; higher runs later)
+     * @param clientInterceptor the interceptor to register
+     * @return a handle which may be used to later remove this registration
+     *
+     * @deprecated Please use EJBClientContext.Builder to manipulate the EJBClientInterceptors.
+     */
+    @Deprecated
+    public EJBClientInterceptor.Registration registerInterceptor(final int priority, final EJBClientInterceptor clientInterceptor) throws IllegalArgumentException {
+        Assert.checkNotNullParam("clientInterceptor", clientInterceptor);
+        final EJBClientInterceptor.Registration newRegistration = new EJBClientInterceptor.Registration(this, clientInterceptor, priority);
+        EJBClientInterceptor.Registration[] oldRegistrations, newRegistrations;
+        do {
+            oldRegistrations = registrations;
+            for (EJBClientInterceptor.Registration oldRegistration : oldRegistrations) {
+                if (oldRegistration.getInterceptor() == clientInterceptor) {
+                    if (oldRegistration.compareTo(newRegistration) == 0) {
+                        // This means that a client interceptor which has already been added to this context,
+                        // is being added with the same priority. In such cases, this new registration request
+                        // is effectively a no-op and we just return the old registration
+                        return oldRegistration;
+                    }
+                }
+            }
+            final int length = oldRegistrations.length;
+            newRegistrations = Arrays.copyOf(oldRegistrations, length + 1);
+            newRegistrations[length] = newRegistration;
+            Arrays.sort(newRegistrations);
+        } while (!registrationsUpdater.compareAndSet(this, oldRegistrations, newRegistrations));
+        return newRegistration;
+    }
+
+    /**
+     * Removes the EJBClientInterceptor from current registrations. It is used by EJBClientInterceptor.Registration itself.
+     * <p>
+     * Note: If an interceptor is added or removed after a proxy is used, this will not affect the proxy interceptor list.
+     *</p>
+     *
+     * @param registration the EJBClientInterceptor registration handler
+     *
+     * @deprecated Please use EJBClientContext.Builder to manipulate the EJBClientInterceptors.
+     */
+    @Deprecated
+    void removeInterceptor(final EJBClientInterceptor.Registration registration) {
+        EJBClientInterceptor.Registration[] oldRegistrations, newRegistrations;
+        do {
+            oldRegistrations = registrations;
+            newRegistrations = null;
+            final int length = oldRegistrations.length;
+            final int newLength = length - 1;
+            if (length == 1) {
+                if (oldRegistrations[0] == registration) {
+                    newRegistrations = NO_INTERCEPTORS;
+                }
+            } else {
+                for (int i = 0; i < length; i++) {
+                    if (oldRegistrations[i] == registration) {
+                        if (i == newLength) {
+                            newRegistrations = Arrays.copyOf(oldRegistrations, newLength);
+                            break;
+                        } else {
+                            newRegistrations = new EJBClientInterceptor.Registration[newLength];
+                            if (i > 0) System.arraycopy(oldRegistrations, 0, newRegistrations, 0, i);
+                            System.arraycopy(oldRegistrations, i + 1, newRegistrations, i, newLength - i);
+                            break;
+                        }
+                    }
+                }
+            }
+            if (newRegistrations == null) {
+                return;
+            }
+        } while (!registrationsUpdater.compareAndSet(this, oldRegistrations, newRegistrations));
     }
 
     /**
@@ -775,7 +864,16 @@ public final class EJBClientContext extends Attachable implements Contextual<EJB
     }
 
     InterceptorList getGlobalInterceptors() {
-        return globalInterceptors;
+        return globalInterceptors.combine(registeredInterceptors());
+    }
+
+    private InterceptorList registeredInterceptors() {
+        final EJBClientInterceptor.Registration[] currentRegistrations = this.registrations.clone();
+        ArrayList<EJBClientInterceptorInformation> al = new ArrayList<>();
+        for (EJBClientInterceptor.Registration r: currentRegistrations) {
+            al.add(EJBClientInterceptorInformation.forInstance(r.getInterceptor()));
+        }
+        return InterceptorList.ofList(al);
     }
 
     Map<String, InterceptorList> getConfiguredPerClassInterceptors() {

@@ -48,7 +48,7 @@
         <!-- 2.1.x also work on JDK9-->
         <version.org.jboss.logging.jboss-logging-tools>2.1.0.Final</version.org.jboss.logging.jboss-logging-tools>
         <version.org.jboss.logmanager>2.0.7.Final</version.org.jboss.logmanager>
-        <version.org.jboss.marshalling>2.0.0.Final</version.org.jboss.marshalling>
+        <version.org.jboss.marshalling>2.0.1.Final</version.org.jboss.marshalling>
         <version.org.jboss.modules>1.6.0.Final</version.org.jboss.modules>
         <version.org.jboss.narayana>5.5.30.Final</version.org.jboss.narayana>
         <version.org.jboss.remoting>5.0.0.Final</version.org.jboss.remoting>
@@ -58,10 +58,10 @@
         <version.org.kohsuke.metainf-services>1.7</version.org.kohsuke.metainf-services>
         <version.org.wildfly.client-config>1.0.0.Final</version.org.wildfly.client-config>
         <version.org.wildfly.common>1.2.0.Final</version.org.wildfly.common>
-        <version.org.wildfly.naming.client>1.0.2.Final</version.org.wildfly.naming.client>
+        <version.org.wildfly.naming.client>1.0.4.Final</version.org.wildfly.naming.client>
         <version.org.wildfly.discovery>1.0.0.Final</version.org.wildfly.discovery>
         <version.org.wildfly.security.elytron>1.1.0.Final</version.org.wildfly.security.elytron>
-        <version.org.wildfly.transaction-client>1.0.2.Final-SNAPSHOT</version.org.wildfly.transaction-client>
+        <version.org.wildfly.transaction-client>1.0.2.Final</version.org.wildfly.transaction-client>
 
         <version.org.jboss.bridger>1.4.Final</version.org.jboss.bridger>
     </properties>
@@ -300,4 +300,37 @@
         <developerConnection>scm:git:git@github.com:jbossas/jboss-ejb-client.git</developerConnection>
         <url>https://github.com/jbossas/jboss-ejb-client</url>
     </scm>
+    <profiles>
+        <profile>
+            <id>test-bootclasspath</id>
+            <activation>
+                <property>
+                    <name>test-bootclasspath</name>
+                </property>
+            </activation>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.codehaus.mojo</groupId>
+                        <artifactId>exec-maven-plugin</artifactId>
+                        <executions>
+                            <execution>
+                                <phase>test</phase>
+                                <goals>
+                                    <goal>exec</goal>
+                                </goals>
+                            </execution>
+                        </executions>
+                        <configuration>
+                            <executable>java</executable>
+                            <longClasspath>false</longClasspath>
+                            <classpathScope>test</classpathScope>
+                            <commandlineArgs>-Xbootclasspath/a:%classpath org.jboss.ejb.client.test.ManualTestRunner "Boot ClassPath Testing"</commandlineArgs>
+                        </configuration>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+    </profiles>
+
 </project>
