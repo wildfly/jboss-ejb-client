@@ -25,6 +25,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.lang.reflect.Method;
+import java.lang.reflect.UndeclaredThrowableException;
 import java.net.URI;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
@@ -50,6 +51,7 @@ import org.wildfly.discovery.Discovery;
 import org.wildfly.discovery.ServiceType;
 import org.wildfly.naming.client.NamingProvider;
 import org.wildfly.security.auth.client.AuthenticationContext;
+import sun.reflect.annotation.ExceptionProxy;
 
 /**
  * The public API for an EJB client context.  An EJB client context may be associated with (and used by) one or more threads concurrently.
@@ -91,6 +93,8 @@ public final class EJBClientContext extends Attachable implements Contextual<EJB
      * The discovery attribute name for when a rule only applies to a specific source IP address range.
      */
     public static final String FILTER_ATTR_SOURCE_IP = "source-ip";
+
+    private static final int MAX_SESSION_RETRIES = 8;
 
     static {
         CONTEXT_MANAGER.setGlobalDefaultSupplier(EJBClientContext::getDefault);
@@ -730,7 +734,36 @@ public final class EJBClientContext extends Attachable implements Contextual<EJB
 
         Logs.INVOCATION.tracef("Calling createSession(locator = %s)",statelessLocator);
 
-        final SessionID sessionID = context.proceed();
+        SessionID sessionID = null;
+        for (int i = 0; i < MAX_SESSION_RETRIES; i++) {
+            Throwable t;
+            try {
+                sessionID = context.proceed();
+                break;
+            } catch (RequestSendFailedException r) {
+                if (! r.canBeRetried()) {
+                    throw r;
+                }
+                t = r;
+            } catch (Exception | Error o) {
+                if (! context.shouldRetry()) {
+                    throw o;
+                }
+                t = o;
+            } catch (Throwable o) {
+                if (! context.shouldRetry()) {
+                    Exception e = new RequestSendFailedException(o.getClass().getSimpleName() + ": " + o.getMessage(), o.getCause());
+                    e.setStackTrace(o.getStackTrace());
+                    throw e;
+                }
+                t = o;
+            }
+
+            if (i == MAX_SESSION_RETRIES - 1) {
+                throw new RequestSendFailedException(t.getMessage() + " (maximum retries exceeded)", t);
+            }
+            Logs.INVOCATION.tracef("Retrying invocation (attempt %d): %s", i + 1, statelessLocator);
+        }
         final Affinity affinity = context.getLocator().getAffinity();
 
         return statelessLocator.withSessionAndAffinity(sessionID, affinity);
