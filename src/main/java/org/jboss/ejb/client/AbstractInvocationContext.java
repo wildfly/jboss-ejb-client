@@ -23,7 +23,10 @@ import java.net.URI;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
+import javax.transaction.Transaction;
+
 import org.wildfly.common.Assert;
+import org.wildfly.transaction.client.AbstractTransaction;
 
 /**
  * The base class of invocation contexts consumed by interceptors and receivers.
@@ -39,6 +42,7 @@ public abstract class AbstractInvocationContext extends Attachable {
     private URI destination;
     private Affinity targetAffinity;
     private Map<String, Object> contextData;
+    private AbstractTransaction transaction;
 
     AbstractInvocationContext(final EJBLocator<?> locator, final EJBClientContext ejbClientContext) {
         this.locator = locator;
@@ -179,4 +183,25 @@ public abstract class AbstractInvocationContext extends Attachable {
      * Request that the current operation be retried if possible.
      */
     public abstract void requestRetry();
+
+    /**
+     * Get the transaction associated with the invocation.  If there is no transaction (i.e. transactions should not
+     * be propagated), {@code null} is returned.
+     *
+     * @return the transaction associated with the invocation, or {@code null} if no transaction should be propagated
+     */
+    public AbstractTransaction getTransaction() {
+        return transaction;
+    }
+
+    /**
+     * Set the transaction associated with the invocation.  If there is no transaction (i.e. transactions should not
+     * be propagated), {@code null} should be set.
+     *
+     * @param transaction the transaction associated with the invocation, or {@code null} if no transaction should be
+     *  propagated
+     */
+    public void setTransaction(final AbstractTransaction transaction) {
+        this.transaction = transaction;
+    }
 }

@@ -17,6 +17,8 @@
  */
 package org.jboss.ejb.client.test.common;
 
+import org.jboss.ejb.client.annotation.ClientTransaction;
+import org.jboss.ejb.client.annotation.ClientTransactionPolicy;
 import org.jboss.logging.Logger;
 
 /**
@@ -25,10 +27,27 @@ import org.jboss.logging.Logger;
 public class EchoBean implements Echo {
 
     private static final Logger logger = Logger.getLogger(EchoBean.class);
+    private final String whoami;
+
+    public EchoBean() {
+        this("noidea");
+    }
+
+    public EchoBean(String whoami) {
+        this.whoami = whoami;
+    }
 
     @Override
     public String echo(String msg) {
         logger.info(this.getClass().getSimpleName() + " echoing message " + msg);
         return msg;
+    }
+
+    public String whoAreYou() {
+        return whoami;
+    }
+
+    public String whoAreYouNonTX() {
+        return whoAreYou();
     }
 }
