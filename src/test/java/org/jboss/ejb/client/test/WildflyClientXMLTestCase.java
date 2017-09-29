@@ -24,6 +24,7 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 
 import java.io.File;
+import java.net.URL;
 
 /**
  * Tests some basic features of wildfly-client.xml processing
@@ -45,8 +46,10 @@ public class WildflyClientXMLTestCase {
     public static void beforeClass() throws Exception {
         // make sure the desired configuration file is picked up
         ClassLoader cl = WildflyClientXMLTestCase.class.getClassLoader();
-        File file = new File(cl.getResource(CONFIGURATION_FILE).getFile());
+        URL resource = cl != null ? cl.getResource(CONFIGURATION_FILE) : ClassLoader.getSystemResource(CONFIGURATION_FILE);
+        File file = new File(resource.getFile());
         System.setProperty(CONFIGURATION_FILE_SYSTEM_PROPERTY_NAME,file.getAbsolutePath());
+        ClassCallback.beforeClassCallback();
     }
 
     @Test
