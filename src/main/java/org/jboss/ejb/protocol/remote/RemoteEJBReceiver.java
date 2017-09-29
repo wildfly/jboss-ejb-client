@@ -147,9 +147,9 @@ class RemoteEJBReceiver extends EJBReceiver {
 
             return result.getSessionId();
         } catch (IOException e) {
-            final CreateException createException = new CreateException("Failed to create stateful EJB: " + e.getMessage());
-            createException.initCause(e);
-            throw createException;
+            final RequestSendFailedException failed = new RequestSendFailedException("Failed to create stateful EJB: " + e.getMessage(), true);
+            failed.initCause(e);
+            throw failed;
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             throw new CreateException("Stateful EJB creation interrupted");

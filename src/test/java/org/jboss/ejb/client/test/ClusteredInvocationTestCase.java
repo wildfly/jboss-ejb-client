@@ -36,8 +36,12 @@ import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.BeforeClass;
+import org.junit.Ignore;
 import org.junit.Test;
+import org.wildfly.common.context.ContextManager;
+import org.wildfly.common.context.Contextual;
 
+import java.lang.reflect.Method;
 import java.util.Collection;
 import java.util.List;
 
@@ -83,6 +87,9 @@ public class ClusteredInvocationTestCase {
         // trigger the static init of the correct properties file - this also depends on running in forkMode=always
         JBossEJBProperties ejbProperties = JBossEJBProperties.fromClassPath(SimpleInvocationTestCase.class.getClassLoader(), PROPERTIES_FILE);
         JBossEJBProperties.getContextManager().setGlobalDefault(ejbProperties);
+
+        // Launch callback if needed
+        ClassCallback.beforeClassCallback();
     }
 
     /**

@@ -414,6 +414,10 @@ public final class JBossEJBProperties implements Contextual<JBossEJBProperties> 
         if (stream == null) {
             return null;
         }
+        return fromResource(fileName, stream);
+    }
+
+    private static JBossEJBProperties fromResource(String fileName, InputStream stream) throws IOException {
         try (InputStream inputStream = stream) {
             try (BufferedInputStream bis = new BufferedInputStream(inputStream)) {
                 try (InputStreamReader reader = new InputStreamReader(bis, StandardCharsets.UTF_8)) {
@@ -444,6 +448,9 @@ public final class JBossEJBProperties implements Contextual<JBossEJBProperties> 
     }
 
     public static JBossEJBProperties fromClassPath(final ClassLoader classLoader, final String pathName) throws IOException {
+        if (classLoader == null) {
+            return fromResource(pathName, ClassLoader.getSystemResourceAsStream(pathName));
+        }
         return fromResource(pathName, ClassLoader::getResourceAsStream, classLoader, pathName);
     }
 

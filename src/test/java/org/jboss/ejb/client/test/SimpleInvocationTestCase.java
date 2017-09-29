@@ -33,7 +33,12 @@ import org.junit.Assert;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
+import org.wildfly.common.context.ContextManager;
+import org.wildfly.common.context.Contextual;
 
+import java.lang.reflect.Field;
+import java.lang.reflect.Method;
+import java.lang.reflect.Modifier;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.List;
@@ -58,6 +63,7 @@ public class SimpleInvocationTestCase {
 
     private static final String SERVER_NAME = "test-server";
 
+
     /**
      * Do any general setup here
      * @throws Exception
@@ -67,6 +73,9 @@ public class SimpleInvocationTestCase {
         // trigger the static init of the correct proeprties file - this also depends on running in forkMode=always
         JBossEJBProperties ejbProperties = JBossEJBProperties.fromClassPath(SimpleInvocationTestCase.class.getClassLoader(), PROPERTIES_FILE);
         JBossEJBProperties.getContextManager().setGlobalDefault(ejbProperties);
+
+        // Launch callback if needed
+        ClassCallback.beforeClassCallback();
     }
 
     /**

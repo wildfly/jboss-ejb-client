@@ -28,6 +28,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
+import java.lang.reflect.UndeclaredThrowableException;
 import java.net.Inet6Address;
 import java.net.SocketAddress;
 import java.nio.charset.StandardCharsets;
@@ -40,6 +41,7 @@ import java.util.zip.Deflater;
 import java.util.zip.DeflaterOutputStream;
 import java.util.zip.InflaterInputStream;
 
+import javax.ejb.EJBException;
 import javax.transaction.HeuristicMixedException;
 import javax.transaction.HeuristicRollbackException;
 import javax.transaction.RollbackException;
@@ -369,7 +371,7 @@ final class EJBServerChannel {
             final boolean cancelIfRunning = version < 3 || message.readBoolean();
             final InProgress inProgress = invocations.get(invId);
             if (inProgress != null) {
-                inProgress.getCancelHandle().cancel(cancelIfRunning);
+                inProgress.cancel(cancelIfRunning);
             }
         }
 
@@ -442,7 +444,20 @@ final class EJBServerChannel {
             final RemotingInvocationRequest request = new RemotingInvocationRequest(
                 invId, identifier, methodLocator, classResolver, unmarshaller, identity
             );
-            invocations.put(new InProgress(request, association.receiveInvocationRequest(request)));
+            InProgress value = new InProgress(request);
+            invocations.put(value);
+            try {
+                value.setCancelHandle(association.receiveInvocationRequest(request));
+            } catch (Throwable t) {
+                //this should not happen
+                //but no harm in being defensive
+                Logs.INVOCATION.unexpectedException(t);
+                if(t instanceof Exception) {
+                    request.writeException((Exception) t);
+                } else {
+                    request.writeException(new EJBException(new RuntimeException(t)));
+                }
+            }
         }
     }
 
@@ -1064,11 +1079,12 @@ final class EJBServerChannel {
 
     static final class InProgress {
         private final RemotingInvocationRequest incomingInvocation;
-        private final CancelHandle cancelHandle;
+        private CancelHandle cancelHandle;
+        private boolean cancelled = false;
+        private boolean aggressive = false;
 
-        InProgress(final RemotingInvocationRequest incomingInvocation, final CancelHandle cancelHandle) {
+        InProgress(final RemotingInvocationRequest incomingInvocation) {
             this.incomingInvocation = incomingInvocation;
-            this.cancelHandle = cancelHandle;
         }
 
         int getInvId() {
@@ -1077,6 +1093,21 @@ final class EJBServerChannel {
 
         CancelHandle getCancelHandle() {
             return cancelHandle;
+        }
+
+        synchronized void setCancelHandle(CancelHandle cancelHandle) {
+            this.cancelHandle = cancelHandle;
+            if(cancelled) {
+                cancelHandle.cancel(aggressive);
+            }
+        }
+
+        synchronized void cancel(boolean aggressive) {
+            this.cancelled = true;
+            this.aggressive = aggressive;
+            if(cancelHandle != null) {
+                cancelHandle.cancel(aggressive);
+            }
         }
     }
 

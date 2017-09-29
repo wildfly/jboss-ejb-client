@@ -140,6 +140,7 @@ class EJBClientChannel {
             configuration.setClassTable(ProtocolV1ClassTable.INSTANCE);
             configuration.setObjectTable(ProtocolV1ObjectTable.INSTANCE);
             configuration.setObjectResolver(new ProtocolV1ObjectResolver(connection, true));
+            configuration.setObjectPreResolver(ProtocolV1ObjectPreResolver.INSTANCE);
             configuration.setVersion(2);
             // Do not wait for cluster topology report.
             finishedParts.set(0b10);

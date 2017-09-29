@@ -35,6 +35,7 @@ import org.jboss.ejb.client.legacy.JBossEJBProperties;
 import org.wildfly.naming.client.AbstractContext;
 import org.wildfly.naming.client.CloseableNamingEnumeration;
 import org.wildfly.naming.client.NamingProvider;
+import org.wildfly.naming.client.ProviderEnvironment;
 import org.wildfly.naming.client.SimpleName;
 import org.wildfly.naming.client.store.RelativeContext;
 import org.wildfly.naming.client.util.FastHashtable;
@@ -48,14 +49,13 @@ class EJBRootContext extends AbstractContext {
 
     private final LearnedAffinity baseAffinity;
     private final NamingProvider namingProvider;
+    private final ProviderEnvironment providerEnvironment;
 
-    private static FastHashtable<String, Object> clone(FastHashtable<String, Object> env) {
-        return env.clone();
-    }
 
-    EJBRootContext(final NamingProvider namingProvider, final FastHashtable<String, Object> env) {
-        super(clone(env)); // Clone to avoid accidental sharing between contexts
+    EJBRootContext(final NamingProvider namingProvider, final FastHashtable<String, Object> env, final ProviderEnvironment providerEnvironment) {
+        super(env);
         this.namingProvider = namingProvider;
+        this.providerEnvironment = providerEnvironment;
 
         // TODO, Switch to providerEnvironment using WildFLy Naming, when attachments are added
         Object learned = env.get(LEARNED_AFFINITY_KEY);
@@ -155,12 +155,12 @@ class EJBRootContext extends AbstractContext {
         final Object proxy;
         if (stateful) {
             try {
-                proxy = EJBClient.createSessionProxy(statelessLocator, namingProvider == null ? null : namingProvider.getProviderEnvironment().getAuthenticationContextSupplier() , namingProvider);
+                proxy = EJBClient.createSessionProxy(statelessLocator, providerEnvironment.getAuthenticationContextSupplier(), namingProvider);
             } catch (Exception e) {
                 throw Logs.MAIN.lookupFailed(name, name, e);
             }
         } else {
-            proxy = EJBClient.createProxy(statelessLocator, namingProvider == null ? null : namingProvider.getProviderEnvironment().getAuthenticationContextSupplier());
+            proxy = EJBClient.createProxy(statelessLocator, providerEnvironment.getAuthenticationContextSupplier());
         }
         if (namingProvider != null) EJBClient.putProxyAttachment(proxy, NAMING_PROVIDER_ATTACHMENT_KEY, namingProvider);
 
