@@ -24,6 +24,7 @@ import javax.naming.NamingException;
 import org.kohsuke.MetaInfServices;
 import org.wildfly.naming.client.NamingContextFactory;
 import org.wildfly.naming.client.NamingProvider;
+import org.wildfly.naming.client.ProviderEnvironment;
 import org.wildfly.naming.client.util.FastHashtable;
 
 /**
@@ -43,8 +44,8 @@ public final class EJBNamingContextFactory implements NamingContextFactory {
         return "ejb".equals(nameScheme);
     }
 
-    public Context createRootContext(final NamingProvider namingProvider, final String nameScheme, final FastHashtable<String, Object> env) throws NamingException {
+    public Context createRootContext(final NamingProvider namingProvider, final String nameScheme, final FastHashtable<String, Object> env, final ProviderEnvironment providerEnvironment) throws NamingException {
         assert nameScheme.equals("ejb");
-        return new EJBRootContext(namingProvider, env);
+        return new EJBRootContext(namingProvider, env, providerEnvironment);
     }
 }
