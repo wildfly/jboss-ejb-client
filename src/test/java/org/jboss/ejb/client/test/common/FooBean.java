@@ -31,4 +31,14 @@ public class FooBean implements Echo {
         logger.info(this.getClass().getSimpleName() + " echoing message " + msg);
         return msg;
     }
+
+    @Override
+    public String whoAreYou() {
+        return "no idea!";
+    }
+
+    @Override
+    public String whoAreYouNonTX() {
+        return "no idea!";
+    }
 }
