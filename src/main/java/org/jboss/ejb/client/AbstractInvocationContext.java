@@ -23,8 +23,6 @@ import java.net.URI;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
-import javax.transaction.Transaction;
-
 import org.wildfly.common.Assert;
 import org.wildfly.transaction.client.AbstractTransaction;
 
@@ -41,6 +39,21 @@ public abstract class AbstractInvocationContext extends Attachable {
     private Affinity weakAffinity = Affinity.NONE;
     private URI destination;
     private Affinity targetAffinity;
+    private String initialCluster;
+
+    /**
+     * Gets the initial cluster assignment by discovery, if any
+     *
+     * @return the initial cluster if assigned
+     */
+    public String getInitialCluster() {
+        return initialCluster;
+    }
+
+    void setInitialCluster(String initialCluster) {
+        this.initialCluster = initialCluster;
+    }
+
     private Map<String, Object> contextData;
     private AbstractTransaction transaction;
 

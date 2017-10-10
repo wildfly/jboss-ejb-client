@@ -60,7 +60,7 @@
         <version.org.wildfly.common>1.2.0.Final</version.org.wildfly.common>
         <version.org.wildfly.naming.client>1.0.4.Final</version.org.wildfly.naming.client>
         <version.org.wildfly.discovery>1.0.0.Final</version.org.wildfly.discovery>
-        <version.org.wildfly.security.elytron>1.1.0.Final</version.org.wildfly.security.elytron>
+        <version.org.wildfly.security.elytron>1.1.5.Final</version.org.wildfly.security.elytron>
         <version.org.wildfly.transaction-client>1.0.2.Final</version.org.wildfly.transaction-client>
 
         <version.org.jboss.bridger>1.4.Final</version.org.jboss.bridger>

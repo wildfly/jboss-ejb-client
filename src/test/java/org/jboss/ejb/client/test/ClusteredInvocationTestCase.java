@@ -158,7 +158,10 @@ public class ClusteredInvocationTestCase {
         logger.info("Invoking on proxy...");
         // invoke on the proxy (use a ClusterAffinity for now)
         final String message = "hello!";
-        final String echo = proxy.echo(message);
+         String echo = null;
+        for (int i = 0; i < 10; i++) {
+           echo = proxy.echo(message);
+        }
         Assert.assertEquals("Got an unexpected echo", echo, message);
     }
 

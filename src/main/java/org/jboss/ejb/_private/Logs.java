@@ -416,6 +416,9 @@ public interface Logs extends BasicLogger {
     @Message(id = 509, value = "Unexpected exception processing EJB request")
     void unexpectedException(@Cause Throwable t);
 
+    @Message(id = 510, value = "Failed to configure SSL context")
+    IOException failedToConfigureSslContext(@Cause Throwable cause);
+
     // Remote messages; no ID for brevity but should be translated
 
     @Message(value = "No such EJB: %s")

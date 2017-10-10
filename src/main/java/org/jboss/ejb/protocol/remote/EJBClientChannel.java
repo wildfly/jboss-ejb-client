@@ -234,7 +234,7 @@ class EJBClientChannel {
                         int memberCount = StreamUtils.readPackedSignedInt32(message);
                         for (int j = 0; j < memberCount; j ++) {
                             final String nodeName = message.readUTF();
-                            discoveredNodeRegistry.addNode(clusterName, nodeName);
+                            discoveredNodeRegistry.addNode(clusterName, nodeName, channel.getConnection().getPeerURI());
                             final NodeInformation nodeInformation = discoveredNodeRegistry.getNodeInformation(nodeName);
                             Logs.INVOCATION.debugf("Received CLUSTER_TOPOLOGY(%x) message, registering cluster %s to node %s", msg, clusterName, nodeName);
 
