@@ -378,7 +378,7 @@ public final class EJBClientContext extends Attachable implements Closeable {
             }
             // see if we already have a receiver for the node name corresponding to the receiver
             // being registered
-            final EJBReceiver existingReceiverForNode = this.getNodeEJBReceiver(receiver.getNodeName(), false);
+            final EJBReceiver existingReceiverForNode = this.getNodeEJBReceiver(receiver.getNodeName(), false, true);
             if (existingReceiverForNode != null) {
                 if (logger.isDebugEnabled()) {
                     logger.debug("Skipping registration of receiver " + receiver + " since an EJB receiver already exists for "
@@ -932,10 +932,10 @@ public final class EJBClientContext extends Attachable implements Closeable {
     }
 
     EJBReceiver getNodeEJBReceiver(final String nodeName) {
-        return this.getNodeEJBReceiver(nodeName, true);
+        return this.getNodeEJBReceiver(nodeName, true, false);
     }
 
-    private EJBReceiver getNodeEJBReceiver(final String nodeName, final boolean attemptReconnect) {
+    private EJBReceiver getNodeEJBReceiver(final String nodeName, final boolean attemptReconnect, boolean allowAssociating) {
         if (this.closed) {
             if (logger.isTraceEnabled()) {
                 logger.trace("EJB client context " + this + " has been closed, no EJB receiver will be returned for node name " + nodeName);
@@ -948,7 +948,7 @@ public final class EJBClientContext extends Attachable implements Closeable {
 
         synchronized (this.ejbReceiverAssociations) {
             for (final Map.Entry<EJBReceiver, ReceiverAssociation> entry : this.ejbReceiverAssociations.entrySet()) {
-                if (entry.getValue().associated) {
+                if (entry.getValue().associated || allowAssociating) {
                     final EJBReceiver ejbReceiver = entry.getKey();
                     if (nodeName.equals(ejbReceiver.getNodeName())) {
                         return ejbReceiver;
@@ -962,7 +962,7 @@ public final class EJBClientContext extends Attachable implements Closeable {
             this.attemptReconnections();
             // now that re-connections have been attempted, let's fetch any EJB receiver for this node name.
             // we won't try reconnecting again now
-            return this.getNodeEJBReceiver(nodeName, false);
+            return this.getNodeEJBReceiver(nodeName, false, false);
         }
 
         return null;
