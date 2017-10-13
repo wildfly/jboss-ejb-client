@@ -329,6 +329,9 @@ public interface Logs extends BasicLogger {
     @Message(id = 80, value = "Request not sent")
     IllegalStateException requestNotSent();
 
+    @Message(id = 81, value = "Failed to instantiate cluster node selector class \"%s\"")
+    IllegalArgumentException cannotInstantiateClustertNodeSelector(String name, @Cause ReflectiveOperationException e);
+
     // Proxy API errors
 
     @Message(id = 100, value = "Object '%s' is not a valid proxy object")

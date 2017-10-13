@@ -56,8 +56,9 @@ import org.wildfly.transaction.client.RemoteTransactionContext;
 import org.wildfly.transaction.client.provider.jboss.JBossLocalTransactionProvider;
 
 /**
- * Tests basic invocation of a bean deployed on a single server node.
+ * Tests transaction stickiness
  *
+ * @author Jason T. Greene
  * @author <a href="mailto:rachmato@redhat.com">Richard Achmatowicz</a>
  */
 public class TransactionTestCase {

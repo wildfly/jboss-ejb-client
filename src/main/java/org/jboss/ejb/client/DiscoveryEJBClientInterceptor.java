@@ -429,8 +429,7 @@ public final class DiscoveryEJBClientInterceptor implements EJBClientInterceptor
             Logs.INVOCATION.tracef("Performed first-match discovery(target affinity(node) = %s, destination = %s)", nodeName, location);
         } else if (nodeless == 0) {
             // use the deployment node selector
-            // todo: configure on client context
-            DeploymentNodeSelector selector = DeploymentNodeSelector.RANDOM;
+            DeploymentNodeSelector selector = context.getClientContext().getDeploymentNodeSelector();
             nodeName = selector.selectNode(nodes.values().toArray(NO_STRINGS), locator.getAppName(), locator.getModuleName(), locator.getDistinctName());
             if (nodeName == null) {
                 throw Logs.INVOCATION.selectorReturnedNull(selector);
