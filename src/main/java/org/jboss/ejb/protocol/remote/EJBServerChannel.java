@@ -716,7 +716,7 @@ final class EJBServerChannel {
                     if (strongAffinityUpdate != null) {
                         marshaller.writeObject(strongAffinityUpdate);
                     } else {
-                        marshaller.writeObject(Affinity.NONE);
+                        marshaller.writeObject(new NodeAffinity(channel.getConnection().getEndpoint().getName()));
                     }
                     marshaller.finish();
                 } else {
