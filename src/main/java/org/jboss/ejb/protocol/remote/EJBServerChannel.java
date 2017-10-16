@@ -713,10 +713,10 @@ final class EJBServerChannel {
                 if (1 <= version && version <= 2) {
                     final Marshaller marshaller = marshallerFactory.createMarshaller(configuration);
                     marshaller.start(new NoFlushByteOutput(Marshalling.createByteOutput(os)));
-                    if (weakAffinityUpdate != null) {
-                        marshaller.writeObject(weakAffinityUpdate);
+                    if (strongAffinityUpdate != null) {
+                        marshaller.writeObject(strongAffinityUpdate);
                     } else {
-                        marshaller.writeObject(new NodeAffinity(channel.getConnection().getEndpoint().getName()));
+                        marshaller.writeObject(Affinity.NONE);
                     }
                     marshaller.finish();
                 } else {
