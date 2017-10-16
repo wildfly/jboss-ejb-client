@@ -294,7 +294,9 @@ final class RemotingEJBDiscoveryProvider implements DiscoveryProvider, Discovere
         Assert.checkNotNullParam("context", context);
 
         URI effectiveAuth = clusterName != null ? effectiveAuthURIs.get(clusterName) : null;
-        if (effectiveAuth == null)  {
+        boolean updateAuth = effectiveAuth != null;
+
+        if (!updateAuth) {
             effectiveAuth = destination;
         }
 
@@ -306,13 +308,13 @@ final class RemotingEJBDiscoveryProvider implements DiscoveryProvider, Discovere
             return new FailedIoFuture<>(Logs.REMOTING.failedToConfigureSslContext(e));
         }
         final AuthenticationConfiguration authenticationConfiguration = client.getAuthenticationConfiguration(effectiveAuth, context, -1, abstractType, abstractTypeAuthority);
-        return endpoint.getConnectedIdentity(destination, sslContext, clusterName != null ? clearOverrides(authenticationConfiguration) : authenticationConfiguration);
+        return endpoint.getConnectedIdentity(destination, sslContext, updateAuth ? fixupOverrides(authenticationConfiguration, destination) : authenticationConfiguration);
     }
 
     // TODO remove this hack once ELY-1399 is fully completed, and nothing else
-    // (e.g. naming) registers an override
-    private AuthenticationConfiguration clearOverrides(AuthenticationConfiguration config) {
-        return config.useProtocol(null).useHost(null).usePort(-1);
+    // (e.g. naming) registers an override. This also works around REM3-315.
+    private AuthenticationConfiguration fixupOverrides(AuthenticationConfiguration config, URI target) {
+        return config.useProtocol(target.getScheme()).useHost(target.getHost()).usePort(target.getPort());
     }
 
     final class DiscoveryAttempt implements DiscoveryRequest, DiscoveryResult {
