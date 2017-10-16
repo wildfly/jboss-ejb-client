@@ -18,6 +18,7 @@
 
 package org.jboss.ejb.protocol.remote;
 
+import java.net.URI;
 import java.util.List;
 
 /**
@@ -29,7 +30,7 @@ interface DiscoveredNodeRegistry {
 
     List<NodeInformation> getAllNodeInformation();
 
-    void addNode(String clusterName, String nodeName);
+    void addNode(String clusterName, String nodeName, URI registeredBy);
 
     void removeNode(String clusterName, String nodeName);
 

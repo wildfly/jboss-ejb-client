@@ -30,9 +30,11 @@ import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.security.GeneralSecurityException;
 import java.security.PrivilegedAction;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -40,12 +42,15 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import javax.net.ssl.SSLContext;
+
 import org.jboss.ejb._private.Logs;
 import org.jboss.ejb.client.EJBClientConnection;
 import org.jboss.ejb.client.EJBClientContext;
 import org.jboss.ejb.client.EJBModuleIdentifier;
 import org.jboss.remoting3.ConnectionPeerIdentity;
 import org.jboss.remoting3.Endpoint;
+import org.wildfly.common.Assert;
 import org.wildfly.common.net.CidrAddressTable;
 import org.wildfly.common.net.Inet;
 import org.wildfly.discovery.AllFilterSpec;
@@ -57,7 +62,10 @@ import org.wildfly.discovery.ServiceURL;
 import org.wildfly.discovery.spi.DiscoveryProvider;
 import org.wildfly.discovery.spi.DiscoveryRequest;
 import org.wildfly.discovery.spi.DiscoveryResult;
+import org.wildfly.security.auth.client.AuthenticationConfiguration;
 import org.wildfly.security.auth.client.AuthenticationContext;
+import org.wildfly.security.auth.client.AuthenticationContextConfigurationClient;
+import org.xnio.FailedIoFuture;
 import org.xnio.IoFuture;
 import org.xnio.OptionMap;
 
@@ -68,11 +76,17 @@ import org.xnio.OptionMap;
  */
 final class RemotingEJBDiscoveryProvider implements DiscoveryProvider, DiscoveredNodeRegistry {
 
+    static final AuthenticationContextConfigurationClient AUTH_CONFIGURATION_CLIENT = doPrivileged(AuthenticationContextConfigurationClient.ACTION);
+
     private final ConcurrentHashMap<String, NodeInformation> nodes = new ConcurrentHashMap<>();
 
     private final Set<URI> failedDestinations = Collections.newSetFromMap(new ConcurrentHashMap<URI, Boolean>());
 
     private final ConcurrentHashMap<String, Set<String>> clusterNodes = new ConcurrentHashMap<>();
+
+    private final ConcurrentHashMap<String, URI> effectiveAuthURIs = new ConcurrentHashMap<>();
+
+
 
     public RemotingEJBDiscoveryProvider() {
         Endpoint.getCurrent(); //this will blow up if remoting is not present, preventing this from being registered
@@ -86,7 +100,8 @@ final class RemotingEJBDiscoveryProvider implements DiscoveryProvider, Discovere
         return new ArrayList<>(nodes.values());
     }
 
-    public void addNode(final String clusterName, final String nodeName) {
+    public void addNode(final String clusterName, final String nodeName, URI registeredBy) {
+        effectiveAuthURIs.putIfAbsent(clusterName, registeredBy);
         clusterNodes.computeIfAbsent(clusterName, ignored -> Collections.newSetFromMap(new ConcurrentHashMap<>())).add(nodeName);
     }
 
@@ -97,6 +112,7 @@ final class RemotingEJBDiscoveryProvider implements DiscoveryProvider, Discovere
     public void removeCluster(final String clusterName) {
         final Set<String> removed = clusterNodes.remove(clusterName);
         if (removed != null) removed.clear();
+        effectiveAuthURIs.remove(clusterName);
     }
 
     public DiscoveryRequest discover(final ServiceType serviceType, final FilterSpec filterSpec, final DiscoveryResult result) {
@@ -132,7 +148,7 @@ final class RemotingEJBDiscoveryProvider implements DiscoveryProvider, Discovere
             }
             ok = true;
             Logs.INVOCATION.tracef("EJB discovery provider: attempting to connect to configured connection %s", uri);
-            discoveryAttempt.connectAndDiscover(uri);
+            discoveryAttempt.connectAndDiscover(uri, null);
         }
         // also establish cluster nodes if known
         for (Map.Entry<String, Set<String>> entry : clusterNodes.entrySet()) {
@@ -167,7 +183,7 @@ final class RemotingEJBDiscoveryProvider implements DiscoveryProvider, Discovere
                                         if (! failedDestinations.contains(uri)) {
                                             maxConnections--;
                                             Logs.INVOCATION.tracef("EJB discovery provider: attempting to connect to cluster %s connection %s", clusterName, uri);
-                                            discoveryAttempt.connectAndDiscover(uri);
+                                            discoveryAttempt.connectAndDiscover(uri, clusterName);
                                             ok = true;
                                             continue nodeLoop;
                                         }
@@ -190,7 +206,7 @@ final class RemotingEJBDiscoveryProvider implements DiscoveryProvider, Discovere
                 }
                 URI destination = connection.getDestination();
                 Logs.INVOCATION.tracef("EJB discovery provider: attempting to connect to connection %s", destination);
-                discoveryAttempt.connectAndDiscover(destination);
+                discoveryAttempt.connectAndDiscover(destination, null);
             }
         }
 
@@ -273,6 +289,32 @@ final class RemotingEJBDiscoveryProvider implements DiscoveryProvider, Discovere
         }
     };
 
+    IoFuture<ConnectionPeerIdentity> getConnectedIdentityUsingClusterEffective(Endpoint endpoint, URI destination, String abstractType, String abstractTypeAuthority, AuthenticationContext context, String clusterName) {
+        Assert.checkNotNullParam("destination", destination);
+        Assert.checkNotNullParam("context", context);
+
+        URI effectiveAuth = clusterName != null ? effectiveAuthURIs.get(clusterName) : null;
+        if (effectiveAuth == null)  {
+            effectiveAuth = destination;
+        }
+
+        final AuthenticationContextConfigurationClient client = AUTH_CONFIGURATION_CLIENT;
+        final SSLContext sslContext;
+        try {
+            sslContext = client.getSSLContext(destination, context);
+        } catch (GeneralSecurityException e) {
+            return new FailedIoFuture<>(Logs.REMOTING.failedToConfigureSslContext(e));
+        }
+        final AuthenticationConfiguration authenticationConfiguration = client.getAuthenticationConfiguration(effectiveAuth, context, -1, abstractType, abstractTypeAuthority);
+        return endpoint.getConnectedIdentity(destination, sslContext, clearOverrides(authenticationConfiguration));
+    }
+
+    // TODO remove this hack once ELY-1399 is fully completed, and nothing else
+    // (e.g. naming) registers an override
+    private AuthenticationConfiguration clearOverrides(AuthenticationConfiguration config) {
+        return config.useProtocol(null).useHost(null).usePort(-1);
+    }
+
     final class DiscoveryAttempt implements DiscoveryRequest, DiscoveryResult {
         private final ServiceType serviceType;
         private final FilterSpec filterSpec;
@@ -330,14 +372,14 @@ final class RemotingEJBDiscoveryProvider implements DiscoveryProvider, Discovere
             };
         }
 
-        void connectAndDiscover(URI uri) {
+        void connectAndDiscover(URI uri, String clusterEffective) {
             final String scheme = uri.getScheme();
             if (scheme == null || ! ejbReceiver.getRemoteTransportProvider().supportsProtocol(scheme) || ! endpoint.isValidUriScheme(scheme)) {
                 countDown();
                 return;
             }
             outstandingCount.getAndIncrement();
-            final IoFuture<ConnectionPeerIdentity> future = doPrivileged((PrivilegedAction<IoFuture<ConnectionPeerIdentity>>) () -> endpoint.getConnectedIdentity(uri, "ejb", "jboss", authenticationContext));
+            final IoFuture<ConnectionPeerIdentity> future = doPrivileged((PrivilegedAction<IoFuture<ConnectionPeerIdentity>>) () -> getConnectedIdentityUsingClusterEffective(endpoint, uri, "ejb", "jboss", authenticationContext, clusterEffective));
             onCancel(future::cancel);
             future.addNotifier(outerNotifier, uri);
         }
@@ -375,6 +417,7 @@ final class RemotingEJBDiscoveryProvider implements DiscoveryProvider, Discovere
                     } else {
                         // everything failed.  We have to reconnect everything.
                         Set<URI> everything = new HashSet<>();
+                        Map<URI, String> effectiveAuthMappings = new HashMap<>();
                         for (EJBClientConnection connection : ejbReceiver.getReceiverContext().getClientContext().getConfiguredConnections()) {
                             if (connection.isForDiscovery()) {
                                 everything.add(connection.getDestination());
@@ -400,7 +443,13 @@ final class RemotingEJBDiscoveryProvider implements DiscoveryProvider, Discovere
                                                         hostName = Inet.toOptimalString(destinationAddress);
                                                     }
                                                 }
-                                                everything.add(new URI(protocol, null, hostName, destination.getPort(), null, null, null));
+                                                URI location = new URI(protocol, null, hostName, destination.getPort(), null, null, null);
+                                                String cluster = effectiveAuthMappings.get(location);
+                                                if (cluster != null) {
+                                                    effectiveAuthMappings.put(location, cluster);
+                                                }
+
+                                                everything.add(location);
                                                 continue outer;
                                             } catch (URISyntaxException e) {
                                                 // ignore URI and try the next one
@@ -414,7 +463,7 @@ final class RemotingEJBDiscoveryProvider implements DiscoveryProvider, Discovere
                         phase2 = true;
                         outstandingCount.incrementAndGet();
                         for (URI uri : everything) {
-                            connectAndDiscover(uri);
+                            connectAndDiscover(uri, effectiveAuthMappings.get(uri));
                         }
                         countDown();
                     }

@@ -329,6 +329,9 @@ public interface Logs extends BasicLogger {
     @Message(id = 80, value = "Request not sent")
     IllegalStateException requestNotSent();
 
+    @Message(id = 81, value = "Failed to instantiate cluster node selector class \"%s\"")
+    IllegalArgumentException cannotInstantiateClustertNodeSelector(String name, @Cause ReflectiveOperationException e);
+
     // Proxy API errors
 
     @Message(id = 100, value = "Object '%s' is not a valid proxy object")
@@ -415,6 +418,9 @@ public interface Logs extends BasicLogger {
     @LogMessage(level = ERROR)
     @Message(id = 509, value = "Unexpected exception processing EJB request")
     void unexpectedException(@Cause Throwable t);
+
+    @Message(id = 510, value = "Failed to configure SSL context")
+    IOException failedToConfigureSslContext(@Cause Throwable cause);
 
     // Remote messages; no ID for brevity but should be translated
 

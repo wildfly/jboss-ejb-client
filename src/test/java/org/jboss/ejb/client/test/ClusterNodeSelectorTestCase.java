@@ -17,7 +17,12 @@
  */
 package org.jboss.ejb.client.test;
 
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.List;
+
 import org.jboss.ejb.client.ClusterAffinity;
+import org.jboss.ejb.client.ClusterNodeSelector;
 import org.jboss.ejb.client.EJBClient;
 import org.jboss.ejb.client.EJBClientCluster;
 import org.jboss.ejb.client.EJBClientConnection;
@@ -36,24 +41,18 @@ import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.BeforeClass;
-import org.junit.Ignore;
 import org.junit.Test;
-import org.wildfly.common.context.ContextManager;
-import org.wildfly.common.context.Contextual;
-
-import java.lang.reflect.Method;
-import java.util.Collection;
-import java.util.List;
 
 /**
- * Tests basic invocation of a bean deployed on a single server node.
+ * Tests usage of ClusterNodeSelector
  *
+ * @author Jason T. Greene
  * @author <a href="mailto:rachmato@redhat.com">Richard Achmatowicz</a>
  */
-public class ClusteredInvocationTestCase {
+public class ClusterNodeSelectorTestCase {
 
-    private static final Logger logger = Logger.getLogger(ClusteredInvocationTestCase.class);
-    private static final String PROPERTIES_FILE = "clustered-jboss-ejb-client.properties";
+    private static final Logger logger = Logger.getLogger(ClusterNodeSelectorTestCase.class);
+    private static final String PROPERTIES_FILE = "cluster-node-selector-jboss-ejb-client.properties";
 
     // servers
     private static final String SERVER1_NAME = "node1";
@@ -77,6 +76,19 @@ public class ClusteredInvocationTestCase {
     private static final NodeInfo NODE1 = DummyServer.getNodeInfo(NODE1_NAME, "localhost",6999,"0.0.0.0",0);
     private static final NodeInfo NODE2 = DummyServer.getNodeInfo(NODE2_NAME, "localhost",7099,"0.0.0.0",0);
     private static final ClusterInfo CLUSTER = DummyServer.getClusterInfo(CLUSTER_NAME, NODE1, NODE2);
+
+    public static class TestSelector implements ClusterNodeSelector  {
+        private static volatile String PICK_NODE = null;
+
+        @Override
+        public String selectNode(String clusterName, String[] connectedNodes, String[] totalAvailableNodes) {
+            if (PICK_NODE != null) {
+                return PICK_NODE;
+            }
+            return connectedNodes[0];
+        }
+    }
+
 
     /**
      * Do any general setup here
@@ -111,10 +123,10 @@ public class ClusteredInvocationTestCase {
         logger.info("Started server " + serverNames[1]);
 
         // deploy modules
-        servers[0].register(APP_NAME, MODULE_NAME, DISTINCT_NAME, Echo.class.getSimpleName(), new EchoBean());
+        servers[0].register(APP_NAME, MODULE_NAME, DISTINCT_NAME, Echo.class.getSimpleName(), new EchoBean(NODE1_NAME));
         logger.info("Registered module on server " + servers[0]);
 
-        servers[1].register(APP_NAME, MODULE_NAME, DISTINCT_NAME, Echo.class.getSimpleName(), new EchoBean());
+        servers[1].register(APP_NAME, MODULE_NAME, DISTINCT_NAME, Echo.class.getSimpleName(), new EchoBean(NODE2_NAME));
         logger.info("Registered module on server " + servers[1]);
 
         // define clusters
@@ -156,13 +168,16 @@ public class ClusteredInvocationTestCase {
         logger.info("Created proxy for Echo: " + proxy.toString());
 
         logger.info("Invoking on proxy...");
-        // invoke on the proxy (use a ClusterAffinity for now)
-        final String message = "hello!";
-         String echo = null;
+
+        TestSelector.PICK_NODE = NODE1_NAME;
         for (int i = 0; i < 10; i++) {
-           echo = proxy.echo(message);
+            Assert.assertEquals(NODE1_NAME, proxy.whoAreYou());
         }
-        Assert.assertEquals("Got an unexpected echo", echo, message);
+
+        TestSelector.PICK_NODE = NODE2_NAME;
+        for (int i = 0; i < 10; i++) {
+            Assert.assertEquals(NODE2_NAME, proxy.whoAreYou());
+        }
     }
 
     /**
@@ -172,27 +187,25 @@ public class ClusteredInvocationTestCase {
     public void testClusteredSFSBInvocation() throws Exception {
         logger.info("Testing invocation on SFSB proxy with ClusterAffinity");
 
+        TestSelector.PICK_NODE = NODE2_NAME;
         // create a proxy for invocation
         final StatelessEJBLocator<Echo> statelessEJBLocator = new StatelessEJBLocator<Echo>(Echo.class, APP_NAME, MODULE_NAME, Echo.class.getSimpleName(), DISTINCT_NAME);
         StatefulEJBLocator<Echo> statefulEJBLocator = null;
-        try {
-            statefulEJBLocator = EJBClient.createSession(statelessEJBLocator);
-        } catch(Exception e) {
-            logger.warn("Got exception", e);
-            throw e;
+        statefulEJBLocator = EJBClient.createSession(statelessEJBLocator.withNewAffinity(new ClusterAffinity("ejb")));
+
+        Echo proxy = EJBClient.createProxy(statefulEJBLocator);
+        Assert.assertNotNull("Received a null proxy", proxy);
+        for (int i = 0; i < 10; i++) {
+            Assert.assertEquals(NODE2_NAME, proxy.whoAreYou());
         }
 
-        final Echo proxy = EJBClient.createProxy(statefulEJBLocator);
+        TestSelector.PICK_NODE = NODE1_NAME;
+        statefulEJBLocator = EJBClient.createSession(statelessEJBLocator.withNewAffinity(new ClusterAffinity("ejb")));
+        proxy = EJBClient.createProxy(statefulEJBLocator);
 
-        EJBClient.setStrongAffinity(proxy, new ClusterAffinity("ejb"));
-        Assert.assertNotNull("Received a null proxy", proxy);
-        logger.info("Created proxy for Echo: " + proxy.toString());
-
-        logger.info("Invoking on proxy...");
-        // invoke on the proxy (use a ClusterAffinity for now)
-        final String message = "hello!";
-        final String echo = proxy.echo(message);
-        Assert.assertEquals("Got an unexpected echo", echo, message);
+        for (int i = 0; i < 10; i++) {
+            Assert.assertEquals(NODE1_NAME, proxy.whoAreYou());
+        }
     }
 
     /**

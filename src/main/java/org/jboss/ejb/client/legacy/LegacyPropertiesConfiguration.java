@@ -20,9 +20,11 @@ package org.jboss.ejb.client.legacy;
 
 import java.net.URI;
 import java.util.List;
+import java.util.Map;
 import java.util.Properties;
 
 import org.jboss.ejb._private.Logs;
+import org.jboss.ejb.client.ClusterNodeSelector;
 import org.jboss.ejb.client.DeploymentNodeSelector;
 import org.jboss.ejb.client.EJBClientConnection;
 import org.jboss.ejb.client.EJBClientContext;
@@ -70,6 +72,22 @@ public class LegacyPropertiesConfiguration {
                     throw Logs.MAIN.cannotInstantiateDeploymentNodeSelector(properties.getDeploymentNodeSelectorClassName(), e);
                 }
                 builder.setDeploymentNodeSelector(deploymentNodeSelector);
+            }
+
+            Map<String, JBossEJBProperties.ClusterConfiguration> clusters = properties.getClusterConfigurations();
+            if (clusters != null) {
+                for (JBossEJBProperties.ClusterConfiguration cluster : clusters.values()) {
+                    ExceptionSupplier<ClusterNodeSelector, ReflectiveOperationException> selectorSupplier = cluster.getClusterNodeSelectorSupplier();
+                    if (selectorSupplier != null) {
+                        try {
+                            builder.setClusterNodeSelector(selectorSupplier.get());
+                        } catch (ReflectiveOperationException e) {
+                            throw Logs.MAIN.cannotInstantiateClustertNodeSelector(cluster.getClusterNodeSelectorClassName(), e);
+                        }
+                        // We only support one selector currently
+                        break;
+                    }
+                }
             }
 
             if (properties.getInvocationTimeout() != -1L) {

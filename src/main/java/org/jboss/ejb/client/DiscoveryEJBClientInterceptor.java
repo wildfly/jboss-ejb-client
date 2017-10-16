@@ -33,11 +33,13 @@ import java.net.URI;
 import java.security.PrivilegedAction;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.function.Supplier;
 
 import javax.ejb.NoSuchEJBException;
@@ -336,22 +338,25 @@ public final class DiscoveryEJBClientInterceptor implements EJBClientInterceptor
         if (fallbackFilterSpec != null) {
             assert context.getLocator().getAffinity() instanceof ClusterAffinity;
             Logs.INVOCATION.tracef("Performed first-match discovery, no match, falling back to cluster discovery");
-            final List<Throwable> problems2 = doClusterDiscovery(context, fallbackFilterSpec);
-            if (problems2.isEmpty()) {
-                return problems;
-            } else if (problems.isEmpty()) {
-                return problems2;
-            } else {
-                final ArrayList<Throwable> problems3 = new ArrayList<>(problems.size() + problems2.size());
-                problems3.addAll(problems);
-                problems3.addAll(problems2);
-                return problems3;
-            }
+            return merge(problems, doClusterDiscovery(context, fallbackFilterSpec));
         } else {
             // no match!
             Logs.INVOCATION.tracef("Performed first-match discovery, no match");
         }
         return problems;
+    }
+
+    private static List<Throwable> merge(List<Throwable> problems, List<Throwable> problems2) {
+        if (problems2.isEmpty()) {
+            return problems;
+        } else if (problems.isEmpty()) {
+            return problems2;
+        } else {
+            final ArrayList<Throwable> problems3 = new ArrayList<>(problems.size() + problems2.size());
+            problems3.addAll(problems);
+            problems3.addAll(problems2);
+            return problems3;
+        }
     }
 
     private List<Throwable> doAnyDiscovery(AbstractInvocationContext context, final FilterSpec filterSpec, final EJBLocator<?> locator) {
@@ -361,6 +366,8 @@ public final class DiscoveryEJBClientInterceptor implements EJBClientInterceptor
         final Set<URI> blacklist = context.getAttachment(BL_KEY);
         final Map<URI, String> nodes = new HashMap<>();
         final Map<String, URI> uris = new HashMap<>();
+        final Map<URI, List<String>> clusterAssociations = new HashMap<>();
+
         int nodeless = 0;
         try (final ServicesQueue queue = discover(filterSpec)) {
             ServiceURL serviceURL;
@@ -382,7 +389,24 @@ public final class DiscoveryEJBClientInterceptor implements EJBClientInterceptor
                             nodeless++;
                         }
                     }
-                    context.setDestination(location);
+
+                    // Handle multiple cluster specifications per entry, and also multiple entries with
+                    // cluster specifications that refer to the same URI. Currently multi-membership is
+                    // represented in the latter form, however, handle the first form as well, just in
+                    // case this changes in the future.
+                    final List<AttributeValue> clusters = serviceURL.getAttributeValues(FILTER_ATTR_CLUSTER);
+                    if (clusters != null) {
+                        for (AttributeValue cluster : clusters) {
+                            List<String> list = clusterAssociations.putIfAbsent(location, Collections.singletonList(cluster.toString()));
+                            if (list != null) {
+                                if (!(list instanceof ArrayList)) {
+                                    list = new ArrayList<>(list);
+                                    clusterAssociations.put(location, list);
+                                }
+                                list.add(cluster.toString());
+                            }
+                        }
+                    }
                 }
             }
             problems = queue.getProblems();
@@ -405,8 +429,7 @@ public final class DiscoveryEJBClientInterceptor implements EJBClientInterceptor
             Logs.INVOCATION.tracef("Performed first-match discovery(target affinity(node) = %s, destination = %s)", nodeName, location);
         } else if (nodeless == 0) {
             // use the deployment node selector
-            // todo: configure on client context
-            DeploymentNodeSelector selector = DeploymentNodeSelector.RANDOM;
+            DeploymentNodeSelector selector = context.getClientContext().getDeploymentNodeSelector();
             nodeName = selector.selectNode(nodes.values().toArray(NO_STRINGS), locator.getAppName(), locator.getModuleName(), locator.getDistinctName());
             if (nodeName == null) {
                 throw Logs.INVOCATION.selectorReturnedNull(selector);
@@ -430,9 +453,29 @@ public final class DiscoveryEJBClientInterceptor implements EJBClientInterceptor
             Logs.INVOCATION.tracef("Performed first-match discovery, nodes > 1, URI selector used(target affinity(node) = %s, destination = %s)", nodeName, location);
         }
 
+        // TODO DeploymentNodeSelector should be enhanced to handle URIs that are members of more than one cluster
+
+        // Clients typically do not have an auth policy for nodes which are dynamically discovered
+        // from cluster topology info. Anytime such a node is selected, we must register the
+        // associated cluster with the invocation, so that an effective auth config can be
+        // determined. Randomly pick a cluster if there is more than one.
+        selectCluster(context, clusterAssociations, location);
         context.setDestination(location);
         if (nodeName != null) context.setTargetAffinity(new NodeAffinity(nodeName));
         return problems;
+    }
+
+    private void selectCluster(AbstractInvocationContext context, Map<URI, List<String>> clusterAssociations, URI location) {
+        List<String> associations = clusterAssociations.get(location);
+        String cluster = null;
+        if (associations != null) {
+            cluster = (associations.size() == 1) ? associations.get(0) :
+                    associations.get(ThreadLocalRandom.current().nextInt(associations.size()));
+
+        }
+        if (cluster != null) {
+            context.setInitialCluster(cluster);
+        }
     }
 
     private List<Throwable> doClusterDiscovery(AbstractInvocationContext context, final FilterSpec filterSpec) {

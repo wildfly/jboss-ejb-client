@@ -575,6 +575,10 @@ public final class EJBClientContext extends Attachable implements Contextual<EJB
         return clusterNodeSelector;
     }
 
+    DeploymentNodeSelector getDeploymentNodeSelector() {
+        return deploymentNodeSelector;
+    }
+
     static final class ClassInterceptor {
         private final String className;
         private final EJBClientInterceptorInformation interceptor;

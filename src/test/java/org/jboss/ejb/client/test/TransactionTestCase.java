@@ -17,8 +17,10 @@
  */
 package org.jboss.ejb.client.test;
 
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -41,6 +43,8 @@ import org.junit.Assert;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.junit.runners.Parameterized;
 import org.wildfly.naming.client.WildFlyInitialContextFactory;
 import org.wildfly.naming.client.WildFlyRootContext;
 import org.wildfly.naming.client.util.FastHashtable;
@@ -52,12 +56,12 @@ import org.wildfly.transaction.client.RemoteTransactionContext;
 import org.wildfly.transaction.client.provider.jboss.JBossLocalTransactionProvider;
 
 /**
- * Tests basic invocation of a bean deployed on a single server node.
+ * Tests transaction stickiness
  *
+ * @author Jason T. Greene
  * @author <a href="mailto:rachmato@redhat.com">Richard Achmatowicz</a>
  */
 public class TransactionTestCase {
-
     private static final Logger logger = Logger.getLogger(TransactionTestCase.class);
     private static ContextTransactionManager txManager;
     private static ContextTransactionSynchronizationRegistry txSyncRegistry;
@@ -212,7 +216,7 @@ public class TransactionTestCase {
             txManager.begin();
             HashMap<String, Integer> replies = new HashMap<>();
             String id = null;
-            for (int i = 0; i < 20; i++) {
+            for (int i = 0; i < 30; i++) {
 
                 Echo echo = (Echo) context.lookup("ejb:" + APP_NAME + "/" + MODULE_NAME + "/" + EchoBean.class.getSimpleName() + "!"
                         + Echo.class.getName() + (stateful ? "?stateful" : ""));
@@ -223,7 +227,9 @@ public class TransactionTestCase {
 
             // Everything should clump to one node under this transaction
             Assert.assertEquals(sticky ? 1 : 3, replies.size());
-            //Assert.assertEquals(20, replies.values().iterator().next().intValue());
+            if (sticky) {
+                Assert.assertEquals(30, replies.values().iterator().next().intValue());
+            }
             ids.add(id);
             txManager.commit();
         }
@@ -247,7 +253,7 @@ public class TransactionTestCase {
 
         HashSet<String> id1s = new HashSet<>();
         HashSet<String> id2s = new HashSet<>();
-        for (int attempts = 0; attempts < 40; attempts++) {
+        for (int attempts = 0; attempts < 80; attempts++) {
             txManager.begin();
             HashMap<String, Integer> replies = new HashMap<>();
             String id1 = null;
@@ -290,7 +296,7 @@ public class TransactionTestCase {
             txManager.commit();
         }
 
-        // After 20 tries, we should have hit every server for each app
+        // After 80 tries, we should have hit every server for each app
         Assert.assertEquals(Stream.of("server1", "server3", "server4").collect(Collectors.toSet()), id1s);
         Assert.assertEquals(Stream.of("server2", "server3", "server4").collect(Collectors.toSet()), id2s);
     }

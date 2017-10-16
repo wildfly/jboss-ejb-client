@@ -99,7 +99,7 @@ public class DummyServer {
         final OptionMap options = OptionMap.EMPTY;
         EndpointBuilder endpointBuilder = Endpoint.builder();
         endpointBuilder.setEndpointName(this.endpointName);
-        endpointBuilder.buildXnioWorker(Xnio.getInstance()).populateFromOptions(options).build();
+        endpointBuilder.buildXnioWorker(Xnio.getInstance()).populateFromOptions(options);
         endpoint = endpointBuilder.build();
 
 
