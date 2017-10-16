@@ -306,7 +306,7 @@ final class RemotingEJBDiscoveryProvider implements DiscoveryProvider, Discovere
             return new FailedIoFuture<>(Logs.REMOTING.failedToConfigureSslContext(e));
         }
         final AuthenticationConfiguration authenticationConfiguration = client.getAuthenticationConfiguration(effectiveAuth, context, -1, abstractType, abstractTypeAuthority);
-        return endpoint.getConnectedIdentity(destination, sslContext, clearOverrides(authenticationConfiguration));
+        return endpoint.getConnectedIdentity(destination, sslContext, clusterName != null ? clearOverrides(authenticationConfiguration) : authenticationConfiguration);
     }
 
     // TODO remove this hack once ELY-1399 is fully completed, and nothing else
