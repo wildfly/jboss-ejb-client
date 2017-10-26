@@ -43,7 +43,6 @@ import java.util.concurrent.ThreadLocalRandom;
 import java.util.function.Supplier;
 
 import javax.ejb.NoSuchEJBException;
-import javax.security.sasl.SaslException;
 
 import org.jboss.ejb._private.Logs;
 import org.jboss.ejb.client.annotation.ClientInterceptorPriority;
@@ -56,7 +55,6 @@ import org.wildfly.discovery.FilterSpec;
 import org.wildfly.discovery.ServiceURL;
 import org.wildfly.discovery.ServicesQueue;
 import org.wildfly.naming.client.NamingProvider;
-import org.wildfly.security.auth.AuthenticationException;
 
 /**
  * The EJB client interceptor responsible for discovering the destination of a request.  If a destination is already
@@ -95,9 +93,7 @@ public final class DiscoveryEJBClientInterceptor implements EJBClientInterceptor
         try {
             context.sendRequest();
         } catch (NoSuchEJBException | RequestSendFailedException e) {
-            if (isTargetMissing(e)) {
-                processMissingTarget(context);
-            }
+            processMissingTarget(context);
             throw e;
         } finally {
             if (problems != null) for (Throwable problem : problems) {
@@ -106,21 +102,12 @@ public final class DiscoveryEJBClientInterceptor implements EJBClientInterceptor
         }
     }
 
-    private boolean isTargetMissing(Exception e) {
-        if (e.getCause() instanceof SaslException || e.getCause() instanceof AuthenticationException) {
-            return false;
-        }
-        return true;
-    }
-
     public Object handleInvocationResult(final EJBClientInvocationContext context) throws Exception {
         final Object result;
         try {
             result = context.getResult();
         } catch (NoSuchEJBException | RequestSendFailedException e) {
-            if (isTargetMissing(e)) {
-                processMissingTarget(context);
-            }
+            processMissingTarget(context);
             throw e;
         }
         final EJBLocator<?> locator = context.getLocator();
@@ -150,9 +137,7 @@ public final class DiscoveryEJBClientInterceptor implements EJBClientInterceptor
         try {
             sessionID = context.proceed();
         } catch (NoSuchEJBException | RequestSendFailedException e) {
-            if (isTargetMissing(e)) {
-                processMissingTarget(context);
-            }
+            processMissingTarget(context);
             throw withSuppressed(e, problems);
         } catch (Exception t) {
             throw withSuppressed(t, problems);
