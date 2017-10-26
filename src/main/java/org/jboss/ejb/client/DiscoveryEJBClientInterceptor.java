@@ -56,6 +56,7 @@ import org.wildfly.discovery.FilterSpec;
 import org.wildfly.discovery.ServiceURL;
 import org.wildfly.discovery.ServicesQueue;
 import org.wildfly.naming.client.NamingProvider;
+import org.wildfly.security.auth.AuthenticationException;
 
 /**
  * The EJB client interceptor responsible for discovering the destination of a request.  If a destination is already
@@ -106,7 +107,7 @@ public final class DiscoveryEJBClientInterceptor implements EJBClientInterceptor
     }
 
     private boolean isTargetMissing(Exception e) {
-        if (e.getCause() instanceof SaslException) {
+        if (e.getCause() instanceof SaslException || e.getCause() instanceof AuthenticationException) {
             return false;
         }
         return true;
