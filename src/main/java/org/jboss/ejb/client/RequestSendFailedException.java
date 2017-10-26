@@ -18,13 +18,15 @@
 
 package org.jboss.ejb.client;
 
+import javax.ejb.EJBException;
+
 /**
  * An exception (typically) thrown by {@link EJBReceiver}s if the receiver couldn't successfully handle a request.  If
  * this exception is received, the outcome of the request is unknown (and possible retries have also failed indeterminately).
  *
  * @author Jaikiran Pai
  */
-public class RequestSendFailedException extends RuntimeException {
+public class RequestSendFailedException extends EJBException {
 
     private static final long serialVersionUID = 4880994720537464175L;
 
@@ -54,7 +56,8 @@ public class RequestSendFailedException extends RuntimeException {
      * @param cause the cause
      */
     public RequestSendFailedException(final Throwable cause) {
-        super(cause);
+        super();
+        initCause(cause);
     }
 
     /**
@@ -64,7 +67,8 @@ public class RequestSendFailedException extends RuntimeException {
      * @param cause the cause
      */
     public RequestSendFailedException(final String msg, final Throwable cause) {
-        super(msg, cause);
+        super(msg);
+        initCause(cause);
     }
 
     /**
@@ -96,7 +100,8 @@ public class RequestSendFailedException extends RuntimeException {
      * @param canBeRetried the value of the can-be-retried flag
      */
     public RequestSendFailedException(final String message, final Throwable cause, final boolean canBeRetried) {
-        super(message, cause);
+        super(message);
+        initCause(cause);
         this.canBeRetried = canBeRetried;
     }
 
@@ -109,7 +114,8 @@ public class RequestSendFailedException extends RuntimeException {
      * @param canBeRetried the value of the can-be-retried flag
      */
     public RequestSendFailedException(final Throwable cause, final boolean canBeRetried) {
-        super(cause);
+        super();
+        initCause(cause);
         this.canBeRetried = canBeRetried;
     }
 
