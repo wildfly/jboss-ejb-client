@@ -23,6 +23,8 @@ import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
 import java.rmi.RemoteException;
+import java.security.AccessController;
+import java.security.PrivilegedAction;
 import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Supplier;
@@ -42,6 +44,16 @@ import org.wildfly.security.auth.client.AuthenticationContext;
 final class EJBInvocationHandler<T> extends Attachable implements InvocationHandler, Serializable {
 
     private static final long serialVersionUID = 946555285095057230L;
+
+    private static final int MAX_RETRIES =
+            AccessController.doPrivileged((PrivilegedAction<Integer>) () -> {
+                String val = System.getProperty("org.jboss.ejb.client.max-retries");
+                try {
+                    return Integer.valueOf(val);
+                } catch (NumberFormatException e) {
+                    return 8;
+                }
+            });
 
     private final transient boolean async;
 
@@ -151,7 +163,7 @@ final class EJBInvocationHandler<T> extends Attachable implements InvocationHand
         if (Logs.INVOCATION.isDebugEnabled()) {
             Logs.INVOCATION.debugf("Calling invoke(module = %s, strong affinity = %s, weak affinity = %s): ", locatorRef.get().getIdentifier(), locatorRef.get().getAffinity(), weakAffinity);
         }
-        final EJBClientInvocationContext invocationContext = new EJBClientInvocationContext(this, clientContext, proxy, args, methodInfo, 8, authenticationContextSupplier);
+        final EJBClientInvocationContext invocationContext = new EJBClientInvocationContext(this, clientContext, proxy, args, methodInfo, MAX_RETRIES, authenticationContextSupplier);
         invocationContext.setLocator(locatorRef.get());
         invocationContext.setBlockingCaller(true);
         invocationContext.setWeakAffinity(getWeakAffinity());
