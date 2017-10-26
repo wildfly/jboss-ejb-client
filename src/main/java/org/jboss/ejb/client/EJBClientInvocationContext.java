@@ -307,35 +307,35 @@ public final class EJBClientInvocationContext extends AbstractInvocationContext 
                         // from here we can go to: READY, or WAITING, or retry SENDING.
                         Supplier<? extends Throwable> pendingFailure = this.pendingFailure;
                         EJBReceiverInvocationContext.ResultProducer resultProducer = this.resultProducer;
-                        if (resultProducer != null) {
-                            // READY, even if we have a pending failure.
-                            if (pendingFailure != null) {
+                        // now see if we're retrying or returning.
+                        if (pendingFailure != null) {
+                            if (resultProducer == null) {
+                                this.resultProducer = new ThrowableResult(pendingFailure);
+                            } else {
                                 addSuppressed(pendingFailure);
-                                this.pendingFailure = null;
                             }
+
+                            // Run the result interceptor chain to see if a retry is necessary
+                            this.pendingFailure = null;
+                            transition(State.CONSUMING);
+                            try {
+                                getResult(true);
+                            } catch (Throwable t) {
+                                if (state == State.SENDING) {
+                                    // Retry has been requested
+                                    continue;
+                                }
+                            }
+
+                            // Return with getResult's set state
+                            return;
+                        }
+
+                        if (resultProducer != null) {
                             transition(State.READY);
                             return;
                         }
-                        // now see if we're retrying or returning.
-                        if (pendingFailure != null) {
-                            // either READY (with exception) or retry SENDING.
-                            if (! retryRequested || remainingRetries == 0) {
-                                // nobody wants retry, or there are none left; READY (with exception).
-                                this.resultProducer = new ThrowableResult(pendingFailure);
-                                this.pendingFailure = null;
-                                // in case we've gone asynchronous
-                                transition(State.READY);
-                                return;
-                            } else {
-                                // redo the loop
-                                transition(State.SENDING);
-                                retryRequested = false;
-                                remainingRetries --;
-                                addSuppressed(pendingFailure);
-                                this.pendingFailure = null;
-                                continue;
-                            }
-                        }
+
                         transition(State.WAITING);
                         return;
                     } finally {
@@ -585,19 +585,22 @@ public final class EJBClientInvocationContext extends AbstractInvocationContext 
                         // retry if we can
                         this.resultProducer = null;
                         List<Supplier<? extends Throwable>> suppressedExceptions = this.suppressedExceptions;
+                        final int remainingRetries = this.remainingRetries;
+                        final boolean retryRequested = this.retryRequested;
                         if (retryRequested && remainingRetries > 0) {
                             if (suppressedExceptions == null) {
                                 suppressedExceptions = this.suppressedExceptions = new ArrayList<>();
                             }
                             suppressedExceptions.add(() -> t);
-                            remainingRetries --;
-                            retryRequested = false;
+                            this.remainingRetries --;
+                            this.retryRequested = false;
                             this.cachedResult = null;
                             this.pendingFailure = null;
                             setReceiver(null);
                             transition(State.SENDING);
                             checkStateInvariants();
                         } else {
+                            log.tracef("Will not retry (requested = %s, remaining = %d)", retryRequested, remainingRetries);
                             pendingFailure = () -> t;
                             if (suppressedExceptions != null) {
                                 this.suppressedExceptions = null;
@@ -731,14 +734,17 @@ public final class EJBClientInvocationContext extends AbstractInvocationContext 
         final Object lock = this.lock;
         Assert.assertHoldsLock(lock);
         final State oldState = this.state;
-        log.tracef("Transitioning %s from %s to %s", this, oldState, newState);
+        if (log.isTraceEnabled()) {
+            StackTraceElement caller = (new Exception()).getStackTrace()[1];
+            log.tracef("Transitioning %s from %s to %s (%s)", this, oldState, newState, caller);
+        }
         switch (oldState) {
             case SENDING: {
                 assert newState == State.SENT;
                 break;
             }
             case SENT: {
-                assert newState == State.READY || newState == State.SENDING || newState == State.DONE || newState == State.WAITING;
+                assert newState == State.READY || newState == State.SENDING || newState == State.DONE || newState == State.WAITING || newState == State.CONSUMING;
                 break;
             }
             case WAITING: {
@@ -938,6 +944,7 @@ public final class EJBClientInvocationContext extends AbstractInvocationContext 
     void failed(Exception exception, Executor retryExecutor) {
         final Object lock = this.lock;
         synchronized (lock) {
+            log.tracef("Invocation marked failed, state is currently: %s", state);
             switch (state) {
                 case CONSUMING:
                 case DONE: {
