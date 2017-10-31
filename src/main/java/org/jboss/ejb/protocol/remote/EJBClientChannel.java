@@ -194,7 +194,7 @@ class EJBClientChannel {
                     break;
                 }
                 case Protocol.MODULE_AVAILABLE: {
-                    int count = StreamUtils.readPackedSignedInt32(message);
+                    int count = PackedInteger.readPackedInteger(message);
                     final NodeInformation nodeInformation = discoveredNodeRegistry.getNodeInformation(getChannel().getConnection().getRemoteEndpointName());
                     final EJBModuleIdentifier[] moduleList = new EJBModuleIdentifier[count];
                     for (int i = 0; i < count; i ++) {
@@ -212,7 +212,7 @@ class EJBClientChannel {
                     break;
                 }
                 case Protocol.MODULE_UNAVAILABLE: {
-                    int count = StreamUtils.readPackedSignedInt32(message);
+                    int count = PackedInteger.readPackedInteger(message);
                     final NodeInformation nodeInformation = discoveredNodeRegistry.getNodeInformation(getChannel().getConnection().getRemoteEndpointName());
                     final HashSet<EJBModuleIdentifier> set = new HashSet<>(count);
                     for (int i = 0; i < count; i ++) {
@@ -228,10 +228,10 @@ class EJBClientChannel {
                 }
                 case Protocol.CLUSTER_TOPOLOGY_ADDITION:
                 case Protocol.CLUSTER_TOPOLOGY_COMPLETE: {
-                    int clusterCount = StreamUtils.readPackedSignedInt32(message);
+                    int clusterCount = PackedInteger.readPackedInteger(message);
                     for (int i = 0; i < clusterCount; i ++) {
                         final String clusterName = message.readUTF();
-                        int memberCount = StreamUtils.readPackedSignedInt32(message);
+                        int memberCount = PackedInteger.readPackedInteger(message);
                         for (int j = 0; j < memberCount; j ++) {
                             final String nodeName = message.readUTF();
                             discoveredNodeRegistry.addNode(clusterName, nodeName, channel.getConnection().getPeerURI());
@@ -239,7 +239,7 @@ class EJBClientChannel {
                             Logs.INVOCATION.debugf("Received CLUSTER_TOPOLOGY(%x) message, registering cluster %s to node %s", msg, clusterName, nodeName);
 
                             // create and register the concrete ServiceURLs for each client mapping
-                            int mappingCount = StreamUtils.readPackedSignedInt32(message);
+                            int mappingCount = PackedInteger.readPackedInteger(message);
                             for (int k = 0; k < mappingCount; k ++) {
                                 int b = message.readUnsignedByte();
                                 final boolean ip6 = allAreClear(b, 1);
@@ -259,7 +259,7 @@ class EJBClientChannel {
                     break;
                 }
                 case Protocol.CLUSTER_TOPOLOGY_REMOVAL: {
-                    int clusterCount = StreamUtils.readPackedSignedInt32(message);
+                    int clusterCount = PackedInteger.readPackedInteger(message);
                     for (int i = 0; i < clusterCount; i ++) {
                         String clusterName = message.readUTF();
                         discoveredNodeRegistry.removeCluster(clusterName);
@@ -273,10 +273,10 @@ class EJBClientChannel {
                     break;
                 }
                 case Protocol.CLUSTER_TOPOLOGY_NODE_REMOVAL: {
-                    int clusterCount = StreamUtils.readPackedSignedInt32(message);
+                    int clusterCount = PackedInteger.readPackedInteger(message);
                     for (int i = 0; i < clusterCount; i ++) {
                         String clusterName = message.readUTF();
-                        int memberCount = StreamUtils.readPackedSignedInt32(message);
+                        int memberCount = PackedInteger.readPackedInteger(message);
                         for (int j = 0; j < memberCount; j ++) {
                             String nodeName = message.readUTF();
                             discoveredNodeRegistry.removeNode(clusterName, nodeName);
@@ -749,7 +749,7 @@ class EJBClientChannel {
                 switch (id) {
                     case Protocol.OPEN_SESSION_RESPONSE: {
                         Affinity affinity;
-                        int size = StreamUtils.readPackedUnsignedInt32(response);
+                        int size = PackedInteger.readPackedInteger(response);
                         byte[] bytes = new byte[size];
                         response.readFully(bytes);
                         // todo: pool unmarshallers?  use very small instance count config?

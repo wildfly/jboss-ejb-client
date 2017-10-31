@@ -110,7 +110,7 @@ class EJBTransactionOperations implements RemotingOperations {
                         // unrecognized parameter
                         throw new XAException(XAException.XAER_RMFAIL);
                     }
-                    return flag ? StreamUtils.readPackedSignedInt32(inputStream) : 0;
+                    return flag ? PackedInteger.readPackedInteger(inputStream) : 0;
                 }
                 case Protocol.APPLICATION_EXCEPTION: {
                     throw readAppException(channel, response);
