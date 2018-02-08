@@ -69,6 +69,8 @@ public final class DiscoveryEJBClientInterceptor implements EJBClientInterceptor
     private static final Supplier<Discovery> DISCOVERY_SUPPLIER = doPrivileged((PrivilegedAction<Supplier<Discovery>>) Discovery.getContextManager()::getPrivilegedSupplier);
 
     private static final String[] NO_STRINGS = new String[0];
+    private static final boolean WILDFLY_TESTSUITE_HACK = Boolean.getBoolean("org.jboss.ejb.client.wildfly-testsuite-hack");
+
 
     /**
      * This interceptor's priority.
@@ -90,6 +92,10 @@ public final class DiscoveryEJBClientInterceptor implements EJBClientInterceptor
             return;
         }
         List<Throwable> problems = executeDiscovery(context);
+        if(WILDFLY_TESTSUITE_HACK && context.getDestination() == null) {
+            Thread.sleep(2000);
+            problems = executeDiscovery(context);
+        }
         try {
             context.sendRequest();
         } catch (NoSuchEJBException | RequestSendFailedException e) {
@@ -133,6 +139,11 @@ public final class DiscoveryEJBClientInterceptor implements EJBClientInterceptor
             return context.proceed();
         }
         List<Throwable> problems = executeDiscovery(context);
+
+        if(WILDFLY_TESTSUITE_HACK && context.getDestination() == null) {
+            Thread.sleep(2000);
+            problems = executeDiscovery(context);
+        }
         SessionID sessionID;
         try {
             sessionID = context.proceed();
