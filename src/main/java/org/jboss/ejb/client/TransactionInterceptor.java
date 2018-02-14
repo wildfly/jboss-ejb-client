@@ -65,7 +65,7 @@ public final class TransactionInterceptor implements EJBClientInterceptor {
     }
 
     static Application toApplication(EJBIdentifier id) {
-        return new Application(id.getAppName(), id.getDistinctName());
+        return new Application(id.getAppName(), id.getModuleName(), id.getDistinctName());
     }
 
     @SuppressWarnings("unchecked")
@@ -176,8 +176,8 @@ public final class TransactionInterceptor implements EJBClientInterceptor {
         private String application;
         private String distinctName;
 
-        public Application(String application, String distinctName) {
-            this.application = application;
+        public Application(String application, String moduleName, String distinctName) {
+            this.application = application.isEmpty()? moduleName: application;
             this.distinctName = distinctName;
         }
 
