@@ -108,7 +108,7 @@ final class EJBProxyInformation<T> {
                         final boolean clientAsync = alwaysAsync || classAsync || ENABLE_SCANNING && method.getAnnotation(ClientAsynchronous.class) != null;
                         final CompressionHint compressionHint = ENABLE_SCANNING ? method.getAnnotation(CompressionHint.class) : null;
                         final ClientTransaction transactionHint = ENABLE_SCANNING ? method.getAnnotation(ClientTransaction.class) : null;
-                        final ClientInterceptors clientInterceptors = ENABLE_SCANNING ? type.getAnnotation(ClientInterceptors.class) : null;
+                        final ClientInterceptors clientInterceptors = ENABLE_SCANNING ? method.getAnnotation(ClientInterceptors.class) : null;
                         final EJBClientContext.InterceptorList interceptors = getInterceptorsFromAnnotation(clientInterceptors);
                         final int compressionLevel;
                         final boolean compressRequest;
