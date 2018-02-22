@@ -188,10 +188,11 @@ public final class DiscoveryEJBClientInterceptor implements EJBClientInterceptor
     private void processMissingTarget(final AbstractInvocationContext context) {
         final URI destination = context.getDestination();
 
-        if (destination == null) {
+        if (destination == null || context.getTargetAffinity() == Affinity.LOCAL) {
             // nothing we can/should do.
             return;
         }
+
         // Oops, we got some wrong information!
         addBlackListedDestination(context, destination);
 
