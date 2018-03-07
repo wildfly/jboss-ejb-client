@@ -424,9 +424,14 @@ class EJBClientChannel {
 
                     PackedInteger.writePackedInteger(marshaller, totalContextData);
                     // write out public (application specific) context data
-                    for (Map.Entry<String, Object> invocationContextData : contextData.entrySet()) {
-                        marshaller.writeObject(invocationContextData.getKey());
-                        marshaller.writeObject(invocationContextData.getValue());
+                    ProtocolObjectResolver.enableNonSerReplacement();
+                    try {
+                        for (Map.Entry<String, Object> invocationContextData : contextData.entrySet()) {
+                            marshaller.writeObject(invocationContextData.getKey());
+                            marshaller.writeObject(invocationContextData.getValue());
+                        }
+                    } finally {
+                        ProtocolObjectResolver.disableNonSerReplacement();
                     }
                     if (hasPrivateAttachments) {
                         // now write out the JBoss specific attachments under a single key and the value will be the
@@ -1208,7 +1213,8 @@ class EJBClientChannel {
                             // skip
                             unmarshaller.readObject();
                         } else {
-                            clientInvocationContext.getContextData().put(key, unmarshaller.readObject());
+                            final Object value = unmarshaller.readObject();
+                            if (value != null) clientInvocationContext.getContextData().put(key, value);
                         }
                     }
                     unmarshaller.finish();

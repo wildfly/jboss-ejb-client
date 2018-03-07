@@ -29,7 +29,7 @@ import org.jboss.remoting3.Connection;
 /**
  * @author <a href="mailto:fjuma@redhat.com">Farah Juma</a>
  */
-final class ProtocolV3ObjectResolver implements ObjectResolver {
+final class ProtocolV3ObjectResolver extends ProtocolObjectResolver implements ObjectResolver {
     private final NodeAffinity peerNodeAffinity;
     private final NodeAffinity selfNodeAffinity;
     private final URIAffinity peerUriAffinity;
@@ -68,6 +68,6 @@ final class ProtocolV3ObjectResolver implements ObjectResolver {
             // it's the peer node; the peer won't know its own URI though, so send its node affinity instead
             return peerNodeAffinity;
         }
-        return original;
+        return super.writeReplace(original);
     }
 }
