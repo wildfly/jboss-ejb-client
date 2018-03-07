@@ -465,7 +465,9 @@ final class RemotingEJBDiscoveryProvider implements DiscoveryProvider, Discovere
                         phase2 = true;
                         outstandingCount.incrementAndGet();
                         for (URI uri : everything) {
-                            connectAndDiscover(uri, effectiveAuthMappings.get(uri));
+                            if(!failedDestinations.contains(uri)) {
+                                connectAndDiscover(uri, effectiveAuthMappings.get(uri));
+                            }
                         }
                         countDown();
                     }
