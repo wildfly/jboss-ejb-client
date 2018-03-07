@@ -32,7 +32,7 @@ import org.wildfly.common.rpc.RemoteExceptionCause;
 /**
  * @author <a href="mailto:david.lloyd@redhat.com">David M. Lloyd</a>
  */
-final class ProtocolV1ObjectResolver implements ObjectResolver {
+final class ProtocolV1ObjectResolver extends ProtocolObjectResolver implements ObjectResolver {
     private final NodeAffinity peerNodeAffinity;
     private final NodeAffinity selfNodeAffinity;
     private final URIAffinity peerUriAffinity;
@@ -80,6 +80,6 @@ final class ProtocolV1ObjectResolver implements ObjectResolver {
             // old clients will not have this class
             return ((RemoteExceptionCause) original).toPlainThrowable();
         }
-        return original;
+        return super.writeReplace(original);
     }
 }

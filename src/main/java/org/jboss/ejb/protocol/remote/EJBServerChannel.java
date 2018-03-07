@@ -840,7 +840,8 @@ final class EJBServerChannel {
                             unmarshaller.readObject();
                         }
                     } else {
-                        attachments.put(attName, unmarshaller.readObject());
+                        final Object value = unmarshaller.readObject();
+                        if (value != null) attachments.put(attName, value);
                     }
                 }
                 attachments.put(EJBClient.SOURCE_ADDRESS_KEY, channel.getConnection().getPeerAddress());
@@ -957,12 +958,17 @@ final class EJBServerChannel {
                                 marshaller.writeByte(count);
                             }
                             int i = 0;
-                            for (Map.Entry<String, Object> entry : attachments.entrySet()) {
-                                marshaller.writeObject(entry.getKey());
-                                marshaller.writeObject(entry.getValue());
-                                if (i ++ == 255) {
-                                    break;
+                            ProtocolObjectResolver.enableNonSerReplacement();
+                            try {
+                                for (Map.Entry<String, Object> entry : attachments.entrySet()) {
+                                    marshaller.writeObject(entry.getKey());
+                                    marshaller.writeObject(entry.getValue());
+                                    if (i ++ == 255) {
+                                        break;
+                                    }
                                 }
+                            } finally {
+                                ProtocolObjectResolver.disableNonSerReplacement();
                             }
                             marshaller.finish();
                             os.close();
