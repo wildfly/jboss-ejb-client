@@ -52,7 +52,6 @@ import org.wildfly.discovery.Discovery;
 import org.wildfly.discovery.ServiceType;
 import org.wildfly.naming.client.NamingProvider;
 import org.wildfly.security.auth.client.AuthenticationContext;
-import sun.reflect.annotation.ExceptionProxy;
 
 /**
  * The public API for an EJB client context.  An EJB client context may be associated with (and used by) one or more threads concurrently.
