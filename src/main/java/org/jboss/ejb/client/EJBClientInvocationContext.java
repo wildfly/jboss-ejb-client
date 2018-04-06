@@ -22,7 +22,9 @@ import java.lang.reflect.Method;
 import java.lang.reflect.UndeclaredThrowableException;
 import java.net.URI;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Future;
@@ -52,6 +54,11 @@ public final class EJBClientInvocationContext extends AbstractInvocationContext 
     private static final Logs log = Logs.MAIN;
 
     public static final String PRIVATE_ATTACHMENTS_KEY = "org.jboss.ejb.client.invocation.attachments";
+    /**
+     * A context data key that may contain a Set of Strings. Any context data on the server side invocation context
+     * stored under these keys will be returned to the client.
+     */
+    public static final String RETURNED_CONTEXT_DATA_KEY = "org.jboss.ejb.client.invocation.returned-context-data";
 
     // Contextual stuff
     private final EJBInvocationHandler<?> invocationHandler;
@@ -120,6 +127,23 @@ public final class EJBClientInvocationContext extends AbstractInvocationContext 
         boolean isWaiting() {
             return waiting;
         }
+    }
+
+    /**
+     * Indicates to the server that a client side interceptor is interested in the context data that is stored
+     * under the given key. Any object on the context data map (i.e. {@code InvocationContext.getContextData()} that is
+     * present at the end of the server invocation will be serialised and returned to the client.
+     *
+     * If an object is present under this key and is not serializable then the request will fail.
+     *
+     * @param key The context data key the client interceptor is interested in
+     */
+    public void addReturnedContextDataKey(String key) {
+        Set<String> keys = (Set<String>) getContextData().get(RETURNED_CONTEXT_DATA_KEY);
+        if(keys == null) {
+            getContextData().put(RETURNED_CONTEXT_DATA_KEY, keys = new HashSet<>());
+        }
+        keys.add(key);
     }
 
     /**
