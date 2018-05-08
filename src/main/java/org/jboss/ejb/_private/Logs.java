@@ -419,6 +419,12 @@ public interface Logs extends BasicLogger {
     @Message(id = 510, value = "Failed to configure SSL context")
     IOException failedToConfigureSslContext(@Cause Throwable cause);
 
+    @Message(id = 511, value = "Cannot automatically convert stateless EJB to stateful with this protocol version")
+    IllegalArgumentException cannotAddSessionID();
+
+    @Message(id = 512, value = "Server error (remote EJB is not stateful): %s")
+    EJBException ejbNotStateful(String serverMessage);
+
     // Remote messages; no ID for brevity but should be translated
 
     @Message(value = "No such EJB: %s")

@@ -858,8 +858,7 @@ class EJBClientChannel {
                         }
                         disassociateRemoteTxIfPossible(clientInvocationContext);
                         final String message = response.readUTF();
-                        // todo: I don't think this is the best exception type for this case...
-                        throw new IllegalArgumentException(message);
+                        throw Logs.REMOTING.ejbNotStateful(message);
                     }
                     default: {
                         throw new EJBException("Invalid EJB creation response (id " + id + ")");
