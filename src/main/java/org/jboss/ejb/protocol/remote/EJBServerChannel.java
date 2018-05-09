@@ -765,6 +765,13 @@ final class EJBServerChannel {
             this.remaining = remaining;
         }
 
+        public void convertToStateful(final SessionID sessionId) throws IllegalArgumentException, IllegalStateException {
+            if (version < 3) {
+                throw Logs.REMOTING.cannotAddSessionID();
+            }
+            super.convertToStateful(sessionId);
+        }
+
         public Resolved getRequestContent(final ClassLoader classLoader) throws IOException, ClassNotFoundException {
             classResolver.setClassLoader(classLoader);
             int responseCompressLevel = 0;
