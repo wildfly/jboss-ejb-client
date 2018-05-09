@@ -28,6 +28,8 @@ import java.io.DataInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 
+import javax.ejb.EJBException;
+
 /**
  * Handles a failure response message returned by the server when a session open request is made for a non-stateful
  * session bean.
@@ -67,7 +69,7 @@ class NonStatefulBeanSessionOpenFailureHandler extends ProtocolMessageHandler {
 
         @Override
         public Object getResult() throws Exception {
-            throw new IllegalArgumentException(failureMessage);
+            throw new EJBException(failureMessage);
         }
 
         @Override
