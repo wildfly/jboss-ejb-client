@@ -439,4 +439,6 @@ public interface Logs extends BasicLogger {
     @Message(value = "EJB view is not remote: %s")
     String remoteMessageBadViewType(EJBIdentifier ejbIdentifier);
 
+    @Message(value = "Context data under org.jboss.private.data was not of type Set<String>")
+    IllegalStateException returnedContextDataKeyOfWrongType();
 }
