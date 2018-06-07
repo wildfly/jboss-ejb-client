@@ -70,6 +70,19 @@ public final class RemotingConnectionEJBReceiver extends EJBReceiver {
     private static final Logger logger = Logger.getLogger(RemotingConnectionEJBReceiver.class);
 
     private static final String EJB_CHANNEL_NAME = "jboss.ejb";
+    public static final int INITIAL_MODULE_WAIT_TIME;
+
+    static {
+        String s = SecurityActions.getSystemProperty("org.jboss.ejb.initial-module-wait-time");
+        //default value
+        int i = 30;
+        try {
+            i = Integer.parseInt(s);
+        } catch (NumberFormatException e) {
+            //default value will be used
+        }
+        INITIAL_MODULE_WAIT_TIME = i;
+    }
 
     private final Connection connection;
 
@@ -197,7 +210,7 @@ public final class RemotingConnectionEJBReceiver extends EJBReceiver {
             // doesn't fail due to non-availability of the module report (which effectively means this receiver won't
             // know whether it can handle an invocation on a appname/modulename/distinctname combination
             try {
-                final boolean initialReportAvailable = initialModuleAvailabilityLatch.await(5, TimeUnit.SECONDS);
+                final boolean initialReportAvailable = initialModuleAvailabilityLatch.await(INITIAL_MODULE_WAIT_TIME, TimeUnit.SECONDS);
                 if (!initialReportAvailable) {
                     // let's log a message and just return back. Don't close the context since it's *not* an error
                     // that the module report wasn't available in that amount of time.
