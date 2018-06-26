@@ -71,6 +71,46 @@ public final class RemotingConnectionEJBReceiver extends EJBReceiver {
 
     private static final String EJB_CHANNEL_NAME = "jboss.ejb";
 
+
+    /**
+     * Timeout defined through system property "org.jboss.ejb.initial-module-wait-time", value in property is in seconds.
+     */
+    private static final int INITIAL_MODULE_WAIT_TIME;
+
+
+    /**
+     * Timeout defined through system property "org.jboss.ejb.version-handshake-wait-time", value in property is in seconds and is converted to milliseconds.
+     */
+    private static final long VERSION_HANDSHAKE_WAIT_TIMEOUT_IN_MILLIS;
+    private static final boolean VERSION_HANDSHAKE_WAIT_TIMEOUT_DEFINED;
+
+    static {
+        String s = SecurityActions.getSystemProperty("org.jboss.ejb.initial-module-wait-time");
+        //default value
+        int i = 30;
+        try {
+            i = Integer.parseInt(s);
+        } catch (NumberFormatException e) {
+            //default value will be used
+        }
+        INITIAL_MODULE_WAIT_TIME = i;
+
+        //for version hadnshake timeout
+        s = SecurityActions.getSystemProperty("org.jboss.ejb.version-handshake-wait-time");
+        //default value
+        i = 30;
+        boolean defined = true;
+        try {
+            i = Integer.parseInt(s);
+        } catch (NumberFormatException e) {
+            //default value will be used
+            defined = false;
+        }
+        //convert value into milliseconds
+        VERSION_HANDSHAKE_WAIT_TIMEOUT_IN_MILLIS = i*1000;
+        VERSION_HANDSHAKE_WAIT_TIMEOUT_DEFINED = defined;
+    }
+
     private final Connection connection;
 
     private final Map<EJBReceiverContext, ChannelAssociation> channelAssociations = new IdentityHashMap<EJBReceiverContext, ChannelAssociation>();
@@ -159,12 +199,18 @@ public final class RemotingConnectionEJBReceiver extends EJBReceiver {
             // followed for a wait for the response
             final EJBClientConfiguration ejbClientConfiguration = context.getClientContext().getEJBClientConfiguration();
             final long versionHandshakeTimeoutInMillis;
-            if (ejbClientConfiguration == null || ejbClientConfiguration.getInvocationTimeout() <= 0) {
-                // default to 5000 milli sec
-                versionHandshakeTimeoutInMillis = 5000;
+            if (VERSION_HANDSHAKE_WAIT_TIMEOUT_DEFINED) {
+                versionHandshakeTimeoutInMillis = VERSION_HANDSHAKE_WAIT_TIMEOUT_IN_MILLIS;
             } else {
-                versionHandshakeTimeoutInMillis = ejbClientConfiguration.getInvocationTimeout();
+                //if invocation timeout is not defined or is to wait indefinately, use default values 30 seconds
+                if (ejbClientConfiguration == null || ejbClientConfiguration.getInvocationTimeout() <= 0) {
+                    versionHandshakeTimeoutInMillis = 30000;
+                } else {
+                    // in other cases, use invocation timeout
+                    versionHandshakeTimeoutInMillis = ejbClientConfiguration.getInvocationTimeout();
+                }
             }
+//            successfulHandshake = versionHandshakeLatch.await(1, TimeUnit.MICROSECONDS);
             successfulHandshake = versionHandshakeLatch.await(versionHandshakeTimeoutInMillis, TimeUnit.MILLISECONDS);
             if (successfulHandshake) {
                 final Channel compatibleChannel = versionReceiver.getCompatibleChannel();
@@ -197,7 +243,7 @@ public final class RemotingConnectionEJBReceiver extends EJBReceiver {
             // doesn't fail due to non-availability of the module report (which effectively means this receiver won't
             // know whether it can handle an invocation on a appname/modulename/distinctname combination
             try {
-                final boolean initialReportAvailable = initialModuleAvailabilityLatch.await(5, TimeUnit.SECONDS);
+                final boolean initialReportAvailable = initialModuleAvailabilityLatch.await(INITIAL_MODULE_WAIT_TIME, TimeUnit.MILLISECONDS);
                 if (!initialReportAvailable) {
                     // let's log a message and just return back. Don't close the context since it's *not* an error
                     // that the module report wasn't available in that amount of time.

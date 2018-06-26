@@ -74,6 +74,12 @@ public final class EJBClientContext extends Attachable implements Closeable {
     private static final EJBClientInterceptor.Registration[] NO_INTERCEPTORS = new EJBClientInterceptor.Registration[0];
 
     /**
+     * Timeout defined through system property "org.jboss.ejb.received-cluster-topology-wait-time", value in property is in seconds.
+     */
+    private static final int RECEIVED_CLUSTER_TOPOLOGY_WAIT_TIMEOUT;
+
+
+    /**
      * EJB client context selector. By default the {@link ConfigBasedEJBClientContextSelector} is used.
      */
     private static volatile ContextSelector<EJBClientContext> SELECTOR;
@@ -86,6 +92,16 @@ public final class EJBClientContext extends Attachable implements Closeable {
             final EJBClientConfiguration clientConfiguration = new PropertiesBasedEJBClientConfiguration(ejbClientProperties);
             SELECTOR = new ConfigBasedEJBClientContextSelector(clientConfiguration);
         }
+
+        String s = SecurityActions.getSystemProperty("org.jboss.ejb.received-cluster-topology-wait-time");
+        //default value
+        int i = 30;
+        try {
+            i = Integer.parseInt(s);
+        } catch (NumberFormatException e) {
+            //default value will be used
+        }
+        RECEIVED_CLUSTER_TOPOLOGY_WAIT_TIMEOUT = i;
     }
 
     private static volatile boolean SELECTOR_LOCKED;
@@ -887,7 +903,7 @@ public final class EJBClientContext extends Attachable implements Closeable {
     }
 
     /**
-     * Returns a {@link eJBReceiverContext} for the passed <code>receiver</code>. If the <code>receiver</code>
+     * Returns a {@link EJBReceiverContext} for the passed <code>receiver</code>. If the <code>receiver</code>
      * hasn't been registered with this {@link EJBClientContext}, either through a call to {@link #registerConnection(org.jboss.remoting3.Connection)}
      * or to {@link #requireEJBReceiver(String, String, String)}, then this method throws an {@link IllegalStateException}
      * <p/>
@@ -1200,9 +1216,9 @@ public final class EJBClientContext extends Attachable implements Closeable {
         final CountDownLatch clusterFormationLatch = new CountDownLatch(1);
         // register for the notification
         this.clusterFormationNotifier.registerForClusterFormation(clusterName, clusterFormationLatch);
-        // now wait (max 5 seconds)
+        // now wait (default 30 seconds, if not changed by system property)
         try {
-            final boolean receivedClusterTopology = clusterFormationLatch.await(5, TimeUnit.SECONDS);
+            final boolean receivedClusterTopology = clusterFormationLatch.await(RECEIVED_CLUSTER_TOPOLOGY_WAIT_TIMEOUT, TimeUnit.SECONDS);
             if (receivedClusterTopology) {
                 logger.debug("Received the cluster topology for cluster named " + clusterName + " during the wait time");
             }
@@ -1249,7 +1265,7 @@ public final class EJBClientContext extends Attachable implements Closeable {
 
             // now wait for all tasks to complete (with a upper bound on time limit)
             try {
-                long reconnectWaitTimeout = 10000; // default 10 seconds
+                long reconnectWaitTimeout = 30000; // default 30 seconds
                 if (this.ejbClientConfiguration != null && this.ejbClientConfiguration.getReconnectTasksTimeout() > 0) {
                     reconnectWaitTimeout = this.ejbClientConfiguration.getReconnectTasksTimeout();
                 }
