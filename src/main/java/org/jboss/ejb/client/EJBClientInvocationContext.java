@@ -72,6 +72,7 @@ public final class EJBClientInvocationContext extends AbstractInvocationContext 
     private final EJBClientContext.InterceptorList interceptorList;
     private final long startTime = System.nanoTime();
     private final long timeout;
+    private final boolean suppressTxPropagation;
 
     // Invocation state
     private final Object lock = new Object();
@@ -101,6 +102,7 @@ public final class EJBClientInvocationContext extends AbstractInvocationContext 
             timeout = ejbClientContext.getInvocationTimeout();
         }
         this.timeout = timeout;
+        this.suppressTxPropagation = ejbClientContext.isSuppressTxPropagation();
         remainingRetries = allowedRetries;
         interceptorList = getClientContext().getInterceptors(getViewClass(), getInvokedMethod());
     }
@@ -741,6 +743,16 @@ public final class EJBClientInvocationContext extends AbstractInvocationContext 
         }
         return max(0L, timeUnit.convert(timeout - (System.nanoTime() - startTime) / 1_000_000L, TimeUnit.MILLISECONDS));
     }
+
+    /**
+     * Check whether transaction propagation is suppressed.
+     *
+     * @return true if transaction propagation is suppressed, false otherwise
+     */
+    public boolean isSuppressTxPropagation() {
+        return suppressTxPropagation;
+    }
+
 
     @Override
     public <T> void setLocator(EJBLocator<T> locator) {
