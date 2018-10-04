@@ -80,12 +80,11 @@ final class RemotingEJBDiscoveryProvider implements DiscoveryProvider, Discovere
 
     private final ConcurrentHashMap<String, NodeInformation> nodes = new ConcurrentHashMap<>();
 
-    private final Set<URI> failedDestinations = Collections.newSetFromMap(new ConcurrentHashMap<URI, Boolean>());
+    private final Map<URI, Long> failedDestinations = new ConcurrentHashMap<URI, Long>();
 
     private final ConcurrentHashMap<String, Set<String>> clusterNodes = new ConcurrentHashMap<>();
 
     private final ConcurrentHashMap<String, URI> effectiveAuthURIs = new ConcurrentHashMap<>();
-
 
 
     public RemotingEJBDiscoveryProvider() {
@@ -113,6 +112,16 @@ final class RemotingEJBDiscoveryProvider implements DiscoveryProvider, Discovere
         final Set<String> removed = clusterNodes.remove(clusterName);
         if (removed != null) removed.clear();
         effectiveAuthURIs.remove(clusterName);
+    }
+    
+    private boolean haveNotExpiredFailedDestination(URI uri) {
+    	if(!failedDestinations.containsKey(uri))
+    		return false;
+    	else {
+    		long failureTimestamp = failedDestinations.get(uri);
+    		long delta = System.currentTimeMillis() - failureTimestamp;
+    		return delta < 5000;
+    	}
     }
 
     public DiscoveryRequest discover(final ServiceType serviceType, final FilterSpec filterSpec, final DiscoveryResult result) {
@@ -142,7 +151,7 @@ final class RemotingEJBDiscoveryProvider implements DiscoveryProvider, Discovere
             }
             discoveryConnections = true;
             final URI uri = connection.getDestination();
-            if (failedDestinations.contains(uri)) {
+            if (haveNotExpiredFailedDestination(uri)) {
                 Logs.INVOCATION.tracef("EJB discovery provider: attempting to connect to configured connection %s, skipping because marked as failed", uri);
                 continue;
             }
@@ -180,7 +189,9 @@ final class RemotingEJBDiscoveryProvider implements DiscoveryProvider, Discovere
                                             }
                                         }
                                         final URI uri = new URI(protocol, null, hostName, destination.getPort(), null, null, null);
-                                        if (! failedDestinations.contains(uri)) {
+                                        if (haveNotExpiredFailedDestination(uri)) {
+                                            Logs.INVOCATION.tracef("EJB discovery provider: attempting to connect to cluster connection %s, skipping because marked as failed", uri);
+                                        } else {
                                             maxConnections--;
                                             Logs.INVOCATION.tracef("EJB discovery provider: attempting to connect to cluster %s connection %s", clusterName, uri);
                                             discoveryAttempt.connectAndDiscover(uri, clusterName);
@@ -346,7 +357,7 @@ final class RemotingEJBDiscoveryProvider implements DiscoveryProvider, Discovere
 
                 public void handleFailed(final IOException exception, final URI destination) {
                     DiscoveryAttempt.this.discoveryResult.reportProblem(exception);
-                    failedDestinations.add(destination);
+                    failedDestinations.put(destination, System.currentTimeMillis());
                     countDown();
                 }
 
@@ -363,7 +374,7 @@ final class RemotingEJBDiscoveryProvider implements DiscoveryProvider, Discovere
 
                 public void handleFailed(final IOException exception, final URI destination) {
                     DiscoveryAttempt.this.discoveryResult.reportProblem(exception);
-                    failedDestinations.add(destination);
+                    failedDestinations.put(destination, System.currentTimeMillis());
                     countDown();
                 }
 
@@ -465,7 +476,7 @@ final class RemotingEJBDiscoveryProvider implements DiscoveryProvider, Discovere
                         phase2 = true;
                         outstandingCount.incrementAndGet();
                         for (URI uri : everything) {
-                            if(!failedDestinations.contains(uri)) {
+                            if(!failedDestinations.containsKey(uri)) {
                                 connectAndDiscover(uri, effectiveAuthMappings.get(uri));
                             }
                         }
