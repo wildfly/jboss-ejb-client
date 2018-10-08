@@ -25,7 +25,6 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.lang.reflect.Method;
-import java.lang.reflect.UndeclaredThrowableException;
 import java.net.URI;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
@@ -42,6 +41,7 @@ import java.util.Map;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
+import org.jboss.ejb._private.Keys;
 import org.jboss.ejb._private.Logs;
 import org.jboss.ejb.protocol.remote.RemotingEJBClientInterceptor;
 import org.wildfly.common.Assert;
@@ -731,7 +731,7 @@ public final class EJBClientContext extends Attachable implements Contextual<EJB
 
     <T> StatefulEJBLocator<T> createSession(final EJBSessionCreationInvocationContext context, final StatelessEJBLocator<T> statelessLocator, final NamingProvider namingProvider) throws Exception {
         // Special hook for naming; let's replace this sometime soon.
-        if (namingProvider != null) context.putAttachment(EJBRootContext.NAMING_PROVIDER_ATTACHMENT_KEY, namingProvider);
+        if (namingProvider != null) context.putAttachment(Keys.NAMING_PROVIDER_ATTACHMENT_KEY, namingProvider);
 
         Logs.INVOCATION.tracef("Calling createSession(locator = %s)",statelessLocator);
 

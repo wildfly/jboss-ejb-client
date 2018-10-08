@@ -43,6 +43,7 @@ import java.util.function.Supplier;
 import javax.ejb.NoSuchEJBException;
 import javax.security.sasl.SaslException;
 
+import org.jboss.ejb._private.Keys;
 import org.jboss.ejb._private.Logs;
 import org.jboss.ejb.client.annotation.ClientInterceptorPriority;
 import org.wildfly.common.Assert;
@@ -471,7 +472,7 @@ public final class DiscoveryEJBClientInterceptor implements EJBClientInterceptor
 
             Logs.INVOCATION.tracef("Performed cluster discovery, nodes is empty; trying an initial ");
 
-            final NamingProvider namingProvider = context.getAttachment(EJBRootContext.NAMING_PROVIDER_ATTACHMENT_KEY);
+            final NamingProvider namingProvider = context.getAttachment(Keys.NAMING_PROVIDER_ATTACHMENT_KEY);
             if (namingProvider != null) {
                 NamingEJBClientInterceptor.setNamingDestination(context, namingProvider);
             }

@@ -27,6 +27,7 @@ import javax.naming.Name;
 import javax.naming.NameClassPair;
 import javax.naming.NamingException;
 
+import org.jboss.ejb._private.Keys;
 import org.jboss.ejb._private.Logs;
 import org.jboss.ejb.client.legacy.JBossEJBProperties;
 import org.wildfly.naming.client.AbstractContext;
@@ -37,8 +38,6 @@ import org.wildfly.naming.client.store.RelativeContext;
 import org.wildfly.naming.client.util.FastHashtable;
 
 class EJBRootContext extends AbstractContext {
-
-    static final AttachmentKey<NamingProvider> NAMING_PROVIDER_ATTACHMENT_KEY = new AttachmentKey<>();
 
     private static final String PROPERTY_KEY_INVOCATION_TIMEOUT = "invocation.timeout";
     private final Affinity baseAffinity;
@@ -146,7 +145,7 @@ class EJBRootContext extends AbstractContext {
         } else {
             proxy = EJBClient.createProxy(statelessLocator, namingProvider == null ? null : namingProvider.getProviderEnvironment().getAuthenticationContextSupplier());
         }
-        if (namingProvider != null) EJBClient.putProxyAttachment(proxy, NAMING_PROVIDER_ATTACHMENT_KEY, namingProvider);
+        if (namingProvider != null) EJBClient.putProxyAttachment(proxy, Keys.NAMING_PROVIDER_ATTACHMENT_KEY, namingProvider);
 
         // if "invocation.timeout" is set in environment properties, set this value to created proxy
         Long invocationTimeout = getLongValueFromEnvironment(PROPERTY_KEY_INVOCATION_TIMEOUT);

@@ -30,6 +30,7 @@ import java.util.concurrent.ThreadLocalRandom;
 
 import javax.ejb.NoSuchEJBException;
 
+import org.jboss.ejb._private.Keys;
 import org.jboss.ejb._private.Logs;
 import org.jboss.ejb.client.annotation.ClientInterceptorPriority;
 import org.wildfly.naming.client.NamingProvider;
@@ -53,10 +54,10 @@ public final class NamingEJBClientInterceptor implements EJBClientInterceptor {
     }
 
     public void handleInvocation(final EJBClientInvocationContext context) throws Exception {
-        final NamingProvider namingProvider = context.getProxyAttachment(EJBRootContext.NAMING_PROVIDER_ATTACHMENT_KEY);
+        final NamingProvider namingProvider = context.getProxyAttachment(Keys.NAMING_PROVIDER_ATTACHMENT_KEY);
         if (namingProvider != null) {
             // make sure the naming provider is available to invocations
-            context.putAttachment(EJBRootContext.NAMING_PROVIDER_ATTACHMENT_KEY, namingProvider);
+            context.putAttachment(Keys.NAMING_PROVIDER_ATTACHMENT_KEY, namingProvider);
         }
         if (namingProvider == null || context.getDestination() != null || context.getLocator().getAffinity() != Affinity.NONE) {
             context.putAttachment(SKIP_MISSING_TARGET, Boolean.TRUE);
@@ -87,7 +88,7 @@ public final class NamingEJBClientInterceptor implements EJBClientInterceptor {
     }
 
     public SessionID handleSessionCreation(final EJBSessionCreationInvocationContext context) throws Exception {
-        final NamingProvider namingProvider = context.getAttachment(EJBRootContext.NAMING_PROVIDER_ATTACHMENT_KEY);
+        final NamingProvider namingProvider = context.getAttachment(Keys.NAMING_PROVIDER_ATTACHMENT_KEY);
         if (namingProvider == null || context.getDestination() != null || context.getLocator().getAffinity() != Affinity.NONE) {
             return context.proceed();
         } else {
