@@ -55,6 +55,7 @@ import javax.transaction.SystemException;
 import javax.transaction.Transaction;
 import javax.transaction.xa.Xid;
 
+import org.jboss.ejb._private.Keys;
 import org.jboss.ejb._private.Logs;
 import org.jboss.ejb.client.AbstractInvocationContext;
 import org.jboss.ejb.client.Affinity;
@@ -93,7 +94,9 @@ import org.jboss.remoting3.util.Invocation;
 import org.jboss.remoting3.util.InvocationTracker;
 import org.jboss.remoting3.util.StreamUtils;
 import org.wildfly.common.Assert;
+import org.wildfly.common.function.ExceptionBiFunction;
 import org.wildfly.common.net.CidrAddress;
+import org.wildfly.naming.client.NamingProvider;
 import org.wildfly.transaction.client.AbstractTransaction;
 import org.wildfly.transaction.client.LocalTransaction;
 import org.wildfly.transaction.client.RemoteTransaction;
@@ -1005,6 +1008,7 @@ class EJBClientChannel {
             switch (id) {
                 case Protocol.INVOCATION_RESPONSE: {
                     free();
+                    final EJBClientInvocationContext context = receiverInvocationContext.getClientInvocationContext();
                     if (version >= 3) try {
                         final int cmd = inputStream.readUnsignedByte();
                         final XAOutflowHandle outflowHandle = getOutflowHandle();
@@ -1017,7 +1021,6 @@ class EJBClientChannel {
                                 outflowHandle.nonMasterEnlistment();
                             }
                         }
-                        final EJBClientInvocationContext context = receiverInvocationContext.getClientInvocationContext();
                         final int updateBits = inputStream.readUnsignedByte();
                         if (allAreSet(updateBits, Protocol.UPDATE_BIT_SESSION_ID)) {
                             byte[] encoded = new byte[PackedInteger.readPackedInteger(inputStream)];
@@ -1042,7 +1045,8 @@ class EJBClientChannel {
                         safeClose(inputStream);
                         break;
                     }
-                    receiverInvocationContext.resultReady(new MethodCallResultProducer(inputStream, id));
+                    final NamingProvider provider = context.getProxyAttachment(Keys.NAMING_PROVIDER_ATTACHMENT_KEY);
+                    receiverInvocationContext.resultReady(new MethodCallResultProducer(provider, inputStream, id));
                     break;
                 }
                 case Protocol.CANCEL_RESPONSE: {
@@ -1179,17 +1183,19 @@ class EJBClientChannel {
             this.outflowHandle = outflowHandle;
         }
 
-        class MethodCallResultProducer implements EJBReceiverInvocationContext.ResultProducer {
+        class MethodCallResultProducer implements EJBReceiverInvocationContext.ResultProducer, ExceptionBiFunction<Void, Void, Object, Exception> {
 
+            private final NamingProvider namingProvider;
             private final InputStream inputStream;
             private final int id;
 
-            MethodCallResultProducer(final InputStream inputStream, final int id) {
+            MethodCallResultProducer(final NamingProvider provider, final InputStream inputStream, final int id) {
+                namingProvider = provider;
                 this.inputStream = inputStream;
                 this.id = id;
             }
 
-            public Object getResult() throws Exception {
+            public Object apply(final Void ignored0, final Void ignored1) throws Exception {
                 final ResponseMessageInputStream response;
                 if(inputStream instanceof ResponseMessageInputStream) {
                     response = (ResponseMessageInputStream) inputStream;
@@ -1221,6 +1227,14 @@ class EJBClientChannel {
                     throw new EJBException("Failed to read response", ex);
                 }
                 return result;
+            }
+
+            public Object getResult() throws Exception {
+                if (namingProvider != null) {
+                    return namingProvider.performExceptionAction(this, null, null);
+                } else {
+                    return apply(null, null);
+                }
             }
 
             public void discardResult() {
