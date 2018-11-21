@@ -444,7 +444,7 @@ class EJBClientChannel {
                     }
 
                     // Note: The code here is just for backward compatibility of 1.0.x version of EJB client project
-                    // against AS7 7.1.x releases. Discussion here https://github.com/jbossas/jboss-ejb-client/pull/11#issuecomment-6573863
+                    // against AS7 7.1.x releases. Discussion here https://github.com/wildfly/jboss-ejb-client/pull/11#issuecomment-6573863
                     if (transaction != null) {
                         // we additionally add/duplicate the transaction id under a different attachment key
                         // to preserve backward compatibility. This is here just for 1.0.x backward compatibility
