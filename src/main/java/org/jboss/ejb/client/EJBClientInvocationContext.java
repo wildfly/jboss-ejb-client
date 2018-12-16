@@ -183,7 +183,13 @@ public final class EJBClientInvocationContext extends Attachable {
             }
             context.getEjbReceiverContext().getReceiver().processInvocation(this, context);
         } else {
-            chain[idx].handleInvocation(this);
+            try {
+                chain[idx].handleInvocation(this);
+            } catch (Exception e) {
+                //allow retryRequest if an exception was thrown
+                interceptorChainIndex = chain.length + 1;
+                throw e;
+            }
         }
     }
 
