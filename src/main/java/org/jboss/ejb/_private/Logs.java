@@ -46,6 +46,7 @@ import javax.naming.Name;
 import javax.naming.NamingException;
 import javax.transaction.NotSupportedException;
 import javax.transaction.SystemException;
+import javax.transaction.Transaction;
 
 import java.io.IOException;
 import java.io.InvalidObjectException;
@@ -331,6 +332,9 @@ public interface Logs extends BasicLogger {
 
     @Message(id = 81, value = "Failed to instantiate cluster node selector class \"%s\"")
     IllegalArgumentException cannotInstantiateClustertNodeSelector(String name, @Cause ReflectiveOperationException e);
+
+    @Message(id = 82, value = "Cannot outflow the remote transaction \"%s\" as its timeout elapsed")
+    SystemException outflowTransactionTimeoutElapsed(Transaction transaction);
 
     // Proxy API errors
 
