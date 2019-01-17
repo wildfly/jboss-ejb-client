@@ -92,6 +92,7 @@ import org.wildfly.common.Assert;
 import org.wildfly.common.annotation.NotNull;
 import org.wildfly.common.function.ExceptionSupplier;
 import org.wildfly.security.auth.server.SecurityIdentity;
+import org.wildfly.transaction.client.ContextTransactionManager;
 import org.wildfly.transaction.client.ImportResult;
 import org.wildfly.transaction.client.LocalTransaction;
 import org.wildfly.transaction.client.SimpleXid;
@@ -826,11 +827,14 @@ final class EJBServerChannel {
                                 final TransactionID transactionId = (TransactionID) transactionIdObject;
                                 // look up the transaction
                                 if (transactionId instanceof UserTransactionID) {
-                                    transactionSupplier = () -> new ImportResult<Transaction>(transactionServer.getOrBeginTransaction(((UserTransactionID) transactionId).getId(), 0), SubordinateTransactionControl.EMPTY, false);
+                                    transactionSupplier = () -> new ImportResult<Transaction>(transactionServer.getOrBeginTransaction(
+                                            ((UserTransactionID) transactionId).getId(), ContextTransactionManager.getGlobalDefaultTransactionTimeout()),
+                                            SubordinateTransactionControl.EMPTY, false);
                                 } else if (transactionId instanceof XidTransactionID) {
                                     transactionSupplier = () -> {
                                         try {
-                                            return transactionServer.getTransactionService().getTransactionContext().findOrImportTransaction(((XidTransactionID) transactionId).getXid(), 0);
+                                            return transactionServer.getTransactionService().getTransactionContext().findOrImportTransaction(
+                                                    ((XidTransactionID) transactionId).getXid(), ContextTransactionManager.getGlobalDefaultTransactionTimeout());
                                         } catch (XAException e) {
                                             throw new SystemException(e.getMessage());
                                         }
