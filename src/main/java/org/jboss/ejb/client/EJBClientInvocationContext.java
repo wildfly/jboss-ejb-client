@@ -1113,7 +1113,7 @@ public final class EJBClientInvocationContext extends AbstractInvocationContext 
                             if (remaining <= 0L) {
                                 throw log.timedOut();
                             }
-                            lock.wait(remaining / 1_000_000_000L, (int) (remaining % 1_000_000_000L));
+                            lock.wait(remaining / 1_000_000L, (int) (remaining % 1_000_000L));
                             remaining = unit.toNanos(timeout) - (System.nanoTime() - ourStart);
                             break;
                         }
