@@ -32,8 +32,10 @@
             </configuration>
         </authentication-configurations>
     </authentication-client>
-    <jboss-ejb-client xmlns="urn:jboss:wildfly-client-ejb:3.0">
+    <jboss-ejb-client xmlns="urn:jboss:wildfly-client-ejb:3.1">
         <invocation-timeout seconds="10"/>
+        <deployment-node-selector class="org.jboss.ejb.client.DummyNodeSelector" />
+        <cluster-node-selector class="org.jboss.ejb.client.DummyNodeSelector" />
         <global-interceptors/>
         <connections/>
     </jboss-ejb-client>
