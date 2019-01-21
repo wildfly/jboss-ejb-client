@@ -346,7 +346,23 @@ public final class EJBClientContext extends Attachable implements Closeable {
      * @throws IllegalArgumentException If the passed <code>receiver</code> is null
      */
     public boolean registerEJBReceiver(final EJBReceiver receiver) {
-        return this.registerEJBReceiver(receiver, null);
+        return this.registerEJBReceiver(receiver, null, false);
+    }
+
+    /**
+     * Register an EJB receiver with this client context.
+     * <p/>
+     * If the same {@link EJBReceiver} has already been associated in this client context or if a {@link EJBReceiver receiver}
+     * with the same {@link org.jboss.ejb.client.EJBReceiver#getNodeName() node name} has already been associated in this client
+     * context, then this method does <i>not</i> register the passed <code>receiver</code> and returns false.
+     *
+     * @param receiver the receiver to register
+     * @param supressOpenChannelFailure Indicates if failure to open the channel should be supressed
+     * @return Returns true if the receiver was registered in this client context. Else returns false.
+     * @throws IllegalArgumentException If the passed <code>receiver</code> is null
+     */
+    public boolean registerEJBReceiver(final EJBReceiver receiver, boolean supressOpenChannelFailure) {
+        return this.registerEJBReceiver(receiver, null, supressOpenChannelFailure);
     }
 
     /**
@@ -362,6 +378,24 @@ public final class EJBClientContext extends Attachable implements Closeable {
      * @return Returns true if the receiver was registered in this client context. Else returns false.
      */
     boolean registerEJBReceiver(final EJBReceiver receiver, final EJBReceiverContextCloseHandler receiverContextCloseHandler) {
+        return this.registerEJBReceiver(receiver, receiverContextCloseHandler, false);
+    }
+
+    /**
+     * Registers a {@link EJBReceiver} in this context and uses the {@link EJBReceiverContextCloseHandler receiverContextCloseHandler}
+     * to notify of a {@link EJBReceiverContext} being closed.
+     * <p/>
+     * If the same {@link EJBReceiver} has already been associated in this client context or if a {@link EJBReceiver receiver}
+     * with the same {@link org.jboss.ejb.client.EJBReceiver#getNodeName() node name} has already been associated in this client
+     * context, then this method does <i>not</i> register the passed <code>receiver</code> and returns false.
+     *
+     * @param receiver                    The EJB receiver to register
+     * @param receiverContextCloseHandler The receiver context close handler. Can be null.
+     * @param supressOpenChannelFailure    Indicates if failure to open the channel should be supressed
+     * @return Returns true if the receiver was registered in this client context. Else returns false.
+     */
+    boolean registerEJBReceiver(final EJBReceiver receiver, final EJBReceiverContextCloseHandler receiverContextCloseHandler,
+          boolean supressOpenChannelFailure) {
         // make sure the EJB client context has not been closed
         this.assertNotClosed();
 
@@ -396,7 +430,7 @@ public final class EJBClientContext extends Attachable implements Closeable {
             }
         }
         // associate it with a context
-        receiver.associate(ejbReceiverContext);
+        receiver.associate(ejbReceiverContext, supressOpenChannelFailure);
 
         synchronized (this.ejbReceiverAssociations) {
 
