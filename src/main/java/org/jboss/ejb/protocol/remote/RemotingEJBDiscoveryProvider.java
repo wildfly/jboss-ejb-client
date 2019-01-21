@@ -30,6 +30,7 @@ import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.security.AccessController;
 import java.security.GeneralSecurityException;
 import java.security.PrivilegedAction;
 import java.util.ArrayList;
@@ -40,6 +41,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import javax.net.ssl.SSLContext;
@@ -85,7 +87,16 @@ final class RemotingEJBDiscoveryProvider implements DiscoveryProvider, Discovere
     private final ConcurrentHashMap<String, Set<String>> clusterNodes = new ConcurrentHashMap<>();
 
     private final ConcurrentHashMap<String, URI> effectiveAuthURIs = new ConcurrentHashMap<>();
-
+    
+    private static final long DESTINATION_RECHECK_INTERVAL =
+            AccessController.doPrivileged((PrivilegedAction<Long>) () -> {
+                String val = System.getProperty("org.jboss.ejb.client.destination-recheck-interval");
+                try {
+                    return TimeUnit.MILLISECONDS.toNanos(Long.valueOf(val));
+                } catch (NumberFormatException e) {
+                    return TimeUnit.MILLISECONDS.toNanos(5000L);
+                }
+            });
 
     public RemotingEJBDiscoveryProvider() {
         Endpoint.getCurrent(); //this will blow up if remoting is not present, preventing this from being registered
@@ -119,8 +130,8 @@ final class RemotingEJBDiscoveryProvider implements DiscoveryProvider, Discovere
     		return false;
     	else {
     		long failureTimestamp = failedDestinations.get(uri);
-    		long delta = System.currentTimeMillis() - failureTimestamp;
-    		return delta < 5000;
+    		long delta = System.nanoTime() - failureTimestamp;
+    		return delta < DESTINATION_RECHECK_INTERVAL;
     	}
     }
 
@@ -357,7 +368,7 @@ final class RemotingEJBDiscoveryProvider implements DiscoveryProvider, Discovere
 
                 public void handleFailed(final IOException exception, final URI destination) {
                     DiscoveryAttempt.this.discoveryResult.reportProblem(exception);
-                    failedDestinations.put(destination, System.currentTimeMillis());
+                    failedDestinations.put(destination, System.nanoTime());
                     countDown();
                 }
 
@@ -374,7 +385,7 @@ final class RemotingEJBDiscoveryProvider implements DiscoveryProvider, Discovere
 
                 public void handleFailed(final IOException exception, final URI destination) {
                     DiscoveryAttempt.this.discoveryResult.reportProblem(exception);
-                    failedDestinations.put(destination, System.currentTimeMillis());
+                    failedDestinations.put(destination, System.nanoTime());
                     countDown();
                 }
 
