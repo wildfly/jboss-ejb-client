@@ -83,6 +83,9 @@ public final class TransactionInterceptor implements EJBClientInterceptor {
     @Override
     public SessionID handleSessionCreation(EJBSessionCreationInvocationContext context) throws Exception {
         AbstractTransaction transaction = context.getTransaction();
+        if (Logs.INVOCATION.isDebugEnabled()) {
+            Logs.INVOCATION.debugf("TransactionEJBClientInterceptor: Calling  handleSessionCreation: context transaction = %s", transaction);
+        }
 
         // While session requests currently only utilize the caller thread,
         // this will support any future use of a worker. Additionally hides
@@ -91,6 +94,9 @@ public final class TransactionInterceptor implements EJBClientInterceptor {
         if (transaction ==  null) {
             transaction = transactionManager.getTransaction();
             context.setTransaction(transaction);
+            if (Logs.INVOCATION.isDebugEnabled()) {
+                Logs.INVOCATION.debugf("TransactionEJBClientInterceptor: Calling  handleSessionCreation: setting context transaction to caller transaction: caller transaction = %s", transaction);
+            }
         }
 
         setupStickinessIfRequired(context, true, transaction);
@@ -104,29 +110,53 @@ public final class TransactionInterceptor implements EJBClientInterceptor {
     }
 
     private void setupSessionAffinitiesIfNeeded(AbstractInvocationContext context) {
+        if (Logs.INVOCATION.isDebugEnabled()) {
+            Logs.INVOCATION.debugf("TransactionEJBClientInterceptor: calling DiscoveryEJBClientInterceptor.setupSessionAffinitiesIfNeeded");
+        }
         if (context instanceof EJBSessionCreationInvocationContext) {
             DiscoveryEJBClientInterceptor.setupSessionAffinities((EJBSessionCreationInvocationContext)context);
         }
     }
 
     private void setupStickinessIfRequired(AbstractInvocationContext context, boolean propagate, AbstractTransaction transaction) {
+
         ConcurrentMap<Application, URI> applications = null;
         if (transaction instanceof RemoteTransaction) {
+
             final URI location = ((RemoteTransaction) transaction).getLocation();
+            if (Logs.INVOCATION.isDebugEnabled()) {
+                Logs.INVOCATION.debugf("TransactionEJBClientInterceptor: calling setupStickinessIfRequired with RemoteTransaction, transaction location = %s", location);
+            }
             // we can only route this request to one place; do not load-balance
             if (location != null) {
+                if (Logs.INVOCATION.isDebugEnabled()) {
+                    Logs.INVOCATION.debugf("TransactionEJBClientInterceptor: setting destination = %s", location);
+                }
                 context.setDestination(location);
                 setupSessionAffinitiesIfNeeded(context);
             }
         }  else if (transaction instanceof LocalTransaction && propagate){
+
             applications = getOrCreateApplicationMap(transaction);
             URI destination = getApplicationAssociation(applications, context);
+            if (Logs.INVOCATION.isDebugEnabled()) {
+                Logs.INVOCATION.debugf("TransactionEJBClientInterceptor: calling setupStickinessIfRequired with LocalTransaction, application map = %s, application destination = %s", applications, destination);
+            }
             if (destination != null) {
+                if (Logs.INVOCATION.isDebugEnabled()) {
+                    Logs.INVOCATION.debugf("TransactionEJBClientInterceptor: setting destination = %s", destination);
+                }
                 context.setDestination(destination);
                 setupSessionAffinitiesIfNeeded(context);
             } else {
                 if (applications.size() > 0) {
+                    if (Logs.INVOCATION.isDebugEnabled()) {
+                        Logs.INVOCATION.debugf("TransactionEJBClientInterceptor: setting preferred destinations using map = %s", applications);
+                    }
                     context.putAttachment(PREFERRED_DESTINATIONS, applications.values());
+                }
+                if (Logs.INVOCATION.isDebugEnabled()) {
+                    Logs.INVOCATION.debugf("TransactionEJBClientInterceptor: setting applications attachment using map = %s", applications);
                 }
                 context.putAttachment(APPLICATIONS, applications);
             }
@@ -137,10 +167,17 @@ public final class TransactionInterceptor implements EJBClientInterceptor {
         final ClientTransactionPolicy transactionPolicy = context.getTransactionPolicy();
         AbstractTransaction transaction = context.getTransaction();
 
+        if (Logs.INVOCATION.isDebugEnabled()) {
+            Logs.INVOCATION.debugf("TransactionEJBClientInterceptor: calling handleInvocation, context transaction = %s, transaction policy = %s", transaction, transactionPolicy);
+        }
+
         // Always prefer the context TX, as the caller TX might be wrong
         // (e.g. retries happen in worker thread, not caller thread)
         if (transaction == null) {
             transaction = transactionManager.getTransaction();
+            if (Logs.INVOCATION.isDebugEnabled()) {
+                Logs.INVOCATION.debugf("TransactionEJBClientInterceptor: calling handleInvocation, no context transaction; using caller transaction = %s", transaction);
+            }
         }
 
         setupStickinessIfRequired(context, transactionPolicy.propagate(), transaction);
@@ -156,6 +193,9 @@ public final class TransactionInterceptor implements EJBClientInterceptor {
             }
         }
         if (transactionPolicy.propagate()) {
+            if (Logs.INVOCATION.isDebugEnabled()) {
+                Logs.INVOCATION.debugf("TransactionEJBClientInterceptor: Calling  handleInvocation: setting context transaction: transaction = %s", transaction);
+            }
             context.setTransaction(transaction);
         }
 
@@ -201,6 +241,14 @@ public final class TransactionInterceptor implements EJBClientInterceptor {
             int result = application.hashCode();
             result = 31 * result + distinctName.hashCode();
             return result;
+        }
+
+        @Override
+        public String toString() {
+            return "Application{" +
+                    "application='" + application + '\'' +
+                    ", distinctName='" + distinctName + '\'' +
+                    '}';
         }
     }
 }

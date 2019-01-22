@@ -460,6 +460,10 @@ public final class EJBClientInvocationContext extends AbstractInvocationContext 
                 final URI destination = getDestination();
                 final EJBReceiver receiver;
                 try {
+                    if (Logs.INVOCATION.isDebugEnabled()) {
+                        Logs.INVOCATION.debugf("sendRequest: setting receiver, strong affinity = %s, weak affinity = %s, remote destination is: %s",
+                                getLocator().getAffinity(), invocationHandler.getWeakAffinity(), destination);
+                    }
                     receiver = getClientContext().resolveReceiver(destination, getLocator());
                 } catch (Throwable t) {
                     synchronized (lock) {
@@ -488,6 +492,9 @@ public final class EJBClientInvocationContext extends AbstractInvocationContext 
                 }
             } else {
                 try {
+                    if (Logs.INVOCATION.isDebugEnabled()) {
+                        Logs.INVOCATION.debugf("sendRequest: calling interceptor: %s", chain[idx].getInterceptorInstance());
+                    }
                     chain[idx].getInterceptorInstance().handleInvocation(this);
                 } catch (Throwable t) {
                     synchronized (lock) {
@@ -643,6 +650,9 @@ public final class EJBClientInvocationContext extends AbstractInvocationContext 
                 throw t;
             } finally {
                 if (idx == 0) {
+                    if (Logs.INVOCATION.isDebugEnabled()) {
+                        Logs.INVOCATION.debugf("getResult(): invocation returned, relocating EJB: strong affinity = %s, weak affinity = %s", getLocator().getAffinity(), getWeakAffinity());
+                    }
                     // relocate the EJB
                     invocationHandler.setWeakAffinity(getWeakAffinity());
                     invocationHandler.setStrongAffinity(getLocator().getAffinity());

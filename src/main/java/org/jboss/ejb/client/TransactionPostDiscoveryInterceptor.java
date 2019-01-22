@@ -63,6 +63,9 @@ public final class TransactionPostDiscoveryInterceptor implements EJBClientInter
         if (applications != null) {
             URI destination = context.getDestination();
             Application registered = updateOrFollowApplication(context, applications, true);
+            if (Logs.INVOCATION.isDebugEnabled()) {
+                Logs.INVOCATION.debugf("TransactionPostDiscoveryInterceptor: calling handleInvocation, destination = %s, application = %s", destination, registered);
+            }
             try {
                 context.sendRequest();
             } catch (NoSuchEJBException | RequestSendFailedException e) {
@@ -85,6 +88,9 @@ public final class TransactionPostDiscoveryInterceptor implements EJBClientInter
         if (applications != null) {
             URI destination = context.getDestination();
             Application registered = updateOrFollowApplication(context, applications, false);
+            if (Logs.INVOCATION.isDebugEnabled()) {
+                Logs.INVOCATION.debugf("TransactionPostDiscoveryInterceptor: calling handleSessionCreation, destination = %s, application = %s", destination, registered);
+            }
             try {
                 return context.proceed();
             } catch (NoSuchEJBException | RequestSendFailedException e) {
@@ -107,12 +113,21 @@ public final class TransactionPostDiscoveryInterceptor implements EJBClientInter
         if (destination != null) {
             EJBIdentifier identifier = context.getLocator().getIdentifier();
             Application application = toApplication(identifier);
+            if (Logs.INVOCATION.isDebugEnabled()) {
+                Logs.INVOCATION.debugf("TransactionPostDiscoveryInterceptor: calling updateOrFollowApplication, destination = %s, application = %s", destination, application);
+            }
             URI existing = applications.putIfAbsent(application, destination);
             if (existing != null) {
+                if (Logs.INVOCATION.isDebugEnabled()) {
+                    Logs.INVOCATION.debugf("TransactionPostDiscoveryInterceptor: calling updateOrFollowApplication, updating from map, destination = %s", existing);
+                }
                 // Someone else set a mapping, use it instead
                 context.setDestination(existing);
             } else {
                 if (register) {
+                    if (Logs.INVOCATION.isDebugEnabled()) {
+                        Logs.INVOCATION.debugf("TransactionPostDiscoveryInterceptor: calling updateOrFollowApplication, added destination for application, application = %s", application);
+                    }
                     context.putAttachment(APPLICATION, application);
                 }
 

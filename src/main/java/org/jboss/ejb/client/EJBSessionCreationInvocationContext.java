@@ -59,6 +59,9 @@ public final class EJBSessionCreationInvocationContext extends AbstractInvocatio
             if (chain.length == idx) {
                 final URI destination = getDestination();
                 final EJBReceiver receiver = getClientContext().resolveReceiver(destination, getLocator());
+                if (Logs.INVOCATION.isDebugEnabled()) {
+                    Logs.INVOCATION.debugf("session creation proceed(): setting receiver, remote destination is: %s", destination);
+                }
                 setReceiver(receiver);
                 final SessionID sessionID = receiver.createSession(new EJBReceiverSessionCreationContext(this, authenticationContext));
                 if (sessionID == null) {
@@ -67,6 +70,9 @@ public final class EJBSessionCreationInvocationContext extends AbstractInvocatio
                 retry = false;
                 return sessionID;
             } else {
+                if (Logs.INVOCATION.isDebugEnabled()) {
+                    Logs.INVOCATION.debugf("session creation proceed(): calling interceptor: %s", chain[idx].getInterceptorInstance());
+                }
                 return chain[idx].getInterceptorInstance().handleSessionCreation(this);
             }
         } finally {
