@@ -199,6 +199,10 @@ public final class EJBClient {
         final T proxy = createProxy(statefulLocator, authenticationContextSupplier);
         final Affinity weakAffinity = context.getWeakAffinity();
 
+        if (Logs.INVOCATION.isDebugEnabled()) {
+            Logs.INVOCATION.debugf("createSessionProxy: strong affinity = %s, weak affinity = %s", statefulLocator.getAffinity(), context.getWeakAffinity());
+        }
+
         if (weakAffinity != null && Affinity.NONE != weakAffinity) {
             setWeakAffinity(proxy, weakAffinity);
         }
