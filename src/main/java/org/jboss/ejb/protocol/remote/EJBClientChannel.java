@@ -173,6 +173,8 @@ class EJBClientChannel {
         boolean leaveOpen = false;
         try {
             final int msg = message.readUnsignedByte();
+            // debug
+            String remoteEndpoint = channel.getConnection().getRemoteEndpointName();
             switch (msg) {
                 case Protocol.TXN_RESPONSE:
                 case Protocol.INVOCATION_RESPONSE:
@@ -206,9 +208,9 @@ class EJBClientChannel {
                         final String distinctName = message.readUTF();
                         final EJBModuleIdentifier moduleIdentifier = new EJBModuleIdentifier(appName, moduleName, distinctName);
                         moduleList[i] = moduleIdentifier;
-
-                        Logs.INVOCATION.debugf("Received MODULE_AVAILABLE(%x) message for module %s", msg, moduleIdentifier);
-
+                        if (Logs.INVOCATION.isDebugEnabled()) {
+                            Logs.INVOCATION.debugf("Received MODULE_AVAILABLE(%x) message from %s for module %s", msg, remoteEndpoint, moduleIdentifier);
+                        }
                     }
                     nodeInformation.addModules(this, moduleList);
                     finishPart(0b01);
@@ -224,7 +226,9 @@ class EJBClientChannel {
                         final String distinctName = message.readUTF();
                         final EJBModuleIdentifier moduleIdentifier = new EJBModuleIdentifier(appName, moduleName, distinctName);
                         set.add(moduleIdentifier);
-                        Logs.INVOCATION.debugf("Received MODULE_UNAVAILABLE(%x) message for module %s", msg, moduleIdentifier);
+                        if (Logs.INVOCATION.isDebugEnabled()) {
+                            Logs.INVOCATION.debugf("Received MODULE_UNAVAILABLE(%x) message from %s for module %s", msg, remoteEndpoint, moduleIdentifier);
+                        }
                     }
                     nodeInformation.removeModules(this, set);
                     break;
@@ -239,7 +243,9 @@ class EJBClientChannel {
                             final String nodeName = message.readUTF();
                             discoveredNodeRegistry.addNode(clusterName, nodeName, channel.getConnection().getPeerURI());
                             final NodeInformation nodeInformation = discoveredNodeRegistry.getNodeInformation(nodeName);
-                            Logs.INVOCATION.debugf("Received CLUSTER_TOPOLOGY(%x) message, registering cluster %s to node %s", msg, clusterName, nodeName);
+                            if (Logs.INVOCATION.isDebugEnabled()) {
+                                Logs.INVOCATION.debugf("Received CLUSTER_TOPOLOGY(%x) message from %s, registering cluster %s to node %s", msg, remoteEndpoint, clusterName, nodeName);
+                            }
 
                             // create and register the concrete ServiceURLs for each client mapping
                             int mappingCount = PackedInteger.readPackedInteger(message);
@@ -254,7 +260,9 @@ class EJBClientChannel {
                                 final int destPort = message.readUnsignedShort();
                                 final InetSocketAddress destination = new InetSocketAddress(destHost, destPort);
                                 nodeInformation.addAddress(channel.getConnection().getProtocol(), clusterName, block, destination);
-                                Logs.INVOCATION.debugf("Received CLUSTER_TOPOLOGY(%x) message block, registering block %s to address %s", msg, block, destination);
+                                if (Logs.INVOCATION.isDebugEnabled()) {
+                                    Logs.INVOCATION.debugf("Received CLUSTER_TOPOLOGY(%x) message block from %s, registering block %s to address %s", msg, remoteEndpoint, block, destination);
+                                }
                             }
                         }
                     }
@@ -266,9 +274,9 @@ class EJBClientChannel {
                     for (int i = 0; i < clusterCount; i ++) {
                         String clusterName = message.readUTF();
                         discoveredNodeRegistry.removeCluster(clusterName);
-
-                        Logs.INVOCATION.debugf("Received CLUSTER_TOPOLOGY_REMOVAL(%x) message for cluster %s", msg, clusterName);
-
+                        if (Logs.INVOCATION.isDebugEnabled()) {
+                            Logs.INVOCATION.debugf("Received CLUSTER_TOPOLOGY_REMOVAL(%x) message from %s for cluster %s", msg, remoteEndpoint, clusterName);
+                        }
                         for (NodeInformation nodeInformation : discoveredNodeRegistry.getAllNodeInformation()) {
                             nodeInformation.removeCluster(clusterName);
                         }
@@ -285,9 +293,9 @@ class EJBClientChannel {
                             discoveredNodeRegistry.removeNode(clusterName, nodeName);
                             final NodeInformation nodeInformation = discoveredNodeRegistry.getNodeInformation(nodeName);
                             nodeInformation.removeCluster(clusterName);
-
-                            Logs.INVOCATION.debugf("Received CLUSTER_TOPOLOGY_NODE_REMOVAL(%x) message for (cluster, node) = (%s, %s)", msg, clusterName, nodeName);
-
+                            if (Logs.INVOCATION.isDebugEnabled()) {
+                                Logs.INVOCATION.debugf("Received CLUSTER_TOPOLOGY_NODE_REMOVAL(%x) message from %s for (cluster, node) = (%s, %s)", msg, remoteEndpoint, clusterName, nodeName);
+                            }
                         }
                     }
                     break;
@@ -802,6 +810,12 @@ class EJBClientChannel {
                             }
                         }
                         StatefulEJBLocator<T> locator = statelessLocator.withSessionAndAffinity(SessionID.createSessionID(bytes), affinity);
+
+                        if (Logs.INVOCATION.isDebugEnabled()) {
+                            Logs.INVOCATION.debugf("EJBClientChannel.SessionOpenInvocation.getResult(): updating Locator (sessionID), new = %s; weakAffinity = %s",
+                                    locator, clientInvocationContext.getWeakAffinity());
+                        }
+
                         clientInvocationContext.setLocator(locator);
                         return locator;
                     }
@@ -1033,16 +1047,28 @@ class EJBClientChannel {
                             final Object invokedProxy = context.getInvokedProxy();
                             EJBClient.convertToStateful(invokedProxy, sessionID);
                             context.setLocator(EJBClient.getLocatorFor(invokedProxy));
+
+                            if (Logs.INVOCATION.isDebugEnabled()) {
+                                Logs.INVOCATION.debugf("EJBClientChannel.handleResponse: updated Locator (sessionID); new = %s", context.getLocator().getAffinity());
+                            }
                         }
                         if (allAreSet(updateBits, Protocol.UPDATE_BIT_WEAK_AFFINITY)) {
                             byte[] b = new byte[PackedInteger.readPackedInteger(inputStream)];
                             inputStream.readFully(b);
                             context.setWeakAffinity(new NodeAffinity(new String(b, StandardCharsets.UTF_8)));
+
+                            if (Logs.INVOCATION.isDebugEnabled()) {
+                                Logs.INVOCATION.debugf("EJBClientChannel.handleResponse: updated weak affinity = %s", context.getWeakAffinity());
+                            }
                         }
                         if (allAreSet(updateBits, Protocol.UPDATE_BIT_STRONG_AFFINITY)) {
                             byte[] b = new byte[PackedInteger.readPackedInteger(inputStream)];
                             inputStream.readFully(b);
                             context.setLocator(context.getLocator().withNewAffinity(new ClusterAffinity(new String(b, StandardCharsets.UTF_8))));
+
+                            if (Logs.INVOCATION.isDebugEnabled()) {
+                                Logs.INVOCATION.debugf("EJBClientChannel.handleResponse: updated strong affinity = %s", context.getLocator().getAffinity());
+                            }
                         }
                     } catch (RuntimeException | IOException | RollbackException | SystemException e) {
                         receiverInvocationContext.requestFailed(new EJBException(e), getRetryExecutor());
@@ -1218,6 +1244,10 @@ class EJBClientChannel {
                             final Affinity affinity = unmarshaller.readObject(Affinity.class);
                             clientInvocationContext.putAttachment(AttachmentKeys.WEAK_AFFINITY, affinity);
                             clientInvocationContext.setWeakAffinity(affinity);
+
+                            if (Logs.INVOCATION.isDebugEnabled()) {
+                                Logs.INVOCATION.debugf("EJBClientChannel.MethodCallResultProducer: updated weak affinity (version < 3) = %s", affinity);
+                            }
                         } else if (key.equals(EJBClientInvocationContext.PRIVATE_ATTACHMENTS_KEY)) {
                             // skip
                             unmarshaller.readObject();
