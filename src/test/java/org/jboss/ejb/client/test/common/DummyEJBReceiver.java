@@ -41,7 +41,7 @@ public class DummyEJBReceiver extends EJBReceiver {
     }
 
     @Override
-    protected void associate(EJBReceiverContext context) {
+    protected void associate(EJBReceiverContext context, boolean supressOpenChannelFailure) {
     }
 
     @Override

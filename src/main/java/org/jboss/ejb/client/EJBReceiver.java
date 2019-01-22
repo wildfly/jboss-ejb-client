@@ -81,8 +81,9 @@ public abstract class EJBReceiver extends Attachable {
      * and it should maintain that availability list for the life of the receiver association.
      *
      * @param context the receiver context
+     * @param supressOpenChannelFailure  indicates if failure to open channel should be supressed
      */
-    protected abstract void associate(EJBReceiverContext context);
+    protected abstract void associate(EJBReceiverContext context, boolean supressOpenChannelFailure);
 
     /**
      * Remove an association of this EJB receiver with the EJB client context.

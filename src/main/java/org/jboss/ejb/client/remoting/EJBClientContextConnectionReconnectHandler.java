@@ -64,7 +64,7 @@ class EJBClientContextConnectionReconnectHandler extends MaxAttemptsReconnectHan
 
             this.ejbClientContext.unregisterNodeEJBReceivers(((RemotingConnectionEJBReceiver)this.ejbReceiver).getNodeName());
 
-            this.ejbClientContext.registerEJBReceiver(this.ejbReceiver);
+            this.ejbClientContext.registerEJBReceiver(this.ejbReceiver, true);
         } finally {
             // if we successfully re-connected or if no more attempts are allowed for re-connecting
             // then unregister this ReconnectHandler from the EJBClientContext

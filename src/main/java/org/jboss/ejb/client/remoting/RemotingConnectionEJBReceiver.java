@@ -167,7 +167,7 @@ public final class RemotingConnectionEJBReceiver extends EJBReceiver {
     }
 
     @Override
-    public void associate(final EJBReceiverContext context) {
+    public void associate(final EJBReceiverContext context, final boolean supressOpenChannelFailure) {
         // a latch for waiting a version handshake
         final CountDownLatch versionHandshakeLatch = new CountDownLatch(1);
         // setup a latch which will be used for waiting initial module availability report from the server
@@ -185,7 +185,8 @@ public final class RemotingConnectionEJBReceiver extends EJBReceiver {
             }
 
             public void handleFailed(final IOException exception, final EJBReceiverContext context) {
-                logger.error("Failed to open channel for context " + context, exception);
+                if (!supressOpenChannelFailure)
+                    logger.error("Failed to open channel for context " + context, exception);
                 context.close();
             }
 
