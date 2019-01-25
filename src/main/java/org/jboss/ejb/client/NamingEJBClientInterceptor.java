@@ -93,7 +93,23 @@ public final class NamingEJBClientInterceptor implements EJBClientInterceptor {
             return context.proceed();
         } else {
             if (setDestination(context, namingProvider)) try {
-                return context.proceed();
+                if (Logs.INVOCATION.isDebugEnabled()) {
+                    Logs.INVOCATION.debugf("NamingEJBClientInterceptor: called setNamingDestination: destination = %s", context.getDestination());
+                }
+                SessionID theSessionID = context.proceed();
+                if (Logs.INVOCATION.isDebugEnabled()) {
+                    Logs.INVOCATION.debugf("NamingEJBClientInterceptor: returned from handleSessionCreation: sessionID = %s", theSessionID);
+                }
+                // we should setup session affinities here
+                if (context instanceof EJBSessionCreationInvocationContext) {
+                    // this will convert strong=NONE to target or URI (if target not defined)
+                    // this will also convert strong=Cluster and weak = NONE to strong=Cluster and weak = target or URI (if target not defined)
+                    DiscoveryEJBClientInterceptor.setupSessionAffinities((EJBSessionCreationInvocationContext)context);
+                    if (Logs.INVOCATION.isDebugEnabled()) {
+                        Logs.INVOCATION.debugf("NamingEJBClientInterceptor: called DiscoveryEJBClientInterceptor.setupSessionAffinities");
+                    }
+                }
+                return theSessionID;
             } catch (NoSuchEJBException | RequestSendFailedException e) {
                 processMissingTarget(context);
                 throw e;

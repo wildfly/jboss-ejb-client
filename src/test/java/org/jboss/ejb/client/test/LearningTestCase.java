@@ -2,6 +2,7 @@ package org.jboss.ejb.client.test;
 
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Proxy;
+import java.net.URI;
 import java.util.Hashtable;
 import java.util.Properties;
 
@@ -13,6 +14,7 @@ import org.jboss.ejb.client.ClusterAffinity;
 import org.jboss.ejb.client.EJBClient;
 import org.jboss.ejb.client.EJBIdentifier;
 import org.jboss.ejb.client.StatelessEJBLocator;
+import org.jboss.ejb.client.URIAffinity;
 import org.jboss.ejb.client.test.common.DummyServer;
 import org.jboss.ejb.client.test.common.Echo;
 import org.jboss.ejb.client.test.common.EchoBean;
@@ -31,6 +33,8 @@ import org.wildfly.naming.client.WildFlyRootContext;
 import org.wildfly.naming.client.util.FastHashtable;
 
 /**
+ * Tests support for a feature where proxies constructed from the same JNDI initial context share default values for strong affinity.
+ *
  * @author Jason T. Greene
  */
 public class LearningTestCase {
@@ -43,9 +47,8 @@ public class LearningTestCase {
 
     private static final String SERVER_NAME = "test-server";
 
-
     private static DummyServer server;
-    private static  boolean serverStarted = false;
+    private static boolean serverStarted = false;
 
     @BeforeClass
     public static void beforeTest() throws Exception {
@@ -111,7 +114,8 @@ public class LearningTestCase {
          props.put("java.naming.factory.initial", WildFlyInitialContextFactory.class.getName());
          props.put("java.naming.provider.url", "remote://localhost:6999");
 
-         verifyAffinity(props, Affinity.NONE, new ClusterAffinity("test"));
+         URIAffinity serverURIAffinity = new URIAffinity(new URI("remote://localhost:6999"));
+         verifyAffinity(props, serverURIAffinity, new ClusterAffinity("test"));
      }
 
     @Test
@@ -121,7 +125,8 @@ public class LearningTestCase {
         props.put("java.naming.provider.url", "remote://localhost:6999");
         props.put("jboss.disable-affinity-learning", "true");
 
-        verifyAffinity(props, Affinity.NONE, Affinity.NONE);
+        URIAffinity serverURIAffinity = new URIAffinity(new URI("remote://localhost:6999"));
+        verifyAffinity(props, serverURIAffinity, new URIAffinity(new URI("remote://localhost:6999")));
     }
 
     @Test
@@ -142,8 +147,10 @@ public class LearningTestCase {
         props.put("java.naming.provider.url", "remote://localhost:6999");
 
         WildFlyRootContext ctx1 = new WildFlyRootContext(props.clone());
-        verifyAffinity(props, Affinity.NONE, new ClusterAffinity("test"));
-        verifyAffinity(ctx1, Affinity.NONE, new ClusterAffinity("test"));
+
+        URIAffinity serverURIAffinity = new URIAffinity(new URI("remote://localhost:6999"));
+        verifyAffinity(props, serverURIAffinity, new ClusterAffinity("test"));
+        verifyAffinity(ctx1, serverURIAffinity, new ClusterAffinity("test"));
 
         ClusterAffinity bob = new ClusterAffinity("bob");
     }
