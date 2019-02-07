@@ -84,6 +84,10 @@ public final class EJBSessionCreationInvocationContext extends AbstractInvocatio
         retry = true;
     }
 
+    public AuthenticationContext getAuthenticationContext() {
+        return authenticationContext;
+    }
+
     boolean shouldRetry() {
         return retry;
     }
