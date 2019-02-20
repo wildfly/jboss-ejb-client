@@ -86,6 +86,10 @@ final class EJBInvocationHandler<T> extends Attachable implements InvocationHand
         if (locator instanceof StatefulEJBLocator) {
             // set the weak affinity to the node on which the session was created
             setWeakAffinity(locator.getAffinity());
+
+            if (Logs.INVOCATION.isDebugEnabled()) {
+                Logs.INVOCATION.debugf("EJBInvocationHandler: setting weak affinity = %s", locator.getAffinity());
+            }
         }
     }
 
@@ -103,6 +107,10 @@ final class EJBInvocationHandler<T> extends Attachable implements InvocationHand
         if (locator instanceof StatefulEJBLocator) {
             // set the weak affinity to the node on which the session was created
             setWeakAffinity(locator.getAffinity());
+
+            if (Logs.INVOCATION.isDebugEnabled()) {
+                Logs.INVOCATION.debugf("EJBInvocationHandler(constructor): setting weak affinity = %s", locator.getAffinity());
+            }
         }
     }
 

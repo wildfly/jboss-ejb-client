@@ -180,6 +180,7 @@ public class TransactionTestCase {
         HashSet<String> ids = new HashSet<>();
 
         for (int attempts = 0; attempts < 40; attempts++) {
+            System.out.println("\n *** Starting transaction # " + attempts + " ***\n");
             transaction.begin();
             HashMap<String, Integer> replies = new HashMap<>();
             String id = null;
@@ -196,6 +197,7 @@ public class TransactionTestCase {
             Assert.assertEquals(1, replies.size());
             Assert.assertEquals(20, replies.values().iterator().next().intValue());
             ids.add(id);
+            System.out.println("\n*** Committing transaction # " + attempts + " ***\n");
             transaction.commit();
         }
 

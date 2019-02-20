@@ -36,7 +36,7 @@ public final class URIAffinity extends Affinity {
      *
      * @param uri the URI to bind to (must not be {@code null})
      */
-    URIAffinity(final URI uri) {
+    public URIAffinity(final URI uri) {
         if (uri == null) {
             throw new IllegalArgumentException("URI is null");
         }
