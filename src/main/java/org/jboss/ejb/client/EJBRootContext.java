@@ -154,11 +154,17 @@ class EJBRootContext extends AbstractContext {
         final Object proxy;
         if (stateful) {
             try {
+                if (Logs.INVOCATION.isDebugEnabled()) {
+                    Logs.INVOCATION.debugf("lookupNative: createSessionProxy, locator = %s, baseAffinity = %s", statelessLocator, baseAffinity.get());
+                }
                 proxy = EJBClient.createSessionProxy(statelessLocator, providerEnvironment.getAuthenticationContextSupplier(), namingProvider);
             } catch (Exception e) {
                 throw Logs.MAIN.lookupFailed(name, name, e);
             }
         } else {
+            if (Logs.INVOCATION.isDebugEnabled()) {
+                Logs.INVOCATION.debugf("lookupNative: createProxy, locator = %s", statelessLocator);
+            }
             proxy = EJBClient.createProxy(statelessLocator, providerEnvironment.getAuthenticationContextSupplier());
         }
         if (namingProvider != null) EJBClient.putProxyAttachment(proxy, Keys.NAMING_PROVIDER_ATTACHMENT_KEY, namingProvider);
@@ -171,6 +177,10 @@ class EJBRootContext extends AbstractContext {
         Long invocationTimeout = getLongValueFromEnvironment(PROPERTY_KEY_INVOCATION_TIMEOUT);
         if (invocationTimeout != null) {
             EJBClient.setInvocationTimeout(proxy, invocationTimeout.longValue(), TimeUnit.MILLISECONDS);
+        }
+
+        if (Logs.INVOCATION.isDebugEnabled()) {
+            Logs.INVOCATION.debugf("lookupNative: created proxy, locator = %s, weakAffinity = %s", EJBClient.getLocatorFor(proxy), EJBClient.getWeakAffinity(proxy));
         }
 
         return proxy;

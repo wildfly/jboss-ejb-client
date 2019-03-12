@@ -60,9 +60,15 @@ public final class NamingEJBClientInterceptor implements EJBClientInterceptor {
             context.putAttachment(Keys.NAMING_PROVIDER_ATTACHMENT_KEY, namingProvider);
         }
         if (namingProvider == null || context.getDestination() != null || context.getLocator().getAffinity() != Affinity.NONE) {
+            if (Logs.INVOCATION.isDebugEnabled()) {
+                Logs.INVOCATION.debugf("NamingEJBClientInterceptor: calling handleInvocation: skipping missing target");
+            }
             context.putAttachment(SKIP_MISSING_TARGET, Boolean.TRUE);
             context.sendRequest();
         } else {
+            if (Logs.INVOCATION.isDebugEnabled()) {
+                Logs.INVOCATION.debugf("NamingEJBClientInterceptor: calling handleInvocation: setting destination");
+            }
             if (setDestination(context, namingProvider)) try {
                 context.sendRequest();
             } catch (NoSuchEJBException | RequestSendFailedException e) {
@@ -93,7 +99,23 @@ public final class NamingEJBClientInterceptor implements EJBClientInterceptor {
             return context.proceed();
         } else {
             if (setDestination(context, namingProvider)) try {
-                return context.proceed();
+                if (Logs.INVOCATION.isDebugEnabled()) {
+                    Logs.INVOCATION.debugf("NamingEJBClientInterceptor: called setNamingDestination: destination = %s", context.getDestination());
+                }
+                SessionID theSessionID = context.proceed();
+                if (Logs.INVOCATION.isDebugEnabled()) {
+                    Logs.INVOCATION.debugf("NamingEJBClientInterceptor: returned from handleSessionCreation: sessionID = %s", theSessionID);
+                }
+                // we should setup session affinities here
+                if (context instanceof EJBSessionCreationInvocationContext) {
+                    // this will convert strong=NONE to target or URI (if target not defined)
+                    // this will also convert strong=Cluster and weak = NONE to strong=Cluster and weak = target or URI (if target not defined)
+                    DiscoveryEJBClientInterceptor.setupSessionAffinities((EJBSessionCreationInvocationContext)context);
+                    if (Logs.INVOCATION.isDebugEnabled()) {
+                        Logs.INVOCATION.debugf("NamingEJBClientInterceptor: called DiscoveryEJBClientInterceptor.setupSessionAffinities");
+                    }
+                }
+                return theSessionID;
             } catch (NoSuchEJBException | RequestSendFailedException e) {
                 processMissingTarget(context);
                 throw e;
@@ -122,8 +144,12 @@ public final class NamingEJBClientInterceptor implements EJBClientInterceptor {
     static boolean setNamingDestination(final AbstractInvocationContext context, final NamingProvider namingProvider) {
         final ProviderEnvironment providerEnvironment = namingProvider.getProviderEnvironment();
         final List<URI> providerUris = providerEnvironment.getProviderUris();
-
+        if (Logs.INVOCATION.isDebugEnabled()) {
+            Logs.INVOCATION.debugf("NamingEJBClientInterceptor: calling setNamingDestination: providerURIs = %s, invocationContext type = %s", providerUris.toString(), context.getClass().getName());
+        }
+        // select the subset of providerURIs that agree with TransactionInterceptor's choices
         List<URI> uris = findPreferredURIs(context, providerUris);
+        // if there are none, use all non-blacklisted providerURIs instead
         if (uris == null) {
             uris = new ArrayList<>(providerUris.size());
             for (URI uri : providerUris) {
@@ -139,9 +165,15 @@ public final class NamingEJBClientInterceptor implements EJBClientInterceptor {
             return false;
         } else if (size == 1) {
             context.setDestination(uris.get(0));
+            if (Logs.INVOCATION.isDebugEnabled()) {
+                Logs.INVOCATION.debugf("NamingEJBClientInterceptor: setting destination: (size == 1), destination = %s", context.getDestination());
+            }
             return true;
         } else {
             context.setDestination(uris.get(ThreadLocalRandom.current().nextInt(size)));
+            if (Logs.INVOCATION.isDebugEnabled()) {
+                Logs.INVOCATION.debugf("NamingEJBClientInterceptor: setting destination: (size > 1), destination = %s", context.getDestination());
+            }
         }
 
         if (context instanceof EJBSessionCreationInvocationContext) {
@@ -167,6 +199,9 @@ public final class NamingEJBClientInterceptor implements EJBClientInterceptor {
                 result.add(check);
             }
         }
+        if (Logs.INVOCATION.isDebugEnabled()) {
+            Logs.INVOCATION.debugf("NamingEJBClientInterceptor: computing preferred URIs: URIs = %s, preferred URIs = %s", uris, result);
+        }
 
         return result;
     }
@@ -178,6 +213,10 @@ public final class NamingEJBClientInterceptor implements EJBClientInterceptor {
             return;
         }
 
+        if (Logs.INVOCATION.isDebugEnabled()) {
+            Logs.INVOCATION.debugf("NamingEJBClientInterceptor: missing target, *** retrying ***: locator = %s", context.getLocator());
+        }
+
         // Oops, we got some wrong information!
         addBlackListedDestination(context, destination);
 
@@ -185,6 +224,11 @@ public final class NamingEJBClientInterceptor implements EJBClientInterceptor {
         if (! (locator.getAffinity() instanceof ClusterAffinity)) {
             // it *was* "none" affinity, but it has been relocated; locate it back again
             context.setLocator(locator.withNewAffinity(Affinity.NONE));
+
+            if (Logs.INVOCATION.isDebugEnabled()) {
+                Logs.INVOCATION.debugf("NamingEJBClientInterceptor: resetting strong affinity = %s", context.getLocator().getAffinity());
+            }
+
         }
         // clear the weak affinity so that cluster invocations can be re-targeted.
         context.setWeakAffinity(Affinity.NONE);

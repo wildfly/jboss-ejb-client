@@ -825,7 +825,9 @@ public final class EJBClientContext extends Attachable implements Contextual<EJB
         // Special hook for naming; let's replace this sometime soon.
         if (namingProvider != null) context.putAttachment(Keys.NAMING_PROVIDER_ATTACHMENT_KEY, namingProvider);
 
-        Logs.INVOCATION.tracef("Calling createSession(locator = %s)",statelessLocator);
+        if (Logs.INVOCATION.isDebugEnabled()) {
+            Logs.INVOCATION.debugf("Calling createSession(locator = %s)", statelessLocator);
+        }
 
         SessionID sessionID = null;
         for (int i = 0; i < MAX_SESSION_RETRIES; i++) {
@@ -855,9 +857,15 @@ public final class EJBClientContext extends Attachable implements Contextual<EJB
             if (i == MAX_SESSION_RETRIES - 1) {
                 throw new RequestSendFailedException(t.getMessage() + " (maximum retries exceeded)", t);
             }
-            Logs.INVOCATION.tracef("Retrying invocation (attempt %d): %s", i + 1, statelessLocator);
+            if (Logs.INVOCATION.isDebugEnabled()) {
+                Logs.INVOCATION.debugf("Retrying invocation (attempt %d): %s", i + 1, statelessLocator);
+            }
         }
         final Affinity affinity = context.getLocator().getAffinity();
+
+        if (Logs.INVOCATION.isDebugEnabled()) {
+            Logs.INVOCATION.debugf("Session created: session id: %s , affinity: %s", sessionID, affinity);
+        }
 
         return statelessLocator.withSessionAndAffinity(sessionID, affinity);
     }
