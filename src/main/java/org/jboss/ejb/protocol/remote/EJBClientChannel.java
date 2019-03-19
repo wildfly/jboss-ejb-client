@@ -208,8 +208,9 @@ class EJBClientChannel {
                         final String distinctName = message.readUTF();
                         final EJBModuleIdentifier moduleIdentifier = new EJBModuleIdentifier(appName, moduleName, distinctName);
                         moduleList[i] = moduleIdentifier;
+
                         if (Logs.INVOCATION.isDebugEnabled()) {
-                            Logs.INVOCATION.debugf("Received MODULE_AVAILABLE(%x) message from %s for module %s", msg, remoteEndpoint, moduleIdentifier);
+                            Logs.INVOCATION.debugf("Received MODULE_AVAILABLE(%x) message from node %s for module %s", msg, remoteEndpoint, moduleIdentifier);
                         }
                     }
                     nodeInformation.addModules(this, moduleList);
@@ -226,8 +227,9 @@ class EJBClientChannel {
                         final String distinctName = message.readUTF();
                         final EJBModuleIdentifier moduleIdentifier = new EJBModuleIdentifier(appName, moduleName, distinctName);
                         set.add(moduleIdentifier);
+
                         if (Logs.INVOCATION.isDebugEnabled()) {
-                            Logs.INVOCATION.debugf("Received MODULE_UNAVAILABLE(%x) message from %s for module %s", msg, remoteEndpoint, moduleIdentifier);
+                            Logs.INVOCATION.debugf("Received MODULE_UNAVAILABLE(%x) message from node %s for module %s", msg, remoteEndpoint, moduleIdentifier);
                         }
                     }
                     nodeInformation.removeModules(this, set);
@@ -243,8 +245,9 @@ class EJBClientChannel {
                             final String nodeName = message.readUTF();
                             discoveredNodeRegistry.addNode(clusterName, nodeName, channel.getConnection().getPeerURI());
                             final NodeInformation nodeInformation = discoveredNodeRegistry.getNodeInformation(nodeName);
+
                             if (Logs.INVOCATION.isDebugEnabled()) {
-                                Logs.INVOCATION.debugf("Received CLUSTER_TOPOLOGY(%x) message from %s, registering cluster %s to node %s", msg, remoteEndpoint, clusterName, nodeName);
+                                Logs.INVOCATION.debugf("Received CLUSTER_TOPOLOGY(%x) message from node %s, registering cluster %s to node %s", msg, remoteEndpoint, clusterName, nodeName);
                             }
 
                             // create and register the concrete ServiceURLs for each client mapping
@@ -274,9 +277,11 @@ class EJBClientChannel {
                     for (int i = 0; i < clusterCount; i ++) {
                         String clusterName = message.readUTF();
                         discoveredNodeRegistry.removeCluster(clusterName);
+
                         if (Logs.INVOCATION.isDebugEnabled()) {
-                            Logs.INVOCATION.debugf("Received CLUSTER_TOPOLOGY_REMOVAL(%x) message from %s for cluster %s", msg, remoteEndpoint, clusterName);
+                            Logs.INVOCATION.debugf("Received CLUSTER_TOPOLOGY_REMOVAL(%x) message from node %s for cluster %s", msg, remoteEndpoint, clusterName);
                         }
+
                         for (NodeInformation nodeInformation : discoveredNodeRegistry.getAllNodeInformation()) {
                             nodeInformation.removeCluster(clusterName);
                         }
@@ -293,8 +298,9 @@ class EJBClientChannel {
                             discoveredNodeRegistry.removeNode(clusterName, nodeName);
                             final NodeInformation nodeInformation = discoveredNodeRegistry.getNodeInformation(nodeName);
                             nodeInformation.removeCluster(clusterName);
+
                             if (Logs.INVOCATION.isDebugEnabled()) {
-                                Logs.INVOCATION.debugf("Received CLUSTER_TOPOLOGY_NODE_REMOVAL(%x) message from %s for (cluster, node) = (%s, %s)", msg, remoteEndpoint, clusterName, nodeName);
+                                Logs.INVOCATION.debugf("Received CLUSTER_TOPOLOGY_NODE_REMOVAL(%x) message from node %s for (cluster, node) = (%s, %s)", msg, remoteEndpoint, clusterName, nodeName);
                             }
                         }
                     }
