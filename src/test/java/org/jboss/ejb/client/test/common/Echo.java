@@ -24,11 +24,8 @@ import org.jboss.ejb.client.annotation.ClientTransactionPolicy;
  * User: jpai
  */
 public interface Echo {
-
-    String echo(String msg);
-
-    String whoAreYou();
+    Result<String> echo(String msg);
 
     @ClientTransaction(ClientTransactionPolicy.NOT_SUPPORTED)
-    String whoAreYouNonTX();
+    Result<String> echoNonTx(String msg);
 }
