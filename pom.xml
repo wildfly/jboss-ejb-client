@@ -263,7 +263,11 @@
         <dependency>
             <groupId>org.jboss.threads</groupId>
             <artifactId>jboss-threads</artifactId>
+<<<<<<< HEAD
             <version>${version.org.jboss.threads}</version>
+=======
+            <version>2.3.3.Final</version>
+>>>>>>> Temp
             <scope>test</scope>
         </dependency>
 
