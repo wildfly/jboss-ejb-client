@@ -410,4 +410,14 @@ public class DummyServer {
         mappingList.add(new MappingInfo(destHost, destPort, srcIpAddress, bytes));
         return new NodeInfo(name, mappingList);
     }
+
+    public static final ClusterRemovalInfo getClusterRemovalInfo(String name, NodeInfo... nodes) {
+        List<String> nodeList = new ArrayList<String>();
+        for (NodeInfo node : nodes) {
+            nodeList.add(node.getNodeName());
+        }
+        return new ClusterRemovalInfo(name, nodeList);
+    }
+
+
 }

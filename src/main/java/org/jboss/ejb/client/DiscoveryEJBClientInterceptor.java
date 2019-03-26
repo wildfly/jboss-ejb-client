@@ -318,11 +318,14 @@ public final class DiscoveryEJBClientInterceptor implements EJBClientInterceptor
             if (weakAffinity instanceof NodeAffinity) {
                 filterSpec = FilterSpec.all(
                     FilterSpec.equal(FILTER_ATTR_CLUSTER, ((ClusterAffinity) affinity).getClusterName()),
-                    FilterSpec.equal(FILTER_ATTR_NODE, ((NodeAffinity) weakAffinity).getNodeName())
+                    FilterSpec.equal(FILTER_ATTR_NODE, ((NodeAffinity) weakAffinity).getNodeName()),
+                    // require that the module be deployed on the chosen node
+                    getFilterSpec(locator.getIdentifier().getModuleIdentifier())
                 );
                 fallbackFilterSpec = FilterSpec.all(
                     FilterSpec.equal(FILTER_ATTR_CLUSTER, ((ClusterAffinity) affinity).getClusterName()),
-                    FilterSpec.hasAttribute(FILTER_ATTR_NODE)
+                    FilterSpec.hasAttribute(FILTER_ATTR_NODE),
+                    getFilterSpec(locator.getIdentifier().getModuleIdentifier())
                 );
                 return doFirstMatchDiscovery(context, filterSpec, fallbackFilterSpec);
             } else if (weakAffinity instanceof URIAffinity || weakAffinity == Affinity.LOCAL) {
@@ -333,13 +336,16 @@ public final class DiscoveryEJBClientInterceptor implements EJBClientInterceptor
             } else {
                 // regular cluster discovery
                 filterSpec = FilterSpec.all(
-                    FilterSpec.equal(FILTER_ATTR_CLUSTER, ((ClusterAffinity) affinity).getClusterName())
+                    FilterSpec.equal(FILTER_ATTR_CLUSTER, ((ClusterAffinity) affinity).getClusterName()),
+                    // require that the module be deployed on the chosen node
+                    getFilterSpec(locator.getIdentifier().getModuleIdentifier())
                 );
                 return doClusterDiscovery(context, filterSpec);
             }
         } else {
             // no affinity in particular
             assert affinity == Affinity.NONE;
+            // aseert the module to be present
             filterSpec = getFilterSpec(locator.getIdentifier().getModuleIdentifier());
             return doAnyDiscovery(context, filterSpec, locator);
         }
