@@ -23,12 +23,12 @@ import org.jboss.ejb.client.legacy.JBossEJBProperties.ConnectionConfiguration;
 import org.jboss.ejb.client.legacy.JBossEJBProperties.ClusterConfiguration;
 import org.jboss.ejb.client.legacy.JBossEJBProperties.ClusterNodeConfiguration;
 import org.jboss.logging.Logger;
+import org.jboss.remoting3.RemotingOptions;
 import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.BeforeClass;
-import org.junit.Ignore;
 import org.junit.Test;
 import org.xnio.OptionMap;
 import org.xnio.Options;
@@ -82,7 +82,9 @@ public class JBossEJBPropertiesTestCase {
 
         final OptionMap endpointCreateOptionMap = OptionMap.builder().set(Options.SASL_POLICY_NOANONYMOUS, false).getMap();
         final OptionMap remoteConnectionProviderOptionMap = OptionMap.builder().set(Options.SSL_ENABLED, false).getMap();
-        final OptionMap connectionConnectOptionMap = OptionMap.builder().set(Options.SASL_POLICY_NOANONYMOUS, false).getMap();
+        final OptionMap connectionConnectOptionMap = OptionMap.builder().set(Options.SASL_POLICY_NOANONYMOUS, false).set(RemotingOptions.HEARTBEAT_INTERVAL, 5000)
+                .set(Options.READ_TIMEOUT, 10000).set(Options.WRITE_TIMEOUT, 10000).set(Options.KEEP_ALIVE, true)
+                .getMap();
         final OptionMap connectionChannelOptionMap = OptionMap.builder().set(Options.SASL_POLICY_NOANONYMOUS, false).getMap();
 
         final OptionMap clusterConnectOptionMap = OptionMap.builder().set(Options.SASL_POLICY_NOANONYMOUS, false).getMap();
@@ -194,7 +196,7 @@ public class JBossEJBPropertiesTestCase {
      */
     private void checkCommonSubConfiguration(String componentName, OptionMap connectionOptions, OptionMap channelOptions, long connectionTimeout, String callbackHandlerClassName, boolean connectEagerly, OptionMap expectedConnectionOptions, OptionMap expectedChannelOptions, int expectedConnectionTimeout, String expectedCallbackHandlerClassName, boolean expectedConnectEagerly) {
         if (expectedConnectionOptions != null)
-            Assert.assertEquals("Bad " + componentName + " connection options value", expectedConnectionOptions, connectionOptions);
+            Assert.assertEquals("Bad " + componentName + " connection options value", expectedConnectionOptions.size(), connectionOptions.size());
         if (expectedChannelOptions != null)
             Assert.assertEquals("Bad " + componentName + " channel options value", expectedChannelOptions, channelOptions);
         if (expectedConnectionTimeout != 0)

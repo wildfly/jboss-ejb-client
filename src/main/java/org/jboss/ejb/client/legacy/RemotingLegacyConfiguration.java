@@ -20,11 +20,14 @@ package org.jboss.ejb.client.legacy;
 
 import java.io.IOException;
 import java.net.URI;
+import java.util.ArrayList;
 import java.util.List;
 
 import org.jboss.ejb._private.Logs;
+import org.jboss.remoting3.ConnectionBuilder;
 import org.jboss.remoting3.Endpoint;
 import org.jboss.remoting3.EndpointBuilder;
+import org.jboss.remoting3.RemotingOptions;
 import org.jboss.remoting3.spi.EndpointConfigurator;
 import org.kohsuke.MetaInfServices;
 import org.xnio.OptionMap;
@@ -61,7 +64,29 @@ public final class RemotingLegacyConfiguration implements EndpointConfigurator {
             endpointBuilder.buildXnioWorker(Xnio.getInstance()).populateFromOptions(endpointCreationOptions);
         }
 
-        // we ignore the connection provider options
+        final List<JBossEJBProperties.ConnectionConfiguration> connectionList = properties.getConnectionList();
+        List<URI> uris = new ArrayList<URI>();
+
+        for (JBossEJBProperties.ConnectionConfiguration connectionConfiguration : connectionList) {
+            final OptionMap connectionOptions = connectionConfiguration.getConnectionOptions();
+            final URI uri = CommonLegacyConfiguration.getUri(connectionConfiguration, connectionOptions);
+            if (uri == null) {
+                continue;
+            }
+            if (connectionConfiguration.isConnectEagerly()) {
+                uris.add(uri);
+            }
+            final ConnectionBuilder connectionBuilder = endpointBuilder.addConnection(uri);
+            connectionBuilder.setHeartbeatInterval(
+                    connectionOptions.get(RemotingOptions.HEARTBEAT_INTERVAL, RemotingOptions.DEFAULT_HEARTBEAT_INTERVAL));
+            if (connectionOptions.get(Options.READ_TIMEOUT, -1) != -1) {
+                connectionBuilder.setReadTimeout(connectionOptions.get(Options.READ_TIMEOUT, -1));
+            }
+            if (connectionOptions.get(Options.WRITE_TIMEOUT, -1) != -1) {
+                connectionBuilder.setWriteTimeout(connectionOptions.get(Options.WRITE_TIMEOUT, -1));
+            }
+            connectionBuilder.setTcpKeepAlive(connectionOptions.get(Options.KEEP_ALIVE, false));
+        }
 
         final Endpoint endpoint;
         try {
@@ -69,17 +94,9 @@ public final class RemotingLegacyConfiguration implements EndpointConfigurator {
         } catch (IOException e) {
             throw Logs.MAIN.failedToConstructEndpoint(e);
         }
-        final List<JBossEJBProperties.ConnectionConfiguration> connectionList = properties.getConnectionList();
-        for (JBossEJBProperties.ConnectionConfiguration connectionConfiguration : connectionList) {
-            final OptionMap connectionOptions = connectionConfiguration.getConnectionOptions();
 
-            final URI uri = CommonLegacyConfiguration.getUri(connectionConfiguration, connectionOptions);
-            if (uri == null) {
-                continue;
-            }
-            if (connectionConfiguration.isConnectEagerly()) {
-                endpoint.getConnection(uri, "ejb", "jboss");
-            }
+        for (URI uri : uris) {
+            endpoint.getConnection(uri, "ejb", "jboss");
         }
         return endpoint;
     }
