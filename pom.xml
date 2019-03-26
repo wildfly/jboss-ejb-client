@@ -48,7 +48,7 @@
         <!-- 2.1.x also work on JDK9-->
         <version.org.jboss.logging.jboss-logging-tools>2.1.0.Final</version.org.jboss.logging.jboss-logging-tools>
         <version.org.jboss.logmanager>2.0.7.Final</version.org.jboss.logmanager>
-        <version.org.jboss.marshalling>2.0.1.Final</version.org.jboss.marshalling>
+        <version.org.jboss.marshalling>2.0.6.Final</version.org.jboss.marshalling>
         <version.org.jboss.modules>1.6.0.Final</version.org.jboss.modules>
         <version.org.jboss.narayana>5.5.30.Final</version.org.jboss.narayana>
         <version.org.jboss.remoting>5.0.0.Final</version.org.jboss.remoting>
