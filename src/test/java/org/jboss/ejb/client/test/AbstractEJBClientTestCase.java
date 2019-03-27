@@ -44,7 +44,7 @@ public class AbstractEJBClientTestCase {
     public static String[] serverNames = {SERVER1_NAME, SERVER2_NAME, SERVER3_NAME, SERVER4_NAME};
     public static final int NUM_SERVERS = 4;
     public DummyServer[] servers = new DummyServer[NUM_SERVERS];
-    public boolean[] serversStarted = new boolean[NUM_SERVERS] ;
+    public static boolean[] serversStarted = new boolean[NUM_SERVERS] ;
 
     // module
     public static final String APP_NAME = "my-foo-app";
@@ -90,12 +90,27 @@ public class AbstractEJBClientTestCase {
                 this.servers[index].stop();
             } catch (Throwable t) {
                 logger.info("Could not stop server " + serverNames[index], t);
+            } finally {
+                serversStarted[index] = false;
             }
         }
         logger.info("Stopped server " + serverNames[index]);
     }
 
-    public boolean isServerStarted(int index) {
+    public void crashServer(int server) {
+        if (serversStarted[server]) {
+            try {
+                this.servers[server].stop();
+                logger.info("Crashed server " + serverNames[server]);
+            } catch (Throwable t) {
+                logger.info("Could not crash server", t);
+            } finally {
+                serversStarted[server] = false;
+            }
+        }
+    }
+
+    public static boolean isServerStarted(int index) {
         return serversStarted[index];
     }
 
@@ -122,6 +137,16 @@ public class AbstractEJBClientTestCase {
     public void defineCluster(int index, ClusterTopologyListener.ClusterInfo cluster) {
         servers[index].addCluster(cluster);
         logger.info("Added node to cluster " + cluster + ": server " + servers[index]);
+    }
+
+    public void addClusterNodes(int index, ClusterTopologyListener.ClusterInfo cluster) {
+        servers[index].addClusterNodes(cluster);
+        logger.info("Added node(s) to cluster " + cluster + ":" + cluster.getNodeInfoList());
+    }
+
+    public void removeClusterNodes(int index, ClusterTopologyListener.ClusterRemovalInfo cluster) {
+        servers[index].removeClusterNodes(cluster);
+        logger.info("Removed node(s) from cluster " + cluster + ":" + cluster.getNodeNames());
     }
 
     public void removeCluster(int index, String clusterName) {
