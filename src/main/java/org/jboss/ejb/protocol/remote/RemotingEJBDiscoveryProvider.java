@@ -119,6 +119,7 @@ final class RemotingEJBDiscoveryProvider implements DiscoveryProvider, Discovere
     public DiscoveryRequest discover(final ServiceType serviceType, final FilterSpec filterSpec, final DiscoveryResult result) {
         if (! serviceType.implies(ServiceType.of("ejb", "jboss"))) {
             // only respond to requests for JBoss EJB services
+            Logs.INVOCATION.tracef("EJB discovery provider: wrong service type(%s), returning!", serviceType.toString());
             result.complete();
             return DiscoveryRequest.NULL;
         }
@@ -126,6 +127,7 @@ final class RemotingEJBDiscoveryProvider implements DiscoveryProvider, Discovere
         final RemoteEJBReceiver ejbReceiver = ejbClientContext.getAttachment(RemoteTransportProvider.ATTACHMENT_KEY);
         if (ejbReceiver == null) {
             // ???
+            Logs.INVOCATION.tracef("EJB discovery provider: no EJBReceiver available, returning!");
             result.complete();
             return DiscoveryRequest.NULL;
         }
@@ -139,6 +141,7 @@ final class RemotingEJBDiscoveryProvider implements DiscoveryProvider, Discovere
         // first pass
         for (EJBClientConnection connection : configuredConnections) {
             if (! connection.isForDiscovery()) {
+                Logs.INVOCATION.tracef("EJB discovery provider: found non-discovery connection, skipping");
                 continue;
             }
             discoveryConnections = true;

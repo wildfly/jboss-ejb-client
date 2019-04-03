@@ -63,6 +63,7 @@ import org.jboss.ejb.client.AttachmentKey;
 import org.jboss.ejb.client.AttachmentKeys;
 import org.jboss.ejb.client.ClusterAffinity;
 import org.jboss.ejb.client.EJBClient;
+import org.jboss.ejb.client.EJBClientContext;
 import org.jboss.ejb.client.EJBClientInvocationContext;
 import org.jboss.ejb.client.EJBLocator;
 import org.jboss.ejb.client.EJBModuleIdentifier;
@@ -96,7 +97,9 @@ import org.jboss.remoting3.util.StreamUtils;
 import org.wildfly.common.Assert;
 import org.wildfly.common.function.ExceptionBiFunction;
 import org.wildfly.common.net.CidrAddress;
+import org.wildfly.discovery.Discovery;
 import org.wildfly.naming.client.NamingProvider;
+import org.wildfly.security.auth.client.AuthenticationContext;
 import org.wildfly.transaction.client.AbstractTransaction;
 import org.wildfly.transaction.client.LocalTransaction;
 import org.wildfly.transaction.client.RemoteTransaction;
@@ -480,9 +483,9 @@ class EJBClientChannel {
                 out.close();
             }
         } catch (IOException e) {
-            receiverContext.requestFailed(new RequestSendFailedException(e.getMessage() + " @ " + peerIdentity.getConnection().getPeerURI(), e, true), getRetryExecutor());
+            receiverContext.requestFailed(new RequestSendFailedException(e.getMessage() + " @ " + peerIdentity.getConnection().getPeerURI(), e, true), getRetryExecutor(receiverContext) );
         } catch (RollbackException | SystemException | RuntimeException e) {
-            receiverContext.requestFailed(new EJBException(e.getMessage(), e), getRetryExecutor());
+            receiverContext.requestFailed(new EJBException(e.getMessage(), e), getRetryExecutor(receiverContext));
             return;
         }
     }
@@ -1077,7 +1080,7 @@ class EJBClientChannel {
                             }
                         }
                     } catch (RuntimeException | IOException | RollbackException | SystemException e) {
-                        receiverInvocationContext.requestFailed(new EJBException(e), getRetryExecutor());
+                        receiverInvocationContext.requestFailed(new EJBException(e), getRetryExecutor(receiverInvocationContext) );
                         safeClose(inputStream);
                         break;
                     }
@@ -1111,9 +1114,9 @@ class EJBClientChannel {
                         final EJBModuleIdentifier moduleIdentifier = receiverInvocationContext.getClientInvocationContext().getLocator().getIdentifier().getModuleIdentifier();
                         final NodeInformation nodeInformation = discoveredNodeRegistry.getNodeInformation(getChannel().getConnection().getRemoteEndpointName());
                         nodeInformation.removeModule(EJBClientChannel.this, moduleIdentifier);
-                        receiverInvocationContext.requestFailed(new NoSuchEJBException(message + " @ " + getChannel().getConnection().getPeerURI()), getRetryExecutor());
+                        receiverInvocationContext.requestFailed(new NoSuchEJBException(message + " @ " + getChannel().getConnection().getPeerURI()), getRetryExecutor(receiverInvocationContext));
                     } catch (IOException e) {
-                        receiverInvocationContext.requestFailed(new EJBException("Failed to read 'No such EJB' response", e), getRetryExecutor());
+                        receiverInvocationContext.requestFailed(new EJBException("Failed to read 'No such EJB' response", e), getRetryExecutor(receiverInvocationContext));
                     } finally {
                         safeClose(inputStream);
                     }
@@ -1128,9 +1131,9 @@ class EJBClientChannel {
                         }
                         disassociateRemoteTxIfPossible(receiverInvocationContext.getClientInvocationContext());
                         final String message = inputStream.readUTF();
-                        receiverInvocationContext.requestFailed(Logs.REMOTING.invalidViewTypeForInvocation(message), getRetryExecutor());
+                        receiverInvocationContext.requestFailed(Logs.REMOTING.invalidViewTypeForInvocation(message), getRetryExecutor(receiverInvocationContext));
                     } catch (IOException e) {
-                        receiverInvocationContext.requestFailed(new EJBException("Failed to read 'Bad EJB view type' response", e), getRetryExecutor());
+                        receiverInvocationContext.requestFailed(new EJBException("Failed to read 'Bad EJB view type' response", e), getRetryExecutor(receiverInvocationContext));
                     } finally {
                         safeClose(inputStream);
                     }
@@ -1146,9 +1149,9 @@ class EJBClientChannel {
                         disassociateRemoteTxIfPossible(receiverInvocationContext.getClientInvocationContext());
                         final String message = inputStream.readUTF();
                         // todo: I don't think this is the best exception type for this case...
-                        receiverInvocationContext.requestFailed(new IllegalArgumentException(message), getRetryExecutor());
+                        receiverInvocationContext.requestFailed(new IllegalArgumentException(message), getRetryExecutor(receiverInvocationContext));
                     } catch (IOException e) {
-                        receiverInvocationContext.requestFailed(new EJBException("Failed to read 'No such EJB method' response", e), getRetryExecutor());
+                        receiverInvocationContext.requestFailed(new EJBException("Failed to read 'No such EJB method' response", e), getRetryExecutor(receiverInvocationContext));
                     } finally {
                         safeClose(inputStream);
                     }
@@ -1163,9 +1166,9 @@ class EJBClientChannel {
                         }
                         disassociateRemoteTxIfPossible(receiverInvocationContext.getClientInvocationContext());
                         final String message = inputStream.readUTF();
-                        receiverInvocationContext.requestFailed(new EJBException(message), getRetryExecutor());
+                        receiverInvocationContext.requestFailed(new EJBException(message), getRetryExecutor(receiverInvocationContext));
                     } catch (IOException e) {
-                        receiverInvocationContext.requestFailed(new EJBException("Failed to read 'Session not active' response", e), getRetryExecutor());
+                        receiverInvocationContext.requestFailed(new EJBException("Failed to read 'Session not active' response", e), getRetryExecutor(receiverInvocationContext));
                     } finally {
                         safeClose(inputStream);
                     }
@@ -1180,9 +1183,9 @@ class EJBClientChannel {
                         }
                         disassociateRemoteTxIfPossible(receiverInvocationContext.getClientInvocationContext());
                         final String message = inputStream.readUTF();
-                        receiverInvocationContext.requestFailed(new EJBException(message), getRetryExecutor());
+                        receiverInvocationContext.requestFailed(new EJBException(message), getRetryExecutor(receiverInvocationContext));
                     } catch (IOException e) {
-                        receiverInvocationContext.requestFailed(new EJBException("Failed to read 'EJB not stateful' response"), getRetryExecutor());
+                        receiverInvocationContext.requestFailed(new EJBException("Failed to read 'EJB not stateful' response"), getRetryExecutor(receiverInvocationContext));
                     } finally {
                         safeClose(inputStream);
                     }
@@ -1197,18 +1200,18 @@ class EJBClientChannel {
                 default: {
                     free();
                     safeClose(inputStream);
-                    receiverInvocationContext.requestFailed(new EJBException("Unknown protocol response"), getRetryExecutor());
+                    receiverInvocationContext.requestFailed(new EJBException("Unknown protocol response"), getRetryExecutor(receiverInvocationContext));
                     break;
                 }
             }
         }
 
         public void handleClosed() {
-            receiverInvocationContext.requestFailed(new EJBException(new ClosedChannelException()), getRetryExecutor());
+            receiverInvocationContext.requestFailed(new EJBException(new ClosedChannelException()), getRetryExecutor(receiverInvocationContext));
         }
 
         public void handleException(IOException cause) {
-            receiverInvocationContext.requestFailed(new EJBException(cause), getRetryExecutor());
+            receiverInvocationContext.requestFailed(new EJBException(cause), getRetryExecutor(receiverInvocationContext));
         }
 
         XAOutflowHandle getOutflowHandle() {
@@ -1353,6 +1356,18 @@ class EJBClientChannel {
 
     private Executor getRetryExecutor() {
         return retryExecutorWrapper.getExecutor(getChannel().getConnection().getEndpoint().getXnioWorker());
+    }
+
+    /*
+     * Provides a retry executor which will transfer the given thread contexts to the worker thread before execution.
+     */
+    private Executor getRetryExecutor(EJBReceiverInvocationContext ejbReceiverInvocationContext) {
+        EJBClientContext ejbClientContext = ejbReceiverInvocationContext.getClientContext();
+        Discovery discovery = ejbReceiverInvocationContext.getDiscovery();
+        AuthenticationContext authentoicationContext = ejbReceiverInvocationContext.getAuthenticationContext();
+        Executor executor = getChannel().getConnection().getEndpoint().getXnioWorker();
+
+        return retryExecutorWrapper.getExecutor(executor, ejbClientContext, discovery, authentoicationContext);
     }
 
     static class ResponseMessageInputStream extends MessageInputStream implements ByteInput {

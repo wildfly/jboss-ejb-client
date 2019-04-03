@@ -35,6 +35,7 @@ import javax.ejb.EJBObject;
 
 import org.jboss.ejb._private.Logs;
 import org.wildfly.common.Assert;
+import org.wildfly.discovery.Discovery;
 import org.wildfly.security.auth.client.AuthenticationContext;
 
 /**
@@ -167,11 +168,12 @@ final class EJBInvocationHandler<T> extends Attachable implements InvocationHand
         // otherwise it's a business method
         assert methodInfo.getMethodType() == EJBProxyInformation.MT_BUSINESS;
         final EJBClientContext clientContext = EJBClientContext.getCurrent();
+        final Discovery discoveryContext = Discovery.getContextManager().get();
 
         if (Logs.INVOCATION.isDebugEnabled()) {
             Logs.INVOCATION.debugf("Calling invoke(module = %s, strong affinity = %s, weak affinity = %s): ", locatorRef.get().getIdentifier(), locatorRef.get().getAffinity(), weakAffinity);
         }
-        final EJBClientInvocationContext invocationContext = new EJBClientInvocationContext(this, clientContext, proxy, args, methodInfo, MAX_RETRIES, authenticationContextSupplier);
+        final EJBClientInvocationContext invocationContext = new EJBClientInvocationContext(this, clientContext, proxy, args, methodInfo, MAX_RETRIES, authenticationContextSupplier, discoveryContext);
         invocationContext.setLocator(locatorRef.get());
         invocationContext.setBlockingCaller(true);
         invocationContext.setWeakAffinity(getWeakAffinity());
