@@ -23,6 +23,7 @@ import java.util.concurrent.Executor;
 import java.util.function.Supplier;
 
 import org.wildfly.common.Assert;
+import org.wildfly.discovery.Discovery;
 import org.wildfly.security.auth.client.AuthenticationContext;
 
 /**
@@ -86,8 +87,19 @@ public final class EJBReceiverInvocationContext extends AbstractReceiverInvocati
         clientInvocationContext.failed(cause, retryExecutor);
     }
 
+    /*
+     * Provide access to key invocation context information
+     */
     public EJBClientInvocationContext getClientInvocationContext() {
         return clientInvocationContext;
+    }
+
+    public EJBClientContext getClientContext() {
+        return clientInvocationContext.getClientContext();
+    }
+
+    public Discovery getDiscovery() {
+        return clientInvocationContext.getDiscovery();
     }
 
     public AuthenticationContext getAuthenticationContext() {
