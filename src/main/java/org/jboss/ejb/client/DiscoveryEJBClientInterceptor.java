@@ -309,10 +309,18 @@ public final class DiscoveryEJBClientInterceptor implements EJBClientInterceptor
             }
             return null;
         } else if (affinity == Affinity.NONE && weakAffinity instanceof NodeAffinity) {
-            filterSpec = FilterSpec.equal(FILTER_ATTR_NODE, ((NodeAffinity) weakAffinity).getNodeName());
+            filterSpec = FilterSpec.all(
+                FilterSpec.equal(FILTER_ATTR_NODE, ((NodeAffinity) weakAffinity).getNodeName()),
+                // require that the module be deployed on the chosen node
+                getFilterSpec(locator.getIdentifier().getModuleIdentifier())
+            );
             return doFirstMatchDiscovery(context, filterSpec, null);
         } else if (affinity instanceof NodeAffinity) {
-            filterSpec = FilterSpec.equal(FILTER_ATTR_NODE, ((NodeAffinity) affinity).getNodeName());
+            filterSpec = FilterSpec.all(
+                    FilterSpec.equal(FILTER_ATTR_NODE, ((NodeAffinity) affinity).getNodeName()),
+                    // require that the module be deployed on the chosen node
+                    getFilterSpec(locator.getIdentifier().getModuleIdentifier())
+            );
             return doFirstMatchDiscovery(context, filterSpec, null);
         } else if (affinity instanceof ClusterAffinity) {
             if (weakAffinity instanceof NodeAffinity) {
@@ -325,6 +333,7 @@ public final class DiscoveryEJBClientInterceptor implements EJBClientInterceptor
                 fallbackFilterSpec = FilterSpec.all(
                     FilterSpec.equal(FILTER_ATTR_CLUSTER, ((ClusterAffinity) affinity).getClusterName()),
                     FilterSpec.hasAttribute(FILTER_ATTR_NODE),
+                    // require that the module be deployed on the chosen node
                     getFilterSpec(locator.getIdentifier().getModuleIdentifier())
                 );
                 return doFirstMatchDiscovery(context, filterSpec, fallbackFilterSpec);
@@ -345,7 +354,7 @@ public final class DiscoveryEJBClientInterceptor implements EJBClientInterceptor
         } else {
             // no affinity in particular
             assert affinity == Affinity.NONE;
-            // aseert the module to be present
+            // require that the module be deployed on the chosen node
             filterSpec = getFilterSpec(locator.getIdentifier().getModuleIdentifier());
             return doAnyDiscovery(context, filterSpec, locator);
         }
