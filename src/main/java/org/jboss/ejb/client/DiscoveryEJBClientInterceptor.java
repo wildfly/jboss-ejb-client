@@ -40,6 +40,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ThreadLocalRandom;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
 
 import javax.ejb.NoSuchEJBException;
@@ -56,6 +57,7 @@ import org.wildfly.discovery.FilterSpec;
 import org.wildfly.discovery.ServiceURL;
 import org.wildfly.discovery.ServicesQueue;
 import org.wildfly.naming.client.NamingProvider;
+import org.wildfly.security.manager.WildFlySecurityManager;
 
 /**
  * The EJB client interceptor responsible for discovering the destination of a request.  If a destination is already
@@ -71,7 +73,8 @@ public final class DiscoveryEJBClientInterceptor implements EJBClientInterceptor
 
     private static final String[] NO_STRINGS = new String[0];
     private static final boolean WILDFLY_TESTSUITE_HACK = Boolean.getBoolean("org.jboss.ejb.client.wildfly-testsuite-hack");
-
+    // This provides a way timeout a discovery, avoiding blocking on some edge cases. See EJBCLIENT-311.
+    private static final long DISCOVERY_TIMEOUT = Long.parseLong(WildFlySecurityManager.getPropertyPrivileged("org.jboss.ejb.client.discovery.timeout", "0"));
 
     /**
      * This interceptor's priority.
@@ -374,7 +377,7 @@ public final class DiscoveryEJBClientInterceptor implements EJBClientInterceptor
         final Set<URI> set = context.getAttachment(BL_KEY);
         try (final ServicesQueue queue = discover(filterSpec)) {
             ServiceURL serviceURL;
-            while ((serviceURL = queue.takeService()) != null) {
+            while ((serviceURL = queue.takeService(DISCOVERY_TIMEOUT, TimeUnit.SECONDS)) != null) {
                 final URI location = serviceURL.getLocationURI();
                 if (set == null || ! set.contains(location)) {
                     // Got a match!  See if there's a node affinity to set for the invocation.
@@ -438,7 +441,7 @@ public final class DiscoveryEJBClientInterceptor implements EJBClientInterceptor
         int nodeless = 0;
         try (final ServicesQueue queue = discover(filterSpec)) {
             ServiceURL serviceURL;
-            while ((serviceURL = queue.takeService()) != null) {
+            while ((serviceURL = queue.takeService(DISCOVERY_TIMEOUT, TimeUnit.SECONDS)) != null) {
                 final URI location = serviceURL.getLocationURI();
                 if (blacklist == null || ! blacklist.contains(location)) {
                     // Got a match!  See if there's a node affinity to set for the invocation.
