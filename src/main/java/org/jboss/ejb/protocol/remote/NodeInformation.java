@@ -19,9 +19,12 @@
 
 package org.jboss.ejb.protocol.remote;
 
+import java.net.Inet6Address;
+import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.net.UnknownHostException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -34,8 +37,11 @@ import java.util.concurrent.ConcurrentMap;
 
 import org.jboss.ejb.client.EJBClientContext;
 import org.jboss.ejb.client.EJBModuleIdentifier;
+import org.jboss.remoting3.Connection;
+import org.wildfly.common.Assert;
 import org.wildfly.common.net.CidrAddress;
 import org.wildfly.common.net.CidrAddressTable;
+import org.wildfly.common.net.Inet;
 import org.wildfly.discovery.AttributeValue;
 import org.wildfly.discovery.FilterSpec;
 import org.wildfly.discovery.ServiceType;
@@ -104,7 +110,8 @@ final class NodeInformation {
                     // populate the modules first
                     for (Map.Entry<EJBClientChannel, Set<EJBModuleIdentifier>> entry : modulesByConnection.entrySet()) {
                         final EJBClientChannel channel = entry.getKey();
-                        final URI peerURI = channel.getChannel().getConnection().getPeerURI();
+                        final Connection peerConnection = channel.getChannel().getConnection();
+                        final URI peerURI = buildURI(peerConnection.getProtocol(), peerConnection.getPeerAddress(InetSocketAddress.class));
                         TempInfo tempInfo = new TempInfo(peerURI);
                         tempInfo.modules = entry.getValue();
                         map.put(tempInfo.destination, tempInfo);
@@ -112,7 +119,8 @@ final class NodeInformation {
                     // populate standalone nodes next (these will most likely be duplicates of above)
                     for (Map.Entry<EJBClientChannel, InetSocketAddress> entry : addressesByConnection.entrySet()) {
                         final EJBClientChannel channel = entry.getKey();
-                        final URI peerURI = channel.getChannel().getConnection().getPeerURI();
+                        final Connection peerConnection = channel.getChannel().getConnection();
+                        final URI peerURI = buildURI(peerConnection.getProtocol(), peerConnection.getPeerAddress(InetSocketAddress.class));
                         map.computeIfAbsent(peerURI, TempInfo::new);
                     }
                     // populate the clusters next
@@ -125,12 +133,7 @@ final class NodeInformation {
                             for (CidrAddressTable.Mapping<InetSocketAddress> mapping : table) {
                                 CidrAddress cidrAddress = mapping.getRange();
                                 final InetSocketAddress address = mapping.getValue();
-                                URI uri;
-                                try {
-                                    uri = new URI(protocol, null, address.getHostString(), address.getPort(), null, null, null);
-                                } catch (URISyntaxException e) {
-                                    continue;
-                                }
+                                final URI uri = buildURI(protocol, address);
                                 TempInfo tempInfo = map.computeIfAbsent(uri, TempInfo::new);
                                 if (tempInfo.clusters == null) {
                                     tempInfo.clusters = new HashMap<>();
@@ -187,6 +190,24 @@ final class NodeInformation {
             }
         }
         return serviceURLCache;
+    }
+
+    private URI buildURI(final String protocol, final InetSocketAddress socketAddress) {
+        final InetAddress address = socketAddress.getAddress();
+        String hostName = Inet.getHostNameIfResolved(socketAddress);
+        if (hostName == null) {
+            if (address instanceof Inet6Address) {
+                hostName = '[' + Inet.toOptimalString(address) + ']';
+            } else {
+                hostName = Inet.toOptimalString(address);
+            }
+        }
+        try {
+            return new URI(protocol, null, hostName, socketAddress.getPort(), null, null, null);
+        } catch (URISyntaxException e) {
+            Assert.unreachableCode();
+            return null;
+        }
     }
 
     boolean isInvalid() {
