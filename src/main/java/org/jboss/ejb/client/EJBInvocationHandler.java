@@ -38,6 +38,8 @@ import org.wildfly.common.Assert;
 import org.wildfly.discovery.Discovery;
 import org.wildfly.security.auth.client.AuthenticationContext;
 
+import static java.security.AccessController.doPrivileged;
+
 /**
  * @param <T> the proxy view type
  * @author <a href="mailto:david.lloyd@redhat.com">David M. Lloyd</a>
@@ -45,6 +47,8 @@ import org.wildfly.security.auth.client.AuthenticationContext;
 final class EJBInvocationHandler<T> extends Attachable implements InvocationHandler, Serializable {
 
     private static final long serialVersionUID = 946555285095057230L;
+
+    private static final Supplier<Discovery> DISCOVERY_SUPPLIER = doPrivileged((PrivilegedAction<Supplier<Discovery>>) Discovery.getContextManager()::getPrivilegedSupplier);
 
     private static final int MAX_RETRIES =
             AccessController.doPrivileged((PrivilegedAction<Integer>) () -> {
@@ -168,7 +172,7 @@ final class EJBInvocationHandler<T> extends Attachable implements InvocationHand
         // otherwise it's a business method
         assert methodInfo.getMethodType() == EJBProxyInformation.MT_BUSINESS;
         final EJBClientContext clientContext = EJBClientContext.getCurrent();
-        final Discovery discoveryContext = Discovery.getContextManager().get();
+        final Discovery discoveryContext = DISCOVERY_SUPPLIER.get();
 
         if (Logs.INVOCATION.isDebugEnabled()) {
             Logs.INVOCATION.debugf("Calling invoke(module = %s, strong affinity = %s, weak affinity = %s): ", locatorRef.get().getIdentifier(), locatorRef.get().getAffinity(), weakAffinity);
