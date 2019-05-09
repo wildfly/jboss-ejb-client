@@ -19,6 +19,8 @@
 package org.jboss.ejb.protocol.remote;
 
 import static java.lang.Math.min;
+import static org.jboss.ejb.protocol.remote.TCCLUtils.getAndSetSafeTCCL;
+import static org.jboss.ejb.protocol.remote.TCCLUtils.resetTCCL;
 import static org.xnio.IoUtils.safeClose;
 
 import java.io.IOException;
@@ -39,6 +41,7 @@ import org.wildfly.transaction.client.provider.remoting.RemotingTransactionServi
  * The remote EJB service.
  *
  * @author <a href="mailto:david.lloyd@redhat.com">David M. Lloyd</a>
+ * @author <a href="mailto:ropalka@redhat.com">Richard Opalka</a>
  */
 public final class RemoteEJBService {
     private final OpenListener openListener;
@@ -50,29 +53,36 @@ public final class RemoteEJBService {
                 final MessageTracker messageTracker = new MessageTracker(channel, channel.getOption(RemotingOptions.MAX_OUTBOUND_MESSAGES).intValue());
                 channel.receiveMessage(new Channel.Receiver() {
                     public void handleError(final Channel channel, final IOException error) {
+                        // does nothing - TODO: don't forget to reset TCCL to safe CL when implementing this method
                     }
 
                     public void handleEnd(final Channel channel) {
+                        // does nothing - TODO: don't forget to reset TCCL to safe CL when implementing this method
                     }
 
                     public void handleMessage(final Channel channel, final MessageInputStream message) {
-                        final int version;
+                        final ClassLoader oldCL = getAndSetSafeTCCL();
                         try {
-                            version = min(3, StreamUtils.readInt8(message));
-                            // drain the rest of the message because it's just garbage really
-                            while (message.read() != - 1) {
-                                message.skip(Long.MAX_VALUE);
+                            final int version;
+                            try {
+                                version = min(3, StreamUtils.readInt8(message));
+                                // drain the rest of the message because it's just garbage really
+                                while (message.read() != -1) {
+                                    message.skip(Long.MAX_VALUE);
+                                }
+                            } catch (IOException e) {
+                                safeClose(channel);
+                                return;
                             }
-                        } catch (IOException e) {
-                            safeClose(channel);
-                            return;
+                            final EJBServerChannel serverChannel = new EJBServerChannel(transactionService.getServerForConnection(channel.getConnection()), channel, version, messageTracker);
+                            callbackBuffer.addListener((sc, a) -> {
+                                final ListenerHandle handle1 = a.registerClusterTopologyListener(sc.createTopologyListener());
+                                final ListenerHandle handle2 = a.registerModuleAvailabilityListener(sc.createModuleListener());
+                                channel.receiveMessage(sc.getReceiver(a, handle1, handle2));
+                            }, serverChannel, association);
+                        } finally {
+                            resetTCCL(oldCL);
                         }
-                        final EJBServerChannel serverChannel = new EJBServerChannel(transactionService.getServerForConnection(channel.getConnection()), channel, version, messageTracker);
-                        callbackBuffer.addListener((sc, a) -> {
-                            final ListenerHandle handle1 = a.registerClusterTopologyListener(sc.createTopologyListener());
-                            final ListenerHandle handle2 = a.registerModuleAvailabilityListener(sc.createModuleListener());
-                            channel.receiveMessage(sc.getReceiver(a, handle1, handle2));
-                        }, serverChannel, association);
                     }
                 });
                 try (MessageOutputStream mos = messageTracker.openMessage()) {
