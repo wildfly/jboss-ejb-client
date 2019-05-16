@@ -400,6 +400,38 @@ public class SimpleInvocationTestCase extends AbstractEJBClientTestCase {
     }
 
     /**
+     * Tests that when a EJB implementation throws an exception, the exception stacktrace
+     * received by the client contains the necessary stacktrace elements of the caller/client
+     * invocation.
+     */
+    @Test
+    public void testSLSBInvocationForExceptionStackTrace() {
+        Affinity expectedStrongAffinity = Affinity.NONE;
+        // create a proxy for SLSB
+        final StatelessEJBLocator<Echo> statelessEJBLocator = StatelessEJBLocator.create(Echo.class, STATELESS_IDENTIFIER, expectedStrongAffinity);
+        Echo proxy = EJBClient.createProxy(statelessEJBLocator);
+        Assert.assertNotNull("Received a null proxy", proxy);
+        // invoke on the proxy
+        final String message = "request to throw IllegalArgumentException";
+        try {
+            final Result<String> echoResult = proxy.echo(message);
+            Assert.fail("Invocation was expected to throw an exception, but didn't");
+        } catch (Exception e) {
+            final StackTraceElement callerStackTrace = Thread.currentThread().getStackTrace()[1];
+            // make sure the stacktrace "contains" the caller/client stacktrace
+            for (final StackTraceElement stackTraceElement : e.getStackTrace()) {
+                if (callerStackTrace.getClassName().equals(stackTraceElement.getClassName())
+                    && callerStackTrace.getFileName().equals(stackTraceElement.getFileName())
+                    && callerStackTrace.getMethodName().equals(stackTraceElement.getMethodName())) {
+                    // the stacktrace has the necessary and expected caller reference
+                    return;
+                }
+            }
+            Assert.fail("Exception stacktrace is missing caller side details in the stacktrace");
+        }
+    }
+
+    /**
      * Test SLSB invocation with failed node
      *
      * scenario:

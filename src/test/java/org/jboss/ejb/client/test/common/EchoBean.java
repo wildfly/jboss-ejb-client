@@ -40,6 +40,9 @@ public class EchoBean implements Echo {
     @Override
     public Result<String> echo(String msg) {
         logger.info(this.getClass().getSimpleName() + " echoing message " + msg);
+        if ("request to throw IllegalArgumentException".equals(msg)) {
+            throw new IllegalArgumentException("Intentionally thrown upon request from caller");
+        }
         return new Result<String>(msg, node);
     }
 
