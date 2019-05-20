@@ -98,7 +98,8 @@ class RemoteEJBReceiver extends EJBReceiver {
         }
 
         public void handleFailed(final IOException exception, final EJBReceiverInvocationContext attachment) {
-            attachment.requestFailed(new RequestSendFailedException(exception, false), retryExecutorWrapper.getExecutor(Endpoint.getCurrent().getXnioWorker()));
+            //display destination in error message
+            attachment.requestFailed(new RequestSendFailedException("Destination @ " + attachment.getClientInvocationContext().getDestination(),exception, false), retryExecutorWrapper.getExecutor(Endpoint.getCurrent().getXnioWorker()));
         }
     };
 
