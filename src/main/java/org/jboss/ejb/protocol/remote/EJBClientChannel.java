@@ -268,10 +268,10 @@ class EJBClientChannel {
                                 final CidrAddress block = CidrAddress.create(sourceIpBytes, netmaskBits);
                                 final String destHost = message.readUTF();
                                 final int destPort = message.readUnsignedShort();
-                                final InetSocketAddress destination = new InetSocketAddress(destHost, destPort);
-                                nodeInformation.addAddress(channel.getConnection().getProtocol(), clusterName, block, destination);
+                                final InetSocketAddress destUnresolved = InetSocketAddress.createUnresolved(destHost, destPort);
+                                nodeInformation.addAddress(channel.getConnection().getProtocol(), clusterName, block, destUnresolved);
                                 if (Logs.INVOCATION.isDebugEnabled()) {
-                                    Logs.INVOCATION.debugf("Received CLUSTER_TOPOLOGY(%x) message block from %s, registering block %s to address %s", msg, remoteEndpoint, block, destination);
+                                    Logs.INVOCATION.debugf("Received CLUSTER_TOPOLOGY(%x) message block from %s, registering block %s to address %s", msg, remoteEndpoint, block, destUnresolved);
                                 }
                             }
                         }

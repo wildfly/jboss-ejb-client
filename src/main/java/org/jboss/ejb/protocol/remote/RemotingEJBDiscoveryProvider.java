@@ -31,6 +31,8 @@ import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.net.UnknownHostException;
+import java.security.AccessController;
 import java.security.GeneralSecurityException;
 import java.security.PrivilegedAction;
 import java.util.ArrayList;
@@ -49,6 +51,7 @@ import org.jboss.ejb._private.Logs;
 import org.jboss.ejb.client.EJBClientConnection;
 import org.jboss.ejb.client.EJBClientContext;
 import org.jboss.ejb.client.EJBModuleIdentifier;
+import org.jboss.logging.Logger;
 import org.jboss.remoting3.ConnectionPeerIdentity;
 import org.jboss.remoting3.Endpoint;
 import org.wildfly.common.Assert;
@@ -170,10 +173,10 @@ final class RemotingEJBDiscoveryProvider implements DiscoveryProvider, Discovere
                             final String protocol = entry2.getKey();
                             final CidrAddressTable<InetSocketAddress> addressTable = entry2.getValue();
                             for (CidrAddressTable.Mapping<InetSocketAddress> mapping : addressTable) {
-                                final InetSocketAddress destination = mapping.getValue();
-                                final InetSocketAddress source = ejbReceiver.getSourceAddress(destination);
-                                if (source == null ? mapping.getRange().getNetmaskBits() == 0 : source.equals(destination)) {
-                                    try {
+                                try {
+                                    final InetSocketAddress destination = Inet.getResolved(mapping.getValue());
+                                    final InetSocketAddress source = ejbReceiver.getSourceAddress(destination);
+                                    if (source == null ? mapping.getRange().getNetmaskBits() == 0 : source.equals(destination)) {
                                         final InetAddress destinationAddress = destination.getAddress();
                                         String hostName = Inet.getHostNameIfResolved(destinationAddress);
                                         if (hostName == null) {
@@ -191,10 +194,13 @@ final class RemotingEJBDiscoveryProvider implements DiscoveryProvider, Discovere
                                             ok = true;
                                             continue nodeLoop;
                                         }
-                                    } catch (URISyntaxException e) {
-                                        // ignore URI and try the next one
                                     }
+                                } catch (URISyntaxException e) {
+                                    // ignore URI and try the next one
+                                } catch (UnknownHostException e) {
+                                    Logs.MAIN.logf(Logger.Level.DEBUG, "Cannot resolve %s host during discovery attempt, skipping", mapping.getValue());
                                 }
+
                             }
                         }
                     }
@@ -473,10 +479,11 @@ final class RemotingEJBDiscoveryProvider implements DiscoveryProvider, Discovere
                                     final String protocol = entry2.getKey();
                                     final CidrAddressTable<InetSocketAddress> addressTable = entry2.getValue();
                                     for (CidrAddressTable.Mapping<InetSocketAddress> mapping : addressTable) {
-                                        final InetSocketAddress destination = mapping.getValue();
-                                        final InetSocketAddress source = ejbReceiver.getSourceAddress(destination);
-                                        if (source == null ? mapping.getRange().getNetmaskBits() == 0 : source.equals(destination)) {
-                                            try {
+                                        try {
+                                            final InetSocketAddress destination = Inet.getResolved(mapping.getValue());
+                                            final InetSocketAddress source = ejbReceiver.getSourceAddress(destination);
+                                            if (source == null ? mapping.getRange().getNetmaskBits() == 0 : source.equals(destination)) {
+
                                                 final InetAddress destinationAddress = destination.getAddress();
                                                 String hostName = Inet.getHostNameIfResolved(destinationAddress);
                                                 if (hostName == null) {
@@ -494,9 +501,9 @@ final class RemotingEJBDiscoveryProvider implements DiscoveryProvider, Discovere
 
                                                 everything.add(location);
                                                 continue outer;
-                                            } catch (URISyntaxException e) {
-                                                // ignore URI and try the next one
                                             }
+                                        } catch (URISyntaxException | UnknownHostException e) {
+                                            // ignore URI and try the next one
                                         }
                                     }
                                 }
