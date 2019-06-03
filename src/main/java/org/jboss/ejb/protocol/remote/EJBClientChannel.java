@@ -19,6 +19,8 @@
 package org.jboss.ejb.protocol.remote;
 
 import static java.lang.Math.min;
+import static org.jboss.ejb.protocol.remote.TCCLUtils.getAndSetSafeTCCL;
+import static org.jboss.ejb.protocol.remote.TCCLUtils.resetTCCL;
 import static org.xnio.Bits.allAreClear;
 import static org.xnio.Bits.allAreSet;
 import static org.xnio.IoUtils.safeClose;
@@ -113,6 +115,7 @@ import org.xnio.IoFuture;
 /**
  * @author <a href="mailto:david.lloyd@redhat.com">David M. Lloyd</a>
  * @author <a href="mailto:tadamski@redhat.com">Tomasz Adamski</a>
+ * @author <a href="mailto:ropalka@redhat.com">Richard Opalka</a>
  */
 @SuppressWarnings("deprecation")
 class EJBClientChannel {
@@ -666,14 +669,25 @@ class EJBClientChannel {
         // now perform opening negotiation: receive server greeting
         channel.receiveMessage(new Channel.Receiver() {
             public void handleError(final Channel channel, final IOException error) {
-                futureResult.setException(error);
+                final ClassLoader oldCL = getAndSetSafeTCCL();
+                try {
+                    futureResult.setException(error);
+                } finally {
+                    resetTCCL(oldCL);
+                }
             }
 
             public void handleEnd(final Channel channel) {
-                futureResult.setCancelled();
+                final ClassLoader oldCL = getAndSetSafeTCCL();
+                try {
+                    futureResult.setCancelled();
+                } finally {
+                    resetTCCL(oldCL);
+                }
             }
 
             public void handleMessage(final Channel channel, final MessageInputStream message) {
+                final ClassLoader oldCL = getAndSetSafeTCCL();
                 // receive message body
                 try {
                     final int version = min(3, StreamUtils.readInt8(message));
@@ -690,26 +704,40 @@ class EJBClientChannel {
                     final EJBClientChannel ejbClientChannel = new EJBClientChannel(channel, version, discoveredNodeRegistry, futureResult, retryExecutorWrapper);
                     channel.receiveMessage(new Channel.Receiver() {
                         public void handleError(final Channel channel, final IOException error) {
-                            futureResult.setException(error);
-                            safeClose(channel);
+                            final ClassLoader oldCL = getAndSetSafeTCCL();
+                            try {
+                                futureResult.setException(error);
+                            } finally {
+                                safeClose(channel);
+                                resetTCCL(oldCL);
+                            }
                         }
 
                         public void handleEnd(final Channel channel) {
-                            futureResult.setException(new EOFException());
-                            safeClose(channel);
+                            final ClassLoader oldCL = getAndSetSafeTCCL();
+                            try {
+                                futureResult.setException(new EOFException());
+                            } finally {
+                                safeClose(channel);
+                                resetTCCL(oldCL);
+                            }
                         }
 
                         public void handleMessage(final Channel channel, final MessageInputStream message) {
+                            final ClassLoader oldCL = getAndSetSafeTCCL();
                             try {
                                 ejbClientChannel.processMessage(message);
                             } finally {
                                 channel.receiveMessage(this);
+                                resetTCCL(oldCL);
                             }
                         }
                     });
                 } catch (final IOException e) {
                     channel.closeAsync();
                     channel.addCloseHandler((closed, exception) -> futureResult.setException(e));
+                } finally {
+                    resetTCCL(oldCL);
                 }
             }
         });
