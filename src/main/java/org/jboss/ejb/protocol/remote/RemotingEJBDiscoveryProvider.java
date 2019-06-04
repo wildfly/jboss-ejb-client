@@ -138,23 +138,8 @@ final class RemotingEJBDiscoveryProvider implements DiscoveryProvider, Discovere
 
         boolean ok = false;
         boolean discoveryConnections = false;
-        // first pass
-        for (EJBClientConnection connection : configuredConnections) {
-            if (! connection.isForDiscovery()) {
-                Logs.INVOCATION.tracef("EJB discovery provider: found non-discovery connection, skipping");
-                continue;
-            }
-            discoveryConnections = true;
-            final URI uri = connection.getDestination();
-            if (failedDestinations.contains(uri)) {
-                Logs.INVOCATION.tracef("EJB discovery provider: attempting to connect to configured connection %s, skipping because marked as failed", uri);
-                continue;
-            }
-            ok = true;
-            Logs.INVOCATION.tracef("EJB discovery provider: attempting to connect to configured connection %s", uri);
-            discoveryAttempt.connectAndDiscover(uri, null);
-        }
-        // also establish cluster nodes if known
+        
+        // if there are already cluster nodes, establish them first
         for (Map.Entry<String, Set<String>> entry : clusterNodes.entrySet()) {
             final String clusterName = entry.getKey();
             final Set<String> nodeSet = entry.getValue();
@@ -184,6 +169,17 @@ final class RemotingEJBDiscoveryProvider implements DiscoveryProvider, Discovere
                                             }
                                         }
                                         final URI uri = new URI(protocol, null, hostName, destination.getPort(), null, null, null);
+
+                                        /*
+                                         *  if the URI from this cluster node has failed before, we have to remove it from the
+                                         *  'failedDestinations' - EJBCLIENT-337
+                                         */
+                                        boolean removedFromFailedDestinations = failedDestinations.remove(uri);
+
+                                        if (removedFromFailedDestinations) {
+                                            Logs.INVOCATION.tracef("EJB discovery provider: previously marked as failed connection %s available again", uri);
+                                        }
+
                                         if (! failedDestinations.contains(uri)) {
                                             maxConnections--;
                                             Logs.INVOCATION.tracef("EJB discovery provider: attempting to connect to cluster %s connection %s", clusterName, uri);
@@ -201,6 +197,24 @@ final class RemotingEJBDiscoveryProvider implements DiscoveryProvider, Discovere
                 }
             }
         }
+
+        // now cycle the configured connections
+        for (EJBClientConnection connection : configuredConnections) {
+            if (!connection.isForDiscovery()) {
+                Logs.INVOCATION.tracef("EJB discovery provider: found non-discovery connection, skipping");
+                continue;
+            }
+            discoveryConnections = true;
+            final URI uri = connection.getDestination();
+            if (failedDestinations.contains(uri)) {
+                Logs.INVOCATION.tracef("EJB discovery provider: attempting to connect to configured connection %s, skipping because marked as failed", uri);
+                continue;
+            }
+            ok = true;
+            Logs.INVOCATION.tracef("EJB discovery provider: attempting to connect to configured connection %s", uri);
+            discoveryAttempt.connectAndDiscover(uri, null);
+        }
+
         // special second pass - retry everything because all were marked failed
         if (discoveryConnections && ! ok) {
             Logs.INVOCATION.tracef("EJB discovery provider: all discovery-enabled configured connections marked failed, retrying configured connections ...");
