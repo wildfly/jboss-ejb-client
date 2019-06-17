@@ -37,6 +37,8 @@ import org.jboss.ejb.client.test.common.DummyServer;
 import org.jboss.ejb.client.test.common.Echo;
 import org.jboss.ejb.client.test.common.EchoBean;
 import org.jboss.logging.Logger;
+import org.jboss.tm.XAResourceRecovery;
+import org.jboss.tm.XAResourceRecoveryRegistry;
 import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.Assert;
@@ -96,6 +98,16 @@ public class TransactionTestCase {
         builder.setXATerminator(xat).setExtendedJBossXATerminator(xat);
         builder.setTransactionManager(narayanaTm);
         builder.setTransactionSynchronizationRegistry(narayanaTsr);
+        builder.setXAResourceRecoveryRegistry(new XAResourceRecoveryRegistry() {
+            @Override
+            public void addXAResourceRecovery(XAResourceRecovery xaResourceRecovery) {
+            }
+
+            @Override
+            public void removeXAResourceRecovery(XAResourceRecovery xaResourceRecovery) {
+            }
+        });
+        builder.build();
         LocalTransactionContext.getContextManager().setGlobalDefault(new LocalTransactionContext(builder.build()));
         txManager = ContextTransactionManager.getInstance();
         txSyncRegistry = ContextTransactionSynchronizationRegistry.getInstance();
