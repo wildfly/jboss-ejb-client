@@ -18,18 +18,19 @@
 
 package org.jboss.ejb.protocol.remote;
 
-import static org.jboss.ejb.client.annotation.ClientInterceptorPriority.JBOSS_AFTER;
-
 import javax.ejb.NoSuchEJBException;
 
 import org.jboss.ejb.client.AbstractInvocationContext;
 import org.jboss.ejb.client.Affinity;
 import org.jboss.ejb.client.EJBClientInterceptor;
 import org.jboss.ejb.client.EJBClientInvocationContext;
+import org.jboss.ejb.client.EJBLocator;
 import org.jboss.ejb.client.EJBSessionCreationInvocationContext;
 import org.jboss.ejb.client.NodeAffinity;
 import org.jboss.ejb.client.SessionID;
 import org.jboss.ejb.client.annotation.ClientInterceptorPriority;
+
+import static org.jboss.ejb.client.annotation.ClientInterceptorPriority.JBOSS_AFTER;
 
 /**
  * The interceptor responsible for relaying invocation information back into the Remoting-based discovery system.
@@ -74,13 +75,19 @@ public final class RemotingEJBClientInterceptor implements EJBClientInterceptor 
     private void removeNode(final AbstractInvocationContext context) {
         final Affinity targetAffinity = context.getTargetAffinity();
         if (targetAffinity instanceof NodeAffinity) {
-            final RemoteEJBReceiver ejbReceiver = context.getClientContext().getAttachment(RemoteTransportProvider.ATTACHMENT_KEY);
-            if (ejbReceiver != null) {
-                final EJBClientChannel ejbClientChannel = context.getAttachment(RemoteEJBReceiver.EJBCC_KEY);
-                if (ejbClientChannel != null) {
-                    final NodeInformation nodeInformation = ejbReceiver.getDiscoveredNodeRegistry().getNodeInformation(((NodeAffinity) targetAffinity).getNodeName());
-                    if (nodeInformation != null) {
-                        nodeInformation.removeModule(ejbClientChannel, context.getLocator().getIdentifier().getModuleIdentifier());
+            final EJBLocator<?> locator = context.getLocator();
+            if (locator.isStateful()) {
+                context.setTargetAffinity(Affinity.NONE);
+                context.setWeakAffinity(Affinity.NONE);
+            } else {
+                final RemoteEJBReceiver ejbReceiver = context.getClientContext().getAttachment(RemoteTransportProvider.ATTACHMENT_KEY);
+                if (ejbReceiver != null) {
+                    final EJBClientChannel ejbClientChannel = context.getAttachment(RemoteEJBReceiver.EJBCC_KEY);
+                    if (ejbClientChannel != null) {
+                        final NodeInformation nodeInformation = ejbReceiver.getDiscoveredNodeRegistry().getNodeInformation(((NodeAffinity) targetAffinity).getNodeName());
+                        if (nodeInformation != null) {
+                            nodeInformation.removeModule(ejbClientChannel, locator.getIdentifier().getModuleIdentifier());
+                        }
                     }
                 }
             }
