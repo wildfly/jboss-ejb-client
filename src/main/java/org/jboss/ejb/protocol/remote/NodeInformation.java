@@ -35,8 +35,10 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 
+import org.jboss.ejb._private.Logs;
 import org.jboss.ejb.client.EJBClientContext;
 import org.jboss.ejb.client.EJBModuleIdentifier;
+import org.jboss.logging.Logger;
 import org.jboss.remoting3.Connection;
 import org.wildfly.common.Assert;
 import org.wildfly.common.net.CidrAddress;
@@ -131,14 +133,18 @@ final class NodeInformation {
                             final String protocol = entry1.getKey();
                             final CidrAddressTable<InetSocketAddress> table = entry1.getValue();
                             for (CidrAddressTable.Mapping<InetSocketAddress> mapping : table) {
-                                CidrAddress cidrAddress = mapping.getRange();
-                                final InetSocketAddress address = mapping.getValue();
-                                final URI uri = buildURI(protocol, address);
-                                TempInfo tempInfo = map.computeIfAbsent(uri, TempInfo::new);
-                                if (tempInfo.clusters == null) {
-                                    tempInfo.clusters = new HashMap<>();
+                                try {
+                                    CidrAddress cidrAddress = mapping.getRange();
+                                    final InetSocketAddress address = Inet.getResolved(mapping.getValue());
+                                    final URI uri = buildURI(protocol, address);
+                                    TempInfo tempInfo = map.computeIfAbsent(uri, TempInfo::new);
+                                    if (tempInfo.clusters == null) {
+                                        tempInfo.clusters = new HashMap<>();
+                                    }
+                                    tempInfo.clusters.put(clusterName, cidrAddress);
+                                } catch (UnknownHostException e) {
+                                    Logs.MAIN.logf(Logger.Level.DEBUG, "Cannot resolve %s host during discovery attempt, skipping", mapping.getValue());
                                 }
-                                tempInfo.clusters.put(clusterName, cidrAddress);
                             }
                         }
                     }
