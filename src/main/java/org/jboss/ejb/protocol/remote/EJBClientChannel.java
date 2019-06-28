@@ -19,6 +19,8 @@
 package org.jboss.ejb.protocol.remote;
 
 import static java.lang.Math.min;
+import static org.jboss.ejb.protocol.remote.TCCLUtils.getAndSetSafeTCCL;
+import static org.jboss.ejb.protocol.remote.TCCLUtils.resetTCCL;
 import static org.xnio.Bits.allAreClear;
 import static org.xnio.Bits.allAreSet;
 import static org.xnio.IoUtils.safeClose;
@@ -35,6 +37,7 @@ import java.net.InetSocketAddress;
 import java.net.URI;
 import java.nio.channels.ClosedChannelException;
 import java.nio.charset.StandardCharsets;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
@@ -63,6 +66,7 @@ import org.jboss.ejb.client.AttachmentKey;
 import org.jboss.ejb.client.AttachmentKeys;
 import org.jboss.ejb.client.ClusterAffinity;
 import org.jboss.ejb.client.EJBClient;
+import org.jboss.ejb.client.EJBClientContext;
 import org.jboss.ejb.client.EJBClientInvocationContext;
 import org.jboss.ejb.client.EJBLocator;
 import org.jboss.ejb.client.EJBModuleIdentifier;
@@ -96,7 +100,9 @@ import org.jboss.remoting3.util.StreamUtils;
 import org.wildfly.common.Assert;
 import org.wildfly.common.function.ExceptionBiFunction;
 import org.wildfly.common.net.CidrAddress;
+import org.wildfly.discovery.Discovery;
 import org.wildfly.naming.client.NamingProvider;
+import org.wildfly.security.auth.client.AuthenticationContext;
 import org.wildfly.transaction.client.AbstractTransaction;
 import org.wildfly.transaction.client.LocalTransaction;
 import org.wildfly.transaction.client.RemoteTransaction;
@@ -110,6 +116,7 @@ import org.xnio.IoFuture;
 /**
  * @author <a href="mailto:david.lloyd@redhat.com">David M. Lloyd</a>
  * @author <a href="mailto:tadamski@redhat.com">Tomasz Adamski</a>
+ * @author <a href="mailto:ropalka@redhat.com">Richard Opalka</a>
  */
 @SuppressWarnings("deprecation")
 class EJBClientChannel {
@@ -208,8 +215,9 @@ class EJBClientChannel {
                         final String distinctName = message.readUTF();
                         final EJBModuleIdentifier moduleIdentifier = new EJBModuleIdentifier(appName, moduleName, distinctName);
                         moduleList[i] = moduleIdentifier;
+
                         if (Logs.INVOCATION.isDebugEnabled()) {
-                            Logs.INVOCATION.debugf("Received MODULE_AVAILABLE(%x) message from %s for module %s", msg, remoteEndpoint, moduleIdentifier);
+                            Logs.INVOCATION.debugf("Received MODULE_AVAILABLE(%x) message from node %s for module %s", msg, remoteEndpoint, moduleIdentifier);
                         }
                     }
                     nodeInformation.addModules(this, moduleList);
@@ -226,8 +234,9 @@ class EJBClientChannel {
                         final String distinctName = message.readUTF();
                         final EJBModuleIdentifier moduleIdentifier = new EJBModuleIdentifier(appName, moduleName, distinctName);
                         set.add(moduleIdentifier);
+
                         if (Logs.INVOCATION.isDebugEnabled()) {
-                            Logs.INVOCATION.debugf("Received MODULE_UNAVAILABLE(%x) message from %s for module %s", msg, remoteEndpoint, moduleIdentifier);
+                            Logs.INVOCATION.debugf("Received MODULE_UNAVAILABLE(%x) message from node %s for module %s", msg, remoteEndpoint, moduleIdentifier);
                         }
                     }
                     nodeInformation.removeModules(this, set);
@@ -243,8 +252,9 @@ class EJBClientChannel {
                             final String nodeName = message.readUTF();
                             discoveredNodeRegistry.addNode(clusterName, nodeName, channel.getConnection().getPeerURI());
                             final NodeInformation nodeInformation = discoveredNodeRegistry.getNodeInformation(nodeName);
+
                             if (Logs.INVOCATION.isDebugEnabled()) {
-                                Logs.INVOCATION.debugf("Received CLUSTER_TOPOLOGY(%x) message from %s, registering cluster %s to node %s", msg, remoteEndpoint, clusterName, nodeName);
+                                Logs.INVOCATION.debugf("Received CLUSTER_TOPOLOGY(%x) message from node %s, registering cluster %s to node %s", msg, remoteEndpoint, clusterName, nodeName);
                             }
 
                             // create and register the concrete ServiceURLs for each client mapping
@@ -258,10 +268,10 @@ class EJBClientChannel {
                                 final CidrAddress block = CidrAddress.create(sourceIpBytes, netmaskBits);
                                 final String destHost = message.readUTF();
                                 final int destPort = message.readUnsignedShort();
-                                final InetSocketAddress destination = new InetSocketAddress(destHost, destPort);
-                                nodeInformation.addAddress(channel.getConnection().getProtocol(), clusterName, block, destination);
+                                final InetSocketAddress destUnresolved = InetSocketAddress.createUnresolved(destHost, destPort);
+                                nodeInformation.addAddress(channel.getConnection().getProtocol(), clusterName, block, destUnresolved);
                                 if (Logs.INVOCATION.isDebugEnabled()) {
-                                    Logs.INVOCATION.debugf("Received CLUSTER_TOPOLOGY(%x) message block from %s, registering block %s to address %s", msg, remoteEndpoint, block, destination);
+                                    Logs.INVOCATION.debugf("Received CLUSTER_TOPOLOGY(%x) message block from %s, registering block %s to address %s", msg, remoteEndpoint, block, destUnresolved);
                                 }
                             }
                         }
@@ -274,9 +284,11 @@ class EJBClientChannel {
                     for (int i = 0; i < clusterCount; i ++) {
                         String clusterName = message.readUTF();
                         discoveredNodeRegistry.removeCluster(clusterName);
+
                         if (Logs.INVOCATION.isDebugEnabled()) {
-                            Logs.INVOCATION.debugf("Received CLUSTER_TOPOLOGY_REMOVAL(%x) message from %s for cluster %s", msg, remoteEndpoint, clusterName);
+                            Logs.INVOCATION.debugf("Received CLUSTER_TOPOLOGY_REMOVAL(%x) message from node %s for cluster %s", msg, remoteEndpoint, clusterName);
                         }
+
                         for (NodeInformation nodeInformation : discoveredNodeRegistry.getAllNodeInformation()) {
                             nodeInformation.removeCluster(clusterName);
                         }
@@ -293,8 +305,9 @@ class EJBClientChannel {
                             discoveredNodeRegistry.removeNode(clusterName, nodeName);
                             final NodeInformation nodeInformation = discoveredNodeRegistry.getNodeInformation(nodeName);
                             nodeInformation.removeCluster(clusterName);
+
                             if (Logs.INVOCATION.isDebugEnabled()) {
-                                Logs.INVOCATION.debugf("Received CLUSTER_TOPOLOGY_NODE_REMOVAL(%x) message from %s for (cluster, node) = (%s, %s)", msg, remoteEndpoint, clusterName, nodeName);
+                                Logs.INVOCATION.debugf("Received CLUSTER_TOPOLOGY_NODE_REMOVAL(%x) message from node %s for (cluster, node) = (%s, %s)", msg, remoteEndpoint, clusterName, nodeName);
                             }
                         }
                     }
@@ -474,9 +487,9 @@ class EJBClientChannel {
                 out.close();
             }
         } catch (IOException e) {
-            receiverContext.requestFailed(new RequestSendFailedException(e.getMessage() + " @ " + peerIdentity.getConnection().getPeerURI(), e, true), getRetryExecutor());
+            receiverContext.requestFailed(new RequestSendFailedException(e.getMessage() + " @ " + peerIdentity.getConnection().getPeerURI(), e, true), getRetryExecutor(receiverContext) );
         } catch (RollbackException | SystemException | RuntimeException e) {
-            receiverContext.requestFailed(new EJBException(e.getMessage(), e), getRetryExecutor());
+            receiverContext.requestFailed(new EJBException(e.getMessage(), e), getRetryExecutor(receiverContext));
             return;
         }
     }
@@ -657,14 +670,25 @@ class EJBClientChannel {
         // now perform opening negotiation: receive server greeting
         channel.receiveMessage(new Channel.Receiver() {
             public void handleError(final Channel channel, final IOException error) {
-                futureResult.setException(error);
+                final ClassLoader oldCL = getAndSetSafeTCCL();
+                try {
+                    futureResult.setException(error);
+                } finally {
+                    resetTCCL(oldCL);
+                }
             }
 
             public void handleEnd(final Channel channel) {
-                futureResult.setCancelled();
+                final ClassLoader oldCL = getAndSetSafeTCCL();
+                try {
+                    futureResult.setCancelled();
+                } finally {
+                    resetTCCL(oldCL);
+                }
             }
 
             public void handleMessage(final Channel channel, final MessageInputStream message) {
+                final ClassLoader oldCL = getAndSetSafeTCCL();
                 // receive message body
                 try {
                     final int version = min(3, StreamUtils.readInt8(message));
@@ -681,26 +705,40 @@ class EJBClientChannel {
                     final EJBClientChannel ejbClientChannel = new EJBClientChannel(channel, version, discoveredNodeRegistry, futureResult, retryExecutorWrapper);
                     channel.receiveMessage(new Channel.Receiver() {
                         public void handleError(final Channel channel, final IOException error) {
-                            futureResult.setException(error);
-                            safeClose(channel);
+                            final ClassLoader oldCL = getAndSetSafeTCCL();
+                            try {
+                                futureResult.setException(error);
+                            } finally {
+                                safeClose(channel);
+                                resetTCCL(oldCL);
+                            }
                         }
 
                         public void handleEnd(final Channel channel) {
-                            futureResult.setException(new EOFException());
-                            safeClose(channel);
+                            final ClassLoader oldCL = getAndSetSafeTCCL();
+                            try {
+                                futureResult.setException(new EOFException());
+                            } finally {
+                                safeClose(channel);
+                                resetTCCL(oldCL);
+                            }
                         }
 
                         public void handleMessage(final Channel channel, final MessageInputStream message) {
+                            final ClassLoader oldCL = getAndSetSafeTCCL();
                             try {
                                 ejbClientChannel.processMessage(message);
                             } finally {
                                 channel.receiveMessage(this);
+                                resetTCCL(oldCL);
                             }
                         }
                     });
                 } catch (final IOException e) {
                     channel.closeAsync();
                     channel.addCloseHandler((closed, exception) -> futureResult.setException(e));
+                } finally {
+                    resetTCCL(oldCL);
                 }
             }
         });
@@ -717,6 +755,23 @@ class EJBClientChannel {
 
     InvocationTracker getInvocationTracker() {
         return invocationTracker;
+    }
+
+    /**
+     * Glue two stack traces together.
+     *
+     * @param exception      the exception which occurred in another thread
+     * @param userStackTrace the stack trace of the current thread from {@link Thread#getStackTrace()}
+     * @param trimCount      the number of frames to trim
+     * @param msg            the message to use
+     */
+    private static void glueStackTraces(final Throwable exception, final StackTraceElement[] userStackTrace,
+                                        final int trimCount, final String msg) {
+        final StackTraceElement[] est = exception.getStackTrace();
+        final StackTraceElement[] fst = Arrays.copyOf(est, est.length + userStackTrace.length - trimCount + 1);
+        fst[est.length] = new StackTraceElement("..." + msg + "..", "", null, -1);
+        System.arraycopy(userStackTrace, trimCount, fst, est.length + 1, userStackTrace.length - trimCount);
+        exception.setStackTrace(fst);
     }
 
     final class SessionOpenInvocation<T> extends Invocation {
@@ -848,7 +903,7 @@ class EJBClientChannel {
                                 }
                             }
                         }
-                        // todo: glue stack traces
+                        glueStackTraces(e, Thread.currentThread().getStackTrace(), 1, "asynchronous invocation");
                         break;
                     }
                     case Protocol.CANCEL_RESPONSE: {
@@ -1071,7 +1126,7 @@ class EJBClientChannel {
                             }
                         }
                     } catch (RuntimeException | IOException | RollbackException | SystemException e) {
-                        receiverInvocationContext.requestFailed(new EJBException(e), getRetryExecutor());
+                        receiverInvocationContext.requestFailed(new EJBException(e), getRetryExecutor(receiverInvocationContext) );
                         safeClose(inputStream);
                         break;
                     }
@@ -1105,9 +1160,9 @@ class EJBClientChannel {
                         final EJBModuleIdentifier moduleIdentifier = receiverInvocationContext.getClientInvocationContext().getLocator().getIdentifier().getModuleIdentifier();
                         final NodeInformation nodeInformation = discoveredNodeRegistry.getNodeInformation(getChannel().getConnection().getRemoteEndpointName());
                         nodeInformation.removeModule(EJBClientChannel.this, moduleIdentifier);
-                        receiverInvocationContext.requestFailed(new NoSuchEJBException(message + " @ " + getChannel().getConnection().getPeerURI()), getRetryExecutor());
+                        receiverInvocationContext.requestFailed(new NoSuchEJBException(message + " @ " + getChannel().getConnection().getPeerURI()), getRetryExecutor(receiverInvocationContext));
                     } catch (IOException e) {
-                        receiverInvocationContext.requestFailed(new EJBException("Failed to read 'No such EJB' response", e), getRetryExecutor());
+                        receiverInvocationContext.requestFailed(new EJBException("Failed to read 'No such EJB' response", e), getRetryExecutor(receiverInvocationContext));
                     } finally {
                         safeClose(inputStream);
                     }
@@ -1122,9 +1177,9 @@ class EJBClientChannel {
                         }
                         disassociateRemoteTxIfPossible(receiverInvocationContext.getClientInvocationContext());
                         final String message = inputStream.readUTF();
-                        receiverInvocationContext.requestFailed(Logs.REMOTING.invalidViewTypeForInvocation(message), getRetryExecutor());
+                        receiverInvocationContext.requestFailed(Logs.REMOTING.invalidViewTypeForInvocation(message), getRetryExecutor(receiverInvocationContext));
                     } catch (IOException e) {
-                        receiverInvocationContext.requestFailed(new EJBException("Failed to read 'Bad EJB view type' response", e), getRetryExecutor());
+                        receiverInvocationContext.requestFailed(new EJBException("Failed to read 'Bad EJB view type' response", e), getRetryExecutor(receiverInvocationContext));
                     } finally {
                         safeClose(inputStream);
                     }
@@ -1140,9 +1195,9 @@ class EJBClientChannel {
                         disassociateRemoteTxIfPossible(receiverInvocationContext.getClientInvocationContext());
                         final String message = inputStream.readUTF();
                         // todo: I don't think this is the best exception type for this case...
-                        receiverInvocationContext.requestFailed(new IllegalArgumentException(message), getRetryExecutor());
+                        receiverInvocationContext.requestFailed(new IllegalArgumentException(message), getRetryExecutor(receiverInvocationContext));
                     } catch (IOException e) {
-                        receiverInvocationContext.requestFailed(new EJBException("Failed to read 'No such EJB method' response", e), getRetryExecutor());
+                        receiverInvocationContext.requestFailed(new EJBException("Failed to read 'No such EJB method' response", e), getRetryExecutor(receiverInvocationContext));
                     } finally {
                         safeClose(inputStream);
                     }
@@ -1157,9 +1212,9 @@ class EJBClientChannel {
                         }
                         disassociateRemoteTxIfPossible(receiverInvocationContext.getClientInvocationContext());
                         final String message = inputStream.readUTF();
-                        receiverInvocationContext.requestFailed(new EJBException(message), getRetryExecutor());
+                        receiverInvocationContext.requestFailed(new EJBException(message), getRetryExecutor(receiverInvocationContext));
                     } catch (IOException e) {
-                        receiverInvocationContext.requestFailed(new EJBException("Failed to read 'Session not active' response", e), getRetryExecutor());
+                        receiverInvocationContext.requestFailed(new EJBException("Failed to read 'Session not active' response", e), getRetryExecutor(receiverInvocationContext));
                     } finally {
                         safeClose(inputStream);
                     }
@@ -1174,9 +1229,9 @@ class EJBClientChannel {
                         }
                         disassociateRemoteTxIfPossible(receiverInvocationContext.getClientInvocationContext());
                         final String message = inputStream.readUTF();
-                        receiverInvocationContext.requestFailed(new EJBException(message), getRetryExecutor());
+                        receiverInvocationContext.requestFailed(new EJBException(message), getRetryExecutor(receiverInvocationContext));
                     } catch (IOException e) {
-                        receiverInvocationContext.requestFailed(new EJBException("Failed to read 'EJB not stateful' response"), getRetryExecutor());
+                        receiverInvocationContext.requestFailed(new EJBException("Failed to read 'EJB not stateful' response"), getRetryExecutor(receiverInvocationContext));
                     } finally {
                         safeClose(inputStream);
                     }
@@ -1191,18 +1246,18 @@ class EJBClientChannel {
                 default: {
                     free();
                     safeClose(inputStream);
-                    receiverInvocationContext.requestFailed(new EJBException("Unknown protocol response"), getRetryExecutor());
+                    receiverInvocationContext.requestFailed(new EJBException("Unknown protocol response"), getRetryExecutor(receiverInvocationContext));
                     break;
                 }
             }
         }
 
         public void handleClosed() {
-            receiverInvocationContext.requestFailed(new EJBException(new ClosedChannelException()), getRetryExecutor());
+            receiverInvocationContext.requestFailed(new EJBException(new ClosedChannelException()), getRetryExecutor(receiverInvocationContext));
         }
 
         public void handleException(IOException cause) {
-            receiverInvocationContext.requestFailed(new EJBException(cause), getRetryExecutor());
+            receiverInvocationContext.requestFailed(new EJBException(cause), getRetryExecutor(receiverInvocationContext));
         }
 
         XAOutflowHandle getOutflowHandle() {
@@ -1325,7 +1380,7 @@ class EJBClientChannel {
                 if (e == null) {
                     throw new EJBException("Null exception response");
                 }
-                // todo: glue stack traces
+                glueStackTraces(e, Thread.currentThread().getStackTrace(), 1, "asynchronous invocation");
                 throw e;
             }
 
@@ -1347,6 +1402,18 @@ class EJBClientChannel {
 
     private Executor getRetryExecutor() {
         return retryExecutorWrapper.getExecutor(getChannel().getConnection().getEndpoint().getXnioWorker());
+    }
+
+    /*
+     * Provides a retry executor which will transfer the given thread contexts to the worker thread before execution.
+     */
+    private Executor getRetryExecutor(EJBReceiverInvocationContext ejbReceiverInvocationContext) {
+        EJBClientContext ejbClientContext = ejbReceiverInvocationContext.getClientContext();
+        Discovery discovery = ejbReceiverInvocationContext.getDiscovery();
+        AuthenticationContext authentoicationContext = ejbReceiverInvocationContext.getAuthenticationContext();
+        Executor executor = getChannel().getConnection().getEndpoint().getXnioWorker();
+
+        return retryExecutorWrapper.getExecutor(executor, ejbClientContext, discovery, authentoicationContext);
     }
 
     static class ResponseMessageInputStream extends MessageInputStream implements ByteInput {

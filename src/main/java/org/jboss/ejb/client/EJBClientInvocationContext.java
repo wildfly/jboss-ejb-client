@@ -39,6 +39,7 @@ import org.jboss.ejb._private.Logs;
 import org.jboss.ejb.client.annotation.ClientTransactionPolicy;
 import org.wildfly.common.Assert;
 import org.wildfly.common.annotation.NotNull;
+import org.wildfly.discovery.Discovery;
 import org.wildfly.security.auth.client.AuthenticationContext;
 
 /**
@@ -61,6 +62,7 @@ public final class EJBClientInvocationContext extends AbstractInvocationContext 
     // Contextual stuff
     private final EJBInvocationHandler<?> invocationHandler;
     private final AuthenticationContext authenticationContext;
+    private final Discovery discoveryContext;
 
     // Invocation data
     private final Object invokedProxy;
@@ -86,10 +88,11 @@ public final class EJBClientInvocationContext extends AbstractInvocationContext 
     private int interceptorChainIndex;
     private boolean blockingCaller;
 
-    EJBClientInvocationContext(final EJBInvocationHandler<?> invocationHandler, final EJBClientContext ejbClientContext, final Object invokedProxy, final Object[] parameters, final EJBProxyInformation.ProxyMethodInfo methodInfo, final int allowedRetries, final Supplier<AuthenticationContext> authenticationContextSupplier) {
+    EJBClientInvocationContext(final EJBInvocationHandler<?> invocationHandler, final EJBClientContext ejbClientContext, final Object invokedProxy, final Object[] parameters, final EJBProxyInformation.ProxyMethodInfo methodInfo, final int allowedRetries, final Supplier<AuthenticationContext> authenticationContextSupplier, final Discovery discoveryContext) {
         super(invocationHandler.getLocator(), ejbClientContext);
         this.invocationHandler = invocationHandler;
-        authenticationContext = authenticationContextSupplier != null ? authenticationContextSupplier.get() : AuthenticationContext.captureCurrent();
+        this.authenticationContext = authenticationContextSupplier != null ? authenticationContextSupplier.get() : AuthenticationContext.captureCurrent();
+        this.discoveryContext = discoveryContext;
         this.invokedProxy = invokedProxy;
         this.parameters = parameters;
         this.methodInfo = methodInfo;
@@ -314,6 +317,9 @@ public final class EJBClientInvocationContext extends AbstractInvocationContext 
     }
 
     public void requestRetry() {
+        if (Logs.INVOCATION.isDebugEnabled()) {
+            Logs.INVOCATION.debugf("Requesting retry of invocation!");
+        }
         synchronized (lock) {
             retryRequested = true;
         }
@@ -369,6 +375,7 @@ public final class EJBClientInvocationContext extends AbstractInvocationContext 
                 }
                 // not reachable
             } catch (Throwable t) {
+                log.tracef("Encountered exception when calling sendRequestInitial: exception = %s)", t.getMessage());
                 // back to the start of the chain; decide what to do next.
                 synchronized (lock) {
                     if (state == State.SENDING) {
@@ -405,6 +412,7 @@ public final class EJBClientInvocationContext extends AbstractInvocationContext 
                             transition(State.READY);
                             return;
                         }
+                        log.tracef("retrying the invocation!: remaining retries = %d", remainingRetries);
                         // retry SENDING
                         if (pendingFailure != null) {
                             addSuppressed(pendingFailure);
@@ -612,6 +620,7 @@ public final class EJBClientInvocationContext extends AbstractInvocationContext 
                 }
                 return result;
             } catch (Throwable t) {
+                log.tracef("Encountered exception while calling getResult(): exception = %s", t.toString());
                 if (idx == 0) {
                     synchronized (lock) {
                         // retry if we can
@@ -620,6 +629,7 @@ public final class EJBClientInvocationContext extends AbstractInvocationContext 
                         final int remainingRetries = this.remainingRetries;
                         final boolean retryRequested = this.retryRequested;
                         if (retryRequested && remainingRetries > 0) {
+                            log.tracef("Will retry (requested = %s, remaining = %d)", retryRequested, remainingRetries);
                             if (suppressedExceptions == null) {
                                 suppressedExceptions = this.suppressedExceptions = new ArrayList<>();
                             }
@@ -748,6 +758,11 @@ public final class EJBClientInvocationContext extends AbstractInvocationContext 
     @NotNull
     AuthenticationContext getAuthenticationContext() {
         return authenticationContext;
+    }
+
+    @NotNull
+    Discovery getDiscovery() {
+        return discoveryContext;
     }
 
     Future<?> getFutureResponse() {

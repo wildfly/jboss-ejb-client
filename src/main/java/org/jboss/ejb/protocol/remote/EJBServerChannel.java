@@ -20,6 +20,8 @@ package org.jboss.ejb.protocol.remote;
 
 import static java.lang.Math.min;
 import static java.security.AccessController.doPrivileged;
+import static org.jboss.ejb.protocol.remote.TCCLUtils.getAndSetSafeTCCL;
+import static org.jboss.ejb.protocol.remote.TCCLUtils.resetTCCL;
 import static org.xnio.IoUtils.safeClose;
 
 import java.io.DataInput;
@@ -28,7 +30,6 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
-import java.lang.reflect.UndeclaredThrowableException;
 import java.net.Inet6Address;
 import java.net.SocketAddress;
 import java.nio.charset.StandardCharsets;
@@ -102,6 +103,7 @@ import org.wildfly.transaction.client.spi.SubordinateTransactionControl;
 /**
  * @author <a href="mailto:david.lloyd@redhat.com">David M. Lloyd</a>
  * @author <a href="mailto:tadamski@redhat.com">Tomasz Adamski</a>
+ * @author <a href="mailto:ropalka@redhat.com">Richard Opalka</a>
  */
 @SuppressWarnings("deprecation")
 final class EJBServerChannel {
@@ -160,16 +162,27 @@ final class EJBServerChannel {
         }
 
         public void handleError(final Channel channel, final IOException error) {
-            handle1.close();
-            handle2.close();
+            final ClassLoader oldCL = getAndSetSafeTCCL();
+            try {
+                handle1.close();
+                handle2.close();
+            } finally {
+                resetTCCL(oldCL);
+            }
         }
 
         public void handleEnd(final Channel channel) {
-            handle1.close();
-            handle2.close();
+            final ClassLoader oldCL = getAndSetSafeTCCL();
+            try {
+                handle1.close();
+                handle2.close();
+            } finally {
+                resetTCCL(oldCL);
+            }
         }
 
         public void handleMessage(final Channel channel, final MessageInputStream message) {
+            final ClassLoader oldCL = getAndSetSafeTCCL();
             try {
                 final int code = message.readUnsignedByte();
                 switch (code) {
@@ -246,6 +259,7 @@ final class EJBServerChannel {
             } finally {
                 safeClose(message);
                 channel.receiveMessage(this);
+                resetTCCL(oldCL);
             }
         }
 

@@ -17,12 +17,16 @@
  */
 package org.jboss.ejb.client.test.common;
 
-import javax.ejb.Stateful;
+import javax.ejb.Stateless;
 
 /**
+ * An instance of Echo marked explicitly as stateless.
+ *
  * User: jpai
  */
-public interface Foo {
-
-    Result<String> echo(String msg);
+@Stateless
+public class StatelessEchoBean extends EchoBean {
+    public StatelessEchoBean(String node) {
+        super(node);
+    }
 }

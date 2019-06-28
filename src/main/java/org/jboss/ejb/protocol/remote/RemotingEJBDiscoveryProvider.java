@@ -25,11 +25,14 @@ import static org.jboss.ejb.client.EJBClientContext.FILTER_ATTR_NODE;
 import static org.jboss.ejb.client.EJBClientContext.getCurrent;
 
 import java.io.IOException;
+import java.net.ConnectException;
 import java.net.Inet6Address;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.net.UnknownHostException;
+import java.security.AccessController;
 import java.security.GeneralSecurityException;
 import java.security.PrivilegedAction;
 import java.util.ArrayList;
@@ -48,6 +51,7 @@ import org.jboss.ejb._private.Logs;
 import org.jboss.ejb.client.EJBClientConnection;
 import org.jboss.ejb.client.EJBClientContext;
 import org.jboss.ejb.client.EJBModuleIdentifier;
+import org.jboss.logging.Logger;
 import org.jboss.remoting3.ConnectionPeerIdentity;
 import org.jboss.remoting3.Endpoint;
 import org.wildfly.common.Assert;
@@ -118,6 +122,7 @@ final class RemotingEJBDiscoveryProvider implements DiscoveryProvider, Discovere
     public DiscoveryRequest discover(final ServiceType serviceType, final FilterSpec filterSpec, final DiscoveryResult result) {
         if (! serviceType.implies(ServiceType.of("ejb", "jboss"))) {
             // only respond to requests for JBoss EJB services
+            Logs.INVOCATION.tracef("EJB discovery provider: wrong service type(%s), returning!", serviceType.toString());
             result.complete();
             return DiscoveryRequest.NULL;
         }
@@ -125,6 +130,7 @@ final class RemotingEJBDiscoveryProvider implements DiscoveryProvider, Discovere
         final RemoteEJBReceiver ejbReceiver = ejbClientContext.getAttachment(RemoteTransportProvider.ATTACHMENT_KEY);
         if (ejbReceiver == null) {
             // ???
+            Logs.INVOCATION.tracef("EJB discovery provider: no EJBReceiver available, returning!");
             result.complete();
             return DiscoveryRequest.NULL;
         }
@@ -138,6 +144,7 @@ final class RemotingEJBDiscoveryProvider implements DiscoveryProvider, Discovere
         // first pass
         for (EJBClientConnection connection : configuredConnections) {
             if (! connection.isForDiscovery()) {
+                Logs.INVOCATION.tracef("EJB discovery provider: found non-discovery connection, skipping");
                 continue;
             }
             discoveryConnections = true;
@@ -166,10 +173,10 @@ final class RemotingEJBDiscoveryProvider implements DiscoveryProvider, Discovere
                             final String protocol = entry2.getKey();
                             final CidrAddressTable<InetSocketAddress> addressTable = entry2.getValue();
                             for (CidrAddressTable.Mapping<InetSocketAddress> mapping : addressTable) {
-                                final InetSocketAddress destination = mapping.getValue();
-                                final InetSocketAddress source = ejbReceiver.getSourceAddress(destination);
-                                if (source == null ? mapping.getRange().getNetmaskBits() == 0 : source.equals(destination)) {
-                                    try {
+                                try {
+                                    final InetSocketAddress destination = Inet.getResolved(mapping.getValue());
+                                    final InetSocketAddress source = ejbReceiver.getSourceAddress(destination);
+                                    if (source == null ? mapping.getRange().getNetmaskBits() == 0 : source.equals(destination)) {
                                         final InetAddress destinationAddress = destination.getAddress();
                                         String hostName = Inet.getHostNameIfResolved(destinationAddress);
                                         if (hostName == null) {
@@ -187,10 +194,13 @@ final class RemotingEJBDiscoveryProvider implements DiscoveryProvider, Discovere
                                             ok = true;
                                             continue nodeLoop;
                                         }
-                                    } catch (URISyntaxException e) {
-                                        // ignore URI and try the next one
                                     }
+                                } catch (URISyntaxException e) {
+                                    // ignore URI and try the next one
+                                } catch (UnknownHostException e) {
+                                    Logs.MAIN.logf(Logger.Level.DEBUG, "Cannot resolve %s host during discovery attempt, skipping", mapping.getValue());
                                 }
+
                             }
                         }
                     }
@@ -203,7 +213,8 @@ final class RemotingEJBDiscoveryProvider implements DiscoveryProvider, Discovere
             if (failedDestinations != null && !failedDestinations.isEmpty())
                 failedDestinations.clear();
 
-            Logs.INVOCATION.tracef("EJB discovery provider: all connections marked failed, retrying ...");
+            Logs.INVOCATION.tracef("EJB discovery provider: all discovery-enabled configured connections marked failed, retrying configured connections ...");
+
             for (EJBClientConnection connection : configuredConnections) {
                 if (! connection.isForDiscovery()) {
                     continue;
@@ -293,6 +304,13 @@ final class RemotingEJBDiscoveryProvider implements DiscoveryProvider, Discovere
         }
     };
 
+    /**
+     * This method gets a ConnectionPeerIdentity object for a remote connection to a destination, similar to Endpoint.getConnectedIdentity().
+     * However, if we call it with a cluster name, indicating that we are connecting to a cluster, instead of looking up the AuthenticationContext
+     * for the cluster member destination, it instead uses the AuthenticationContext for the URI which first connected to the cluster.
+     * This is the cluster effective URI, in the sense that it is an effective URI (i.e. resolved) for a cluster - the same credentials will be used
+     * no matter which cluster member we connect to.
+     */
     IoFuture<ConnectionPeerIdentity> getConnectedIdentityUsingClusterEffective(Endpoint endpoint, URI destination, String abstractType, String abstractTypeAuthority, AuthenticationContext context, String clusterName) {
         Assert.checkNotNullParam("destination", destination);
         Assert.checkNotNullParam("context", context);
@@ -334,6 +352,9 @@ final class RemotingEJBDiscoveryProvider implements DiscoveryProvider, Discovere
         private final List<Runnable> cancellers = Collections.synchronizedList(new ArrayList<>());
         private final IoFuture.HandlingNotifier<ConnectionPeerIdentity, URI> outerNotifier;
         private final IoFuture.HandlingNotifier<EJBClientChannel, URI> innerNotifier;
+        // keep a record of URIs we try to connect to for each cluster
+        private final ConcurrentHashMap<String, Set<URI>> urisByCluster = new ConcurrentHashMap<>();
+        private final Set<URI> connectFailedURIs = new HashSet<>();
 
         DiscoveryAttempt(final ServiceType serviceType, final FilterSpec filterSpec, final DiscoveryResult discoveryResult, final RemoteEJBReceiver ejbReceiver, final AuthenticationContext authenticationContext) {
             this.serviceType = serviceType;
@@ -351,6 +372,10 @@ final class RemotingEJBDiscoveryProvider implements DiscoveryProvider, Discovere
                 public void handleFailed(final IOException exception, final URI destination) {
                     DiscoveryAttempt.this.discoveryResult.reportProblem(exception);
                     failedDestinations.add(destination);
+                    if (exception instanceof ConnectException) {
+                        connectFailedURIs.add(destination);
+                        Logs.INVOCATION.tracef("DiscoveryAttempt: got ConnectException on node with destination = %s", destination);
+                    }
                     countDown();
                 }
 
@@ -385,6 +410,12 @@ final class RemotingEJBDiscoveryProvider implements DiscoveryProvider, Discovere
                 return;
             }
             outstandingCount.getAndIncrement();
+
+            // keep a record of this URI if it has an associated cluster (EJBCLIENT-325)
+            if (clusterEffective != null) {
+                urisByCluster.computeIfAbsent(clusterEffective, ignored -> Collections.newSetFromMap(new ConcurrentHashMap<>())).add(uri);
+            }
+
             final IoFuture<ConnectionPeerIdentity> future = doPrivileged((PrivilegedAction<IoFuture<ConnectionPeerIdentity>>) () -> getConnectedIdentityUsingClusterEffective(endpoint, uri, "ejb", "jboss", authenticationContext, clusterEffective));
             onCancel(future::cancel);
             future.addNotifier(outerNotifier, uri);
@@ -392,6 +423,23 @@ final class RemotingEJBDiscoveryProvider implements DiscoveryProvider, Discovere
 
         void countDown() {
             if (outstandingCount.decrementAndGet() == 0) {
+
+                // before calculating the search result, update DNR to remove crashed last members of clusters (EJBCLIENT-325)
+                for (String cluster : urisByCluster.keySet()) {
+                    Set<URI> uris = urisByCluster.get(cluster);
+                      if (uris != null && uris.size() == 1) {
+                        // get the URI and check if it represents a failed last cluster member
+                        URI uri = uris.iterator().next();
+                        if (connectFailedURIs.contains(uri)) {
+                            Logs.INVOCATION.tracef("DiscoveryAttempt: countDown() found a cluster %s with one failed destination, %s, removing cluster", cluster, uri);
+                            removeCluster(cluster);
+                            for (NodeInformation nodeInformation : getAllNodeInformation()) {
+                                nodeInformation.removeCluster(cluster);
+                            }
+                        }
+                    }
+                }
+
                 final DiscoveryResult result = this.discoveryResult;
                 final String node = filterSpec.accept(NODE_EXTRACTOR);
                 final EJBModuleIdentifier module = filterSpec.accept(MI_EXTRACTOR);
@@ -436,10 +484,11 @@ final class RemotingEJBDiscoveryProvider implements DiscoveryProvider, Discovere
                                     final String protocol = entry2.getKey();
                                     final CidrAddressTable<InetSocketAddress> addressTable = entry2.getValue();
                                     for (CidrAddressTable.Mapping<InetSocketAddress> mapping : addressTable) {
-                                        final InetSocketAddress destination = mapping.getValue();
-                                        final InetSocketAddress source = ejbReceiver.getSourceAddress(destination);
-                                        if (source == null ? mapping.getRange().getNetmaskBits() == 0 : source.equals(destination)) {
-                                            try {
+                                        try {
+                                            final InetSocketAddress destination = Inet.getResolved(mapping.getValue());
+                                            final InetSocketAddress source = ejbReceiver.getSourceAddress(destination);
+                                            if (source == null ? mapping.getRange().getNetmaskBits() == 0 : source.equals(destination)) {
+
                                                 final InetAddress destinationAddress = destination.getAddress();
                                                 String hostName = Inet.getHostNameIfResolved(destinationAddress);
                                                 if (hostName == null) {
@@ -457,9 +506,9 @@ final class RemotingEJBDiscoveryProvider implements DiscoveryProvider, Discovere
 
                                                 everything.add(location);
                                                 continue outer;
-                                            } catch (URISyntaxException e) {
-                                                // ignore URI and try the next one
                                             }
+                                        } catch (URISyntaxException | UnknownHostException e) {
+                                            // ignore URI and try the next one
                                         }
                                     }
                                 }

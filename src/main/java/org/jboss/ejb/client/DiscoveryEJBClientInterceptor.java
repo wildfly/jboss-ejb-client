@@ -40,6 +40,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ThreadLocalRandom;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
 
 import javax.ejb.NoSuchEJBException;
@@ -56,6 +57,7 @@ import org.wildfly.discovery.FilterSpec;
 import org.wildfly.discovery.ServiceURL;
 import org.wildfly.discovery.ServicesQueue;
 import org.wildfly.naming.client.NamingProvider;
+import org.wildfly.security.manager.WildFlySecurityManager;
 
 /**
  * The EJB client interceptor responsible for discovering the destination of a request.  If a destination is already
@@ -71,7 +73,8 @@ public final class DiscoveryEJBClientInterceptor implements EJBClientInterceptor
 
     private static final String[] NO_STRINGS = new String[0];
     private static final boolean WILDFLY_TESTSUITE_HACK = Boolean.getBoolean("org.jboss.ejb.client.wildfly-testsuite-hack");
-
+    // This provides a way timeout a discovery, avoiding blocking on some edge cases. See EJBCLIENT-311.
+    private static final long DISCOVERY_TIMEOUT = Long.parseLong(WildFlySecurityManager.getPropertyPrivileged("org.jboss.ejb.client.discovery.timeout", "0"));
 
     /**
      * This interceptor's priority.
@@ -120,6 +123,11 @@ public final class DiscoveryEJBClientInterceptor implements EJBClientInterceptor
         try {
             result = context.getResult();
         } catch (NoSuchEJBException | RequestSendFailedException e) {
+
+            if (Logs.INVOCATION.isDebugEnabled()) {
+                Logs.INVOCATION.debugf("DiscoveryEJBClientInterceptor: handleInvocationResult: (exception = %s)", e.getMessage());
+            }
+
             processMissingTarget(context);
             throw e;
         }
@@ -309,20 +317,32 @@ public final class DiscoveryEJBClientInterceptor implements EJBClientInterceptor
             }
             return null;
         } else if (affinity == Affinity.NONE && weakAffinity instanceof NodeAffinity) {
-            filterSpec = FilterSpec.equal(FILTER_ATTR_NODE, ((NodeAffinity) weakAffinity).getNodeName());
+            filterSpec = FilterSpec.all(
+                FilterSpec.equal(FILTER_ATTR_NODE, ((NodeAffinity) weakAffinity).getNodeName()),
+                // require that the module be deployed on the chosen node
+                getFilterSpec(locator.getIdentifier().getModuleIdentifier())
+            );
             return doFirstMatchDiscovery(context, filterSpec, null);
         } else if (affinity instanceof NodeAffinity) {
-            filterSpec = FilterSpec.equal(FILTER_ATTR_NODE, ((NodeAffinity) affinity).getNodeName());
+            filterSpec = FilterSpec.all(
+                    FilterSpec.equal(FILTER_ATTR_NODE, ((NodeAffinity) affinity).getNodeName()),
+                    // require that the module be deployed on the chosen node
+                    getFilterSpec(locator.getIdentifier().getModuleIdentifier())
+            );
             return doFirstMatchDiscovery(context, filterSpec, null);
         } else if (affinity instanceof ClusterAffinity) {
             if (weakAffinity instanceof NodeAffinity) {
                 filterSpec = FilterSpec.all(
                     FilterSpec.equal(FILTER_ATTR_CLUSTER, ((ClusterAffinity) affinity).getClusterName()),
-                    FilterSpec.equal(FILTER_ATTR_NODE, ((NodeAffinity) weakAffinity).getNodeName())
+                    FilterSpec.equal(FILTER_ATTR_NODE, ((NodeAffinity) weakAffinity).getNodeName()),
+                    // require that the module be deployed on the chosen node
+                    getFilterSpec(locator.getIdentifier().getModuleIdentifier())
                 );
                 fallbackFilterSpec = FilterSpec.all(
                     FilterSpec.equal(FILTER_ATTR_CLUSTER, ((ClusterAffinity) affinity).getClusterName()),
-                    FilterSpec.hasAttribute(FILTER_ATTR_NODE)
+                    FilterSpec.hasAttribute(FILTER_ATTR_NODE),
+                    // require that the module be deployed on the chosen node
+                    getFilterSpec(locator.getIdentifier().getModuleIdentifier())
                 );
                 return doFirstMatchDiscovery(context, filterSpec, fallbackFilterSpec);
             } else if (weakAffinity instanceof URIAffinity || weakAffinity == Affinity.LOCAL) {
@@ -333,13 +353,16 @@ public final class DiscoveryEJBClientInterceptor implements EJBClientInterceptor
             } else {
                 // regular cluster discovery
                 filterSpec = FilterSpec.all(
-                    FilterSpec.equal(FILTER_ATTR_CLUSTER, ((ClusterAffinity) affinity).getClusterName())
+                    FilterSpec.equal(FILTER_ATTR_CLUSTER, ((ClusterAffinity) affinity).getClusterName()),
+                    // require that the module be deployed on the chosen node
+                    getFilterSpec(locator.getIdentifier().getModuleIdentifier())
                 );
                 return doClusterDiscovery(context, filterSpec);
             }
         } else {
             // no affinity in particular
             assert affinity == Affinity.NONE;
+            // require that the module be deployed on the chosen node
             filterSpec = getFilterSpec(locator.getIdentifier().getModuleIdentifier());
             return doAnyDiscovery(context, filterSpec, locator);
         }
@@ -354,7 +377,7 @@ public final class DiscoveryEJBClientInterceptor implements EJBClientInterceptor
         final Set<URI> set = context.getAttachment(BL_KEY);
         try (final ServicesQueue queue = discover(filterSpec)) {
             ServiceURL serviceURL;
-            while ((serviceURL = queue.takeService()) != null) {
+            while ((serviceURL = queue.takeService(DISCOVERY_TIMEOUT, TimeUnit.SECONDS)) != null) {
                 final URI location = serviceURL.getLocationURI();
                 if (set == null || ! set.contains(location)) {
                     // Got a match!  See if there's a node affinity to set for the invocation.
@@ -418,7 +441,7 @@ public final class DiscoveryEJBClientInterceptor implements EJBClientInterceptor
         int nodeless = 0;
         try (final ServicesQueue queue = discover(filterSpec)) {
             ServiceURL serviceURL;
-            while ((serviceURL = queue.takeService()) != null) {
+            while ((serviceURL = queue.takeService(DISCOVERY_TIMEOUT, TimeUnit.SECONDS)) != null) {
                 final URI location = serviceURL.getLocationURI();
                 if (blacklist == null || ! blacklist.contains(location)) {
                     // Got a match!  See if there's a node affinity to set for the invocation.
