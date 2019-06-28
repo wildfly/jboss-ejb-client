@@ -208,8 +208,13 @@ final class RemotingEJBDiscoveryProvider implements DiscoveryProvider, Discovere
             }
         }
         // special second pass - retry everything because all were marked failed
-        if (discoveryConnections && ! ok) {
+        if (discoveryConnections && !ok) {
+            // clear the failedDestinations cache before the retry everything as all were marked as failed.
+            if (failedDestinations != null && !failedDestinations.isEmpty())
+                failedDestinations.clear();
+
             Logs.INVOCATION.tracef("EJB discovery provider: all discovery-enabled configured connections marked failed, retrying configured connections ...");
+
             for (EJBClientConnection connection : configuredConnections) {
                 if (! connection.isForDiscovery()) {
                     continue;
