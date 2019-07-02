@@ -179,10 +179,18 @@ class RemoteEJBReceiver extends EJBReceiver {
         String cluster = (affinity instanceof ClusterAffinity) ? ((ClusterAffinity) affinity).getClusterName() : context.getInitialCluster();
 
         if (cluster != null) {
-            return doPrivileged((PrivilegedAction<IoFuture<ConnectionPeerIdentity>>) () ->
-                                discoveredNodeRegistry.getConnectedIdentityUsingClusterEffective(Endpoint.getCurrent(), target, "ejb", "jboss", authenticationContext, cluster));
+            if(System.getSecurityManager() == null) {
+                return discoveredNodeRegistry.getConnectedIdentityUsingClusterEffective(Endpoint.getCurrent(), target, "ejb", "jboss", authenticationContext, cluster);
+            } else {
+                return doPrivileged((PrivilegedAction<IoFuture<ConnectionPeerIdentity>>) () ->
+                        discoveredNodeRegistry.getConnectedIdentityUsingClusterEffective(Endpoint.getCurrent(), target, "ejb", "jboss", authenticationContext, cluster));
+            }
         }
 
-        return doPrivileged((PrivilegedAction<IoFuture<ConnectionPeerIdentity>>) () -> Endpoint.getCurrent().getConnectedIdentity(target, "ejb", "jboss", authenticationContext));
+        if(System.getSecurityManager() == null) {
+            return Endpoint.getCurrent().getConnectedIdentity(target, "ejb", "jboss", authenticationContext);
+        } else {
+            return doPrivileged((PrivilegedAction<IoFuture<ConnectionPeerIdentity>>) () -> Endpoint.getCurrent().getConnectedIdentity(target, "ejb", "jboss", authenticationContext));
+        }
     }
 }
