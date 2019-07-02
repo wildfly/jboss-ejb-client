@@ -432,7 +432,12 @@ final class RemotingEJBDiscoveryProvider implements DiscoveryProvider, Discovere
                 urisByCluster.computeIfAbsent(clusterEffective, ignored -> Collections.newSetFromMap(new ConcurrentHashMap<>())).add(uri);
             }
 
-            final IoFuture<ConnectionPeerIdentity> future = doPrivileged((PrivilegedAction<IoFuture<ConnectionPeerIdentity>>) () -> getConnectedIdentityUsingClusterEffective(endpoint, uri, "ejb", "jboss", authenticationContext, clusterEffective));
+            final IoFuture<ConnectionPeerIdentity> future;
+            if(System.getSecurityManager() == null) {
+                future = getConnectedIdentityUsingClusterEffective(endpoint, uri, "ejb", "jboss", authenticationContext, clusterEffective);
+            } else {
+                future = doPrivileged((PrivilegedAction<IoFuture<ConnectionPeerIdentity>>) () -> getConnectedIdentityUsingClusterEffective(endpoint, uri, "ejb", "jboss", authenticationContext, clusterEffective));
+            }
             onCancel(future::cancel);
             future.addNotifier(outerNotifier, uri);
         }
