@@ -77,6 +77,12 @@ public final class RemotingEJBClientInterceptor implements EJBClientInterceptor 
         if (targetAffinity instanceof NodeAffinity) {
             final EJBLocator<?> locator = context.getLocator();
             if (locator.isStateful()) {
+                // Fix for EJBCLIENT-333: NoSuchEJBException can designate a bean (SFSB, SLSB) not being deployed
+                // on a server, or a session for a bean (SFSB) not being present on a server. In case of SFSB,
+                // set target affinity and weak affinity to NONE, let the NoSuchEJBException be propagated
+                // back through the interceptors, and not remove its module entry from discovered node registry.
+                // Removing the entire module will cause subsequent invocations of SLSB on the target server to fail
+                // unexpectedly.
                 context.setTargetAffinity(Affinity.NONE);
                 context.setWeakAffinity(Affinity.NONE);
             } else {
