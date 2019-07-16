@@ -87,6 +87,7 @@ public final class EJBClientInvocationContext extends AbstractInvocationContext 
 
     private int interceptorChainIndex;
     private boolean blockingCaller;
+    private int waiters = 0;
 
     EJBClientInvocationContext(final EJBInvocationHandler<?> invocationHandler, final EJBClientContext ejbClientContext, final Object invokedProxy, final Object[] parameters, final EJBProxyInformation.ProxyMethodInfo methodInfo, final int allowedRetries, final Supplier<AuthenticationContext> authenticationContextSupplier, final Discovery discoveryContext) {
         super(invocationHandler.getLocator(), ejbClientContext);
@@ -565,7 +566,12 @@ public final class EJBClientInvocationContext extends AbstractInvocationContext 
                     } else {
                         while (state == State.CONSUMING) try {
                             checkStateInvariants();
-                            lock.wait();
+                            try {
+                                waiters++;
+                                lock.wait();
+                            } finally {
+                                waiters--;
+                            }
                         } catch (InterruptedException e) {
                             Thread.currentThread().interrupt();
                             throw Logs.MAIN.operationInterrupted();
@@ -821,7 +827,9 @@ public final class EJBClientInvocationContext extends AbstractInvocationContext 
                 // fall thru
             }
             case WAITING:{
-                lock.notifyAll();
+                if(waiters > 0) {
+                    lock.notifyAll();
+                }
                 break;
             }
         }
@@ -886,7 +894,12 @@ public final class EJBClientInvocationContext extends AbstractInvocationContext 
                 }
                 try {
                     checkStateInvariants();
-                    lock.wait();
+                    try {
+                        waiters++;
+                        lock.wait();
+                    } finally {
+                        waiters--;
+                    }
                 } catch (InterruptedException ex) {
                     Thread.currentThread().interrupt();
                     return false;
@@ -913,7 +926,12 @@ public final class EJBClientInvocationContext extends AbstractInvocationContext 
                                     // no timeout; lighter code path
                                     try {
                                         checkStateInvariants();
-                                        lock.wait();
+                                        try {
+                                            waiters++;
+                                            lock.wait();
+                                        } finally {
+                                            waiters--;
+                                        }
                                     } catch (InterruptedException e) {
                                         intr = true;
                                     }
@@ -926,7 +944,12 @@ public final class EJBClientInvocationContext extends AbstractInvocationContext 
                                         resultReady(new ThrowableResult(() -> new TimeoutException("No invocation response received in " + timeout + " milliseconds")));
                                     } else try {
                                         checkStateInvariants();
-                                        lock.wait(remaining / 1_000_000L, (int) (remaining % 1_000_000L));
+                                        try {
+                                            waiters++;
+                                            lock.wait(remaining / 1_000_000L, (int) (remaining % 1_000_000L));
+                                        } finally {
+                                            waiters--;
+                                        }
                                     } catch (InterruptedException e) {
                                         intr = true;
                                     }
@@ -1138,7 +1161,12 @@ public final class EJBClientInvocationContext extends AbstractInvocationContext 
                             if (remaining <= 0L) {
                                 throw log.timedOut();
                             }
-                            lock.wait(remaining / 1_000_000L, (int) (remaining % 1_000_000L));
+                            try {
+                                waiters++;
+                                lock.wait(remaining / 1_000_000L, (int) (remaining % 1_000_000L));
+                            } finally {
+                                waiters--;
+                            }
                             remaining = unit.toNanos(timeout) - (System.nanoTime() - ourStart);
                             break;
                         }
