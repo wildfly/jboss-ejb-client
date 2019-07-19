@@ -572,7 +572,9 @@ class EJBClientChannel {
     private XAOutflowHandle writeTransaction(final Transaction transaction, final DataOutput dataOutput,
             final AuthenticationContext authenticationContext) throws IOException, RollbackException, SystemException {
         if (authenticationContext != null) {
-            Logs.MAIN.info("Using existing AuthenticationContext for writeTransaction(...)");
+            if (Logs.MAIN.isDebugEnabled()) {
+                Logs.MAIN.debug("Using existing AuthenticationContext for writeTransaction(...)");
+            }
             try {
                 return authenticationContext.run((PrivilegedExceptionAction<XAOutflowHandle>) () -> _writeTransaction(transaction, dataOutput));
             } catch (PrivilegedActionException e) {
@@ -587,7 +589,9 @@ class EJBClientChannel {
                 throw new RuntimeException(e);
             }
         } else {
-            Logs.MAIN.info("No existing AuthenticationContext for writeTransaction(...)");
+            if (Logs.MAIN.isDebugEnabled()) {
+                Logs.MAIN.debug("No existing AuthenticationContext for writeTransaction(...)");
+            }
             return _writeTransaction(transaction, dataOutput);
         }
     }
