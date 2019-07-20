@@ -199,7 +199,8 @@ public final class EJBClientContext extends Attachable implements Contextual<EJB
         }
 
         // class path interceptors
-        this.classPathInterceptors = doPrivileged((PrivilegedAction<InterceptorList>) EJBClientContext::getClassPathInterceptorList);
+        this.classPathInterceptors = System.getSecurityManager() != null? doPrivileged((PrivilegedAction<InterceptorList>) EJBClientContext::getClassPathInterceptorList)
+                : getClassPathInterceptorList();
 
         // configured per-class interceptors
         final List<ClassInterceptor> classInterceptors = builder.classInterceptors;
