@@ -70,4 +70,12 @@ public class ConfigurationBasedEJBClientContextSelectorTestCase {
         Assert.assertEquals("Wrong <selectNode> value,", DummyNodeSelector.CLUSTER_NODE_IDENTIFIER, cns.selectNode(null, null, null));
     }
 
+    @Test
+    public void testMaximumAllowedClusterNodes() {
+        EJBClientContext clientContext = EJBClientContext.getCurrent();
+        int nodes = clientContext.getMaximumConnectedClusterNodes();
+
+        Assert.assertEquals("Wrong <max-allowed-connected-nodes> value,", 15, nodes);
+    }
+
 }
