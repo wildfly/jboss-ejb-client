@@ -88,6 +88,14 @@ public class LegacyPropertiesConfiguration {
                         break;
                     }
                 }
+                for (JBossEJBProperties.ClusterConfiguration cluster : clusters.values()) {
+                    long maximumNodes = cluster.getMaximumAllowedConnectedNodes();
+                    if (maximumNodes != -1) {
+                        builder.setMaximumConnectedClusterNodes(Long.valueOf(maximumNodes).intValue());
+                        // Can be only set once
+                        break;
+                    }
+                }
             }
 
             if (properties.getInvocationTimeout() != -1L) {

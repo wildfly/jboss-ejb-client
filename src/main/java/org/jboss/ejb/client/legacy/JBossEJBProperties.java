@@ -812,7 +812,7 @@ public final class JBossEJBProperties implements Contextual<JBossEJBProperties> 
                     return false;
                 }
                 setClusterName(clusterName);
-                setMaximumAllowedConnectedNodes(getLongValueFromProperties(properties, prefix + "max-allowed-connected-nodes", 1000L));
+                setMaximumAllowedConnectedNodes(getLongValueFromProperties(properties, prefix + "max-allowed-connected-nodes", -1L));
                 final String clusterNodeSelectorClassName = getProperty(properties, prefix + "clusternode.selector", null, true);
                 if (clusterNodeSelectorClassName != null) {
                     setClusterNodeSelectorClassName(clusterNodeSelectorClassName);

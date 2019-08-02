@@ -49,6 +49,7 @@
             <xsd:element name="connections" type="connections-type" minOccurs="0" maxOccurs="1"/>
             <xsd:element name="deployment-node-selector" type="deployment-node-selector-type" minOccurs="0" maxOccurs="1"/>
             <xsd:element name="cluster-node-selector" type="cluster-node-selector-type" minOccurs="0" maxOccurs="1"/>
+            <xsd:element name="max-allowed-connected-nodes" type="max-allowed-connected-nodes-type" minOccurs="0" maxOccurs="1"/>
         </xsd:all>
     </xsd:complexType>
 
@@ -175,6 +176,21 @@
             <xsd:annotation>
                 <xsd:documentation>
                     The connection destination URI.
+                </xsd:documentation>
+            </xsd:annotation>
+        </xsd:attribute>
+    </xsd:complexType>
+
+    <xsd:complexType name="max-allowed-connected-nodes-type">
+        <xsd:annotation>
+            <xsd:documentation>
+                Definition of maximum connected cluster nodes.
+            </xsd:documentation>
+        </xsd:annotation>
+        <xsd:attribute name="nodes" type="xsd:integer" use="required">
+            <xsd:annotation>
+                <xsd:documentation>
+                    The maximum number of connected cluster nodes, for connection-based protocols which support eager connection.
                 </xsd:documentation>
             </xsd:annotation>
         </xsd:attribute>
