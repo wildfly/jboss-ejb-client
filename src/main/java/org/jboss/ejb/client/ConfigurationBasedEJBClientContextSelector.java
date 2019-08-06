@@ -18,8 +18,15 @@
 
 package org.jboss.ejb.client;
 
-import static javax.xml.stream.XMLStreamConstants.END_ELEMENT;
-import static javax.xml.stream.XMLStreamConstants.START_ELEMENT;
+import org.jboss.ejb._private.Logs;
+import org.jboss.ejb.client.legacy.LegacyPropertiesConfiguration;
+import org.jboss.modules.Module;
+import org.jboss.modules.ModuleIdentifier;
+import org.jboss.modules.ModuleLoadException;
+import org.wildfly.client.config.ClientConfiguration;
+import org.wildfly.client.config.ConfigXMLParseException;
+import org.wildfly.client.config.ConfigurationXMLStreamReader;
+import org.wildfly.common.Assert;
 
 import java.net.URI;
 import java.util.Arrays;
@@ -30,15 +37,8 @@ import java.util.ServiceConfigurationError;
 import java.util.ServiceLoader;
 import java.util.Set;
 
-import org.jboss.ejb._private.Logs;
-import org.jboss.ejb.client.legacy.LegacyPropertiesConfiguration;
-import org.jboss.modules.Module;
-import org.jboss.modules.ModuleIdentifier;
-import org.jboss.modules.ModuleLoadException;
-import org.wildfly.client.config.ClientConfiguration;
-import org.wildfly.client.config.ConfigXMLParseException;
-import org.wildfly.client.config.ConfigurationXMLStreamReader;
-import org.wildfly.common.Assert;
+import static javax.xml.stream.XMLStreamConstants.END_ELEMENT;
+import static javax.xml.stream.XMLStreamConstants.START_ELEMENT;
 
 /**
  * A one-time, configuration-based EJB client context configurator.
@@ -51,9 +51,11 @@ final class ConfigurationBasedEJBClientContextSelector {
 
     private static final String NS_EJB_CLIENT_3_0 = "urn:jboss:wildfly-client-ejb:3.0";
     private static final String NS_EJB_CLIENT_3_1 = "urn:jboss:wildfly-client-ejb:3.1";
+    private static final String NS_EJB_CLIENT_3_2 = "urn:jboss:wildfly-client-ejb:3.2";
     private static final String NS_INCORRECT = "urn:jboss:ejb-client:3.0";
 
-    private static final Set<String> validNamespaces = new HashSet<>(Arrays.asList(NS_EJB_CLIENT_3_0, NS_EJB_CLIENT_3_1));
+    private static final Set<String> validNamespaces = new HashSet<>(Arrays.asList(NS_EJB_CLIENT_3_0, NS_EJB_CLIENT_3_1,
+            NS_EJB_CLIENT_3_2));
 
     static {
         configuredContext = loadConfiguration();
@@ -105,6 +107,7 @@ final class ConfigurationBasedEJBClientContextSelector {
         boolean gotConnections = false;
         boolean gotClusterNodeSelector = false;
         boolean gotDeploymentNodeSelector = false;
+        boolean gotMaximumConnectedClusterNodes = false;
         for (;;) {
             final int next = streamReader.nextTag();
             if (next == START_ELEMENT) {
@@ -125,13 +128,21 @@ final class ConfigurationBasedEJBClientContextSelector {
                     gotConnections = true;
                     parseConnectionsType(streamReader, builder);
                 }
-                else  if(localName.equals("deployment-node-selector") && ! gotDeploymentNodeSelector && inValidNamespace(Collections.singleton(NS_EJB_CLIENT_3_1), configuredNamespace)) {
+                else  if(localName.equals("deployment-node-selector") && ! gotDeploymentNodeSelector
+                        && inValidNamespace(new HashSet<>(Arrays.asList(NS_EJB_CLIENT_3_1, NS_EJB_CLIENT_3_2)),
+                        configuredNamespace)) {
                     gotDeploymentNodeSelector = true;
                     parseDeploymentNodeSelectorType(streamReader, builder);
                 }
-                else  if(localName.equals("cluster-node-selector") && ! gotClusterNodeSelector && inValidNamespace(Collections.singleton(NS_EJB_CLIENT_3_1), configuredNamespace)) {
+                else  if(localName.equals("cluster-node-selector") && ! gotClusterNodeSelector
+                        && inValidNamespace(new HashSet<>(Arrays.asList(NS_EJB_CLIENT_3_1, NS_EJB_CLIENT_3_2)), configuredNamespace)) {
                     gotClusterNodeSelector = true;
                     parseClusterNodeSelectorType(streamReader, builder);
+                }
+                else if (localName.equals("max-allowed-connected-nodes") && ! gotMaximumConnectedClusterNodes
+                        && inValidNamespace(Collections.singleton(NS_EJB_CLIENT_3_2), configuredNamespace)) {
+                    gotMaximumConnectedClusterNodes = true;
+                    parseMaximumAllowedClusterNodesType(streamReader, builder);
                 }
                 else {
                     throw streamReader.unexpectedElement();
@@ -323,6 +334,27 @@ final class ConfigurationBasedEJBClientContextSelector {
         } else {
             throw Assert.unreachableCode();
         }
+    }
+    private static void parseMaximumAllowedClusterNodesType(final ConfigurationXMLStreamReader streamReader, final EJBClientContext.Builder builder) throws ConfigXMLParseException {
+        final int attributeCount = streamReader.getAttributeCount();
+        int maximumConnectedClusterNodes;
+        for (int i = 0; i < attributeCount; i++) {
+            if (streamReader.getAttributeNamespace(i) != null && ! streamReader.getAttributeNamespace(i).isEmpty()) {
+                throw streamReader.unexpectedAttribute(i);
+            }
+            final String name = streamReader.getAttributeLocalName(i);
+            if (name.equals("nodes")) {
+                maximumConnectedClusterNodes = streamReader.getIntAttributeValueResolved(i);
+            } else {
+                throw streamReader.unexpectedAttribute(i);
+            }
+            builder.setMaximumConnectedClusterNodes(maximumConnectedClusterNodes);
+        }
+        final int next = streamReader.nextTag();
+        if (next == END_ELEMENT) {
+            return;
+        }
+        throw streamReader.unexpectedElement();
     }
 
     private static void loadTransportProviders(final EJBClientContext.Builder builder, final ClassLoader classLoader) {
