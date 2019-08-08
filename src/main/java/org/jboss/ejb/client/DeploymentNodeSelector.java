@@ -18,13 +18,16 @@
 
 package org.jboss.ejb.client;
 
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import org.jboss.logging.Logger;
 import org.wildfly.common.Assert;
+import org.wildfly.security.manager.WildFlySecurityManager;
 
 /**
  * A selector which selects and returns a node, from among the passed eligible nodes, that can handle a specific
@@ -36,8 +39,10 @@ import org.wildfly.common.Assert;
  * yields a URI or cluster, this mechanism is not used.
  *
  * @author Jaikiran Pai
+ * @author <a href="mailto:wfink@redhat.com">Wolf Dieter Fink</a>
  */
 public interface DeploymentNodeSelector {
+	final static Logger log = Logger.getLogger(DeploymentNodeSelector.class);
 
     /**
      * Selects and returns a node from among the <code>eligibleNodes</code> to handle the invocation on a deployment
@@ -69,8 +74,12 @@ public interface DeploymentNodeSelector {
             Collections.addAll(set, eligibleNodes);
             for (String favorite : favorites) {
                 if (set.contains(favorite)) {
+                    log.debugf("FAVORITE node %s for [app: %s, module: %s,  distinctname: %s]", favorite, appName, moduleName, distinctName);
                     return favorite;
                 }
+            }
+            if(log.isDebugEnabled()) {
+                log.debugf("FAVORITE no favorite found use fallback for [eligibleNodes %s, app: %s, module: %s,  distinctname: %s]", Arrays.deepToString(eligibleNodes), appName, moduleName, distinctName);
             }
             return fallback.selectNode(eligibleNodes, appName, moduleName, distinctName);
         };
@@ -99,7 +108,41 @@ public interface DeploymentNodeSelector {
         public String selectNode(final String[] eligibleNodes, final String appName, final String moduleName, final String distinctName) {
             final int length = eligibleNodes.length;
             assert length > 0;
-            return eligibleNodes[Math.floorMod(counter.getAndIncrement(), length)];
+            if(log.isTraceEnabled()) {
+                log.tracef("ROUND_ROBIN [nodes=%s appName=%s moduleName=%s, distinctName=%s]", Arrays.deepToString(eligibleNodes), appName, moduleName, distinctName);
+            }
+            String node = eligibleNodes[Math.floorMod(counter.getAndIncrement(), length)];
+            log.debugf("ROUND_ROBIN select node %s for [app: %s, module: %s,  distinctname: %s]", node, appName, moduleName, distinctName);
+            return node;
+        }
+    };
+
+    /**
+     * A deployment node selector which check the server name if inside and prefer it if available for selection.
+     */
+    DeploymentNodeSelector RANDOM_PREFER_LOCAL = new DeploymentNodeSelector() {
+        private final String localNodeName = WildFlySecurityManager.getPropertyPrivileged("jboss.node.name", null);
+
+        public String selectNode(final String[] eligibleNodes, final String appName, final String moduleName, final String distinctName) {
+            if(log.isTraceEnabled()) {
+                log.tracef("RANDOM_PREFER_LOCAL (%s) [nodes=%s appName=%s moduleName=%s, distinctName=%s]", localNodeName, Arrays.deepToString(eligibleNodes), appName, moduleName, distinctName);
+            }
+            // Just a single node available, so just return it
+            if (eligibleNodes.length == 1) {
+                return eligibleNodes[0];
+            }
+            // prefer local node if available
+            if(localNodeName != null) {
+	            for (final String eligibleNode : eligibleNodes) {
+	                if (localNodeName.equals(eligibleNode)) {
+	                    log.debugf("RANDOM_PREFER_LOCAL select local node %s for [app: %s, module: %s,  distinctname: %s]", eligibleNode, appName, moduleName, distinctName);
+	                    return eligibleNode;
+	                }
+	            }
+            }
+            // select one randomly
+            log.debug("RANDOM_PREFER_LOCAL local node not avaialble, fallback to RANDOM selection");
+            return RANDOM.selectNode(eligibleNodes, appName, moduleName, distinctName);
         }
     };
 }

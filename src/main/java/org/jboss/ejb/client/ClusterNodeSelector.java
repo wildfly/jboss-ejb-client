@@ -24,15 +24,19 @@ import java.util.HashSet;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import org.jboss.logging.Logger;
 import org.wildfly.common.Assert;
+import org.wildfly.security.manager.WildFlySecurityManager;
 
 /**
  * A selector which selects and returns a node from the available nodes in a cluster. Typical usage of a
  * {@link ClusterNodeSelector} involve load balancing of calls to various nodes in the cluster.
  *
  * @author Jaikiran Pai
+ * @author <a href="mailto:wfink@redhat.com">Wolf Dieter Fink</a>
  */
 public interface ClusterNodeSelector {
+	final static Logger log = Logger.getLogger(ClusterNodeSelector.class);
 
     /**
      * Returns a node from among the {@code totalAvailableNodes}, as the target node for EJB invocations.
@@ -68,10 +72,59 @@ public interface ClusterNodeSelector {
     ClusterNodeSelector RANDOM = (clusterName, connectedNodes, totalAvailableNodes) -> totalAvailableNodes[ThreadLocalRandom.current().nextInt(totalAvailableNodes.length)];
 
     /**
+     * Use available nodes in a round-robin fashion, regardless of whether it is connected.
+     */
+    ClusterNodeSelector ROUND_ROBIN = new ClusterNodeSelector() {
+        private final AtomicInteger count = new AtomicInteger();
+        public String selectNode(final String clusterName, final String[] connectedNodes, final String[] totalAvailableNodes) {
+            assert totalAvailableNodes.length != 0;
+            return totalAvailableNodes[Math.floorMod(count.getAndIncrement(), totalAvailableNodes.length)];
+        }
+    };
+
+    /**
      * A simple default selector which uses {@link #simpleConnectionThresholdRandomSelector(int)} with a minimum of
      * 5 connections.
      */
     ClusterNodeSelector DEFAULT = simpleConnectionThresholdRandomSelector(5);
+
+    /**
+     * A deployment node selector which check the server name if inside and prefer it if available for selection.
+     * If no local node is used the DEFAULT will be used and connect a minimum of 5 nodes and select it randomly.
+     */
+  ClusterNodeSelector DEFAULT_PREFER_LOCAL = new ClusterNodeSelector() {
+      private final String localNodeName = WildFlySecurityManager.getPropertyPrivileged("jboss.node.name", null);
+
+		public String selectNode(String clusterName, String[] connectedNodes, String[] totalAvailableNodes) {
+          // Check if more than one node is available
+          if (totalAvailableNodes.length > 1 && localNodeName != null) {
+	            for (final String node : totalAvailableNodes) {
+	                if (localNodeName.equals(node)) {
+	                    log.debugf("Select local node %s for [cluster: %s]", this.localNodeName, clusterName);
+	                    return node;
+	                }
+	            }
+          }
+          return DEFAULT.selectNode(clusterName, connectedNodes, totalAvailableNodes);
+      }
+	};
+
+    ClusterNodeSelector RANDOM_PREFER_LOCAL = new ClusterNodeSelector() {
+        private final String localNodeName = WildFlySecurityManager.getPropertyPrivileged("jboss.node.name", null);
+
+		public String selectNode(String clusterName, String[] connectedNodes, String[] totalAvailableNodes) {
+	          // Check if more than one node is available
+            if (totalAvailableNodes.length > 1 && localNodeName != null) {
+	            for (final String node : totalAvailableNodes) {
+	                if (localNodeName.equals(node)) {
+	                    log.debugf("Select local node %s for [cluster: %s]", this.localNodeName, clusterName);
+	                    return node;
+	                }
+	            }
+            }
+            return RANDOM.selectNode(clusterName, connectedNodes, totalAvailableNodes);
+        }
+    };
 
     /**
      * A simple threshold-based random selector.  If the minimum is met, then a random connected node is used, otherwise
