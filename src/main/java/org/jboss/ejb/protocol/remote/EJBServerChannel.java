@@ -182,6 +182,7 @@ final class EJBServerChannel {
         }
 
         public void handleMessage(final Channel channel, final MessageInputStream message) {
+            channel.receiveMessage(this);
             final ClassLoader oldCL = getAndSetSafeTCCL();
             try {
                 final int code = message.readUnsignedByte();
@@ -258,7 +259,6 @@ final class EJBServerChannel {
                 // nothing we can do.
             } finally {
                 safeClose(message);
-                channel.receiveMessage(this);
                 resetTCCL(oldCL);
             }
         }
