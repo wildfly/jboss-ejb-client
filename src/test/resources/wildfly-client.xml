@@ -33,11 +33,17 @@
         </authentication-configurations>
     </authentication-client>
     <jboss-ejb-client xmlns="urn:jboss:wildfly-client-ejb:3.2">
+        <connections>
+            <connection uri="remote+http://127.0.0.1:8080"/>
+            <connection uri="remote+http://127.0.0.1:8180"/>
+        </connections>
         <invocation-timeout seconds="10"/>
         <deployment-node-selector class="org.jboss.ejb.client.DummyNodeSelector" />
         <cluster-node-selector class="org.jboss.ejb.client.DummyNodeSelector" />
-        <global-interceptors/>
-        <connections/>
+        <global-interceptors>
+            <interceptor class="org.jboss.ejb.client.DummyClientInterceptor"/>
+            <interceptor class="org.jboss.ejb.client.DummyClientInterceptor2"/>
+        </global-interceptors>
         <max-allowed-connected-nodes nodes="15"/>
     </jboss-ejb-client>
 </configuration>
