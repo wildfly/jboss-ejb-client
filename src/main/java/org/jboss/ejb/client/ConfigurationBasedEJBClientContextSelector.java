@@ -190,7 +190,7 @@ final class ConfigurationBasedEJBClientContextSelector {
         for (;;) {
             final int next = streamReader.nextTag();
             if (next == START_ELEMENT) {
-                if (! streamReader.getNamespaceURI().equals(NS_EJB_CLIENT_3_0) || ! streamReader.getLocalName().equals("interceptor")) {
+                if (! validNamespaces.contains(streamReader.getNamespaceURI()) || ! streamReader.getLocalName().equals("interceptor")) {
                     throw streamReader.unexpectedElement();
                 }
                 parseInterceptorType(streamReader, builder);
@@ -287,7 +287,7 @@ final class ConfigurationBasedEJBClientContextSelector {
         for (;;) {
             final int next = streamReader.nextTag();
             if (next == START_ELEMENT) {
-                if (! streamReader.getNamespaceURI().equals(NS_EJB_CLIENT_3_0)) {
+                if (! validNamespaces.contains(streamReader.getNamespaceURI())) {
                     throw streamReader.unexpectedElement();
                 }
                 final String localName = streamReader.getLocalName();
@@ -318,7 +318,7 @@ final class ConfigurationBasedEJBClientContextSelector {
         }
         final int next = streamReader.nextTag();
         if (next == START_ELEMENT) {
-            if (! streamReader.getNamespaceURI().equals(NS_EJB_CLIENT_3_0)) {
+            if (! validNamespaces.contains(streamReader.getNamespaceURI())) {
                 throw streamReader.unexpectedElement();
             }
             final String localName = streamReader.getLocalName();
