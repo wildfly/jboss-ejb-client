@@ -572,8 +572,8 @@ class EJBClientChannel {
     private XAOutflowHandle writeTransaction(final Transaction transaction, final DataOutput dataOutput,
             final AuthenticationContext authenticationContext) throws IOException, RollbackException, SystemException {
         if (authenticationContext != null) {
-            if (Logs.MAIN.isDebugEnabled()) {
-                Logs.MAIN.debug("Using existing AuthenticationContext for writeTransaction(...)");
+            if (Logs.MAIN.isTraceEnabled()) {
+                Logs.MAIN.trace("Using existing AuthenticationContext for writeTransaction(...)");
             }
             try {
                 return authenticationContext.run((PrivilegedExceptionAction<XAOutflowHandle>) () -> _writeTransaction(transaction, dataOutput));
