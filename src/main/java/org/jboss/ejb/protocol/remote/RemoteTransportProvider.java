@@ -18,6 +18,7 @@
 
 package org.jboss.ejb.protocol.remote;
 
+import org.jboss.ejb._private.Logs;
 import org.jboss.ejb.client.AttachmentKey;
 import org.jboss.ejb.client.EJBClientContext;
 import org.jboss.ejb.client.EJBReceiver;
@@ -34,13 +35,16 @@ import org.kohsuke.MetaInfServices;
 public final class RemoteTransportProvider implements EJBTransportProvider {
 
     static final AttachmentKey<RemoteEJBReceiver> ATTACHMENT_KEY = new AttachmentKey<>();
+    private static final Logs log = Logs.MAIN;
 
     public RemoteTransportProvider() {
     }
 
     public void notifyRegistered(final EJBReceiverContext receiverContext) {
         final EJBClientContext clientContext = receiverContext.getClientContext();
-        clientContext.putAttachmentIfAbsent(ATTACHMENT_KEY, new RemoteEJBReceiver(this, receiverContext, new RemotingEJBDiscoveryProvider()));
+        RemoteEJBReceiver receiver = new RemoteEJBReceiver(this, receiverContext, new RemotingEJBDiscoveryProvider());
+        clientContext.putAttachmentIfAbsent(ATTACHMENT_KEY, receiver);
+        log.tracef("RemoteTransportProvider %s registered receiver %s with client context %s", this, receiver, clientContext);
     }
 
     public boolean supportsProtocol(final String uriScheme) {

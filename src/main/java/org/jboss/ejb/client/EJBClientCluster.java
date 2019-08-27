@@ -86,6 +86,22 @@ public final class EJBClientCluster {
         return overrideConfiguration;
     }
 
+    @Override
+    public String toString() {
+        final StringBuilder builder = new StringBuilder();
+        builder.append("EJBClientCluster(name=");
+        builder.append(name);
+        builder.append(", max nodes=");
+        builder.append(maximumConnectedNodes);
+        builder.append(", connect timeout milis=");
+        builder.append(connectTimeoutMilliseconds);
+        builder.append(", selector=");
+        builder.append(clusterNodeSelector);
+        builder.append(", override config=");
+        builder.append(overrideConfiguration);
+        builder.append(")");
+        return builder.toString();
+    }
     /**
      * A builder for a cluster definition.
      */
