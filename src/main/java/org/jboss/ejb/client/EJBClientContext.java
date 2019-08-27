@@ -100,6 +100,8 @@ public final class EJBClientContext extends Attachable implements Contextual<EJB
 
     private static final int MAX_SESSION_RETRIES = 8;
 
+    private static final Logs log = Logs.MAIN;
+
     static {
         CONTEXT_MANAGER.setGlobalDefaultSupplier(EJBClientContext::getDefault);
     }
@@ -136,9 +138,11 @@ public final class EJBClientContext extends Attachable implements Contextual<EJB
     private final int maximumConnectedClusterNodes;
 
     EJBClientContext(Builder builder) {
+        log.tracef("Creating new EJBClientContext: %s", this);
         final List<EJBTransportProvider> builderTransportProviders = builder.transportProviders;
         if (builderTransportProviders == null || builderTransportProviders.isEmpty()) {
             transportProviders = NO_TRANSPORT_PROVIDERS;
+            log.tracef("New EJBClientContext %s contains no transport providers", this);
         } else {
             transportProviders = builderTransportProviders.toArray(new EJBTransportProvider[builderTransportProviders.size()]);
         }
@@ -147,10 +151,21 @@ public final class EJBClientContext extends Attachable implements Contextual<EJB
         final List<EJBClientConnection> clientConnections = builder.clientConnections;
         if (clientConnections == null || clientConnections.isEmpty()) {
             configuredConnections = Collections.emptyList();
+            log.tracef("New EJBClientContext %s contains no configured connections", this);
         } else if (clientConnections.size() == 1) {
+            if (log.isTraceEnabled())
+                log.tracef("New EJBClientContext %s contains one configured connection: %s", this, clientConnections.get(0));
             configuredConnections = Collections.singletonList(clientConnections.get(0));
         } else {
             configuredConnections = Collections.unmodifiableList(new ArrayList<>(clientConnections));
+            if (log.isTraceEnabled()) {
+                StringBuffer buffer = new StringBuffer();
+                Iterator iterator = configuredConnections.iterator();
+                buffer.append(clientConnections.iterator().next());
+                while (iterator.hasNext())
+                    buffer.append(", ").append(iterator.next());
+                log.tracef("New EJBClientContext %s contains configured connections: %s", this, buffer);
+            }
         }
         final List<EJBClientCluster> clientClusters = builder.clientClusters;
         if (clientClusters == null || clientClusters.isEmpty()) {
@@ -158,16 +173,21 @@ public final class EJBClientContext extends Attachable implements Contextual<EJB
         } else if (clientClusters.size() == 1) {
             final EJBClientCluster clientCluster = clientClusters.get(0);
             configuredClusters = Collections.singletonMap(clientCluster.getName(), clientCluster);
+            log.tracef("New EJBClientContext %s contains configured cluster: %s", this, clientCluster);
         } else {
             Map<String, EJBClientCluster> map = new HashMap<>();
             for (EJBClientCluster clientCluster : clientClusters) {
                 map.put(clientCluster.getName(), clientCluster);
+                log.tracef("New EJBClientContext %s contains configured cluster: %s", this, clientCluster);
             }
             configuredClusters = Collections.unmodifiableMap(map);
         }
         clusterNodeSelector = builder.clusterNodeSelector;
         deploymentNodeSelector = builder.deploymentNodeSelector;
         maximumConnectedClusterNodes = builder.maximumConnectedClusterNodes;
+
+        log.tracef("New EJBClientContext %s contains cluster configuration: node selector=%s, deployment selector=%s, maximum nodes=%s",
+                this, clusterNodeSelector, deploymentNodeSelector, maximumConnectedClusterNodes);
 
         // global interceptors
         final List<EJBClientInterceptorInformation> globalInterceptors = builder.globalInterceptors;
@@ -270,8 +290,29 @@ public final class EJBClientContext extends Attachable implements Contextual<EJB
             this.configuredPerMethodInterceptors = Collections.emptyMap();
         }
 
+        if (log.isTraceEnabled()) {
+            if (globalInterceptors != null)
+                for (EJBClientInterceptorInformation ejbClientInterceptorInformation : globalInterceptors)
+                    log.tracef("New EJBClientContext %s contains global interceptor: %s", this,
+                        ejbClientInterceptorInformation);
+            if (classPathInterceptors != null)
+                for (EJBClientInterceptorInformation ejbClientInterceptorInformation : classPathInterceptors.getInformation())
+                    log.tracef("New EJBClientContext %s contains class path interceptor: %s", this,
+                        ejbClientInterceptorInformation);
+            if (configuredPerClassInterceptors != null)
+                for (Map.Entry<String, InterceptorList> entry : configuredPerClassInterceptors.entrySet())
+                    log.tracef("New EJBClientContext %s contains class interceptor: class=%s, intercpetor=%s", this,
+                        entry.getKey(), entry.getValue().getInformation());
+            if (configuredPerMethodInterceptors != null)
+                for (Map.Entry<String, Map<EJBMethodLocator, InterceptorList>> classEntry : configuredPerMethodInterceptors.entrySet())
+                    for (Map.Entry<EJBMethodLocator, InterceptorList> methodEntry : classEntry.getValue().entrySet())
+                        log.tracef("New EJBClientContext %s contains method interceptor: class=%s, method=%s, interceptor=%s",
+                            this, classEntry.getKey(), methodEntry.getKey(), methodEntry.getValue());
+        }
+
         // this must be last
         for (EJBTransportProvider transportProvider : transportProviders) {
+            log.tracef("New EJBClientContext %s notifying transport provider: %s", this, transportProvider);
             transportProvider.notifyRegistered(receiverContext);
         }
     }
@@ -492,6 +533,7 @@ public final class EJBClientContext extends Attachable implements Contextual<EJB
         if (length == 0) {
             return this;
         }
+        log.tracef("Creating new EJBClientContext from %s with added interceptors including %s", this, interceptors[0]);
         final Builder builder = new Builder(this);
         boolean construct = false;
         for (EJBClientInterceptor interceptor : interceptors) {
@@ -518,6 +560,7 @@ public final class EJBClientContext extends Attachable implements Contextual<EJB
         if (length == 0) {
             return this;
         }
+        log.tracef("Creating new EJBClientContext from %s with added transport providers including %s", this, transportProviders[0]);
         final Builder builder = new Builder(this);
         boolean construct = false;
         for (EJBTransportProvider transportProvider : transportProviders) {

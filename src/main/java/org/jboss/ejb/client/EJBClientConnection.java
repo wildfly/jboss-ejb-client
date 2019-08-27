@@ -54,6 +54,17 @@ public final class EJBClientConnection {
         return forDiscovery;
     }
 
+    @Override
+    public String toString() {
+        final StringBuilder stringBuilder = new StringBuilder();
+        stringBuilder.append("EJBClientConnection(destination=");
+        stringBuilder.append(destination);
+        stringBuilder.append(", for discovery=");
+        stringBuilder.append(forDiscovery);
+        stringBuilder.append(")");
+        return stringBuilder.toString();
+    }
+
     /**
      * A builder for a client connection definition.
      */
