@@ -28,6 +28,7 @@ import java.security.PrivilegedAction;
 
 import javax.ejb.CreateException;
 
+import org.jboss.ejb._private.Logs;
 import org.jboss.ejb.client.AbstractInvocationContext;
 import org.jboss.ejb.client.Affinity;
 import org.jboss.ejb.client.AttachmentKey;
@@ -54,6 +55,7 @@ import org.xnio.OptionMap;
  * @author <a href="mailto:david.lloyd@redhat.com">David M. Lloyd</a>
  */
 class RemoteEJBReceiver extends EJBReceiver {
+    private static final Logs log = Logs.MAIN;
     static final AttachmentKey<EJBClientChannel> EJBCC_KEY = new AttachmentKey<>();
 
     private final RemoteTransportProvider remoteTransportProvider;
@@ -117,6 +119,7 @@ class RemoteEJBReceiver extends EJBReceiver {
 
     EJBClientChannel getClientChannel(final Connection connection) throws IOException {
         try {
+            log.tracef("RemoteEJBReceiver %s getting client service channel %s", this, serviceHandle);
             return serviceHandle.getClientService(connection, OptionMap.EMPTY).getInterruptibly();
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();

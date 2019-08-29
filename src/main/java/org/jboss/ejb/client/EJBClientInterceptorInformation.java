@@ -111,4 +111,15 @@ final class EJBClientInterceptorInformation implements Comparable<EJBClientInter
     public int compareTo(final EJBClientInterceptorInformation o) {
         return signum(priority - o.priority);
     }
+
+    @Override
+    public String toString() {
+        StringBuffer buffer = new StringBuffer();
+        buffer.append("EJBClientInterceptorInformation(class=");
+        buffer.append(interceptorClass);
+        buffer.append(", priority=");
+        buffer.append(priority);
+        buffer.append(")");
+        return buffer.toString();
+    }
 }
