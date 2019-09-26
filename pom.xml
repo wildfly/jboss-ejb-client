@@ -62,6 +62,7 @@
         <version.org.wildfly.discovery>1.2.0.Final</version.org.wildfly.discovery>
         <version.org.wildfly.security.elytron>1.1.5.Final</version.org.wildfly.security.elytron>
         <version.org.wildfly.transaction-client>1.1.4.Final</version.org.wildfly.transaction-client>
+        <byteman-version>4.0.7</byteman-version>
 
         <version.org.jboss.bridger>1.4.Final</version.org.jboss.bridger>
     </properties>
@@ -291,6 +292,34 @@
             <groupId>org.jboss</groupId>
             <artifactId>jboss-transaction-spi</artifactId>
             <version>${version.org.jboss.jboss-transaction-spi}</version>
+            <scope>test</scope>
+        </dependency>
+        <!-- ByteMan -->
+
+        <dependency>
+            <groupId>org.jboss.byteman</groupId>
+            <artifactId>byteman</artifactId>
+            <version>${byteman-version}</version>
+            <scope>test</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>org.jboss.byteman</groupId>
+            <artifactId>byteman-bmunit</artifactId>
+            <version>${byteman-version}</version>
+            <scope>test</scope>
+            <exclusions>
+                <exclusion>
+                    <artifactId>testng</artifactId>
+                    <groupId>org.testng</groupId>
+                </exclusion>
+            </exclusions>
+        </dependency>
+
+        <dependency>
+            <groupId>org.jboss.byteman</groupId>
+            <artifactId>byteman-install</artifactId>
+            <version>${byteman-version}</version>
             <scope>test</scope>
         </dependency>
     </dependencies>
