@@ -103,6 +103,16 @@ public final class EJBReceiverInvocationContext {
     public String getNodeName() {
         return this.ejbReceiverContext.getReceiver().getNodeName();
     }
+    
+    @Override
+    public String toString() {
+        StringBuffer toString = new StringBuffer(EJBReceiverInvocationContext.class.getName() + "@" + System.identityHashCode(this));
+        if(this.getClientInvocationContext() != null) {
+            toString.append(" - ").append(this.getClientInvocationContext().getLocator().toString())
+                .append(", method: ").append(this.getClientInvocationContext().getInvokedMethod().getName());
+        }
+        return toString.toString();
+    }
 
     /**
      * A result producer for invocation.
