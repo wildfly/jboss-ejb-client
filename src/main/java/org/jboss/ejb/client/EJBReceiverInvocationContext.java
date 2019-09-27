@@ -105,6 +105,16 @@ public final class EJBReceiverInvocationContext extends AbstractReceiverInvocati
     public AuthenticationContext getAuthenticationContext() {
         return clientInvocationContext.getAuthenticationContext();
     }
+    
+    @Override
+    public String toString() {
+        StringBuffer toString = new StringBuffer(EJBReceiverInvocationContext.class.getName() + "@" + System.identityHashCode(this));
+        if(this.getClientInvocationContext() != null) {
+            toString.append(" - ").append(this.getClientInvocationContext().getLocator().toString())
+                .append(", method: ").append(this.getClientInvocationContext().getInvokedMethod().getName());
+        }
+        return toString.toString();
+    }
 
     /**
      * A result producer for invocation.
