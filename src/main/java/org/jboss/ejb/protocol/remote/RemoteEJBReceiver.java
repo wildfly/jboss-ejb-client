@@ -57,20 +57,21 @@ import org.xnio.OptionMap;
 class RemoteEJBReceiver extends EJBReceiver {
     private static final Logs log = Logs.MAIN;
     static final AttachmentKey<EJBClientChannel> EJBCC_KEY = new AttachmentKey<>();
+    private static final RetryExecutorWrapper retryExecutorWrapper = new RetryExecutorWrapper();
+    private static final RemotingEJBDiscoveryProvider discoveredNodeRegistry = new RemotingEJBDiscoveryProvider();
+    static final ClientServiceHandle<EJBClientChannel> serviceHandle = new ClientServiceHandle<>("jboss.ejb", channel -> EJBClientChannel.construct(channel, discoveredNodeRegistry, retryExecutorWrapper));
 
     private final RemoteTransportProvider remoteTransportProvider;
     private final EJBReceiverContext receiverContext;
-    private final RemotingEJBDiscoveryProvider discoveredNodeRegistry;
 
-    final ClientServiceHandle<EJBClientChannel> serviceHandle;
 
-    private final RetryExecutorWrapper retryExecutorWrapper = new RetryExecutorWrapper();
-
-    RemoteEJBReceiver(final RemoteTransportProvider remoteTransportProvider, final EJBReceiverContext receiverContext, final RemotingEJBDiscoveryProvider discoveredNodeRegistry) {
+    RemoteEJBReceiver(final RemoteTransportProvider remoteTransportProvider, final EJBReceiverContext receiverContext) {
         this.remoteTransportProvider = remoteTransportProvider;
         this.receiverContext = receiverContext;
-        this.discoveredNodeRegistry = discoveredNodeRegistry;
-        serviceHandle = new ClientServiceHandle<>("jboss.ejb", channel -> EJBClientChannel.construct(channel, this.discoveredNodeRegistry, retryExecutorWrapper));
+    }
+
+    RemoteEJBReceiver(final RemoteTransportProvider remoteTransportProvider, final EJBReceiverContext receiverContext, final RemotingEJBDiscoveryProvider discoveredNodeRegistry) {
+        this(remoteTransportProvider, receiverContext);
     }
 
     final IoFuture.HandlingNotifier<ConnectionPeerIdentity, EJBReceiverInvocationContext> notifier = new IoFuture.HandlingNotifier<ConnectionPeerIdentity, EJBReceiverInvocationContext>() {
