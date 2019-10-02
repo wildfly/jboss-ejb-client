@@ -42,7 +42,7 @@ public final class RemoteTransportProvider implements EJBTransportProvider {
 
     public void notifyRegistered(final EJBReceiverContext receiverContext) {
         final EJBClientContext clientContext = receiverContext.getClientContext();
-        RemoteEJBReceiver receiver = new RemoteEJBReceiver(this, receiverContext, new RemotingEJBDiscoveryProvider());
+        RemoteEJBReceiver receiver = new RemoteEJBReceiver(this, receiverContext);
         clientContext.putAttachmentIfAbsent(ATTACHMENT_KEY, receiver);
         log.tracef("RemoteTransportProvider %s registered receiver %s with client context %s", this, receiver, clientContext);
     }
