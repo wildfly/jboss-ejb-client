@@ -55,7 +55,7 @@
         <version.org.jboss.spec.javax.ejb>1.0.0.Final</version.org.jboss.spec.javax.ejb>
         <version.org.jboss.spec.javax.transaction>1.0.1.Final</version.org.jboss.spec.javax.transaction>
         <version.org.jboss.threads>2.3.3.Final</version.org.jboss.threads>
-        <version.org.jboss.xnio>3.5.1.Final</version.org.jboss.xnio>
+        <version.org.jboss.xnio>3.7.4.Final</version.org.jboss.xnio>
         <version.org.kohsuke.metainf-services>1.7</version.org.kohsuke.metainf-services>
         <version.org.wildfly.client-config>1.0.0.Final</version.org.wildfly.client-config>
         <version.org.wildfly.common>1.5.1.Final</version.org.wildfly.common>
