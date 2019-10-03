@@ -84,7 +84,7 @@ public class OOMEInInvocationTestCase extends AbstractEJBClientTestCase {
     @Test
     public void testSLSBInvocation() {
         
-        Assert.assertEquals("echo system property exists", System.getProperty("echo"), null);
+        Assert.assertEquals("echo system property exists", null, System.getProperty("echo"));
         
         Affinity expectedStrongAffinity = Affinity.NONE;
         
@@ -102,7 +102,7 @@ public class OOMEInInvocationTestCase extends AbstractEJBClientTestCase {
             //don't do anything, it is expected
         }
         // check the property contents
-        Assert.assertEquals("method echo not in error message", System.getProperty("echo"), "true");
+        Assert.assertEquals("method echo not in error message", "true", System.getProperty("echo"));
     }
 
     /**
