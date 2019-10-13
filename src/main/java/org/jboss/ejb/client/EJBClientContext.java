@@ -675,8 +675,8 @@ public final class EJBClientContext extends Attachable implements Contextual<EJB
         List<EJBTransportProvider> transportProviders;
         List<EJBClientConnection> clientConnections;
         List<EJBClientCluster> clientClusters;
-        ClusterNodeSelector clusterNodeSelector = ClusterNodeSelector.DEFAULT;
-        DeploymentNodeSelector deploymentNodeSelector = DeploymentNodeSelector.RANDOM;
+        ClusterNodeSelector clusterNodeSelector = ClusterNodeSelector.DEFAULT_PREFER_LOCAL;
+        DeploymentNodeSelector deploymentNodeSelector = DeploymentNodeSelector.RANDOM_PREFER_LOCAL;
         long invocationTimeout;
         int maximumConnectedClusterNodes = 10;
 
