@@ -17,6 +17,9 @@
  */
 package org.jboss.ejb.client;
 
+import java.lang.reflect.InvocationHandler;
+import java.lang.reflect.Proxy;
+
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -40,5 +43,13 @@ public class ProxyEqualityTestCase {
         Assert.assertEquals(proxyA.hashCode(), proxyB.hashCode());
         Assert.assertFalse(proxyA.equals(proxyC));
         Assert.assertTrue(proxyA.hashCode() != proxyC.hashCode());
+
+        Assert.assertTrue(EJBClient.isEJBProxy(proxyA));
+        Assert.assertTrue(EJBClient.isEJBProxy(proxyB));
+        Assert.assertTrue(EJBClient.isEJBProxy(proxyC));
+
+        InvocationHandler invocationHandler1 = (proxy, method, args) -> method.invoke(proxy, args);
+        final Object proxy1 = Proxy.newProxyInstance(getClass().getClassLoader(), new Class<?>[]{Runnable.class}, invocationHandler1);
+        Assert.assertFalse(EJBClient.isEJBProxy(proxy1));
     }
 }
