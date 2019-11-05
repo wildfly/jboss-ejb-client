@@ -96,6 +96,7 @@
                             <value>org.jboss.logmanager.LogManager</value>
                         </property>
                     </systemProperties>
+                     <argLine>-Djdk.attach.allowAttachSelf</argLine>
                 </configuration>
             </plugin>
             <plugin>
