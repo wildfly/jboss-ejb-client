@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.jboss.ejb.client.test;
+package org.jboss.ejb.client.test.byteman;
 
 import org.jboss.byteman.contrib.bmunit.BMScript;
 import org.jboss.byteman.contrib.bmunit.BMUnitRunner;
@@ -23,6 +23,8 @@ import org.jboss.ejb.client.Affinity;
 import org.jboss.ejb.client.EJBClient;
 import org.jboss.ejb.client.StatelessEJBLocator;
 import org.jboss.ejb.client.legacy.JBossEJBProperties;
+import org.jboss.ejb.client.test.AbstractEJBClientTestCase;
+import org.jboss.ejb.client.test.ClassCallback;
 import org.jboss.ejb.client.test.common.Echo;
 import org.jboss.logging.Logger;
 import org.junit.After;
