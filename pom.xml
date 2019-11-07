@@ -18,7 +18,8 @@
   ~ limitations under the License.
   -->
 
-<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
     <parent>
@@ -33,6 +34,12 @@
     <name>JBoss EJB client</name>
     <description>Client library for EJB applications working against Wildfly</description>
 
+    <scm>
+        <connection>scm:git:git@github.com:wildfly/jboss-ejb-client.git</connection>
+        <developerConnection>scm:git:git@github.com:wildfly/jboss-ejb-client.git</developerConnection>
+        <url>https://github.com/wildfly/jboss-ejb-client</url>
+    </scm>
+
     <licenses>
         <license>
             <name>Apache License 2.0</name>
@@ -42,6 +49,8 @@
     </licenses>
 
     <properties>
+        <version.org.jboss.bridger>1.4.Final</version.org.jboss.bridger>
+        <version.org.jboss.byteman>4.0.7</version.org.jboss.byteman>
         <version.org.jboss.invocation>1.5.0.Final</version.org.jboss.invocation>
         <version.org.jboss.jboss-transaction-spi>7.6.0.Final</version.org.jboss.jboss-transaction-spi>
         <version.org.jboss.logging.jboss-logging>3.4.0.Final</version.org.jboss.logging.jboss-logging>
@@ -63,9 +72,8 @@
         <version.org.wildfly.discovery>1.2.0.Final</version.org.wildfly.discovery>
         <version.org.wildfly.security.elytron>1.1.5.Final</version.org.wildfly.security.elytron>
         <version.org.wildfly.transaction-client>1.1.4.Final</version.org.wildfly.transaction-client>
-        <byteman-version>4.0.7</byteman-version>
 
-        <version.org.jboss.bridger>1.4.Final</version.org.jboss.bridger>
+        <test-group>org/jboss/ejb/client</test-group>
     </properties>
 
     <build>
@@ -245,7 +253,6 @@
         </dependency>
 
         <!-- JUnit -->
-
         <dependency>
             <groupId>junit</groupId>
             <artifactId>junit</artifactId>
@@ -272,7 +279,6 @@
             <artifactId>ironjacamar-spec-api</artifactId>
             <version>1.4.4.Final</version>
             <scope>test</scope>
-
         </dependency>
 
         <dependency>
@@ -295,19 +301,19 @@
             <version>${version.org.jboss.jboss-transaction-spi}</version>
             <scope>test</scope>
         </dependency>
-        <!-- ByteMan -->
 
+        <!-- ByteMan -->
         <dependency>
             <groupId>org.jboss.byteman</groupId>
             <artifactId>byteman</artifactId>
-            <version>${byteman-version}</version>
+            <version>${version.org.jboss.byteman}</version>
             <scope>test</scope>
         </dependency>
 
         <dependency>
             <groupId>org.jboss.byteman</groupId>
             <artifactId>byteman-bmunit</artifactId>
-            <version>${byteman-version}</version>
+            <version>${version.org.jboss.byteman}</version>
             <scope>test</scope>
             <exclusions>
                 <exclusion>
@@ -320,17 +326,74 @@
         <dependency>
             <groupId>org.jboss.byteman</groupId>
             <artifactId>byteman-install</artifactId>
-            <version>${byteman-version}</version>
+            <version>${version.org.jboss.byteman}</version>
             <scope>test</scope>
         </dependency>
+
     </dependencies>
 
-    <scm>
-        <connection>scm:git:git@github.com:wildfly/jboss-ejb-client.git</connection>
-        <developerConnection>scm:git:git@github.com:wildfly/jboss-ejb-client.git</developerConnection>
-        <url>https://github.com/wildfly/jboss-ejb-client</url>
-    </scm>
     <profiles>
+        <profile>
+            <id>allTests</id>
+            <activation>
+                <activeByDefault>true</activeByDefault>
+            </activation>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-surefire-plugin</artifactId>
+                        <executions>
+                            <!-- Disable default-test execution. -->
+                            <execution>
+                                <id>default-test</id>
+                                <goals>
+                                    <goal>test</goal>
+                                </goals>
+                                <phase>none</phase>
+                            </execution>
+                            <!-- Regular (non-Byteman) tests -->
+                            <execution>
+                                <id>tests-all</id>
+                                <phase>test</phase>
+                                <goals>
+                                    <goal>test</goal>
+                                </goals>
+                                <configuration>
+                                    <runOrder>alphabetical</runOrder>
+                                    <!-- Tests to execute. -->
+                                    <includes>
+                                        <include>${test-group}/**/*TestCase.java</include>
+                                    </includes>
+                                    <!-- Skip Byteman tests -->
+                                    <excludes>
+                                        <exclude>${test-group}/**/byteman/*TestCase.java</exclude>
+                                    </excludes>
+                                </configuration>
+                            </execution>
+                            <!-- Byteman tests -->
+                            <execution>
+                                <id>tests-byteman</id>
+                                <phase>test</phase>
+                                <goals>
+                                    <goal>test</goal>
+                                </goals>
+                                <configuration>
+                                    <argLine>-Djdk.attach.allowAttachSelf=true</argLine>
+                                    <environmentVariables>
+                                        <BYTEMAN_HOME/>
+                                    </environmentVariables>
+                                    <includes>
+                                        <include>${test-group}/**/byteman/*TestCase.java</include>
+                                    </includes>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+
         <profile>
             <id>test-bootclasspath</id>
             <activation>
@@ -355,7 +418,9 @@
                             <executable>java</executable>
                             <longClasspath>false</longClasspath>
                             <classpathScope>test</classpathScope>
-                            <commandlineArgs>-Xbootclasspath/a:%classpath org.jboss.ejb.client.test.ManualTestRunner "Boot ClassPath Testing"</commandlineArgs>
+                            <commandlineArgs>-Xbootclasspath/a:%classpath org.jboss.ejb.client.test.ManualTestRunner
+                                "Boot ClassPath Testing"
+                            </commandlineArgs>
                         </configuration>
                     </plugin>
                 </plugins>
