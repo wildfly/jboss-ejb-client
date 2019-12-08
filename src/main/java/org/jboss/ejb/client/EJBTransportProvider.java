@@ -49,4 +49,6 @@ public interface EJBTransportProvider {
      * @throws IllegalArgumentException if the protocol is not supported
      */
     EJBReceiver getReceiver(EJBReceiverContext receiverContext, String uriScheme) throws IllegalArgumentException;
+
+    void close(EJBReceiverContext receiverContext) throws Exception;
 }

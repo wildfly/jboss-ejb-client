@@ -417,7 +417,7 @@ public interface Logs extends BasicLogger {
 
     @LogMessage(level = ERROR)
     @Message(id = 508, value = "Failed to execute Runnable %s")
-    void taskFailed(Runnable runnable, @Cause  Throwable t);
+    void taskFailed(Runnable runnable, @Cause Throwable t);
 
     @LogMessage(level = ERROR)
     @Message(id = 509, value = "Unexpected exception processing EJB request")
@@ -431,6 +431,10 @@ public interface Logs extends BasicLogger {
 
     @Message(id = 512, value = "Server error (remote EJB is not stateful): %s")
     EJBException ejbNotStateful(String serverMessage);
+
+    @LogMessage(level = ERROR)
+    @Message(id = 513, value = "Exception occurred when trying to close the transport provider")
+    void exceptionDuringTransportProviderClose(@Cause Exception e);
 
     // Remote messages; no ID for brevity but should be translated
 
