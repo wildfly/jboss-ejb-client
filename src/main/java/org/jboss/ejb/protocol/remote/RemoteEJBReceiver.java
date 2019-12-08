@@ -196,4 +196,8 @@ class RemoteEJBReceiver extends EJBReceiver {
             return doPrivileged((PrivilegedAction<IoFuture<ConnectionPeerIdentity>>) () -> Endpoint.getCurrent().getConnectedIdentity(target, "ejb", "jboss", authenticationContext));
         }
     }
+
+    public void close() throws Exception {
+        serviceHandle.closeChannel();
+    }
 }
