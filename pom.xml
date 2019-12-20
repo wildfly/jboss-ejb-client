@@ -60,7 +60,7 @@
         <version.org.jboss.marshalling>2.0.6.Final</version.org.jboss.marshalling>
         <version.org.jboss.modules>1.6.0.Final</version.org.jboss.modules>
         <version.org.jboss.narayana>5.5.30.Final</version.org.jboss.narayana>
-        <version.org.jboss.remoting>5.0.16.Final</version.org.jboss.remoting>
+        <version.org.jboss.remoting>5.0.17.Final</version.org.jboss.remoting>
         <version.org.jboss.spec.javax.ejb>1.0.0.Final</version.org.jboss.spec.javax.ejb>
         <version.org.jboss.spec.javax.transaction>1.0.1.Final</version.org.jboss.spec.javax.transaction>
         <version.org.jboss.threads>2.3.3.Final</version.org.jboss.threads>
