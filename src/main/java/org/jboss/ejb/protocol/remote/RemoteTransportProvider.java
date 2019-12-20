@@ -84,4 +84,8 @@ public final class RemoteTransportProvider implements EJBTransportProvider {
             }
         }
     }
+
+    public void close(final EJBReceiverContext receiverContext) throws Exception {
+        receiverContext.getClientContext().getAttachment(ATTACHMENT_KEY).close();
+    }
 }

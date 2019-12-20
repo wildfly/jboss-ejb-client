@@ -622,6 +622,16 @@ public final class EJBClientContext extends Attachable implements Contextual<EJB
         return deploymentNodeSelector;
     }
 
+    public void close() {
+        for (EJBTransportProvider transportProvider : transportProviders) {
+            try {
+                transportProvider.close(receiverContext);
+            } catch (Exception e) {
+                log.exceptionDuringTransportProviderClose(e);
+            }
+        }
+    }
+
     static final class ClassInterceptor {
         private final String className;
         private final EJBClientInterceptorInformation interceptor;
