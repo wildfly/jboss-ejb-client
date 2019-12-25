@@ -19,6 +19,7 @@
 package org.jboss.ejb.client;
 
 import static org.jboss.ejb.client.DiscoveryEJBClientInterceptor.addBlackListedDestination;
+import static org.jboss.ejb.client.DiscoveryEJBClientInterceptor.addInvocationBlackListedDestination;
 import static org.jboss.ejb.client.DiscoveryEJBClientInterceptor.isBlackListed;
 
 import java.net.URI;
@@ -71,8 +72,8 @@ public final class NamingEJBClientInterceptor implements EJBClientInterceptor {
             }
             if (setDestination(context, namingProvider)) try {
                 context.sendRequest();
-            } catch (NoSuchEJBException | RequestSendFailedException e) {
-                processMissingTarget(context);
+            } catch (NoSuchEJBException | RequestSendFailedException e){
+                processMissingTarget(context, e);
                 throw e;
             } else {
                 throw Logs.INVOCATION.noMoreDestinations();
@@ -83,9 +84,9 @@ public final class NamingEJBClientInterceptor implements EJBClientInterceptor {
     public Object handleInvocationResult(final EJBClientInvocationContext context) throws Exception {
         try {
             return context.getResult();
-        } catch (NoSuchEJBException | RequestSendFailedException e) {
+        } catch (NoSuchEJBException | RequestSendFailedException e){
             if (context.getAttachment(SKIP_MISSING_TARGET) != Boolean.TRUE) {
-                processMissingTarget(context);
+                processMissingTarget(context, e);
             }
             throw e;
         } finally {
@@ -117,7 +118,7 @@ public final class NamingEJBClientInterceptor implements EJBClientInterceptor {
                 }
                 return theSessionID;
             } catch (NoSuchEJBException | RequestSendFailedException e) {
-                processMissingTarget(context);
+                processMissingTarget(context, e);
                 throw e;
             } else {
                 throw Logs.INVOCATION.noMoreDestinations();
@@ -206,7 +207,7 @@ public final class NamingEJBClientInterceptor implements EJBClientInterceptor {
         return result;
     }
 
-    private void processMissingTarget(final AbstractInvocationContext context) {
+    private void processMissingTarget(final AbstractInvocationContext context, Exception cause) {
         final URI destination = context.getDestination();
         if (destination == null || context.getTargetAffinity() == Affinity.LOCAL) {
             // some later interceptor cleared it out on us
@@ -218,7 +219,11 @@ public final class NamingEJBClientInterceptor implements EJBClientInterceptor {
         }
 
         // Oops, we got some wrong information!
-        addBlackListedDestination(context, destination);
+        if (cause instanceof NoSuchEJBException) {
+            addInvocationBlackListedDestination(context, destination);
+        } else {
+            addBlackListedDestination(destination);
+        }
 
         final EJBLocator<?> locator = context.getLocator();
         if (! (locator.getAffinity() instanceof ClusterAffinity)) {
