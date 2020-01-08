@@ -119,6 +119,7 @@ import org.xnio.IoFuture;
  * @author <a href="mailto:david.lloyd@redhat.com">David M. Lloyd</a>
  * @author <a href="mailto:tadamski@redhat.com">Tomasz Adamski</a>
  * @author <a href="mailto:ropalka@redhat.com">Richard Opalka</a>
+ * @author <a href="mailto:jbaesner@redhat.com">Joerg Baesner</a>
  */
 @SuppressWarnings("deprecation")
 class EJBClientChannel {
@@ -1186,9 +1187,15 @@ class EJBClientChannel {
                         }
                         disassociateRemoteTxIfPossible(receiverInvocationContext.getClientInvocationContext());
                         final String message = inputStream.readUTF();
-                        final EJBModuleIdentifier moduleIdentifier = receiverInvocationContext.getClientInvocationContext().getLocator().getIdentifier().getModuleIdentifier();
-                        final NodeInformation nodeInformation = discoveredNodeRegistry.getNodeInformation(getChannel().getConnection().getRemoteEndpointName());
-                        nodeInformation.removeModule(EJBClientChannel.this, moduleIdentifier);
+                        // Fix for EJBCLIENT-362: Do not remove the module from this EJBClientChannel in the 
+                        // discoveredNodeRegistry on a NoSuchEJBException. The discoveredNodeRegistry is not only for this 
+                        // EJBClientChannel. Handling of module add/remove is done by the async 
+                        // MODULE_AVAILABLE/MOUDLE_UNAVAILABLE communication
+                        if(Logs.INVOCATION.isTraceEnabled()) {
+                            final EJBModuleIdentifier moduleIdentifier = receiverInvocationContext.getClientInvocationContext().getLocator().getIdentifier().getModuleIdentifier();
+                            final String destination = receiverInvocationContext.getClientInvocationContext().getDestination().toString();
+                            Logs.INVOCATION.tracef("EJBClientChannel.handleResponse: not removing module '%s' from %s (%s) due to NoSuchEjbException", moduleIdentifier, destination, EJBClientChannel.this);
+                        }
                         receiverInvocationContext.requestFailed(new NoSuchEJBException(message + " @ " + getChannel().getConnection().getPeerURI()), getRetryExecutor(receiverInvocationContext));
                     } catch (IOException e) {
                         receiverInvocationContext.requestFailed(new EJBException("Failed to read 'No such EJB' response", e), getRetryExecutor(receiverInvocationContext));

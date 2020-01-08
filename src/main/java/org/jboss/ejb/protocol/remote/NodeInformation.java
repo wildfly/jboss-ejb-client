@@ -52,6 +52,7 @@ import org.wildfly.discovery.spi.DiscoveryResult;
 
 /**
  * @author <a href="mailto:david.lloyd@redhat.com">David M. Lloyd</a>
+ * @author <a href="mailto:jbaesner@redhat.com">Joerg Baesner</a>
  */
 final class NodeInformation {
     private final String nodeName;
@@ -101,11 +102,15 @@ final class NodeInformation {
     }
 
     private List<ServiceURL> getServiceURLCache() {
+        boolean serviceUrlCacheComputed = false;
         List<ServiceURL> serviceURLCache = this.serviceURLCache;
         if (serviceURLCache == null) {
             synchronized (this) {
                 serviceURLCache = this.serviceURLCache;
                 if (serviceURLCache == null) {
+                    // flag to indicate the serviceURLCache was newly computed, only used for trace logging later
+                    serviceUrlCacheComputed = true;
+
                     // the final list to store
                     serviceURLCache = new ArrayList<>();
                     HashMap<URI, TempInfo> map = new HashMap<>();
@@ -195,6 +200,11 @@ final class NodeInformation {
                 }
             }
         }
+
+        if(Logs.MAIN.isTraceEnabled()) {
+            Logs.MAIN.tracef("NodeInformation '%s' serviceURLs (computed:%s) %s", this.nodeName, serviceUrlCacheComputed, this.serviceURLCache);
+        }
+
         return serviceURLCache;
     }
 

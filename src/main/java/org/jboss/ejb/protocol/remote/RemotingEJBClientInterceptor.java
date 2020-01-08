@@ -18,24 +18,28 @@
 
 package org.jboss.ejb.protocol.remote;
 
+import static org.jboss.ejb.client.annotation.ClientInterceptorPriority.JBOSS_AFTER;
+
 import javax.ejb.NoSuchEJBException;
 
+import org.jboss.ejb._private.Logs;
 import org.jboss.ejb.client.AbstractInvocationContext;
 import org.jboss.ejb.client.Affinity;
+import org.jboss.ejb.client.ClusterAffinity;
 import org.jboss.ejb.client.EJBClientInterceptor;
 import org.jboss.ejb.client.EJBClientInvocationContext;
 import org.jboss.ejb.client.EJBLocator;
+import org.jboss.ejb.client.EJBModuleIdentifier;
 import org.jboss.ejb.client.EJBSessionCreationInvocationContext;
 import org.jboss.ejb.client.NodeAffinity;
 import org.jboss.ejb.client.SessionID;
 import org.jboss.ejb.client.annotation.ClientInterceptorPriority;
 
-import static org.jboss.ejb.client.annotation.ClientInterceptorPriority.JBOSS_AFTER;
-
 /**
  * The interceptor responsible for relaying invocation information back into the Remoting-based discovery system.
  *
  * @author <a href="mailto:david.lloyd@redhat.com">David M. Lloyd</a>
+ * @author <a href="mailto:jbaesner@redhat.com">Joerg Baesner</a> 
  */
 @ClientInterceptorPriority(RemotingEJBClientInterceptor.PRIORITY)
 public final class RemotingEJBClientInterceptor implements EJBClientInterceptor {
@@ -85,6 +89,15 @@ public final class RemotingEJBClientInterceptor implements EJBClientInterceptor 
                 // unexpectedly.
                 context.setTargetAffinity(Affinity.NONE);
                 context.setWeakAffinity(Affinity.NONE);
+            } else if (locator.getAffinity() instanceof ClusterAffinity) {
+                // Fix for EJBCLIENT-362: NoSuchEJBException on a locator with a ClusterAffinity might have it's root-cause in 
+                // a HA singleton-deployment. Handling of module add/remove is done by the async 
+                // MODULE_AVAILABLE/MOUDLE_UNAVAILABLE communication
+                if (Logs.MAIN.isTraceEnabled()) {
+                    final EJBModuleIdentifier moduleIdentifier = context.getLocator().getIdentifier().getModuleIdentifier();
+                    final String destination = context.getDestination().toString();
+                    Logs.MAIN.tracef("RemotingEJBClientInterceptor.removeNode: not removing module '%s' from %s due to NoSuchEjbException. Affinity on locator was: %s\"", moduleIdentifier, destination, locator.getAffinity());
+                }
             } else {
                 final RemoteEJBReceiver ejbReceiver = context.getClientContext().getAttachment(RemoteTransportProvider.ATTACHMENT_KEY);
                 if (ejbReceiver != null) {
