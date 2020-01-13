@@ -436,6 +436,14 @@ public interface Logs extends BasicLogger {
     @Message(id = 513, value = "Exception occurred when trying to close the transport provider")
     void exceptionDuringTransportProviderClose(@Cause Exception e);
 
+    @LogMessage(level = INFO)
+    @Message(id = 514, value = "No URI configured for HTTP connection named %s. Skipping connection creation")
+    void skippingHttpConnectionCreationDueToMissingUri(final String name);
+
+    @LogMessage(level = INFO)
+    @Message(id = 515, value = "HTTP connection was configured with invalid URI: %s .")
+    void skippingHttpConnectionCreationDueToInvalidUri(final String uri);
+
     // Remote messages; no ID for brevity but should be translated
 
     @Message(value = "No such EJB: %s")
