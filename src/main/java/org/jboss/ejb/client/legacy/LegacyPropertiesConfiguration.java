@@ -19,6 +19,7 @@
 package org.jboss.ejb.client.legacy;
 
 import java.net.URI;
+import java.net.URISyntaxException;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
@@ -56,6 +57,21 @@ public class LegacyPropertiesConfiguration {
                 final OptionMap connectionOptions = connectionConfiguration.getConnectionOptions();
                 final URI uri = CommonLegacyConfiguration.getUri(connectionConfiguration, connectionOptions);
                 if (uri == null) {
+                    continue;
+                }
+                final EJBClientConnection.Builder connectionBuilder = new EJBClientConnection.Builder();
+                connectionBuilder.setDestination(uri);
+                builder.addClientConnection(connectionBuilder.build());
+            }
+
+            final List<JBossEJBProperties.HttpConnectionConfiguration> httpConnectionList = properties.getHttpConnectionList();
+            for (JBossEJBProperties.HttpConnectionConfiguration httpConnection : httpConnectionList) {
+                final String uriString = httpConnection.getUri();
+                final URI uri;
+                try {
+                    uri = new URI(uriString);
+                } catch (URISyntaxException e) {
+                    Logs.MAIN.skippingHttpConnectionCreationDueToInvalidUri(uriString);
                     continue;
                 }
                 final EJBClientConnection.Builder connectionBuilder = new EJBClientConnection.Builder();

@@ -113,6 +113,10 @@ public final class JBossEJBProperties implements Contextual<JBossEJBProperties> 
     private static final boolean expandPasswords;
     private static final String CONFIGURED_PATH_NAME;
 
+    private static final String PROPERTY_KEY_HTTP_CONNECTIONS = "http.connections";
+
+    private static final String PROPERTY_KEY_URI = "uri";
+
     static {
         expandPasswords = doPrivileged((PrivilegedAction<Boolean>) () ->
             Boolean.valueOf(System.getProperty("jboss-ejb-client.expandPasswords", "false"))).booleanValue();
@@ -176,6 +180,9 @@ public final class JBossEJBProperties implements Contextual<JBossEJBProperties> 
     private final String deploymentNodeSelectorClassName;
     private final boolean defaultConnectEagerly;
 
+    // HTTP connections
+    private final List<HttpConnectionConfiguration> httpConnectionList;
+
     JBossEJBProperties(final Builder builder) {
         this.endpointName = builder.endpointName;
         this.defaultCallbackHandlerClassName = builder.callbackHandlerClassName;
@@ -190,6 +197,7 @@ public final class JBossEJBProperties implements Contextual<JBossEJBProperties> 
         this.deploymentNodeSelectorClassName = builder.deploymentNodeSelectorClassName;
         this.connectionList = builder.connectionList;
         this.defaultConnectEagerly = builder.connectEagerly;
+        this.httpConnectionList = builder.httpConnectionList;
     }
 
     public String getEndpointName() {
@@ -214,6 +222,10 @@ public final class JBossEJBProperties implements Contextual<JBossEJBProperties> 
 
     public List<ConnectionConfiguration> getConnectionList() {
         return connectionList;
+    }
+
+    public List<HttpConnectionConfiguration> getHttpConnectionList() {
+        return httpConnectionList;
     }
 
     public ExceptionSupplier<CallbackHandler, ReflectiveOperationException> getDefaultCallbackHandlerSupplier() {
@@ -399,6 +411,41 @@ public final class JBossEJBProperties implements Contextual<JBossEJBProperties> 
         }
         builder.setClusterConfigurations(clusterMap);
 
+        //http-connections
+        final String httpConnectionsString = getProperty(properties, PROPERTY_KEY_HTTP_CONNECTIONS, "", true).trim();
+        final List<HttpConnectionConfiguration> httpConnectionList;
+
+        if (!httpConnectionsString.isEmpty()) {
+            final ArrayList<HttpConnectionConfiguration> mutableList = new ArrayList<>();
+
+            // Parse this the same way as the legacy code.
+            final StringTokenizer tokenizer = new StringTokenizer(httpConnectionsString, ",");
+            while (tokenizer.hasMoreTokens()) {
+                final String connectionName = tokenizer.nextToken().trim();
+                if (!connectionName.isEmpty()) {
+                    final HttpConnectionConfiguration.Builder connBuilder = new HttpConnectionConfiguration.Builder();
+
+                    String prefix = "http.connection." + connectionName + ".";
+
+                    if (!connBuilder.populateFromProperties(properties, prefix, connectionName)) {
+                        continue;
+                    }
+
+                    mutableList.add(new HttpConnectionConfiguration(connBuilder));
+                }
+            }
+
+            if (mutableList.isEmpty()) {
+                httpConnectionList = Collections.emptyList();
+            } else {
+                mutableList.trimToSize();
+                httpConnectionList = Collections.unmodifiableList(mutableList);
+            }
+        } else {
+            httpConnectionList = Collections.emptyList();
+        }
+        builder.setHttpConnectionList(httpConnectionList);
+
         return new JBossEJBProperties(builder);
     }
 
@@ -468,6 +515,7 @@ public final class JBossEJBProperties implements Contextual<JBossEJBProperties> 
         OptionMap endpointCreationOptions;
         OptionMap remoteConnectionProviderCreationOptions;
         List<ConnectionConfiguration> connectionList;
+        List<HttpConnectionConfiguration> httpConnectionList;
         Map<String, ClusterConfiguration> clusterConfigurations;
         long invocationTimeout;
         long reconnectTimeout;
@@ -519,6 +567,11 @@ public final class JBossEJBProperties implements Contextual<JBossEJBProperties> 
 
         Builder setDeploymentNodeSelectorSupplier(final ExceptionSupplier<DeploymentNodeSelector, ReflectiveOperationException> deploymentNodeSelectorSupplier) {
             this.deploymentNodeSelectorSupplier = deploymentNodeSelectorSupplier;
+            return this;
+        }
+
+        Builder setHttpConnectionList(final List<HttpConnectionConfiguration> httpConnectionList) {
+            this.httpConnectionList = httpConnectionList;
             return this;
         }
     }
@@ -978,6 +1031,44 @@ public final class JBossEJBProperties implements Contextual<JBossEJBProperties> 
                 }
                 return true;
             }
+        }
+    }
+
+    public static class HttpConnectionConfiguration {
+
+        private final String uri;
+
+        HttpConnectionConfiguration(Builder builder) {
+            this.uri = builder.uri;
+        }
+
+        public String getUri() {
+            return uri;
+        }
+
+        static final class Builder {
+            String uri;
+
+            Builder() {
+            }
+
+            boolean populateFromProperties(final Properties properties, final String prefix, final String connectionName) {
+
+                // connection host name
+                String uri = getProperty(properties, prefix + PROPERTY_KEY_URI, "", true).trim();
+                if (uri.isEmpty()) {
+                    Logs.MAIN.skippingHttpConnectionCreationDueToMissingUri(connectionName);
+                    return false;
+                }
+                setUri(uri);
+                return true;
+            }
+
+            Builder setUri(final String uri) {
+                this.uri = uri;
+                return this;
+            }
+
         }
     }
 }
