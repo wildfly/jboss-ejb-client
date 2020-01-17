@@ -18,8 +18,6 @@
 
 package org.jboss.ejb.client;
 
-import java.io.IOException;
-import java.io.ObjectOutputStream;
 import java.io.Serializable;
 import java.security.AccessController;
 import java.security.PrivilegedAction;
@@ -222,8 +220,14 @@ class EJBRootContext extends AbstractContext {
 
     private Long getLongValueFromEnvironment(String key) throws NamingException {
         Object val = getEnvironment().get(key);
-        if (val != null && val instanceof String) {
-            return Long.valueOf(Long.parseLong((String) val));
+        if (val != null) {
+            if (val instanceof String) {
+                return Long.valueOf(Long.parseLong((String) val));
+            } else if (val instanceof Integer) {
+                return Long.valueOf((Integer) val);
+            } else if (val instanceof Long) {
+                return Long.valueOf((Long) val);
+            }
         }
         return null;
     }
