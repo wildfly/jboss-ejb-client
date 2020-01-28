@@ -626,8 +626,8 @@ public final class EJBClientInvocationContext extends AbstractInvocationContext 
                 }
                 return result;
             } catch (Throwable t) {
-                log.tracef("Encountered exception while calling getResult(): exception = %s", t.toString());
                 if (idx == 0) {
+                    log.tracef("Encountered exception while calling getResult(): exception = %s", t.toString());
                     synchronized (lock) {
                         // retry if we can
                         this.resultProducer = null;
