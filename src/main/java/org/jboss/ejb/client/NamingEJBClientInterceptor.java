@@ -21,6 +21,7 @@ package org.jboss.ejb.client;
 import static org.jboss.ejb.client.DiscoveryEJBClientInterceptor.addBlackListedDestination;
 import static org.jboss.ejb.client.DiscoveryEJBClientInterceptor.addInvocationBlackListedDestination;
 import static org.jboss.ejb.client.DiscoveryEJBClientInterceptor.isBlackListed;
+import static org.jboss.ejb.client.DiscoveryEJBClientInterceptor.shouldBlacklist;
 
 import java.net.URI;
 import java.util.ArrayList;
@@ -219,10 +220,10 @@ public final class NamingEJBClientInterceptor implements EJBClientInterceptor {
         }
 
         // Oops, we got some wrong information!
-        if (cause instanceof NoSuchEJBException) {
-            addInvocationBlackListedDestination(context, destination);
-        } else {
+        if(shouldBlacklist(cause)){
             addBlackListedDestination(destination);
+        } else {
+            addInvocationBlackListedDestination(context, destination);
         }
 
         final EJBLocator<?> locator = context.getLocator();

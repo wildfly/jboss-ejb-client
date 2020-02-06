@@ -27,6 +27,7 @@ import static org.jboss.ejb.client.EJBClientContext.FILTER_ATTR_NODE;
 import static org.jboss.ejb.client.EJBClientContext.FILTER_ATTR_SOURCE_IP;
 import static org.jboss.ejb.client.EJBClientContext.withSuppressed;
 
+import java.net.ConnectException;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.URI;
@@ -259,18 +260,25 @@ public final class DiscoveryEJBClientInterceptor implements EJBClientInterceptor
         }
 
         // Oops, we got some wrong information!
-        if(cause instanceof NoSuchEJBException){
-            addInvocationBlackListedDestination(context, destination);
-        } else {
+        if (shouldBlacklist(cause)) {
             addBlackListedDestination(destination);
+        } else {
+            addInvocationBlackListedDestination(context, destination);
         }
-
 
         // clear the weak affinity so that cluster invocations can be re-targeted.
         context.setWeakAffinity(Affinity.NONE);
         context.setTargetAffinity(null);
         context.setDestination(null);
         context.requestRetry();
+    }
+
+    static boolean shouldBlacklist(Exception cause){
+        if ((cause instanceof RequestSendFailedException)
+                && (cause.getCause()) instanceof ConnectException) {
+            return true;
+        }
+        return false;
     }
 
     static void addInvocationBlackListedDestination(AbstractInvocationContext context, URI destination) {
