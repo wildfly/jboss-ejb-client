@@ -858,8 +858,10 @@ final class EJBServerChannel {
                                 }
                             }
                             weakAffinity = (Affinity) map.getOrDefault(AttachmentKeys.WEAK_AFFINITY, weakAffinity);
-
-
+                            boolean compressResponse = (Boolean) map.getOrDefault(AttachmentKeys.COMPRESS_RESPONSE, false);
+                            if (compressResponse) {
+                                responseCompressLevel = (Integer) map.getOrDefault(AttachmentKeys.RESPONSE_COMPRESSION_LEVEL, 0);
+                            }
                         } else {
                             // discard content for v3
                             unmarshaller.readObject();

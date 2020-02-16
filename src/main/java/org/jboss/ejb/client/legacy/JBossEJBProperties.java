@@ -82,6 +82,7 @@ public final class JBossEJBProperties implements Contextual<JBossEJBProperties> 
     private static final String PROPERTY_KEY_INVOCATION_TIMEOUT = "invocation.timeout";
     private static final String PROPERTY_KEY_RECONNECT_TASKS_TIMEOUT = "reconnect.tasks.timeout";
     private static final String PROPERTY_KEY_DEPLOYMENT_NODE_SELECTOR = "deployment.node.selector";
+    private static final String PROPERTY_KEY_DEFAULT_COMPRESSION = "default.compression";
 
     private static final String ENDPOINT_CREATION_OPTIONS_PREFIX = "endpoint.create.options.";
     // The default options that will be used (unless overridden by the config file) for endpoint creation
@@ -294,6 +295,18 @@ public final class JBossEJBProperties implements Contextual<JBossEJBProperties> 
         }
     }
 
+    private static int getIntValueFromProperties(final Properties properties, final String propertyName, final int defVal) {
+        final String str = getProperty(properties, propertyName, null, true);
+        if (str == null) {
+            return defVal;
+        }
+        try {
+            return Integer.parseInt(str);
+        } catch (NumberFormatException e) {
+            return defVal;
+        }
+    }
+
     private static String getProperty(final Properties properties, final String propertyName, final String defaultValue, final boolean expand) {
         final String str = properties.getProperty(propertyName);
         if (str == null) {
@@ -338,6 +351,8 @@ public final class JBossEJBProperties implements Contextual<JBossEJBProperties> 
 
         // reconnect timeout
         builder.setReconnectTimeout(getLongValueFromProperties(properties, PROPERTY_KEY_RECONNECT_TASKS_TIMEOUT, -1L));
+
+        builder.setDefaultCompression(getIntValueFromProperties(properties, PROPERTY_KEY_DEFAULT_COMPRESSION,-1));
 
         // deployment node selector
         final String deploymentNodeSelectorClassName = getProperty(properties, PROPERTY_KEY_DEPLOYMENT_NODE_SELECTOR, null, true);
@@ -520,6 +535,7 @@ public final class JBossEJBProperties implements Contextual<JBossEJBProperties> 
         long invocationTimeout;
         long reconnectTimeout;
         String deploymentNodeSelectorClassName;
+        int defaultCompression;
         ExceptionSupplier<DeploymentNodeSelector, ReflectiveOperationException> deploymentNodeSelectorSupplier;
 
         Builder() {
@@ -572,6 +588,11 @@ public final class JBossEJBProperties implements Contextual<JBossEJBProperties> 
 
         Builder setHttpConnectionList(final List<HttpConnectionConfiguration> httpConnectionList) {
             this.httpConnectionList = httpConnectionList;
+            return this;
+        }
+
+        Builder setDefaultCompression(final int defaultCompression) {
+            this.defaultCompression = defaultCompression;
             return this;
         }
     }

@@ -379,7 +379,7 @@ class EJBClientChannel {
 
                     // write response compression info
                     if (invocationContext.isCompressResponse()) {
-                        int compressionLevel = invocationContext.getCompressionLevel() > 0 ? invocationContext.getCompressionLevel() : 15;
+                        int compressionLevel = invocationContext.getCompressionLevel() > 0 ? invocationContext.getCompressionLevel() : 9;
                         marshaller.writeByte(compressionLevel);
                     } else {
                         marshaller.writeByte(0);

@@ -136,6 +136,7 @@ public final class EJBClientContext extends Attachable implements Contextual<EJB
     private final Map<String, InterceptorList> configuredPerClassInterceptors;
     private final Map<String, Map<EJBMethodLocator, InterceptorList>> configuredPerMethodInterceptors;
     private final int maximumConnectedClusterNodes;
+    private final int defaultCompression;
 
     EJBClientContext(Builder builder) {
         log.tracef("Creating new EJBClientContext: %s", this);
@@ -185,6 +186,7 @@ public final class EJBClientContext extends Attachable implements Contextual<EJB
         clusterNodeSelector = builder.clusterNodeSelector;
         deploymentNodeSelector = builder.deploymentNodeSelector;
         maximumConnectedClusterNodes = builder.maximumConnectedClusterNodes;
+        defaultCompression = builder.defaultCompression;
 
         log.tracef("New EJBClientContext %s contains cluster configuration: node selector=%s, deployment selector=%s, maximum nodes=%s",
                 this, clusterNodeSelector, deploymentNodeSelector, maximumConnectedClusterNodes);
@@ -689,6 +691,7 @@ public final class EJBClientContext extends Attachable implements Contextual<EJB
         DeploymentNodeSelector deploymentNodeSelector = DeploymentNodeSelector.RANDOM_PREFER_LOCAL;
         long invocationTimeout;
         int maximumConnectedClusterNodes = 10;
+        int defaultCompression = -1;
 
         /**
          * Construct a new instance.
@@ -837,6 +840,12 @@ public final class EJBClientContext extends Attachable implements Contextual<EJB
             return this;
         }
 
+        public void setDefaultCompression(int defaultCompression) {
+            Assert.checkMinimumParameter("defaultCompression", -1, defaultCompression);
+            Assert.checkMaximumParameter("defaultCompression", 9, defaultCompression);
+            this.defaultCompression = defaultCompression;
+        }
+
         public EJBClientContext build() {
             return new EJBClientContext(this);
         }
@@ -947,6 +956,10 @@ public final class EJBClientContext extends Attachable implements Contextual<EJB
 
     Map<String, Map<EJBMethodLocator, InterceptorList>> getConfiguredPerMethodInterceptors() {
         return configuredPerMethodInterceptors;
+    }
+
+    public int getDefaultCompression() {
+        return defaultCompression;
     }
 
     static <T extends Throwable> T withSuppressed(T original, Collection<Throwable> suppressed) {
