@@ -84,15 +84,15 @@ final class EJBProxyInformation<T> {
             final EJBClientContext.InterceptorList classInterceptors = getInterceptorsFromAnnotation(classClientInterceptors);
 
             final int classCompressionLevel;
-            final boolean classCompressRequest;
-            final boolean classCompressResponse;
+            final ProxyMethodInfo.CompressionHint classCompressRequest;
+            final ProxyMethodInfo.CompressionHint classCompressResponse;
             if (classCompressionHint == null) {
                 classCompressionLevel = -1;
-                classCompressRequest = classCompressResponse = false;
+                classCompressRequest = classCompressResponse = ProxyMethodInfo.CompressionHint.NONE;
             } else {
                 classCompressionLevel = classCompressionHint.compressionLevel() == -1 ? Deflater.DEFAULT_COMPRESSION : classCompressionHint.compressionLevel();
-                classCompressRequest = classCompressionHint.compressRequest();
-                classCompressResponse = classCompressionHint.compressResponse();
+                classCompressRequest = ProxyMethodInfo.CompressionHint.fromBoolean(classCompressionHint.compressRequest());
+                classCompressResponse = ProxyMethodInfo.CompressionHint.fromBoolean(classCompressionHint.compressResponse());
             }
             final boolean classIdempotent = ENABLE_SCANNING && type.getAnnotation(Idempotent.class) != null;
             final boolean classAsync = ENABLE_SCANNING && type.getAnnotation(ClientAsynchronous.class) != null;
@@ -111,8 +111,8 @@ final class EJBProxyInformation<T> {
                         final ClientInterceptors clientInterceptors = ENABLE_SCANNING ? method.getAnnotation(ClientInterceptors.class) : null;
                         final EJBClientContext.InterceptorList interceptors = getInterceptorsFromAnnotation(clientInterceptors);
                         final int compressionLevel;
-                        final boolean compressRequest;
-                        final boolean compressResponse;
+                        final ProxyMethodInfo.CompressionHint compressRequest;
+                        final ProxyMethodInfo.CompressionHint compressResponse;
                         final ClientTransactionPolicy transactionPolicy;
                         if (compressionHint == null) {
                             compressionLevel = classCompressionLevel;
@@ -120,8 +120,8 @@ final class EJBProxyInformation<T> {
                             compressResponse = classCompressResponse;
                         } else {
                             compressionLevel = compressionHint.compressionLevel() == -1 ? Deflater.DEFAULT_COMPRESSION : compressionHint.compressionLevel();
-                            compressRequest = compressionHint.compressRequest();
-                            compressResponse = compressionHint.compressResponse();
+                            compressRequest = ProxyMethodInfo.CompressionHint.fromBoolean(compressionHint.compressRequest());
+                            compressResponse = ProxyMethodInfo.CompressionHint.fromBoolean(compressionHint.compressResponse());
                         }
                         transactionPolicy = transactionHint != null ? transactionHint.value() : clientAsync ? ClientTransactionPolicy.NOT_SUPPORTED : classTransactionHint != null ? classTransactionHint.value() : ClientTransactionPolicy.SUPPORTS;
                         // build the old signature format
@@ -301,10 +301,18 @@ final class EJBProxyInformation<T> {
 
     static final class ProxyMethodInfo {
 
+        enum CompressionHint {
+            NONE, TRUE, FALSE;
+
+            static CompressionHint fromBoolean(final boolean hint){
+                return hint ? TRUE : FALSE;
+            }
+        }
+
         final int methodType;
         final int compressionLevel;
-        final boolean compressRequest;
-        final boolean compressResponse;
+        final CompressionHint compressRequest;
+        final CompressionHint compressResponse;
         final boolean idempotent;
         final ClientTransactionPolicy transactionPolicy;
         final Method method;
@@ -313,7 +321,7 @@ final class EJBProxyInformation<T> {
         final boolean clientAsync;
         final EJBClientContext.InterceptorList interceptors;
 
-        ProxyMethodInfo(final int methodType, final int compressionLevel, final boolean compressRequest, final boolean compressResponse, final boolean idempotent, final ClientTransactionPolicy transactionPolicy, final Method method, final EJBMethodLocator methodLocator, final String signature, final boolean clientAsync, final EJBClientContext.InterceptorList interceptors) {
+        ProxyMethodInfo(final int methodType, final int compressionLevel, final CompressionHint compressRequest, final CompressionHint compressResponse, final boolean idempotent, final ClientTransactionPolicy transactionPolicy, final Method method, final EJBMethodLocator methodLocator, final String signature, final boolean clientAsync, final EJBClientContext.InterceptorList interceptors) {
             this.methodType = methodType;
             this.compressionLevel = compressionLevel;
             this.compressRequest = compressRequest;
@@ -355,11 +363,11 @@ final class EJBProxyInformation<T> {
             return clientAsync;
         }
 
-        boolean isCompressRequest() {
+        CompressionHint getCompressRequestHint() {
             return compressRequest;
         }
 
-        boolean isCompressResponse() {
+        CompressionHint getCompressResponseHint() {
             return compressResponse;
         }
 
