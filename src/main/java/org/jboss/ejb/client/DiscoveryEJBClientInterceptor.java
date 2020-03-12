@@ -263,6 +263,8 @@ public final class DiscoveryEJBClientInterceptor implements EJBClientInterceptor
             addInvocationBlackListedDestination(context, destination);
         }
 
+        getDiscovery().processMissingTarget(destination, cause);
+
         // clear the weak affinity so that cluster invocations can be re-targeted.
         context.setWeakAffinity(Affinity.NONE);
         context.setTargetAffinity(null);
