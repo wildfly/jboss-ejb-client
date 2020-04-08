@@ -218,7 +218,10 @@ public final class EJBClientInvocationContext extends AbstractInvocationContext 
      * @return {@code true} if the request is expected to be compressed, {@code false} otherwise
      */
     public boolean isCompressRequest() {
-        return methodInfo.isCompressRequest();
+        if (methodInfo.getCompressRequestHint() == EJBProxyInformation.ProxyMethodInfo.CompressionHint.NONE) {
+            return getClientContext().getDefaultCompression() != -1;
+        }
+        return methodInfo.getCompressRequestHint() == EJBProxyInformation.ProxyMethodInfo.CompressionHint.TRUE;
     }
 
     /**
@@ -227,7 +230,10 @@ public final class EJBClientInvocationContext extends AbstractInvocationContext 
      * @return {@code true} if the response is expected to be compressed, {@code false} otherwise
      */
     public boolean isCompressResponse() {
-        return methodInfo.isCompressResponse();
+        if (methodInfo.getCompressResponseHint() == EJBProxyInformation.ProxyMethodInfo.CompressionHint.NONE) {
+            return getClientContext().getDefaultCompression() != -1;
+        }
+        return methodInfo.getCompressResponseHint() == EJBProxyInformation.ProxyMethodInfo.CompressionHint.TRUE;
     }
 
     /**
@@ -236,7 +242,10 @@ public final class EJBClientInvocationContext extends AbstractInvocationContext 
      * @return the compression hint level, or -1 for no compression hint
      */
     public int getCompressionLevel() {
-        return methodInfo.getCompressionLevel();
+        if(methodInfo.getCompressionLevel() != -1){
+            return methodInfo.getCompressionLevel();
+        }
+        return getClientContext().getDefaultCompression();
     }
 
     /**
