@@ -27,6 +27,7 @@ import java.net.URI;
 import java.security.PrivilegedAction;
 
 import javax.ejb.CreateException;
+import javax.net.ssl.SSLException;
 
 import org.jboss.ejb._private.Logs;
 import org.jboss.ejb.client.AbstractInvocationContext;
@@ -50,6 +51,8 @@ import org.wildfly.common.annotation.NotNull;
 import org.wildfly.security.auth.client.AuthenticationContext;
 import org.xnio.IoFuture;
 import org.xnio.OptionMap;
+import org.xnio.http.HttpUpgrade;
+import org.xnio.http.UpgradeFailedException;
 
 /**
  * @author <a href="mailto:david.lloyd@redhat.com">David M. Lloyd</a>
@@ -100,8 +103,14 @@ class RemoteEJBReceiver extends EJBReceiver {
         }
 
         public void handleFailed(final IOException exception, final EJBReceiverInvocationContext attachment) {
-            //display destination in error message
-            attachment.requestFailed(new RequestSendFailedException("Destination @ " + attachment.getClientInvocationContext().getDestination(),exception, false), retryExecutorWrapper.getExecutor(Endpoint.getCurrent().getXnioWorker()));
+            URI destination = attachment.getClientInvocationContext().getDestination();
+            if (exception instanceof UpgradeFailedException ||
+               exception instanceof HttpUpgrade.ConnectionClosedEarlyException) {
+                Logs.REMOTING.error("Error in connecting to " + destination + " : Please check if the client and server are configured to use the same protocol and ports.");
+            } else if (exception instanceof SSLException && exception.getMessage().equals("Unrecognized SSL message, plaintext connection?")) {
+                Logs.REMOTING.error("Error in connecting to " + destination + " : The destination doesn't support SSL. Did you mean to use http protocol instead?");
+            }
+            attachment.requestFailed(new RequestSendFailedException("Destination @ " + destination, exception, false), retryExecutorWrapper.getExecutor(Endpoint.getCurrent().getXnioWorker()));
         }
     };
 
