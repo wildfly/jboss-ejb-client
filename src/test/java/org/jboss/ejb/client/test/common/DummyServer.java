@@ -56,6 +56,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Function;
 
 /**
  * @author <a href="mailto:cdewolf@redhat.com">Carlo de Wolf</a>
@@ -64,6 +65,13 @@ import java.util.Map;
 public class DummyServer {
 
     private static final Logger logger = Logger.getLogger(DummyServer.class);
+    /*
+     * Reject unmarshalling an instance of IAE, as a kind of 'blacklist'.
+     * In normal tests this type would never be sent, which is analogous to
+     * how blacklisted classes are normally not sent. And then we can
+     * deliberately send an IAE in tests to confirm it is rejected.
+     */
+    private static final Function<String, Boolean> DEFAULT_CLASS_FILTER = cName -> !cName.equals(IllegalArgumentException.class.getName());
 
     private Endpoint endpoint;
     private final int port;
@@ -85,7 +93,7 @@ public class DummyServer {
         this(host, port, endpointName, false);
     }
 
-    public DummyServer(final String host, final int port, final String endpointName, boolean startTxService) {
+    public DummyServer(final String host, final int port, final String endpointName, boolean startTxService)  {
         this.host = host;
         this.port = port;
         this.endpointName = endpointName;
@@ -156,7 +164,7 @@ public class DummyServer {
         RemotingTransactionService transactionService = txnServiceBuilder.build();
 
         // setup remote EJB service
-        RemoteEJBService remoteEJBService = RemoteEJBService.create(dummyAssociation,transactionService);
+        RemoteEJBService remoteEJBService = RemoteEJBService.create(dummyAssociation,transactionService, DEFAULT_CLASS_FILTER);
         remoteEJBService.serverUp();
 
         // Register an EJB channel open listener
