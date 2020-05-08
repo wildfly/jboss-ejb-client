@@ -28,6 +28,7 @@ import java.io.DataInput;
 import java.io.DataInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.InvalidClassException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
 import java.net.Inet6Address;
@@ -38,6 +39,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.Executor;
+import java.util.function.Function;
 import java.util.zip.Deflater;
 import java.util.zip.DeflaterOutputStream;
 import java.util.zip.InflaterInputStream;
@@ -117,8 +119,10 @@ final class EJBServerChannel {
     private final MarshallerFactory marshallerFactory;
     private final MarshallingConfiguration configuration;
     private final IntIndexHashMap<InProgress> invocations = new IntIndexHashMap<>(InProgress::getInvId);
+    private final Function<String, Boolean>  classResolverFilter;
 
-    EJBServerChannel(final RemotingTransactionServer transactionServer, final Channel channel, final int version, final MessageTracker messageTracker) {
+    EJBServerChannel(final RemotingTransactionServer transactionServer, final Channel channel, final int version, final MessageTracker messageTracker,
+                     final Function<String, Boolean>  classResolverFilter) {
         this.transactionServer = transactionServer;
         this.channel = channel;
         this.version = version;
@@ -136,6 +140,7 @@ final class EJBServerChannel {
         }
         marshallerFactory = new RiverMarshallerFactory();
         this.configuration = configuration;
+        this.classResolverFilter = classResolverFilter;
     }
 
     Channel.Receiver getReceiver(final Association association, final ListenerHandle handle1, final ListenerHandle handle2) {
@@ -416,7 +421,7 @@ final class EJBServerChannel {
 
         void handleInvocationRequest(final int invId, final InputStream input) throws IOException, ClassNotFoundException {
             final MarshallingConfiguration configuration = EJBServerChannel.this.configuration.clone();
-            final ServerClassResolver classResolver = new ServerClassResolver();
+            final ServerClassResolver classResolver = new ServerClassResolver(EJBServerChannel.this.classResolverFilter);
             configuration.setClassResolver(classResolver);
             final Unmarshaller unmarshaller;
 
@@ -1146,9 +1151,11 @@ final class EJBServerChannel {
 
     static final class ServerClassResolver extends AbstractClassResolver {
         private ClassLoader classLoader;
+        private final Function<String, Boolean> classResolverFilter;
 
-        ServerClassResolver() {
+        ServerClassResolver(final Function<String, Boolean> classResolverFilter) {
             super(true);
+            this.classResolverFilter = classResolverFilter;
         }
 
         public Class<?> resolveProxyClass(final Unmarshaller unmarshaller, final String[] interfaces) throws IOException, ClassNotFoundException {
@@ -1156,6 +1163,7 @@ final class EJBServerChannel {
             final Class<?>[] classes = new Class<?>[length];
 
             for(int i = 0; i < length; ++i) {
+                checkFilter(interfaces[i]);
                 classes[i] = this.loadClass(interfaces[i]);
             }
 
@@ -1174,8 +1182,20 @@ final class EJBServerChannel {
             return classLoader == null ? getClass().getClassLoader() : classLoader;
         }
 
+        @Override
+        public Class<?> resolveClass(final Unmarshaller unmarshaller, final String name, final long serialVersionUID) throws IOException, ClassNotFoundException {
+            checkFilter(name);
+            return super.resolveClass(unmarshaller, name, serialVersionUID);
+        }
+
         void setClassLoader(final ClassLoader classLoader) {
             this.classLoader = classLoader == null ? getClass().getClassLoader() : classLoader;
+        }
+
+        private void checkFilter(String className) throws InvalidClassException {
+            if (classResolverFilter != null && classResolverFilter.apply(className) != Boolean.TRUE) {
+                throw Logs.REMOTING.cannotResolveFilteredClass(className);
+            }
         }
     }
 

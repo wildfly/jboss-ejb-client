@@ -49,6 +49,7 @@ import javax.transaction.SystemException;
 import javax.transaction.Transaction;
 
 import java.io.IOException;
+import java.io.InvalidClassException;
 import java.io.InvalidObjectException;
 import java.net.URI;
 import java.util.Set;
@@ -443,6 +444,9 @@ public interface Logs extends BasicLogger {
     @LogMessage(level = INFO)
     @Message(id = 515, value = "HTTP connection was configured with invalid URI: %s .")
     void skippingHttpConnectionCreationDueToInvalidUri(final String uri);
+
+    @Message(id = 516, value = "Exception resolving class %s for unmarshalling; it has either been blacklisted or not whitelisted")
+    InvalidClassException cannotResolveFilteredClass(String clazz);
 
     // Remote messages; no ID for brevity but should be translated
 

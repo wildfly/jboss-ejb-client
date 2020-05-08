@@ -24,6 +24,7 @@ import static org.jboss.ejb.protocol.remote.TCCLUtils.resetTCCL;
 import static org.xnio.IoUtils.safeClose;
 
 import java.io.IOException;
+import java.util.function.Function;
 
 import org.jboss.ejb.server.Association;
 import org.jboss.ejb.server.ListenerHandle;
@@ -44,10 +45,11 @@ import org.wildfly.transaction.client.provider.remoting.RemotingTransactionServi
  * @author <a href="mailto:ropalka@redhat.com">Richard Opalka</a>
  */
 public final class RemoteEJBService {
+
     private final OpenListener openListener;
     private final CallbackBuffer callbackBuffer = new CallbackBuffer();
 
-    private RemoteEJBService(final Association association, final RemotingTransactionService transactionService) {
+    private RemoteEJBService(final Association association, final RemotingTransactionService transactionService, final Function<String, Boolean> classResolverFilter) {
         openListener = new OpenListener() {
             public void channelOpened(final Channel channel) {
                 final MessageTracker messageTracker = new MessageTracker(channel, channel.getOption(RemotingOptions.MAX_OUTBOUND_MESSAGES).intValue());
@@ -74,7 +76,8 @@ public final class RemoteEJBService {
                                 safeClose(channel);
                                 return;
                             }
-                            final EJBServerChannel serverChannel = new EJBServerChannel(transactionService.getServerForConnection(channel.getConnection()), channel, version, messageTracker);
+                            final EJBServerChannel serverChannel = new EJBServerChannel(transactionService.getServerForConnection(channel.getConnection()),
+                                    channel, version, messageTracker, classResolverFilter);
                             callbackBuffer.addListener((sc, a) -> {
                                 final ListenerHandle handle1 = a.registerClusterTopologyListener(sc.createTopologyListener());
                                 final ListenerHandle handle2 = a.registerModuleAvailabilityListener(sc.createModuleListener());
@@ -103,16 +106,31 @@ public final class RemoteEJBService {
     }
 
     /**
-     * Create a new remote EJB service instance.
+     * Create a new remote EJB service instance without any class resolution filter function.
      *
      * @param association the association to use (must not be {@code null})
      * @param transactionService the Remoting transaction server to use (must not be {@code null})
      * @return the remote EJB service instance (not {@code null})
      */
     public static RemoteEJBService create(final Association association, final RemotingTransactionService transactionService) {
+        return create(association, transactionService, null);
+    }
+
+    /**
+     * Create a new remote EJB service instance.
+     *
+     * @param association the association to use (must not be {@code null})
+     * @param transactionService the Remoting transaction server to use (must not be {@code null})
+     * @param classResolverFilter filter function to apply to class names before resolving them during unmarshalling.
+     *                            Must return {@link Boolean#TRUE} for the classname to be resolved, else unmarshalling
+     *                            will fail. May be {@code null} in which case no filtering is performed
+     * @return the remote EJB service instance (not {@code null})
+     */
+    public static RemoteEJBService create(final Association association, final RemotingTransactionService transactionService,
+                                          final Function<String, Boolean>  classResolverFilter) {
         Assert.checkNotNullParam("association", association);
         Assert.checkNotNullParam("transactionService", transactionService);
-        return new RemoteEJBService(association, transactionService);
+        return new RemoteEJBService(association, transactionService, classResolverFilter);
     }
 
     /**
