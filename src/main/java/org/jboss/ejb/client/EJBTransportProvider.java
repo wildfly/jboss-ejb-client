@@ -50,5 +50,5 @@ public interface EJBTransportProvider {
      */
     EJBReceiver getReceiver(EJBReceiverContext receiverContext, String uriScheme) throws IllegalArgumentException;
 
-    void close(EJBReceiverContext receiverContext) throws Exception;
+    default void close(EJBReceiverContext receiverContext) throws Exception {}
 }
