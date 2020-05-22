@@ -1183,6 +1183,7 @@ final class EJBServerChannel {
         ClusterTopologyWriter() {
         }
 
+        @Override
         public void clusterTopology(final List<ClusterInfo> clusterInfoList) {
             try (MessageOutputStream os = messageTracker.openMessageUninterruptibly()) {
                 os.writeByte(Protocol.CLUSTER_TOPOLOGY_COMPLETE);
@@ -1214,6 +1215,7 @@ final class EJBServerChannel {
             }
         }
 
+        @Override
         public void clusterRemoval(final List<String> clusterNames) {
             try (MessageOutputStream os = messageTracker.openMessageUninterruptibly()) {
                 os.writeByte(Protocol.CLUSTER_TOPOLOGY_REMOVAL);
@@ -1227,6 +1229,7 @@ final class EJBServerChannel {
             }
         }
 
+        @Override
         public void clusterNewNodesAdded(final ClusterInfo clusterInfo) {
             try (MessageOutputStream os = messageTracker.openMessageUninterruptibly()) {
                 os.writeByte(Protocol.CLUSTER_TOPOLOGY_ADDITION);
@@ -1256,6 +1259,7 @@ final class EJBServerChannel {
             }
         }
 
+        @Override
         public void clusterNodesRemoved(final List<ClusterRemovalInfo> clusterRemovalInfoList) {
             try (MessageOutputStream os = messageTracker.openMessageUninterruptibly()) {
                 os.writeByte(Protocol.CLUSTER_TOPOLOGY_NODE_REMOVAL);
@@ -1272,6 +1276,11 @@ final class EJBServerChannel {
                 // nothing to do at this point; the client doesn't want the response
                 Logs.REMOTING.trace("EJB cluster message write failed", e);
             }
+        }
+
+        @Override
+        public Connection getConnection() {
+            return EJBServerChannel.this.channel.getConnection();
         }
     }
 

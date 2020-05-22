@@ -21,6 +21,8 @@ package org.jboss.ejb.server;
 import java.net.InetAddress;
 import java.util.List;
 
+import org.jboss.remoting3.Connection;
+
 /**
  * A legacy cluster topology notification client.
  *
@@ -35,6 +37,12 @@ public interface ClusterTopologyListener {
     void clusterNewNodesAdded(ClusterInfo newClusterInfo);
 
     void clusterNodesRemoved(List<ClusterRemovalInfo> clusterRemovalInfoList);
+
+    /**
+     * Returns the remoting connection associated with this listener
+     * @return a remoting connection
+     */
+    Connection getConnection();
 
     final class ClusterInfo {
         private final String clusterName;
