@@ -322,7 +322,10 @@ final class EJBServerChannel {
                     default: throw Assert.impossibleSwitchCase(code);
                 }
             } catch (XAException e) {
-                writeFailedResponse(invId, e);
+                //EJBCLIENT-373
+                if (!((version <= 2) && (e.errorCode == XAException.XAER_NOTA))) {
+                    writeFailedResponse(invId, e);
+                }
             } else if (transactionID instanceof UserTransactionID) try {
                 final LocalTransaction localTransaction = transactionServer.removeTransaction(((UserTransactionID) transactionID).getId());
                 switch (code) {
