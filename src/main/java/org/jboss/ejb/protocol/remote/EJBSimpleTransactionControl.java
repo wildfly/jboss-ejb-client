@@ -104,6 +104,8 @@ class EJBSimpleTransactionControl implements SimpleTransactionControl {
             throw new SystemException();
         } catch (IOException e) {
             throw new SystemException();
+        } finally {
+            invocationTracker.remove(invocation);
         }
     }
 

@@ -125,6 +125,8 @@ class EJBTransactionOperations implements RemotingOperations {
             throw new XAException(XAException.XAER_RMERR);
         } catch (IOException e) {
             throw new XAException(XAException.XAER_RMERR);
+        } finally {
+            invocationTracker.remove(invocation);
         }
     }
 
@@ -204,6 +206,8 @@ class EJBTransactionOperations implements RemotingOperations {
             throw new XAException(XAException.XAER_RMERR);
         } catch (IOException | ClassNotFoundException e) {
             throw new XAException(XAException.XAER_RMERR);
+        } finally {
+            invocationTracker.remove(invocation);
         }
     }
 
