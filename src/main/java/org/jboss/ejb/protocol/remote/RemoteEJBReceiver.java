@@ -51,6 +51,7 @@ import org.wildfly.common.annotation.NotNull;
 import org.wildfly.security.auth.client.AuthenticationContext;
 import org.xnio.IoFuture;
 import org.xnio.OptionMap;
+import org.xnio.http.ConnectionClosedEarlyException;
 import org.xnio.http.HttpUpgrade;
 import org.xnio.http.UpgradeFailedException;
 
@@ -105,7 +106,7 @@ class RemoteEJBReceiver extends EJBReceiver {
         public void handleFailed(final IOException exception, final EJBReceiverInvocationContext attachment) {
             URI destination = attachment.getClientInvocationContext().getDestination();
             if (exception instanceof UpgradeFailedException ||
-               exception instanceof HttpUpgrade.ConnectionClosedEarlyException) {
+               exception instanceof ConnectionClosedEarlyException) {
                 Logs.REMOTING.error("Error in connecting to " + destination + " : Please check if the client and server are configured to use the same protocol and ports.");
             } else if (exception instanceof SSLException && exception.getMessage().equals("Unrecognized SSL message, plaintext connection?")) {
                 Logs.REMOTING.error("Error in connecting to " + destination + " : The destination doesn't support SSL. Did you mean to use http protocol instead?");
