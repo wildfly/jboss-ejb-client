@@ -78,6 +78,8 @@ public final class DiscoveryEJBClientInterceptor implements EJBClientInterceptor
     private static final boolean WILDFLY_TESTSUITE_HACK = Boolean.getBoolean("org.jboss.ejb.client.wildfly-testsuite-hack");
     // This provides a way timeout a discovery, avoiding blocking on some edge cases. See EJBCLIENT-311.
     private static final long DISCOVERY_TIMEOUT = Long.parseLong(WildFlySecurityManager.getPropertyPrivileged("org.jboss.ejb.client.discovery.timeout", "0"));
+    //how long to wait if at least one node has already been discovered. This one is in ms rather than s
+    private static final long DISCOVERY_ADDITIONAL_TIMEOUT = Long.parseLong(WildFlySecurityManager.getPropertyPrivileged("org.jboss.ejb.client.discovery.additional-node-timeout", "0"));
 
     /**
      * This interceptor's priority.
@@ -490,9 +492,10 @@ public final class DiscoveryEJBClientInterceptor implements EJBClientInterceptor
         final Map<URI, List<String>> clusterAssociations = new HashMap<>();
 
         int nodeless = 0;
+        long timeout = DISCOVERY_TIMEOUT * 1000;
         try (final ServicesQueue queue = discover(filterSpec)) {
             ServiceURL serviceURL;
-            while ((serviceURL = queue.takeService(DISCOVERY_TIMEOUT, TimeUnit.SECONDS)) != null) {
+            while ((serviceURL = queue.takeService(timeout, TimeUnit.MILLISECONDS)) != null) {
                 final URI location = serviceURL.getLocationURI();
                 if (!blacklist.contains(location)) {
                     // Got a match!  See if there's a node affinity to set for the invocation.
@@ -527,6 +530,10 @@ public final class DiscoveryEJBClientInterceptor implements EJBClientInterceptor
                                 list.add(cluster.toString());
                             }
                         }
+                    }
+                    //one has already been discovered, we may want a shorter timeout for additional nodes
+                    if (DISCOVERY_ADDITIONAL_TIMEOUT != 0) {
+                        timeout = DISCOVERY_ADDITIONAL_TIMEOUT; //this one is actually in ms, you generally want it very short
                     }
                 }
             }
