@@ -976,6 +976,8 @@ class EJBClientChannel {
                 }
             } catch (ClassNotFoundException | IOException ex) {
                 throw new EJBException("Failed to read session create response", ex);
+            } finally {
+                invocationTracker.remove(this);
             }
             if (e == null) {
                 throw new EJBException("Null exception response");
