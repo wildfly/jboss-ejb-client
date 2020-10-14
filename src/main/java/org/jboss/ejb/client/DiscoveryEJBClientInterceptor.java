@@ -313,24 +313,21 @@ public final class DiscoveryEJBClientInterceptor implements EJBClientInterceptor
         if (invocationBlacklist != null && invocationBlacklist.contains(destination)) {
             return true;
         }
+
+        // check if it is in the static blacklist
         if (!blacklist.containsKey(destination)) {
             return false;
         }
-        final long blacklistedTimestamp = blacklist.get(destination);
-        final long delta = System.nanoTime() - blacklistedTimestamp;
-        if (delta < BLACKLIST_TIMEOUT) {
-            return true;
-        } else {
-            blacklist.remove(destination);
-            return false;
-        }
+
+        // getBlacklist() will remove any blacklisted entries that are now > than BLACKLIST_TIMEOUT
+        // to check if any blacklisted destinations are now available to be used
+        return getBlacklist().contains(destination);
     }
 
     private static Set<URI> getBlacklist(){
         blacklist.entrySet().removeIf(e ->
         {
-            final long delta = System.nanoTime() - e.getValue();
-            return delta < BLACKLIST_TIMEOUT;
+            return (System.nanoTime() - e.getValue()) > BLACKLIST_TIMEOUT;
         });
         return blacklist.keySet();
     }
