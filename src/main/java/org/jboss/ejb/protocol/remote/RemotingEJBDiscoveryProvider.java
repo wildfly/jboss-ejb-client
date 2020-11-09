@@ -32,7 +32,6 @@ import java.net.InetSocketAddress;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.UnknownHostException;
-import java.security.AccessController;
 import java.security.GeneralSecurityException;
 import java.security.PrivilegedAction;
 import java.util.ArrayList;
@@ -44,10 +43,10 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
-
 import javax.net.ssl.SSLContext;
 
 import org.jboss.ejb._private.Logs;
+import org.jboss.ejb.client.DiscoveryEJBClientInterceptor;
 import org.jboss.ejb.client.EJBClientConnection;
 import org.jboss.ejb.client.EJBClientContext;
 import org.jboss.ejb.client.EJBModuleIdentifier;
@@ -358,7 +357,7 @@ final class RemotingEJBDiscoveryProvider implements DiscoveryProvider, Discovere
         /**
          * nodes that have already been provided to the discovery provider eagerly
          */
-        private final Set<String> eagerNodes = Collections.synchronizedSet(new HashSet<>());
+        private final Set<String> eagerNodes;
 
         DiscoveryAttempt(final ServiceType serviceType, final FilterSpec filterSpec, final DiscoveryResult discoveryResult, final RemoteEJBReceiver ejbReceiver, final AuthenticationContext authenticationContext) {
             this.serviceType = serviceType;
@@ -405,6 +404,8 @@ final class RemotingEJBDiscoveryProvider implements DiscoveryProvider, Discovere
                     countDown();
                 }
             };
+
+            eagerNodes = DiscoveryEJBClientInterceptor.getDiscoveryAdditionalTimeout() == 0 ? null : Collections.synchronizedSet(new HashSet<>());
         }
 
         void connectAndDiscover(URI uri, String clusterEffective) {
@@ -454,12 +455,12 @@ final class RemotingEJBDiscoveryProvider implements DiscoveryProvider, Discovere
                 final EJBModuleIdentifier module = filterSpec.accept(MI_EXTRACTOR);
                 if (phase2) {
                     if (node != null) {
-                        if (!eagerNodes.contains(node)) {
+                        if (eagerNodes == null || !eagerNodes.contains(node)) {
                             final NodeInformation information = nodes.get(node);
                             if (information != null) information.discover(serviceType, filterSpec, result);
                         }
                     } else for (NodeInformation information : nodes.values()) {
-                        if (!eagerNodes.contains(information.getNodeName())) {
+                        if (eagerNodes == null || !eagerNodes.contains(information.getNodeName())) {
                             information.discover(serviceType, filterSpec, result);
                         }
                     }
@@ -468,7 +469,7 @@ final class RemotingEJBDiscoveryProvider implements DiscoveryProvider, Discovere
                     boolean ok = false;
                     // optimize for simple module identifier and node name queries
                     if (node != null) {
-                        if (!eagerNodes.contains(node)) {
+                        if (eagerNodes == null || !eagerNodes.contains(node)) {
                             final NodeInformation information = nodes.get(node);
                             if (information != null) {
                                 if (information.discover(serviceType, filterSpec, result)) {
@@ -477,13 +478,13 @@ final class RemotingEJBDiscoveryProvider implements DiscoveryProvider, Discovere
                             }
                         }
                     } else for (NodeInformation information : nodes.values()) {
-                        if (!eagerNodes.contains(information.getNodeName())) {
+                        if (eagerNodes == null || !eagerNodes.contains(information.getNodeName())) {
                             if (information.discover(serviceType, filterSpec, result)) {
                                 ok = true;
                             }
                         }
                     }
-                    if (ok || !eagerNodes.isEmpty()) {
+                    if (ok || (eagerNodes != null && !eagerNodes.isEmpty())) {
                         result.complete();
                     } else {
                         // everything failed.  We have to reconnect everything.
@@ -542,7 +543,7 @@ final class RemotingEJBDiscoveryProvider implements DiscoveryProvider, Discovere
                         countDown();
                     }
                 }
-            } else {
+            } else if (eagerNodes != null) {
                 final DiscoveryResult result = this.discoveryResult;
                 final String node = filterSpec.accept(NODE_EXTRACTOR);
                 if (node != null) {
