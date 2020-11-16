@@ -17,6 +17,8 @@
  */
 package org.jboss.ejb.client.test;
 
+import java.io.File;
+import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -28,11 +30,13 @@ import javax.transaction.TransactionManager;
 import javax.transaction.TransactionSynchronizationRegistry;
 import javax.transaction.UserTransaction;
 
+import com.arjuna.ats.arjuna.common.ObjectStoreEnvironmentBean;
 import com.arjuna.ats.internal.jbossatx.jta.jca.XATerminator;
 import com.arjuna.ats.internal.jta.transaction.arjunacore.TransactionManagerImple;
 import com.arjuna.ats.internal.jta.transaction.arjunacore.TransactionSynchronizationRegistryImple;
 import com.arjuna.ats.jta.common.JTAEnvironmentBean;
 import com.arjuna.ats.jta.common.jtaPropertyManager;
+import com.arjuna.common.internal.util.propertyservice.BeanPopulator;
 import org.jboss.ejb.client.test.common.DummyServer;
 import org.jboss.ejb.client.test.common.Echo;
 import org.jboss.ejb.client.test.common.EchoBean;
@@ -88,6 +92,14 @@ public class TransactionTestCase {
      */
     @BeforeClass
     public static void beforeClass() throws Exception {
+        BeanPopulator.getNamedInstance(ObjectStoreEnvironmentBean.class, null)
+                .setObjectStoreDir("target/tx-object-store");
+        BeanPopulator.getNamedInstance(ObjectStoreEnvironmentBean.class, "communicationStore")
+                .setObjectStoreDir("target/tx-object-store");
+        BeanPopulator.getNamedInstance(ObjectStoreEnvironmentBean.class, "stateStore")
+                .setObjectStoreDir("target/tx-object-store");
+
+
         final JTAEnvironmentBean jtaEnvironmentBean = jtaPropertyManager.getJTAEnvironmentBean();
         jtaEnvironmentBean.setTransactionManagerClassName(TransactionManagerImple.class.getName());
         jtaEnvironmentBean.setTransactionSynchronizationRegistryClassName(TransactionSynchronizationRegistryImple.class.getName());
@@ -107,6 +119,7 @@ public class TransactionTestCase {
             public void removeXAResourceRecovery(XAResourceRecovery xaResourceRecovery) {
             }
         });
+        builder.setXARecoveryLogDirRelativeToPath(new File("target/tx-object-store").toPath());
         builder.build();
         LocalTransactionContext.getContextManager().setGlobalDefault(new LocalTransactionContext(builder.build()));
         txManager = ContextTransactionManager.getInstance();
