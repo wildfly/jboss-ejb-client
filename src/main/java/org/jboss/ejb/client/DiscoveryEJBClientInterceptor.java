@@ -336,7 +336,7 @@ public final class DiscoveryEJBClientInterceptor implements EJBClientInterceptor
         return getBlacklist().contains(destination);
     }
 
-    private static Set<URI> getBlacklist(){
+    static Set<URI> getBlacklist(){
         blacklist.entrySet().removeIf(e ->
         {
             return (System.nanoTime() - e.getValue()) > BLACKLIST_TIMEOUT;
