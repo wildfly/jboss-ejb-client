@@ -36,19 +36,9 @@ import org.junit.Test;
 /**
  * @author <a href="ingo@redhat.com">Ingo Weiss</a>
  */
-public class RemoteDiscoveryTimeoutTestCase {
+public class RemoteDiscoveryTimeoutTestCase extends AbstractEJBClientTestCase {
    private static final Logger logger = Logger.getLogger(RemoteDiscoveryTimeoutTestCase.class);
    private static final String PROPERTIES_FILE = "no-protocol-jboss-ejb-client.properties";
-
-   private DummyServer server;
-   private boolean serverStarted = false;
-
-   // module
-   private static final String APP_NAME = "my-foo-app";
-   private static final String MODULE_NAME = "my-bar-module";
-   private static final String DISTINCT_NAME = "";
-
-   private static final String SERVER_NAME = "test-server";
 
    /**
     * Do any general setup here
@@ -67,13 +57,9 @@ public class RemoteDiscoveryTimeoutTestCase {
    @Before
    public void beforeTest() throws Exception {
       // start a server
-      server = new DummyServer("localhost", 6999, SERVER_NAME);
-      server.start();
-      serverStarted = true;
-      logger.info("Started server ...");
-
-      server.register(APP_NAME, MODULE_NAME, DISTINCT_NAME, Echo.class.getSimpleName(), new EchoBean());
-      logger.info("Registered module ...");
+      startServer(0);
+      // deploy a stateless echo bean
+      deployStateless(0);
    }
 
    /**
@@ -81,17 +67,10 @@ public class RemoteDiscoveryTimeoutTestCase {
     */
    @After
    public void afterTest() {
-      server.unregister(APP_NAME, MODULE_NAME, DISTINCT_NAME, Echo.class.getName());
-      logger.info("Unregistered module ...");
-
-      if (serverStarted) {
-         try {
-            this.server.stop();
-         } catch (Throwable t) {
-            logger.info("Could not stop server", t);
-         }
-      }
-      logger.info("Stopped server ...");
+      // undeploy a stateless echo bean
+      undeployStateless(0);
+      // stop a server
+      stopServer(0);
    }
 
    /**

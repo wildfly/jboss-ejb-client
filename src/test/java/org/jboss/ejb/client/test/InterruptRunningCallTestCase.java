@@ -12,53 +12,34 @@ import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import javax.naming.NamingException;
 
-import org.jboss.ejb.client.test.common.DummyServer;
 import org.jboss.ejb.client.test.common.Echo;
 import org.jboss.ejb.client.test.common.EchoBean;
 import org.jboss.logging.Logger;
-import org.junit.AfterClass;
+import org.junit.After;
 import org.junit.Assert;
-import org.junit.BeforeClass;
+import org.junit.Before;
 import org.junit.Test;
 import org.wildfly.naming.client.WildFlyInitialContextFactory;
 import org.wildfly.naming.client.WildFlyRootContext;
 import org.wildfly.naming.client.util.FastHashtable;
 
 
-public class InterruptRunningCallTestCase {
+public class InterruptRunningCallTestCase extends AbstractEJBClientTestCase {
     private static final Logger logger = Logger.getLogger(InterruptRunningCallTestCase.class);
 
-    private static final String APP_NAME = "my-foo-app";
-    private static final String MODULE_NAME = "my-bar-module";
-    private static final String DISTINCT_NAME = "";
-
-    private static final String SERVER_NAME = "test-server";
-
-    private static DummyServer server;
-
-    @BeforeClass
-    public static void beforeTest() throws Exception {
+    @Before
+    public void beforeTest() throws Exception {
         // start a server
-        server = new DummyServer("localhost", 6999, SERVER_NAME);
-        server.start();
-        logger.info("Started server ...");
-
+        startServer(0);
+        // deploy a custom bean
         String longResponse = generateLongResponse(131072 * 10);
-        server.register(APP_NAME, MODULE_NAME, DISTINCT_NAME, EchoBean.class.getSimpleName(), new EchoBean(longResponse));
-        logger.info("Registered module ...");
+        deployCustomBean(0, APP_NAME, MODULE_NAME, DISTINCT_NAME, EchoBean.class.getSimpleName(), new EchoBean(longResponse));
     }
 
-    @AfterClass
-    public static void afterTest() {
-        server.unregister(APP_NAME, MODULE_NAME, DISTINCT_NAME, EchoBean.class.getName());
-        logger.info("Unregistered module ...");
-
-        try {
-            server.stop();
-        } catch (Throwable t) {
-            logger.info("Could not stop server", t);
-        }
-        logger.info("Stopped server ...");
+    @After
+    public void afterTest() {
+        undeployCustomBean(0, APP_NAME, MODULE_NAME, DISTINCT_NAME, EchoBean.class.getName());
+        stopServer(0);
     }
 
     @Test

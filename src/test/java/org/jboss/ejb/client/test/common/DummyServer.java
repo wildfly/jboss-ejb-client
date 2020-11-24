@@ -343,7 +343,9 @@ public class DummyServer implements AutoCloseable {
     /**
      * Allows keeping track of which clusters this server has joined and their membership.
      *
-     * To keep things simple, this is a direct mapping to the server-side cluster information used.
+     * To keep things simple, this is a direct mapping to the server-side cluster information used; namely,
+     * the classes ClusterInfo, NodeInfo and MappingInfo used by .
+     *
      * The server does not need to store the current state of the clusters.
      */
     public class EJBClusterRegistry {

@@ -75,7 +75,7 @@ public class SimpleInvocationTestCase extends AbstractEJBClientTestCase {
     public void beforeTest() throws Exception {
         // start servers
         for (int i = 0; i < 2; i++) {
-            startServer(i, 6999 + (i*100));
+            startServer(i);
             // deploy a stateful bean
             deployStateful(i);
             // deploy a stateless bean
