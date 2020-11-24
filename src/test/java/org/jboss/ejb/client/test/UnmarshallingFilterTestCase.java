@@ -30,8 +30,10 @@ import org.jboss.ejb.client.test.common.DummyServer;
 import org.jboss.ejb.client.test.common.TypeReporter;
 import org.jboss.ejb.client.test.common.TypeReporterBean;
 import org.jboss.logging.Logger;
+import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.Assert;
+import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
@@ -40,44 +42,20 @@ import org.junit.Test;
  *
  * @author Brian Stansberry
  */
-public class UnmarshallingFilterTestCase {
+public class UnmarshallingFilterTestCase extends AbstractEJBClientTestCase {
     private static final Logger logger = Logger.getLogger(LearningTestCase.class);
 
-    // module
-    private static final String APP_NAME = "my-foo-app";
-    private static final String MODULE_NAME = "my-bar-module";
-    private static final String DISTINCT_NAME = "";
-
-    private static final String SERVER_NAME = "test-server";
-
-    private static DummyServer server;
-    private static boolean serverStarted = false;
-
-    @BeforeClass
-    public static void beforeTest() throws Exception {
+    @Before
+    public void beforeTest() throws Exception {
         // start a server
-        server = new DummyServer("localhost", 6999, SERVER_NAME);
-        server.start();
-        serverStarted = true;
-        logger.info("Started server ...");
-
-        server.register(APP_NAME, MODULE_NAME, DISTINCT_NAME, TypeReporter.class.getSimpleName(), new TypeReporterBean());
-        logger.info("Registered module ...");
+        startServer(0);
+        deployCustomBean(0, APP_NAME, MODULE_NAME, DISTINCT_NAME, TypeReporter.class.getSimpleName(), new TypeReporterBean());
     }
 
-    @AfterClass
-    public static void afterTest() {
-        server.unregister(APP_NAME, MODULE_NAME, DISTINCT_NAME, TypeReporterBean.class.getName());
-        logger.info("Unregistered module ...");
-
-        if (serverStarted) {
-            try {
-                server.stop();
-            } catch (Throwable t) {
-                logger.info("Could not stop server", t);
-            }
-        }
-        logger.info("Stopped server ...");
+    @After
+    public void afterTest() {
+        undeployCustomBean(0, APP_NAME, MODULE_NAME, DISTINCT_NAME, TypeReporterBean.class.getName());
+        stopServer(0);
     }
 
     /**

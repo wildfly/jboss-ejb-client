@@ -48,32 +48,20 @@ import org.wildfly.naming.client.util.FastHashtable;
 public class LearningTestCase extends AbstractEJBClientTestCase {
     private static final Logger logger = Logger.getLogger(LearningTestCase.class);
 
-    // module
-    private static final String APP_NAME = "my-foo-app";
-    private static final String MODULE_NAME = "my-bar-module";
-    private static final String DISTINCT_NAME = "";
-
-    private static final String SERVER_NAME = "test-server";
-
-    private static DummyServer server;
-    private static boolean serverStarted = false;
-
     @Before
     public void beforeTest() throws Exception {
         // start a server
         startServer(0, 6999);
+        // deploy a stateful bean
         deployStateful(0);
         // deploy a different bean
         deployCustomBean(0, APP_NAME, MODULE_NAME, DISTINCT_NAME, FooBean.class.getSimpleName(), new FooBean());
-        logger.info("Registered module ...");
     }
 
     @After
     public void afterTest() {
         undeployStateful(0);
         undeployCustomBean(0, APP_NAME, MODULE_NAME, DISTINCT_NAME, FooBean.class.getName());
-        logger.info("Unregistered module ...");
-
         stopServer(0);
     }
 
@@ -81,27 +69,23 @@ public class LearningTestCase extends AbstractEJBClientTestCase {
         WildFlyRootContext context = new WildFlyRootContext(props);
 
         Object echo = context.lookup("ejb:" + APP_NAME + "/" + MODULE_NAME + "/" + StatefulEchoBean.class.getSimpleName() + "!" + Echo.class.getName() + "?stateful");
-
         Assert.assertEquals(match1, EJBClient.getStrongAffinity(echo));
 
         EJBClient.setStrongAffinity(echo, new ClusterAffinity("test"));
         ((Echo)echo).echo("test");
 
         Object foo = context.lookup("ejb:" + APP_NAME + "/" + MODULE_NAME + "/" + FooBean.class.getSimpleName() + "!" + Foo.class.getName() + "?stateful");
-
         Assert.assertEquals(match2, EJBClient.getStrongAffinity(foo));
     }
 
     private void verifyAffinity(WildFlyRootContext context, Affinity match1, Affinity match2) throws NamingException {
           Object echo = context.lookup("ejb:" + APP_NAME + "/" + MODULE_NAME + "/" + StatefulEchoBean.class.getSimpleName() + "!" + Echo.class.getName() + "?stateful");
-
           Assert.assertEquals(match1, EJBClient.getStrongAffinity(echo));
 
           EJBClient.setStrongAffinity(echo, new ClusterAffinity("test"));
           ((Echo)echo).echo("test");
 
           Object foo = context.lookup("ejb:" + APP_NAME + "/" + MODULE_NAME + "/" + FooBean.class.getSimpleName() + "!" + Foo.class.getName() + "?stateful");
-
           Assert.assertEquals(match2, EJBClient.getStrongAffinity(foo));
       }
 
