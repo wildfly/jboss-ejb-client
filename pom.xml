@@ -66,7 +66,7 @@
         <version.org.jboss.threads>2.3.3.Final</version.org.jboss.threads>
         <version.org.jboss.xnio>3.8.2.Final</version.org.jboss.xnio>
         <version.org.kohsuke.metainf-services>1.7</version.org.kohsuke.metainf-services>
-        <version.org.wildfly.client-config>1.0.0.Final</version.org.wildfly.client-config>
+        <version.org.wildfly.client-config>1.0.1.Final</version.org.wildfly.client-config>
         <version.org.wildfly.common>1.5.1.Final</version.org.wildfly.common>
         <version.org.wildfly.naming.client>1.0.13.Final</version.org.wildfly.naming.client>
         <version.org.wildfly.discovery>1.2.1.Final</version.org.wildfly.discovery>
