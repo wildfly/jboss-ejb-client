@@ -514,7 +514,9 @@ final class RemotingEJBDiscoveryProvider implements DiscoveryProvider, Discovere
                             }
                         }
                         outer: for (NodeInformation information : nodes.values()) {
-                            for (NodeInformation.ClusterNodeInformation cni : information.getClustersByName().values()) {
+                            for (Map.Entry<String, NodeInformation.ClusterNodeInformation> entry : information.getClustersByName().entrySet()) {
+                                String clusterName = entry.getKey();
+                                NodeInformation.ClusterNodeInformation cni = entry.getValue();
                                 final Map<String, CidrAddressTable<InetSocketAddress>> atm = cni.getAddressTablesByProtocol();
                                 for (Map.Entry<String, CidrAddressTable<InetSocketAddress>> entry2 : atm.entrySet()) {
                                     final String protocol = entry2.getKey();
@@ -535,11 +537,7 @@ final class RemotingEJBDiscoveryProvider implements DiscoveryProvider, Discovere
                                                     }
                                                 }
                                                 URI location = new URI(protocol, null, hostName, destination.getPort(), null, null, null);
-                                                String cluster = effectiveAuthMappings.get(location);
-                                                if (cluster != null) {
-                                                    effectiveAuthMappings.put(location, cluster);
-                                                }
-
+                                                effectiveAuthMappings.put(location, clusterName);
                                                 everything.add(location);
                                                 continue outer;
                                             }
