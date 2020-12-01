@@ -515,7 +515,10 @@ public final class DiscoveryEJBClientInterceptor implements EJBClientInterceptor
                         }
                         final String nodeName = nodeValue.toString();
                         nodes.put(location, nodeName);
-                        uris.put(nodeName, location);
+                        // we want to prioritize local invocation
+                        if (!uris.containsKey(nodeName) || location.equals(Affinity.LOCAL.getUri())) {
+                            uris.put(nodeName, location);
+                        }
                     } else {
                         // just set the URI but don't overwrite a separately-found node name
                         if (nodes.putIfAbsent(location, null) == null) {
