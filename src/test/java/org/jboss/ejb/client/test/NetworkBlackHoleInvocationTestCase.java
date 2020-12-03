@@ -23,6 +23,7 @@ import org.jboss.ejb.client.legacy.JBossEJBProperties;
 import org.jboss.ejb.client.test.common.DummyServer;
 import org.jboss.ejb.client.test.common.Echo;
 import org.jboss.ejb.client.test.common.EchoBean;
+import org.jboss.ejb.client.test.common.Result;
 import org.jboss.logging.Logger;
 import org.junit.After;
 import org.junit.Assert;
@@ -128,10 +129,10 @@ public class NetworkBlackHoleInvocationTestCase {
             // Invoke on the proxy. This should fail in 10 seconds or else it'll hang.
             final String message = "hello!";
 
-            long invocationStart = System.currentTimeMillis(); 
-            String echo = proxy.echo(message);
+            long invocationStart = System.currentTimeMillis();
+            Result<String> echo = proxy.echo(message);
             assertInvocationTimeLessThan("org.jboss.ejb.client.discovery.additional-node-timeout ineffective", 3000, invocationStart);
-            Assert.assertEquals(message, echo);
+            Assert.assertEquals(message, echo.getValue());
             server2.hardKill();
 
             final Echo proxy2 = EJBClient.createProxy(statelessEJBLocator);
@@ -145,7 +146,7 @@ public class NetworkBlackHoleInvocationTestCase {
                 invocationStart = System.currentTimeMillis(); 
                 echo = proxy2.echo(message);
                 assertInvocationTimeLessThan("org.jboss.ejb.client.discovery.additional-node-timeout ineffective", 3000, invocationStart);
-                Assert.assertEquals(message, echo);
+                Assert.assertEquals(message, echo.getValue());
             }
         }
     }

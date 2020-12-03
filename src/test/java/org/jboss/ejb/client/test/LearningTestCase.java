@@ -1,43 +1,51 @@
+/*
+ * JBoss, Home of Professional Open Source.
+ * Copyright 2019 Red Hat, Inc., and individual contributors
+ * as indicated by the @author tags.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package org.jboss.ejb.client.test;
 
-import java.lang.reflect.InvocationHandler;
-import java.lang.reflect.Proxy;
-import java.net.URI;
-import java.util.Hashtable;
-import java.util.Properties;
-
-import javax.naming.InitialContext;
 import javax.naming.NamingException;
+import java.net.URI;
 
 import org.jboss.ejb.client.Affinity;
 import org.jboss.ejb.client.ClusterAffinity;
 import org.jboss.ejb.client.EJBClient;
-import org.jboss.ejb.client.EJBIdentifier;
-import org.jboss.ejb.client.StatelessEJBLocator;
 import org.jboss.ejb.client.URIAffinity;
 import org.jboss.ejb.client.test.common.DummyServer;
 import org.jboss.ejb.client.test.common.Echo;
-import org.jboss.ejb.client.test.common.EchoBean;
 import org.jboss.ejb.client.test.common.Foo;
 import org.jboss.ejb.client.test.common.FooBean;
+import org.jboss.ejb.client.test.common.StatefulEchoBean;
 import org.jboss.logging.Logger;
 import org.junit.After;
-import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.Before;
-import org.junit.BeforeClass;
 import org.junit.Test;
-import org.wildfly.naming.client.WildFlyInitialContext;
 import org.wildfly.naming.client.WildFlyInitialContextFactory;
 import org.wildfly.naming.client.WildFlyRootContext;
 import org.wildfly.naming.client.util.FastHashtable;
+
 
 /**
  * Tests support for a feature where proxies constructed from the same JNDI initial context share default values for strong affinity.
  *
  * @author Jason T. Greene
  */
-public class LearningTestCase {
+public class LearningTestCase extends AbstractEJBClientTestCase {
     private static final Logger logger = Logger.getLogger(LearningTestCase.class);
 
     // module
@@ -50,39 +58,29 @@ public class LearningTestCase {
     private static DummyServer server;
     private static boolean serverStarted = false;
 
-    @BeforeClass
-    public static void beforeTest() throws Exception {
+    @Before
+    public void beforeTest() throws Exception {
         // start a server
-        server = new DummyServer("localhost", 6999, SERVER_NAME);
-        server.start();
-        serverStarted = true;
-        logger.info("Started server ...");
-
-        server.register(APP_NAME, MODULE_NAME, DISTINCT_NAME, EchoBean.class.getSimpleName(), new EchoBean());
-        server.register(APP_NAME, MODULE_NAME, DISTINCT_NAME, FooBean.class.getSimpleName(), new FooBean());
+        startServer(0, 6999);
+        deployStateful(0);
+        // deploy a different bean
+        deployCustomBean(0, APP_NAME, MODULE_NAME, DISTINCT_NAME, FooBean.class.getSimpleName(), new FooBean());
         logger.info("Registered module ...");
     }
 
-    @AfterClass
-    public static void afterTest() {
-        server.unregister(APP_NAME, MODULE_NAME, DISTINCT_NAME, EchoBean.class.getName());
-        server.unregister(APP_NAME, MODULE_NAME, DISTINCT_NAME, FooBean.class.getName());
+    @After
+    public void afterTest() {
+        undeployStateful(0);
+        undeployCustomBean(0, APP_NAME, MODULE_NAME, DISTINCT_NAME, FooBean.class.getName());
         logger.info("Unregistered module ...");
 
-        if (serverStarted) {
-            try {
-                server.stop();
-            } catch (Throwable t) {
-                logger.info("Could not stop server", t);
-            }
-        }
-        logger.info("Stopped server ...");
+        stopServer(0);
     }
 
     private void verifyAffinity(FastHashtable<String, Object> props, Affinity match1, Affinity match2) throws NamingException {
         WildFlyRootContext context = new WildFlyRootContext(props);
 
-        Object echo = context.lookup("ejb:" + APP_NAME + "/" + MODULE_NAME + "/" + EchoBean.class.getSimpleName() + "!" + Echo.class.getName() + "?stateful");
+        Object echo = context.lookup("ejb:" + APP_NAME + "/" + MODULE_NAME + "/" + StatefulEchoBean.class.getSimpleName() + "!" + Echo.class.getName() + "?stateful");
 
         Assert.assertEquals(match1, EJBClient.getStrongAffinity(echo));
 
@@ -95,7 +93,7 @@ public class LearningTestCase {
     }
 
     private void verifyAffinity(WildFlyRootContext context, Affinity match1, Affinity match2) throws NamingException {
-          Object echo = context.lookup("ejb:" + APP_NAME + "/" + MODULE_NAME + "/" + EchoBean.class.getSimpleName() + "!" + Echo.class.getName() + "?stateful");
+          Object echo = context.lookup("ejb:" + APP_NAME + "/" + MODULE_NAME + "/" + StatefulEchoBean.class.getSimpleName() + "!" + Echo.class.getName() + "?stateful");
 
           Assert.assertEquals(match1, EJBClient.getStrongAffinity(echo));
 
