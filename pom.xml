@@ -379,7 +379,7 @@
                                     <goal>test</goal>
                                 </goals>
                                 <configuration>
-                                    <argLine>-Djdk.attach.allowAttachSelf=true</argLine>
+                                    <argLine>-Dorg.jboss.byteman.verbose, -Djdk.attach.allowAttachSelf=true</argLine>
                                     <environmentVariables>
                                         <BYTEMAN_HOME/>
                                     </environmentVariables>

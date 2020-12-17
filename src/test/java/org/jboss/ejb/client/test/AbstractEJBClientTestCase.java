@@ -29,13 +29,41 @@ import org.jboss.logging.Logger;
 /**
  * A base class for EJB client test cases.
  *
+ * This base class provides helpers for the client side test case to model the following aspects of s server environment:
+ * - starting/stopping of servers with specific endpoint name, hostname and port
+ * - deployment/undeployment of EJBs on those servers
+ * - simple, generic Stateful and Stateless Session beans (with real annotations and methods)
+ * - named clusters of servers
+ *
+ * Convenience methods are available for performing common tasks in test cases which subclass from this abstract class.
+ * For example, to start a singleton node and deploy a SFSB on that node:
+ * startServer(0);
+ * deployStateful(0);
+ * This starts the server with endpoint name "node1", hostname "node1" and port 6999. Module updates will be received by the client.
+ * We can undeploy and shutdown the node:
+ * undeployStateful(0);
+ * stopServer(0);
+ *
+ * To create a cluster of two nodes called "ejb" and deploy a Stateless bean on the second node only:
+ * startServer(0);
+ * startServer(1);
+ * defineCluster(0, CLUSTER);
+ * defineCluster(1, CLUSTER);
+ * deployStateless(1);
+ * Module updates and topology updates will be received by the client.
+ * Changes to cluster membership need to be arranged by creating new ClusterInfo objects corresponding to the actual membership.
+ * We can bring down the cluster:
+ * undeployStateless(1);
+ * removeCluster(0, "ejb")
+ * removeCluster(1, "ejb")
+ *
  * @author <a href="mailto:rachmato@redhat.com">Richard Achmatowicz</a>
  */
 public class AbstractEJBClientTestCase {
 
     private static final Logger logger = Logger.getLogger(AbstractEJBClientTestCase.class);
 
-    // servers
+    // server names; these are logical names (c.f. jboss.node.name) and not DNS resolvable hostnames
     public static final String SERVER1_NAME = "node1";
     public static final String SERVER2_NAME = "node2";
     public static final String SERVER3_NAME = "node3";
@@ -53,7 +81,7 @@ public class AbstractEJBClientTestCase {
     public static final String DISTINCT_NAME = "";
 
     // cluster
-    // note: node names and server names should match!
+    // note: logical node names and server names should match!
     public static final String CLUSTER_NAME = "ejb";
     public static final String NODE1_NAME = "node1";
     public static final String NODE2_NAME = "node2";
@@ -73,12 +101,18 @@ public class AbstractEJBClientTestCase {
     public final EJBIdentifier STATEFUL_IDENTIFIER = new EJBIdentifier(MODULE_IDENTIFIER,StatefulEchoBean.class.getSimpleName());
 
 
+    /* start a server with hostname = localhost" and Remoting Transaction service enabled*/
     public void startServer(int index, int port) throws Exception {
         startServer(index, port, false);
     }
 
+    /* start a server with hostname = localhost" */
     public void startServer(int index, int port, boolean startTxService) throws Exception {
-        servers[index] = new DummyServer("localhost", port, serverNames[index], startTxService);
+        startServer(index, "localhost", port, startTxService);
+    }
+
+    public void startServer(int index, String hostname, int port, boolean startTxService) throws Exception {
+        servers[index] = new DummyServer(hostname, port, serverNames[index], startTxService);
         servers[index].start();
         serversStarted[index] = true;
         logger.info("Started server " + serverNames[index] + (startTxService ? " with transaction service" : ""));
@@ -114,6 +148,10 @@ public class AbstractEJBClientTestCase {
         return serversStarted[index];
     }
 
+    /*
+     * bean deployment helpers for generic beans StatefulEchoBean, StatelessEchoBean in module "my-foo-app"/"my-bar-module"
+     */
+
     public void deployStateless(int index) {
         servers[index].register(APP_NAME, MODULE_NAME, DISTINCT_NAME, StatelessEchoBean.class.getSimpleName(), new StatelessEchoBean(serverNames[index]));
         logger.info("Registered SLSB module " + MODULE_IDENTIFIER.toString()  + " on server " + serverNames[index]);
@@ -134,25 +172,9 @@ public class AbstractEJBClientTestCase {
         logger.info("Unregistered SFSB module " + MODULE_IDENTIFIER.toString()  + " on server " + serverNames[index]);
     }
 
-    public void defineCluster(int index, ClusterTopologyListener.ClusterInfo cluster) {
-        servers[index].addCluster(cluster);
-        logger.info("Added node to cluster " + cluster + ": server " + servers[index]);
-    }
-
-    public void addClusterNodes(int index, ClusterTopologyListener.ClusterInfo cluster) {
-        servers[index].addClusterNodes(cluster);
-        logger.info("Added node(s) to cluster " + cluster + ":" + cluster.getNodeInfoList());
-    }
-
-    public void removeClusterNodes(int index, ClusterTopologyListener.ClusterRemovalInfo cluster) {
-        servers[index].removeClusterNodes(cluster);
-        logger.info("Removed node(s) from cluster " + cluster + ":" + cluster.getNodeNames());
-    }
-
-    public void removeCluster(int index, String clusterName) {
-        servers[index].removeCluster(clusterName);
-        logger.info("Removed cluster " + clusterName + " from node: server " + servers[index]);
-    }
+    /*
+     * bean deployment helpers for generic beans StatefulEchoBean, StatelessEchoBean in module "my-other-app"/"my-bar-module"
+     */
 
     public void deployOtherStateless(int index) {
         servers[index].register(OTHER_APP, MODULE_NAME, DISTINCT_NAME, StatelessEchoBean.class.getSimpleName(), new StatelessEchoBean(serverNames[index]));
@@ -174,6 +196,10 @@ public class AbstractEJBClientTestCase {
         logger.info("Unregistered other SFSB module " + OTHER_MODULE_IDENTIFIER.toString()  + " on server " + serverNames[index]);
     }
 
+    /*
+     * bean deployment helpers for custom beans in custom modules
+     */
+
     public void deployCustomBean(int index, String app, String module, String distinct, String beanName, Object beanInstance) {
         servers[index].register(app, module, distinct, beanName, beanInstance);
         logger.info("Registered custom bean " + (new EJBModuleIdentifier(app, module, distinct)).toString()  + " on server " + serverNames[index]);
@@ -182,6 +208,31 @@ public class AbstractEJBClientTestCase {
     public void undeployCustomBean(int index, String app, String module, String distinct, String beanName) {
         servers[index].unregister(app, module, distinct, beanName);
         logger.info("Unregistered custom bean " + (new EJBModuleIdentifier(app, module, distinct)).toString()  + " on server " + serverNames[index]);
+    }
+
+
+    /*
+     * cluster deployment helpers - these depend on predefined ClusterInfo and NodeInfo objects representing topology update information
+     */
+
+    public void defineCluster(int index, ClusterTopologyListener.ClusterInfo cluster) {
+        servers[index].addCluster(cluster);
+        logger.info("Added node to cluster " + cluster + ": server " + servers[index]);
+    }
+
+    public void addClusterNodes(int index, ClusterTopologyListener.ClusterInfo cluster) {
+        servers[index].addClusterNodes(cluster);
+        logger.info("Added node(s) to cluster " + cluster + ":" + cluster.getNodeInfoList());
+    }
+
+    public void removeClusterNodes(int index, ClusterTopologyListener.ClusterRemovalInfo cluster) {
+        servers[index].removeClusterNodes(cluster);
+        logger.info("Removed node(s) from cluster " + cluster + ":" + cluster.getNodeNames());
+    }
+
+    public void removeCluster(int index, String clusterName) {
+        servers[index].removeCluster(clusterName);
+        logger.info("Removed cluster " + clusterName + " from node: server " + servers[index]);
     }
 
 }

@@ -109,21 +109,27 @@ final class NodeInformation {
                     // the final list to store
                     serviceURLCache = new ArrayList<>();
                     HashMap<URI, TempInfo> map = new HashMap<>();
-                    // populate the modules first
-                    for (Map.Entry<EJBClientChannel, Set<EJBModuleIdentifier>> entry : modulesByConnection.entrySet()) {
-                        final EJBClientChannel channel = entry.getKey();
-                        final Connection peerConnection = channel.getChannel().getConnection();
-                        final URI peerURI = buildURI(peerConnection.getProtocol(), peerConnection.getPeerAddress(InetSocketAddress.class));
-                        TempInfo tempInfo = new TempInfo(peerURI);
-                        tempInfo.modules = entry.getValue();
-                        map.put(tempInfo.destination, tempInfo);
-                    }
-                    // populate standalone nodes next (these will most likely be duplicates of above)
+                    // hostname representations encountered - these can vary
+                    Set<String> hostReps = new HashSet<String>();
+                    // populate standalone nodes
                     for (Map.Entry<EJBClientChannel, InetSocketAddress> entry : addressesByConnection.entrySet()) {
                         final EJBClientChannel channel = entry.getKey();
                         final Connection peerConnection = channel.getChannel().getConnection();
                         final URI peerURI = buildURI(peerConnection.getProtocol(), peerConnection.getPeerAddress(InetSocketAddress.class));
+                        // keep track of equivalent hostnames
+                        hostReps.add(peerURI.getHost());
                         map.computeIfAbsent(peerURI, TempInfo::new);
+                    }
+                    // populate the modules
+                    for (Map.Entry<EJBClientChannel, Set<EJBModuleIdentifier>> entry : modulesByConnection.entrySet()) {
+                        final EJBClientChannel channel = entry.getKey();
+                        final Connection peerConnection = channel.getChannel().getConnection();
+                        final URI peerURI = buildURI(peerConnection.getProtocol(), peerConnection.getPeerAddress(InetSocketAddress.class));
+                        // keep track of equivalent hostnames
+                        hostReps.add(peerURI.getHost());
+                        TempInfo tempInfo = new TempInfo(peerURI);
+                        tempInfo.modules = entry.getValue();
+                        map.put(tempInfo.destination, tempInfo);
                     }
                     // populate the clusters next
                     for (final Map.Entry<String, ClusterNodeInformation> entry : clustersByName.entrySet()) {
@@ -137,6 +143,8 @@ final class NodeInformation {
                                     CidrAddress cidrAddress = mapping.getRange();
                                     final InetSocketAddress address = Inet.getResolved(mapping.getValue());
                                     final URI uri = buildURI(protocol, address);
+                                    // keep track of equivalent hostnames
+                                    hostReps.add(uri.getHost());
                                     TempInfo tempInfo = map.computeIfAbsent(uri, TempInfo::new);
                                     if (tempInfo.clusters == null) {
                                         tempInfo.clusters = new HashMap<>();
@@ -148,6 +156,24 @@ final class NodeInformation {
                             }
                         }
                     }
+
+                    // merge information from equivalent URIs, if any (EJBCLIENT-349)
+                    // due to mixed-mode hostnames, we can have module information and cluster information for "the same" URLs spread across multiple TempInfo structures
+                    // here, we make sure that for each equivalent URL, they hold the same module and cluster information
+                    for (URI destination : map.keySet()) {
+                        Set<URI> equivalentURIs = getEquivalentURIs(destination, hostReps);
+                        for (URI equivalentURI: equivalentURIs) {
+                            // for each equivalent URI, check if we need to merge modules and clusters
+                            TempInfo originalTempInfo = map.get(destination);
+                            TempInfo equivalentTempInfo = map.get(equivalentURI);
+                            if (originalTempInfo == null || equivalentTempInfo == null) {
+                                continue;
+                            }
+                            // take information in each and combine
+                            mergeEquivalentTempInfoStructures(originalTempInfo, equivalentTempInfo);
+                        }
+                    }
+
                     // populate the service URLs from the cross product (!) of clusters and modules
                     final AttributeValue nodeNameValue = AttributeValue.fromString(nodeName);
                     for (TempInfo info : map.values()) {
@@ -196,6 +222,37 @@ final class NodeInformation {
             }
         }
         return serviceURLCache;
+    }
+
+
+    /*
+     * Take two TempInfo structures which are equivalent and merge their understanding of modules and clusters
+     * Due to the way TempInfo structures are populated, these are the only combinations possible.
+     */
+    private void mergeEquivalentTempInfoStructures(TempInfo original, TempInfo equivalent) {
+        if ((original.modules != null && equivalent.modules == null) && (original.clusters == null && equivalent.clusters != null)) {
+            equivalent.modules = original.modules;
+            original.clusters = equivalent.clusters;
+        } else if ((original.modules == null && equivalent.modules != null) && (original.clusters != null && equivalent.clusters == null)) {
+            original.modules = equivalent.modules;
+            equivalent.clusters = original.clusters;
+        }
+    }
+
+    /*
+     * Given a URI and a set of equivalent hostnames, build a set of equivalent URIs
+     */
+    private Set<URI> getEquivalentURIs(URI uri, Set<String> hostReps) {
+        Set<URI> equivalentURIs = new HashSet<URI>();
+        if (hostReps.size() == 1)
+            return equivalentURIs;
+        Set<String> equivalentReps = new HashSet<String>(hostReps);
+        equivalentReps.remove(uri.getHost());
+        for (String hostRep : equivalentReps) {
+            URI equivalentURI = buildURI(uri.getScheme(), new InetSocketAddress(hostRep, uri.getPort()));
+            equivalentURIs.add(equivalentURI);
+        }
+        return equivalentURIs;
     }
 
     private URI buildURI(final String protocol, final InetSocketAddress socketAddress) {
