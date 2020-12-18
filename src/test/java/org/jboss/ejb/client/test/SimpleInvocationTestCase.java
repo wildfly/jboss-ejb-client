@@ -17,36 +17,28 @@
  */
 package org.jboss.ejb.client.test;
 
+import java.net.URI;
+import java.net.URISyntaxException;
+import java.util.List;
+import javax.ejb.NoSuchEJBException;
+
 import org.jboss.ejb.client.Affinity;
 import org.jboss.ejb.client.EJBClient;
 import org.jboss.ejb.client.EJBClientConnection;
 import org.jboss.ejb.client.EJBClientContext;
-import org.jboss.ejb.client.EJBIdentifier;
-import org.jboss.ejb.client.EJBModuleIdentifier;
-import org.jboss.ejb.client.StatefulEJBLocator;
+import org.jboss.ejb.client.NodeAffinity;
 import org.jboss.ejb.client.StatelessEJBLocator;
 import org.jboss.ejb.client.URIAffinity;
-import org.jboss.ejb.client.NodeAffinity;
 import org.jboss.ejb.client.legacy.JBossEJBProperties;
-import org.jboss.ejb.client.test.common.DummyServer;
 import org.jboss.ejb.client.test.common.Echo;
-import org.jboss.ejb.client.test.common.EchoBean;
 import org.jboss.ejb.client.test.common.Result;
-import org.jboss.ejb.client.test.common.StatefulEchoBean;
-import org.jboss.ejb.client.test.common.StatelessEchoBean;
 import org.jboss.logging.Logger;
 import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.BeforeClass;
-import org.junit.Ignore;
 import org.junit.Test;
-
-import javax.ejb.NoSuchEJBException;
-import java.net.URI;
-import java.net.URISyntaxException;
-import java.util.List;
 
 /**
  * Tests basic features of proxies for invocation of a bean deployed on a single server node.
@@ -397,6 +389,38 @@ public class SimpleInvocationTestCase extends AbstractEJBClientTestCase {
         // check the message contents and the target
         Assert.assertEquals("Got an unexpected echo", echoResult.getValue(), message);
         Assert.assertTrue("Got an unexpected node for invocation target", echoResult.getNode().equals(SERVER1_NAME) || echoResult.getNode().equals(SERVER2_NAME));
+    }
+
+    /**
+     * Tests that when a EJB implementation throws an exception, the exception stacktrace
+     * received by the client contains the necessary stacktrace elements of the caller/client
+     * invocation.
+     */
+    @Test
+    public void testSLSBInvocationForExceptionStackTrace() {
+        Affinity expectedStrongAffinity = Affinity.NONE;
+        // create a proxy for SLSB
+        final StatelessEJBLocator<Echo> statelessEJBLocator = StatelessEJBLocator.create(Echo.class, STATELESS_IDENTIFIER, expectedStrongAffinity);
+        Echo proxy = EJBClient.createProxy(statelessEJBLocator);
+        Assert.assertNotNull("Received a null proxy", proxy);
+        // invoke on the proxy
+        final String message = "request to throw IllegalArgumentException";
+        try {
+            final Result<String> echoResult = proxy.echo(message);
+            Assert.fail("Invocation was expected to throw an exception, but didn't");
+        } catch (Exception e) {
+            final StackTraceElement callerStackTrace = Thread.currentThread().getStackTrace()[1];
+            // make sure the stacktrace "contains" the caller/client stacktrace
+            for (final StackTraceElement stackTraceElement : e.getStackTrace()) {
+                if (callerStackTrace.getClassName().equals(stackTraceElement.getClassName())
+                        && callerStackTrace.getFileName().equals(stackTraceElement.getFileName())
+                        && callerStackTrace.getMethodName().equals(stackTraceElement.getMethodName())) {
+                    // the stacktrace has the necessary and expected caller reference
+                    return;
+                }
+            }
+            Assert.fail("Exception stacktrace is missing caller side details in the stacktrace");
+        }
     }
 
     /**

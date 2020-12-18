@@ -17,8 +17,6 @@
  */
 package org.jboss.ejb.client.test.common;
 
-import org.jboss.ejb.client.annotation.ClientTransaction;
-import org.jboss.ejb.client.annotation.ClientTransactionPolicy;
 import org.jboss.logging.Logger;
 
 /**
@@ -40,6 +38,9 @@ public class EchoBean implements Echo {
     @Override
     public Result<String> echo(String msg) {
         logger.info(this.getClass().getSimpleName() + " echoing message " + msg);
+        if ("request to throw IllegalArgumentException".equals(msg)) {
+            throw new IllegalArgumentException("Intentionally thrown upon request from caller");
+        }
         return new Result<String>(msg, node);
     }
 

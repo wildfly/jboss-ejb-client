@@ -39,6 +39,7 @@ import java.nio.channels.ClosedChannelException;
 import java.nio.charset.StandardCharsets;
 import java.security.PrivilegedActionException;
 import java.security.PrivilegedExceptionAction;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
@@ -49,7 +50,6 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.zip.Deflater;
 import java.util.zip.DeflaterOutputStream;
 import java.util.zip.InflaterInputStream;
-
 import javax.ejb.CreateException;
 import javax.ejb.EJBException;
 import javax.ejb.NoSuchEJBException;
@@ -785,6 +785,23 @@ class EJBClientChannel {
         return invocationTracker;
     }
 
+    /**
+     * Glue two stack traces together.
+     *
+     * @param exception      the exception which occurred in another thread
+     * @param userStackTrace the stack trace of the current thread from {@link Thread#getStackTrace()}
+     * @param trimCount      the number of frames to trim
+     * @param msg            the message to use
+     */
+    private static void glueStackTraces(final Throwable exception, final StackTraceElement[] userStackTrace,
+                                        final int trimCount, final String msg) {
+        final StackTraceElement[] est = exception.getStackTrace();
+        final StackTraceElement[] fst = Arrays.copyOf(est, est.length + userStackTrace.length - trimCount + 1);
+        fst[est.length] = new StackTraceElement("..." + msg + "..", "", null, -1);
+        System.arraycopy(userStackTrace, trimCount, fst, est.length + 1, userStackTrace.length - trimCount);
+        exception.setStackTrace(fst);
+    }
+
     final class SessionOpenInvocation<T> extends Invocation {
 
         private final StatelessEJBLocator<T> statelessLocator;
@@ -914,7 +931,7 @@ class EJBClientChannel {
                                 }
                             }
                         }
-                        // todo: glue stack traces
+                        glueStackTraces(e, Thread.currentThread().getStackTrace(), 1, "asynchronous invocation");
                         break;
                     }
                     case Protocol.CANCEL_RESPONSE: {
@@ -1393,7 +1410,7 @@ class EJBClientChannel {
                 if (e == null) {
                     throw new EJBException("Null exception response");
                 }
-                // todo: glue stack traces
+                glueStackTraces(e, Thread.currentThread().getStackTrace(), 1, "asynchronous invocation");
                 throw e;
             }
 
