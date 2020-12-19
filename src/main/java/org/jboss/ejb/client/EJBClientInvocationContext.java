@@ -706,9 +706,15 @@ public final class EJBClientInvocationContext extends AbstractInvocationContext 
                     transition(State.READY);
                 }
                 checkStateInvariants();
+                if (log.isTraceEnabled()) {
+                    log.tracef("Result is ready for %s: result producer: %s, current state: %s", this, resultProducer, state);
+                }
                 return;
             }
             checkStateInvariants();
+            if (log.isTraceEnabled()) {
+                log.tracef("Result discarded for %s: result producer: %s, current state: %s", this, resultProducer, state);
+            }
         }
         // for whatever reason, we don't care
         resultProducer.discardResult();
