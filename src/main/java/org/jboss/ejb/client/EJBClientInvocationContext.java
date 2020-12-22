@@ -71,7 +71,7 @@ public final class EJBClientInvocationContext extends AbstractInvocationContext 
     private final EJBReceiverInvocationContext receiverInvocationContext = new EJBReceiverInvocationContext(this);
     private final EJBClientContext.InterceptorList interceptorList;
     private final long startTime = System.nanoTime();
-    private final long timeout;
+    private long timeout;
 
     // Invocation state
     private final Object lock = new Object();
@@ -702,7 +702,7 @@ public final class EJBClientInvocationContext extends AbstractInvocationContext 
         synchronized (lock) {
             if (state.isWaiting() && this.resultProducer == null) {
                 this.resultProducer = resultProducer;
-                if (state == State.WAITING) {
+                if (state == State.WAITING || state == State.SENT || state == State.CONSUMING) {
                     transition(State.READY);
                 }
                 checkStateInvariants();
@@ -805,6 +805,9 @@ public final class EJBClientInvocationContext extends AbstractInvocationContext 
         final Object lock = this.lock;
         Assert.assertHoldsLock(lock);
         final State oldState = this.state;
+        if (oldState == newState) {
+            return;
+        }
         if (log.isTraceEnabled()) {
             StackTraceElement caller = (new Exception()).getStackTrace()[1];
             log.tracef("Transitioning %s from %s to %s (%s)", this, oldState, newState, caller);
@@ -827,7 +830,7 @@ public final class EJBClientInvocationContext extends AbstractInvocationContext 
                 break;
             }
             case CONSUMING: {
-                assert newState == State.SENDING || newState == State.DONE;
+                assert newState == State.SENDING || newState == State.DONE || newState == State.READY;
                 break;
             }
             default: {
@@ -937,7 +940,7 @@ public final class EJBClientInvocationContext extends AbstractInvocationContext 
                             case SENT:
                             case CONSUMING:
                             case WAITING: {
-                                if (timeout <= 0) {
+                                if (timeout <= 0 || timedOut) {
                                     // no timeout; lighter code path
                                     try {
                                         checkStateInvariants();
@@ -956,6 +959,7 @@ public final class EJBClientInvocationContext extends AbstractInvocationContext 
                                     if (remaining == 0L) {
                                         // timed out
                                         timedOut = true;
+                                        this.timeout = 0;
                                         resultReady(new ThrowableResult(() -> new TimeoutException("No invocation response received in " + timeout + " milliseconds")));
                                     } else try {
                                         checkStateInvariants();
