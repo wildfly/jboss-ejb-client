@@ -344,7 +344,7 @@ public final class EJBClientInvocationContext extends AbstractInvocationContext 
                 // back to the start of the chain; decide what to do next.
                 synchronized (lock) {
                     try {
-                        assert state == State.SENT;
+                        assert state == State.SENT || state == State.READY;
                         // from here we can go to: READY, or WAITING, or retry SENDING.
                         Supplier<? extends Throwable> pendingFailure = this.pendingFailure;
                         EJBReceiverInvocationContext.ResultProducer resultProducer = this.resultProducer;
@@ -392,7 +392,7 @@ public final class EJBClientInvocationContext extends AbstractInvocationContext 
                         // didn't make it to the end of the chain even... but we won't suppress the thrown exception
                         transition(State.SENT);
                     }
-                    assert state == State.SENT;
+                    assert state == State.SENT || state == State.READY;
                     try {
                         // from here we can go to: FAILED, READY, or retry SENDING.
                         Supplier<? extends Throwable> pendingFailure = this.pendingFailure;
@@ -525,7 +525,7 @@ public final class EJBClientInvocationContext extends AbstractInvocationContext 
                 }
                 synchronized (lock) {
                     try {
-                        if (state != State.SENT) {
+                        if (state != State.SENT && state != State.READY) {
                             assert state == State.SENDING;
                             transition(State.SENT);
                             throw Logs.INVOCATION.requestNotSent();
