@@ -702,7 +702,7 @@ public final class EJBClientInvocationContext extends AbstractInvocationContext 
         synchronized (lock) {
             if (state.isWaiting() && this.resultProducer == null) {
                 this.resultProducer = resultProducer;
-                if (state == State.WAITING || state == State.SENT || state == State.CONSUMING) {
+                if (state == State.WAITING || state == State.SENT) {
                     transition(State.READY);
                 }
                 checkStateInvariants();
@@ -960,7 +960,12 @@ public final class EJBClientInvocationContext extends AbstractInvocationContext 
                                         // timed out
                                         timedOut = true;
                                         this.timeout = 0;
-                                        resultReady(new ThrowableResult(() -> new TimeoutException("No invocation response received in " + timeout + " milliseconds")));
+                                        if (state == State.CONSUMING) {
+                                            addSuppressed(new TimeoutException("No invocation response received in " + timeout + " milliseconds"));
+                                            transition(State.READY);
+                                        } else {
+                                            resultReady(new ThrowableResult(() -> new TimeoutException("No invocation response received in " + timeout + " milliseconds")));
+                                        }
                                     } else try {
                                         checkStateInvariants();
                                         try {
