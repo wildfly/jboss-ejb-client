@@ -1344,6 +1344,7 @@ class EJBClientChannel {
                     }
                     unmarshaller.finish();
                 } catch (IOException | ClassNotFoundException ex) {
+                    discardResult();
                     throw new EJBException("Failed to read response", ex);
                 }
                 return result;
@@ -1406,6 +1407,7 @@ class EJBClientChannel {
                         unmarshaller.finish();
                     }
                 } catch (IOException | ClassNotFoundException ex) {
+                    discardResult();
                     throw new EJBException("Failed to read response", ex);
                 }
                 if (e == null) {
