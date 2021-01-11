@@ -623,9 +623,10 @@ public final class DiscoveryEJBClientInterceptor implements EJBClientInterceptor
         final EJBClientContext clientContext = context.getClientContext();
         final List<Throwable> problems;
         final Set<URI> blacklist = getBlacklist();
+        long timeout = DISCOVERY_TIMEOUT * 1000;
         try (final ServicesQueue queue = discover(filterSpec)) {
             ServiceURL serviceURL;
-            while ((serviceURL = queue.takeService()) != null) {
+            while ((serviceURL = queue.takeService(timeout, TimeUnit.MILLISECONDS)) != null) {
                 final URI location = serviceURL.getLocationURI();
                 if (!blacklist.contains(location)) {
                     final EJBReceiver transportProvider = clientContext.getTransportProvider(location.getScheme());
@@ -634,6 +635,10 @@ public final class DiscoveryEJBClientInterceptor implements EJBClientInterceptor
                         // should always be true, but no harm in checking
                         if (nodeNameValue != null) {
                             nodes.put(nodeNameValue.toString(), location);
+
+                            if (DISCOVERY_ADDITIONAL_TIMEOUT != 0) {
+                                timeout = DISCOVERY_ADDITIONAL_TIMEOUT;
+                            }
                         }
                     }
                 }
