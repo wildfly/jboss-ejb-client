@@ -618,7 +618,7 @@ public final class DiscoveryEJBClientInterceptor implements EJBClientInterceptor
         final Set<URI> blacklist = getBlacklist();
         try (final ServicesQueue queue = discover(filterSpec)) {
             ServiceURL serviceURL;
-            while ((serviceURL = queue.takeService()) != null) {
+            while ((serviceURL = queue.takeService(DISCOVERY_TIMEOUT, TimeUnit.SECONDS)) != null) {
                 final URI location = serviceURL.getLocationURI();
                 if (!blacklist.contains(location)) {
                     final EJBReceiver transportProvider = clientContext.getTransportProvider(location.getScheme());

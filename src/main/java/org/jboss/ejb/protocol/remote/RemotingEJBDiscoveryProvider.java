@@ -101,6 +101,17 @@ final class RemotingEJBDiscoveryProvider implements DiscoveryProvider, Discovere
                 }
             });
 
+    // timeout (in ms) for discovery connection attempts
+    private static final long DISCOVERY_CONNECTION_TIMEOUT =
+            AccessController.doPrivileged((PrivilegedAction<Long>) () -> {
+                String val = System.getProperty("org.jboss.ejb.client.discovery-connection-timeout");
+                try {
+                    return Long.valueOf(val);
+                } catch (NumberFormatException e) {
+                    return 5000L;
+                }
+            });
+
     public RemotingEJBDiscoveryProvider() {
         Endpoint.getCurrent(); //this will blow up if remoting is not present, preventing this from being registered
     }
@@ -440,6 +451,11 @@ final class RemotingEJBDiscoveryProvider implements DiscoveryProvider, Discovere
             }
             onCancel(future::cancel);
             future.addNotifier(outerNotifier, uri);
+
+            // create a new thread to check for timeout on connection attempts (XnioWorker provides an ExecutorService for Remoting-related Runnables)
+            if (DISCOVERY_CONNECTION_TIMEOUT > 0) {
+                endpoint.getXnioWorker().submit(new ConnectionAttemptTimeoutHandler(uri, future, DISCOVERY_CONNECTION_TIMEOUT, TimeUnit.MILLISECONDS));
+            }
         }
 
         void countDown() {
@@ -579,4 +595,37 @@ final class RemotingEJBDiscoveryProvider implements DiscoveryProvider, Discovere
             }
         }
     }
+
+    /**
+     * Runnable which cancels a future representing a connection attempt if it execeeds a discovery timeout
+     * This allows us to place an upper bound on the time taken for connections during discovery.
+     */
+    private class ConnectionAttemptTimeoutHandler implements Runnable {
+        URI uri ;
+        IoFuture<ConnectionPeerIdentity> future ;
+        long timeout = 0;
+        TimeUnit timeUnit;
+
+        ConnectionAttemptTimeoutHandler(URI uri, IoFuture<ConnectionPeerIdentity> future, long timeout, TimeUnit timeUnit) {
+            Assert.checkNotNullParam("future", future);
+            this.uri = uri;
+            this.future = future ;
+            this.timeout = timeout;
+            this.timeUnit = timeUnit;
+        }
+
+        public void run() {
+            long start = System.currentTimeMillis();
+            Logs.INVOCATION.infof("DiscoveryAttempt: starting discovery connection attempt to %s ", uri);
+            if (future.await(timeout, timeUnit) == IoFuture.Status.WAITING) {
+                // cancel this connection attempt and put this in the sin bin
+                Logs.INVOCATION.infof("DiscoveryAttempt: connection attempt to node %s has timed out after %s %s; cancelling the connection attempt", uri, timeout, timeUnit);
+                future.cancel();
+                failedDestinations.put(uri, System.nanoTime());
+            }
+            long stop = System.currentTimeMillis();
+            Logs.INVOCATION.infof("DiscoveryAttempt: finished discovery connection attempt to %s (%s ms)", uri, (stop-start));
+        }
+    }
+
 }
