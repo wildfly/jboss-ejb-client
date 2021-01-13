@@ -81,6 +81,12 @@ import org.xnio.OptionMap;
  */
 final class RemotingEJBDiscoveryProvider implements DiscoveryProvider, DiscoveredNodeRegistry {
 
+    // limit on time for which nodes marked as failed are not used for connection attempts
+    private static final long DESTINATION_RECHECK_INTERVAL_DEFAULT_MS = 5000L;
+
+    // limit on how long a connection attempt can take before it is cancelled and node marked as failed
+    private static final long DISCOVERY_CONNECTION_TIMEOUT_DEFAULT_MS = 5000L;
+
     static final AuthenticationContextConfigurationClient AUTH_CONFIGURATION_CLIENT = doPrivileged(AuthenticationContextConfigurationClient.ACTION);
 
     private final ConcurrentHashMap<String, NodeInformation> nodes = new ConcurrentHashMap<>();
@@ -97,7 +103,7 @@ final class RemotingEJBDiscoveryProvider implements DiscoveryProvider, Discovere
                 try {
                     return TimeUnit.MILLISECONDS.toNanos(Long.valueOf(val));
                 } catch (NumberFormatException e) {
-                    return TimeUnit.MILLISECONDS.toNanos(5000L);
+                    return TimeUnit.MILLISECONDS.toNanos(DESTINATION_RECHECK_INTERVAL_DEFAULT_MS);
                 }
             });
 
@@ -108,7 +114,7 @@ final class RemotingEJBDiscoveryProvider implements DiscoveryProvider, Discovere
                 try {
                     return Long.valueOf(val);
                 } catch (NumberFormatException e) {
-                    return 5000L;
+                    return DISCOVERY_CONNECTION_TIMEOUT_DEFAULT_MS;
                 }
             });
 
@@ -616,15 +622,15 @@ final class RemotingEJBDiscoveryProvider implements DiscoveryProvider, Discovere
 
         public void run() {
             long start = System.currentTimeMillis();
-            Logs.INVOCATION.infof("DiscoveryAttempt: starting discovery connection attempt to %s ", uri);
+            Logs.INVOCATION.tracef("DiscoveryAttempt: starting discovery connection attempt to %s ", uri);
             if (future.await(timeout, timeUnit) == IoFuture.Status.WAITING) {
                 // cancel this connection attempt and put this in the sin bin
-                Logs.INVOCATION.infof("DiscoveryAttempt: connection attempt to node %s has timed out after %s %s; cancelling the connection attempt", uri, timeout, timeUnit);
+                Logs.INVOCATION.warnf("DiscoveryAttempt: connection attempt to node %s has timed out after %s %s; cancelling the connection attempt", uri, timeout, timeUnit);
                 future.cancel();
                 failedDestinations.put(uri, System.nanoTime());
             }
             long stop = System.currentTimeMillis();
-            Logs.INVOCATION.infof("DiscoveryAttempt: finished discovery connection attempt to %s (%s ms)", uri, (stop-start));
+            Logs.INVOCATION.tracef("DiscoveryAttempt: finished discovery connection attempt to %s (%s ms)", uri, (stop-start));
         }
     }
 
