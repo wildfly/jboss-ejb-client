@@ -371,10 +371,6 @@ final class RemotingEJBDiscoveryProvider implements DiscoveryProvider, Discovere
         // keep a record of URIs we try to connect to for each cluster
         private final ConcurrentHashMap<String, Set<URI>> urisByCluster = new ConcurrentHashMap<>();
         private final Set<URI> connectFailedURIs = new HashSet<>();
-        /**
-         * nodes that have already been provided to the discovery provider eagerly
-         */
-        private final Set<String> eagerNodes = Collections.synchronizedSet(new HashSet<>());
 
         DiscoveryAttempt(final ServiceType serviceType, final FilterSpec filterSpec, final DiscoveryResult discoveryResult, final RemoteEJBReceiver ejbReceiver, final AuthenticationContext authenticationContext) {
             this.serviceType = serviceType;
@@ -470,36 +466,28 @@ final class RemotingEJBDiscoveryProvider implements DiscoveryProvider, Discovere
                 final EJBModuleIdentifier module = filterSpec.accept(MI_EXTRACTOR);
                 if (phase2) {
                     if (node != null) {
-                        if (!eagerNodes.contains(node)) {
-                            final NodeInformation information = nodes.get(node);
-                            if (information != null) information.discover(serviceType, filterSpec, result);
-                        }
+                        final NodeInformation information = nodes.get(node);
+                        if (information != null) information.discover(serviceType, filterSpec, result);
                     } else for (NodeInformation information : nodes.values()) {
-                        if (!eagerNodes.contains(information.getNodeName())) {
-                            information.discover(serviceType, filterSpec, result);
-                        }
+                        information.discover(serviceType, filterSpec, result);
                     }
                     result.complete();
                 } else {
                     boolean ok = false;
                     // optimize for simple module identifier and node name queries
                     if (node != null) {
-                        if (!eagerNodes.contains(node)) {
-                            final NodeInformation information = nodes.get(node);
-                            if (information != null) {
-                                if (information.discover(serviceType, filterSpec, result)) {
-                                    ok = true;
-                                }
-                            }
-                        }
-                    } else for (NodeInformation information : nodes.values()) {
-                        if (!eagerNodes.contains(information.getNodeName())) {
+                        final NodeInformation information = nodes.get(node);
+                        if (information != null) {
                             if (information.discover(serviceType, filterSpec, result)) {
                                 ok = true;
                             }
                         }
+                    } else for (NodeInformation information : nodes.values()) {
+                        if (information.discover(serviceType, filterSpec, result)) {
+                            ok = true;
+                        }
                     }
-                    if (ok || !eagerNodes.isEmpty()) {
+                    if (ok) {
                         result.complete();
                     } else {
                         // everything failed.  We have to reconnect everything.
@@ -554,25 +542,6 @@ final class RemotingEJBDiscoveryProvider implements DiscoveryProvider, Discovere
                             }
                         }
                         countDown();
-                    }
-                }
-            } else {
-                final DiscoveryResult result = this.discoveryResult;
-                final String node = filterSpec.accept(NODE_EXTRACTOR);
-                if (node != null) {
-                    if (!eagerNodes.contains(node)) {
-                        final NodeInformation information = nodes.get(node);
-                        if (information != null) {
-                            if (information.discover(serviceType, filterSpec, result)) {
-                                eagerNodes.add(node);
-                            }
-                        }
-                    }
-                } else for (NodeInformation information : nodes.values()) {
-                    if (!eagerNodes.contains(information.getNodeName())) {
-                        if (information.discover(serviceType, filterSpec, result)) {
-                            eagerNodes.add(information.getNodeName());
-                        }
                     }
                 }
             }
