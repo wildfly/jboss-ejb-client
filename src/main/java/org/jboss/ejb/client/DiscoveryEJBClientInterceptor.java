@@ -202,15 +202,6 @@ public final class DiscoveryEJBClientInterceptor implements EJBClientInterceptor
         return sessionID;
     }
 
-    /**
-     * Gets the value (in milliseconds) of discovery additional timeout,
-     * configured with system property {@code org.jboss.ejb.client.discovery.additional-node-timeout}.
-     *
-     * @return the value (in milliseconds) of discovery additional timeout
-     */
-    public static long getDiscoveryAdditionalTimeout() {
-        return DISCOVERY_ADDITIONAL_TIMEOUT;
-    }
 
     /**
      * Intended to be called by interceptors which assign a new destination
