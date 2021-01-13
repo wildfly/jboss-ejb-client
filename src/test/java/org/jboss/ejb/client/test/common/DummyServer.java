@@ -21,11 +21,10 @@ import org.jboss.ejb.client.EJBModuleIdentifier;
 import org.jboss.ejb.protocol.remote.RemoteEJBService;
 import org.jboss.ejb.server.Association;
 import org.jboss.ejb.server.ClusterTopologyListener.ClusterInfo;
-import org.jboss.ejb.server.ClusterTopologyListener.ClusterRemovalInfo;
-import org.jboss.ejb.server.ClusterTopologyListener.MappingInfo;
 import org.jboss.ejb.server.ClusterTopologyListener.NodeInfo;
+import org.jboss.ejb.server.ClusterTopologyListener.MappingInfo;
+import org.jboss.ejb.server.ClusterTopologyListener.ClusterRemovalInfo;
 import org.jboss.logging.Logger;
-import org.jboss.remoting3.Channel;
 import org.jboss.remoting3.Endpoint;
 import org.jboss.remoting3.EndpointBuilder;
 import org.jboss.remoting3.OpenListener;
@@ -48,7 +47,6 @@ import org.xnio.Sequence;
 import org.xnio.Xnio;
 import org.xnio.channels.AcceptingChannel;
 
-import java.io.IOException;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
@@ -58,15 +56,13 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Function;
 
 /**
  * @author <a href="mailto:cdewolf@redhat.com">Carlo de Wolf</a>
  * @author <a href="mailto:rachmato@redhat.com">Richard Achmatowicz</a>
  */
-public class DummyServer implements AutoCloseable {
+public class DummyServer {
 
     private static final Logger logger = Logger.getLogger(DummyServer.class);
     /*
@@ -88,8 +84,6 @@ public class DummyServer implements AutoCloseable {
     private AcceptingChannel<org.xnio.StreamConnection> server;
     private EJBDeploymentRepository deploymentRepository = new EJBDeploymentRepository();
     private EJBClusterRegistry clusterRegistry = new EJBClusterRegistry();
-
-    final Set<Channel> currentConnections = Collections.newSetFromMap(new ConcurrentHashMap<>());
 
     public DummyServer(final String host, final int port) {
         this(host, port, "default-dummy-server-endpoint");
@@ -188,29 +182,16 @@ public class DummyServer implements AutoCloseable {
         // Register an EJB channel open listener
         OpenListener channelOpenListener = remoteEJBService.getOpenListener();
         try {
-            registration = endpoint.registerService("jboss.ejb", new OpenListener() {
-                @Override
-                public void channelOpened(Channel channel) {
-                    currentConnections.add(channel);
-                    channelOpenListener.channelOpened(channel);
-                }
-
-                @Override
-                public void registrationTerminated() {
-
-                }
-            }, OptionMap.EMPTY);
+            registration = endpoint.registerService("jboss.ejb", channelOpenListener, OptionMap.EMPTY);
         } catch (ServiceRegistrationException e) {
             throw new Exception(e);
         }
     }
 
     public void stop() throws Exception {
-        if (server !=  null) {
-            this.server.close();
-            this.server = null;
-            IoUtils.safeClose(this.endpoint);
-        }
+        this.server.close();
+        this.server = null;
+        IoUtils.safeClose(this.endpoint);
     }
 
     // module deployment interface
@@ -237,24 +218,6 @@ public class DummyServer implements AutoCloseable {
 
     public void removeClusterNodes(ClusterRemovalInfo clusterRemovalInfo) {
         clusterRegistry.removeClusterNodes(clusterRemovalInfo);
-    }
-
-    @Override
-    public void close() throws Exception {
-        stop();
-    }
-
-    public void hardKill() throws IOException {
-        for (Channel i : currentConnections) {
-            try {
-                i.close();
-            } catch (IOException e) {
-                logger.error("failed to close", e);
-            }
-        }
-        server.close();
-        server = null;
-        endpoint.close();
     }
 
     public interface EJBDeploymentRepositoryListener {
@@ -343,7 +306,9 @@ public class DummyServer implements AutoCloseable {
     /**
      * Allows keeping track of which clusters this server has joined and their membership.
      *
-     * To keep things simple, this is a direct mapping to the server-side cluster information used.
+     * To keep things simple, this is a direct mapping to the server-side cluster information used; namely,
+     * the classes ClusterInfo, NodeInfo and MappingInfo used by .
+     *
      * The server does not need to store the current state of the clusters.
      */
     public class EJBClusterRegistry {

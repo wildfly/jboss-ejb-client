@@ -119,7 +119,7 @@ public class TransactionTestCase extends AbstractEJBClientTestCase {
     public void beforeTest() throws Exception {
         // start a server
         for (int i = 0; i < 4; i++) {
-            startServer(i, 6999 + (i*100), true);
+            startServer(i, true);
         }
 
         deployStateless(0);

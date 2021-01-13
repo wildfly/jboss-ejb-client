@@ -49,7 +49,6 @@ import java.util.concurrent.atomic.AtomicInteger;
 import javax.net.ssl.SSLContext;
 
 import org.jboss.ejb._private.Logs;
-import org.jboss.ejb.client.DiscoveryEJBClientInterceptor;
 import org.jboss.ejb.client.EJBClientConnection;
 import org.jboss.ejb.client.EJBClientContext;
 import org.jboss.ejb.client.EJBModuleIdentifier;
@@ -82,6 +81,12 @@ import org.xnio.OptionMap;
  */
 final class RemotingEJBDiscoveryProvider implements DiscoveryProvider, DiscoveredNodeRegistry {
 
+    // limit on time for which nodes marked as failed are not used for connection attempts
+    private static final long DESTINATION_RECHECK_INTERVAL_DEFAULT_MS = 5000L;
+
+    // limit on how long a connection attempt can take before it is cancelled and node marked as failed
+    private static final long DISCOVERY_CONNECTION_TIMEOUT_DEFAULT_MS = 5000L;
+
     static final AuthenticationContextConfigurationClient AUTH_CONFIGURATION_CLIENT = doPrivileged(AuthenticationContextConfigurationClient.ACTION);
 
     private final ConcurrentHashMap<String, NodeInformation> nodes = new ConcurrentHashMap<>();
@@ -98,7 +103,18 @@ final class RemotingEJBDiscoveryProvider implements DiscoveryProvider, Discovere
                 try {
                     return TimeUnit.MILLISECONDS.toNanos(Long.valueOf(val));
                 } catch (NumberFormatException e) {
-                    return TimeUnit.MILLISECONDS.toNanos(5000L);
+                    return TimeUnit.MILLISECONDS.toNanos(DESTINATION_RECHECK_INTERVAL_DEFAULT_MS);
+                }
+            });
+
+    // timeout (in ms) for discovery connection attempts
+    private static final long DISCOVERY_CONNECTION_TIMEOUT =
+            AccessController.doPrivileged((PrivilegedAction<Long>) () -> {
+                String val = System.getProperty("org.jboss.ejb.client.discovery-connection-timeout");
+                try {
+                    return Long.valueOf(val);
+                } catch (NumberFormatException e) {
+                    return DISCOVERY_CONNECTION_TIMEOUT_DEFAULT_MS;
                 }
             });
 
@@ -372,10 +388,6 @@ final class RemotingEJBDiscoveryProvider implements DiscoveryProvider, Discovere
         // keep a record of URIs we try to connect to for each cluster
         private final ConcurrentHashMap<String, Set<URI>> urisByCluster = new ConcurrentHashMap<>();
         private final Set<URI> connectFailedURIs = new HashSet<>();
-        /**
-         * nodes that have already been provided to the discovery provider eagerly
-         */
-        private final Set<String> eagerNodes;
 
         DiscoveryAttempt(final ServiceType serviceType, final FilterSpec filterSpec, final DiscoveryResult discoveryResult, final RemoteEJBReceiver ejbReceiver, final AuthenticationContext authenticationContext) {
             this.serviceType = serviceType;
@@ -422,8 +434,6 @@ final class RemotingEJBDiscoveryProvider implements DiscoveryProvider, Discovere
                     countDown();
                 }
             };
-
-            eagerNodes = DiscoveryEJBClientInterceptor.getDiscoveryAdditionalTimeout() == 0 ? null : Collections.synchronizedSet(new HashSet<>());
         }
 
         void connectAndDiscover(URI uri, String clusterEffective) {
@@ -447,6 +457,11 @@ final class RemotingEJBDiscoveryProvider implements DiscoveryProvider, Discovere
             }
             onCancel(future::cancel);
             future.addNotifier(outerNotifier, uri);
+
+            // create a new thread to check for timeout on connection attempts (XnioWorker provides an ExecutorService for Remoting-related Runnables)
+            if (DISCOVERY_CONNECTION_TIMEOUT > 0) {
+                endpoint.getXnioWorker().submit(new ConnectionAttemptTimeoutHandler(uri, future, DISCOVERY_CONNECTION_TIMEOUT, TimeUnit.MILLISECONDS));
+            }
         }
 
         void countDown() {
@@ -473,36 +488,28 @@ final class RemotingEJBDiscoveryProvider implements DiscoveryProvider, Discovere
                 final EJBModuleIdentifier module = filterSpec.accept(MI_EXTRACTOR);
                 if (phase2) {
                     if (node != null) {
-                        if (eagerNodes == null || !eagerNodes.contains(node)) {
-                            final NodeInformation information = nodes.get(node);
-                            if (information != null) information.discover(serviceType, filterSpec, result);
-                        }
+                        final NodeInformation information = nodes.get(node);
+                        if (information != null) information.discover(serviceType, filterSpec, result);
                     } else for (NodeInformation information : nodes.values()) {
-                        if (eagerNodes == null || !eagerNodes.contains(information.getNodeName())) {
-                            information.discover(serviceType, filterSpec, result);
-                        }
+                        information.discover(serviceType, filterSpec, result);
                     }
                     result.complete();
                 } else {
                     boolean ok = false;
                     // optimize for simple module identifier and node name queries
                     if (node != null) {
-                        if (eagerNodes == null || !eagerNodes.contains(node)) {
-                            final NodeInformation information = nodes.get(node);
-                            if (information != null) {
-                                if (information.discover(serviceType, filterSpec, result)) {
-                                    ok = true;
-                                }
-                            }
-                        }
-                    } else for (NodeInformation information : nodes.values()) {
-                        if (eagerNodes == null || !eagerNodes.contains(information.getNodeName())) {
+                        final NodeInformation information = nodes.get(node);
+                        if (information != null) {
                             if (information.discover(serviceType, filterSpec, result)) {
                                 ok = true;
                             }
                         }
+                    } else for (NodeInformation information : nodes.values()) {
+                        if (information.discover(serviceType, filterSpec, result)) {
+                            ok = true;
+                        }
                     }
-                    if (ok || (eagerNodes != null && !eagerNodes.isEmpty())) {
+                    if (ok) {
                         result.complete();
                     } else {
                         // everything failed.  We have to reconnect everything.
@@ -559,25 +566,6 @@ final class RemotingEJBDiscoveryProvider implements DiscoveryProvider, Discovere
                         countDown();
                     }
                 }
-            } else if (eagerNodes != null) {
-                final DiscoveryResult result = this.discoveryResult;
-                final String node = filterSpec.accept(NODE_EXTRACTOR);
-                if (node != null) {
-                    if (!eagerNodes.contains(node)) {
-                        final NodeInformation information = nodes.get(node);
-                        if (information != null) {
-                            if (information.discover(serviceType, filterSpec, result)) {
-                                eagerNodes.add(node);
-                            }
-                        }
-                    }
-                } else for (NodeInformation information : nodes.values()) {
-                    if (!eagerNodes.contains(information.getNodeName())) {
-                        if (information.discover(serviceType, filterSpec, result)) {
-                            eagerNodes.add(information.getNodeName());
-                        }
-                    }
-                }
             }
         }
 
@@ -613,4 +601,37 @@ final class RemotingEJBDiscoveryProvider implements DiscoveryProvider, Discovere
             }
         }
     }
+
+    /**
+     * Runnable which cancels a future representing a connection attempt if it execeeds a discovery timeout
+     * This allows us to place an upper bound on the time taken for connections during discovery.
+     */
+    private class ConnectionAttemptTimeoutHandler implements Runnable {
+        URI uri ;
+        IoFuture<ConnectionPeerIdentity> future ;
+        long timeout = 0;
+        TimeUnit timeUnit;
+
+        ConnectionAttemptTimeoutHandler(URI uri, IoFuture<ConnectionPeerIdentity> future, long timeout, TimeUnit timeUnit) {
+            Assert.checkNotNullParam("future", future);
+            this.uri = uri;
+            this.future = future ;
+            this.timeout = timeout;
+            this.timeUnit = timeUnit;
+        }
+
+        public void run() {
+            long start = System.currentTimeMillis();
+            Logs.INVOCATION.tracef("DiscoveryAttempt: starting discovery connection attempt to %s ", uri);
+            if (future.await(timeout, timeUnit) == IoFuture.Status.WAITING) {
+                // cancel this connection attempt and put this in the sin bin
+                Logs.INVOCATION.warnf("DiscoveryAttempt: connection attempt to node %s has timed out after %s %s; cancelling the connection attempt", uri, timeout, timeUnit);
+                future.cancel();
+                failedDestinations.put(uri, System.nanoTime());
+            }
+            long stop = System.currentTimeMillis();
+            Logs.INVOCATION.tracef("DiscoveryAttempt: finished discovery connection attempt to %s (%s ms)", uri, (stop-start));
+        }
+    }
+
 }
