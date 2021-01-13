@@ -23,13 +23,11 @@ import org.jboss.ejb.client.legacy.JBossEJBProperties;
 import org.jboss.ejb.client.test.common.DummyServer;
 import org.jboss.ejb.client.test.common.Echo;
 import org.jboss.ejb.client.test.common.EchoBean;
-import org.jboss.ejb.client.test.common.Result;
 import org.jboss.logging.Logger;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.BeforeClass;
-import org.junit.Ignore;
 import org.junit.Test;
 
 import java.net.InetAddress;
@@ -40,7 +38,7 @@ import java.net.ServerSocket;
  */
 public class NetworkBlackHoleInvocationTestCase {
     private static final Logger logger = Logger.getLogger(NetworkBlackHoleInvocationTestCase.class);
-    private static final String PROPERTIES_FILE = "broken-server-jboss-ejb-client.properties";
+    private static final String PROPERTIES_FILE = "jboss-ejb-client.properties";
 
     private DummyServer server;
     private boolean serverStarted = false;
@@ -103,16 +101,8 @@ public class NetworkBlackHoleInvocationTestCase {
      */
     @Test
     public void testTakingDownServerDoesNotBreakClients() throws Exception {
-
-        // broken-server-jboss-ejb-client.properties will have the ejb-client with 2 nodes on ports 6999 and 7099
-        // it will succesfully invoke the ejb and then it will kill the 7099 port and try to invoke again
-        // the expected behavior is that it will not wait more than org.jboss.ejb.client.discovery.additional-node-timeout once it has a connection to 6999 before invoking the ejb
         System.setProperty("org.jboss.ejb.client.discovery.timeout", "10");
-
-        // This test will fail if org.jboss.ejb.client.discovery.additional-node-timeout is not set
-        // assertInvocationTimeLessThan checks that the org.jboss.ejb.client.discovery.additional-node-timeout is effective
-        // if org.jboss.ejb.client.discovery.additional-node-timeout is not effective it will timeout once it reaches the value of org.jboss.ejb.client.discovery.timeout
-        System.setProperty("org.jboss.ejb.client.discovery.additional-node-timeout", "2");
+        System.setProperty("org.jboss.ejb.client.discovery.additional-node-timeout","2");
 
         try (DummyServer server2 = new DummyServer("localhost", 7099, "test2")) {
             server2.start();
@@ -128,32 +118,18 @@ public class NetworkBlackHoleInvocationTestCase {
             logger.info("Invoking on proxy...");
             // Invoke on the proxy. This should fail in 10 seconds or else it'll hang.
             final String message = "hello!";
-
-            long invocationStart = System.currentTimeMillis();
-            Result<String> echo = proxy.echo(message);
-            assertInvocationTimeLessThan("org.jboss.ejb.client.discovery.additional-node-timeout ineffective", 3000, invocationStart);
-            Assert.assertEquals(message, echo.getValue());
+            String echo = proxy.echo(message);
+            Assert.assertEquals(message, echo);
             server2.hardKill();
-
-            final Echo proxy2 = EJBClient.createProxy(statelessEJBLocator);
-            Assert.assertNotNull("Received a null proxy", proxy2);
-            logger.info("Created proxy for Echo: " + proxy2.toString());
-
             //this is a network black hole
             //it emulates what happens if the server just disappears, and connect attempts hang
             //instead of being immediately rejected (e.g. a firewall dropping packets)
             try (ServerSocket s = new ServerSocket(7099, 100, InetAddress.getByName("localhost"))) {
-                invocationStart = System.currentTimeMillis(); 
-                echo = proxy2.echo(message);
-                assertInvocationTimeLessThan("org.jboss.ejb.client.discovery.additional-node-timeout ineffective", 3000, invocationStart);
-                Assert.assertEquals(message, echo.getValue());
-            }
-        }
-    }
+                echo = proxy.echo(message);
+                Assert.assertEquals(message, echo);
 
-    private static void assertInvocationTimeLessThan(String message, long maximumInvocationTimeMs, long invocationStart) {
-        long invocationTime = System.currentTimeMillis() - invocationStart;
-        if(invocationTime > maximumInvocationTimeMs)
-            Assert.fail(String.format("%s: invocation time: %d > maximum expected invocation time: %d", message, invocationTime, maximumInvocationTimeMs));
+            }
+
+        }
     }
 }
