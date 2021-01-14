@@ -50,6 +50,7 @@ import javax.ejb.NoSuchEJBException;
 
 import org.jboss.ejb._private.Keys;
 import org.jboss.ejb._private.Logs;
+import org.jboss.ejb._private.SystemProperties;
 import org.jboss.ejb.client.annotation.ClientInterceptorPriority;
 import org.wildfly.common.Assert;
 import org.wildfly.common.net.CidrAddress;
@@ -75,11 +76,11 @@ public final class DiscoveryEJBClientInterceptor implements EJBClientInterceptor
     private static final Supplier<Discovery> DISCOVERY_SUPPLIER = doPrivileged((PrivilegedAction<Supplier<Discovery>>) Discovery.getContextManager()::getPrivilegedSupplier);
 
     private static final String[] NO_STRINGS = new String[0];
-    private static final boolean WILDFLY_TESTSUITE_HACK = Boolean.getBoolean("org.jboss.ejb.client.wildfly-testsuite-hack");
+    private static final boolean WILDFLY_TESTSUITE_HACK = Boolean.getBoolean(SystemProperties.WILDFLY_TESTSUITE_HACK);
     // This provides a way timeout a discovery, avoiding blocking on some edge cases. See EJBCLIENT-311.
-    private static final long DISCOVERY_TIMEOUT = Long.parseLong(WildFlySecurityManager.getPropertyPrivileged("org.jboss.ejb.client.discovery.timeout", "0"));
+    private static final long DISCOVERY_TIMEOUT = Long.parseLong(WildFlySecurityManager.getPropertyPrivileged(SystemProperties.DISCOVERY_TIMEOUT, "0"));
     //how long to wait if at least one node has already been discovered. This one is in ms rather than s
-    private static final long DISCOVERY_ADDITIONAL_TIMEOUT = Long.parseLong(WildFlySecurityManager.getPropertyPrivileged("org.jboss.ejb.client.discovery.additional-node-timeout", "0"));
+    private static final long DISCOVERY_ADDITIONAL_TIMEOUT = Long.parseLong(WildFlySecurityManager.getPropertyPrivileged(SystemProperties.DISCOVERY_ADDITIONAL_NODE_TIMEOUT, "0"));
 
     /**
      * This interceptor's priority.
@@ -90,7 +91,7 @@ public final class DiscoveryEJBClientInterceptor implements EJBClientInterceptor
     private static final Map<URI, Long> blacklist = new ConcurrentHashMap<>();
     private static final long BLACKLIST_TIMEOUT =
             AccessController.doPrivileged((PrivilegedAction<Long>) () -> {
-                String val = System.getProperty("org.jboss.ejb.client.discovery.blacklist.timeout");
+                String val = System.getProperty(SystemProperties.DISCOVERY_BLACKLIST_TIMEOUT);
                 try {
                     return TimeUnit.MILLISECONDS.toNanos(Long.valueOf(val));
                 } catch (NumberFormatException e) {

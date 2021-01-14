@@ -49,6 +49,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import javax.net.ssl.SSLContext;
 
 import org.jboss.ejb._private.Logs;
+import org.jboss.ejb._private.SystemProperties;
 import org.jboss.ejb.client.DiscoveryEJBClientInterceptor;
 import org.jboss.ejb.client.EJBClientConnection;
 import org.jboss.ejb.client.EJBClientContext;
@@ -94,7 +95,7 @@ final class RemotingEJBDiscoveryProvider implements DiscoveryProvider, Discovere
     
     private static final long DESTINATION_RECHECK_INTERVAL =
             AccessController.doPrivileged((PrivilegedAction<Long>) () -> {
-                String val = System.getProperty("org.jboss.ejb.client.destination-recheck-interval");
+                String val = System.getProperty(SystemProperties.DESTINATION_RECHECK_INTERVAL);
                 try {
                     return TimeUnit.MILLISECONDS.toNanos(Long.valueOf(val));
                 } catch (NumberFormatException e) {
