@@ -31,7 +31,6 @@ import java.net.ConnectException;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.URI;
-import java.security.AccessController;
 import java.security.PrivilegedAction;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -61,7 +60,6 @@ import org.wildfly.discovery.FilterSpec;
 import org.wildfly.discovery.ServiceURL;
 import org.wildfly.discovery.ServicesQueue;
 import org.wildfly.naming.client.NamingProvider;
-import org.wildfly.security.manager.WildFlySecurityManager;
 
 /**
  * The EJB client interceptor responsible for discovering the destination of a request.  If a destination is already
@@ -76,11 +74,11 @@ public final class DiscoveryEJBClientInterceptor implements EJBClientInterceptor
     private static final Supplier<Discovery> DISCOVERY_SUPPLIER = doPrivileged((PrivilegedAction<Supplier<Discovery>>) Discovery.getContextManager()::getPrivilegedSupplier);
 
     private static final String[] NO_STRINGS = new String[0];
-    private static final boolean WILDFLY_TESTSUITE_HACK = Boolean.getBoolean(SystemProperties.WILDFLY_TESTSUITE_HACK);
+    private static final boolean WILDFLY_TESTSUITE_HACK = SystemProperties.getBoolean(SystemProperties.WILDFLY_TESTSUITE_HACK);
     // This provides a way timeout a discovery, avoiding blocking on some edge cases. See EJBCLIENT-311.
-    private static final long DISCOVERY_TIMEOUT = Long.parseLong(WildFlySecurityManager.getPropertyPrivileged(SystemProperties.DISCOVERY_TIMEOUT, "0"));
+    private static final long DISCOVERY_TIMEOUT = SystemProperties.getLong(SystemProperties.DISCOVERY_TIMEOUT, 0L);
     //how long to wait if at least one node has already been discovered. This one is in ms rather than s
-    private static final long DISCOVERY_ADDITIONAL_TIMEOUT = Long.parseLong(WildFlySecurityManager.getPropertyPrivileged(SystemProperties.DISCOVERY_ADDITIONAL_NODE_TIMEOUT, "0"));
+    private static final long DISCOVERY_ADDITIONAL_TIMEOUT = SystemProperties.getLong(SystemProperties.DISCOVERY_ADDITIONAL_NODE_TIMEOUT, 0L);
 
     /**
      * This interceptor's priority.
@@ -89,15 +87,7 @@ public final class DiscoveryEJBClientInterceptor implements EJBClientInterceptor
 
     private static final AttachmentKey<Set<URI>> BL_KEY = new AttachmentKey<>();
     private static final Map<URI, Long> blacklist = new ConcurrentHashMap<>();
-    private static final long BLACKLIST_TIMEOUT =
-            AccessController.doPrivileged((PrivilegedAction<Long>) () -> {
-                String val = System.getProperty(SystemProperties.DISCOVERY_BLACKLIST_TIMEOUT);
-                try {
-                    return TimeUnit.MILLISECONDS.toNanos(Long.valueOf(val));
-                } catch (NumberFormatException e) {
-                    return TimeUnit.MILLISECONDS.toNanos(5000L);
-                }
-            });
+    private static final long BLACKLIST_TIMEOUT = TimeUnit.MILLISECONDS.toNanos(SystemProperties.getLong(SystemProperties.DISCOVERY_BLACKLIST_TIMEOUT, 5000L));
 
     /**
      * Construct a new instance.

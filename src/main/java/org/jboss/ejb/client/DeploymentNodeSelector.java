@@ -28,7 +28,6 @@ import java.util.concurrent.atomic.AtomicInteger;
 import org.jboss.ejb._private.Logs;
 import org.jboss.ejb._private.SystemProperties;
 import org.wildfly.common.Assert;
-import org.wildfly.security.manager.WildFlySecurityManager;
 
 /**
  * A selector which selects and returns a node, from among the passed eligible nodes, that can handle a specific
@@ -125,7 +124,7 @@ public interface DeploymentNodeSelector {
      * A deployment node selector which check the server name if inside and prefer it if available for selection.
      */
     DeploymentNodeSelector RANDOM_PREFER_LOCAL = new DeploymentNodeSelector() {
-        private final String localNodeName = WildFlySecurityManager.getPropertyPrivileged(SystemProperties.JBOSS_NODE_NAME, null);
+        private final String localNodeName = SystemProperties.getString(SystemProperties.JBOSS_NODE_NAME);
 
         public String selectNode(final String[] eligibleNodes, final String appName, final String moduleName, final String distinctName) {
             if(Logs.MAIN.isTraceEnabled()) {

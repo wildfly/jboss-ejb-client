@@ -112,18 +112,14 @@ public final class JBossEJBProperties implements Contextual<JBossEJBProperties> 
     private static final String PROPERTY_KEY_PROTOCOL = "protocol";
     private static final String DEFAULT_PROTOCOL = "http-remoting";
 
-    private static final boolean expandPasswords;
-    private static final String CONFIGURED_PATH_NAME;
+    private static final boolean EXPAND_PASSWORDS = SystemProperties.getBoolean(SystemProperties.EXPAND_PASSWORDS);
+    private static final String CONFIGURED_PATH_NAME = SystemProperties.getString(SystemProperties.PROPERTIES_FILE_PATH);
 
     private static final String PROPERTY_KEY_HTTP_CONNECTIONS = "http.connections";
 
     private static final String PROPERTY_KEY_URI = "uri";
 
     static {
-        expandPasswords = doPrivileged((PrivilegedAction<Boolean>) () ->
-            Boolean.valueOf(System.getProperty(SystemProperties.EXPAND_PASSWORDS, "false"))).booleanValue();
-        final String filePathPropertyName = SystemProperties.PROPERTIES_FILE_PATH;
-        CONFIGURED_PATH_NAME = doPrivileged((PrivilegedAction<String>) () -> System.getProperty(filePathPropertyName));
         final AtomicReference<JBossEJBProperties> onceRef = new AtomicReference<>();
         CONTEXT_MANAGER.setGlobalDefaultSupplier(() -> {
             JBossEJBProperties value = onceRef.get();
@@ -135,11 +131,11 @@ public final class JBossEJBProperties implements Contextual<JBossEJBProperties> 
                             if (CONFIGURED_PATH_NAME != null) try {
                                 File propertiesFile = new File(CONFIGURED_PATH_NAME);
                                 if (! propertiesFile.isAbsolute()) {
-                                    propertiesFile = new File(System.getProperty(SystemProperties.USER_DIR), propertiesFile.toString());
+                                    propertiesFile = new File(SystemProperties.getString(SystemProperties.USER_DIR), propertiesFile.toString());
                                 }
                                 value = JBossEJBProperties.fromFile(propertiesFile);
                             } catch (IOException e) {
-                                Logs.MAIN.failedToFindEjbClientConfigFileSpecifiedBySysProp(filePathPropertyName, e);
+                                Logs.MAIN.failedToFindEjbClientConfigFileSpecifiedBySysProp(SystemProperties.PROPERTIES_FILE_PATH, e);
                                 value = JBossEJBProperties.fromClassPath();
                             } else {
                                 value = JBossEJBProperties.fromClassPath();
@@ -1031,11 +1027,11 @@ public final class JBossEJBProperties implements Contextual<JBossEJBProperties> 
                     setMechanismRealm(mechanismRealm);
                 }
                 final String finalPassword;
-                final String b64Password = getProperty(properties, prefix + PROPERTY_KEY_PASSWORD_BASE64, null, expandPasswords);
+                final String b64Password = getProperty(properties, prefix + PROPERTY_KEY_PASSWORD_BASE64, null, EXPAND_PASSWORDS);
                 if (b64Password != null) {
                     setPassword(CodePointIterator.ofString(b64Password).base64Decode().asUtf8String().drainToString());
                 } else {
-                    final String password = getProperty(properties, prefix + PROPERTY_KEY_PASSWORD, null, expandPasswords);
+                    final String password = getProperty(properties, prefix + PROPERTY_KEY_PASSWORD, null, EXPAND_PASSWORDS);
                     if (password != null) {
                         setPassword(password);
                     } else {

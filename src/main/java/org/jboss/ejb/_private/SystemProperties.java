@@ -18,6 +18,9 @@
 
 package org.jboss.ejb._private;
 
+import java.security.AccessController;
+import java.security.PrivilegedAction;
+
 /**
  * System properties being used.
  *
@@ -42,4 +45,55 @@ public final class SystemProperties {
         // forbidden instantiation
     }
 
+    public static boolean getBoolean(final String propertyName) {
+        return getBoolean(propertyName, false);
+    }
+
+    public static boolean getBoolean(final String propertyName, final boolean defaultValue) {
+        final SecurityManager sm = System.getSecurityManager();
+        if (sm == null) return Boolean.parseBoolean(System.getProperty(propertyName, String.valueOf(defaultValue)));
+        return AccessController.doPrivileged(new PrivilegedAction<Boolean>() {
+            @Override
+            public Boolean run() {
+                return Boolean.valueOf(System.getProperty(propertyName, String.valueOf(defaultValue)));
+            }
+        });
+    }
+
+    public static int getInteger(final String propertyName, final int defaultValue) {
+        final SecurityManager sm = System.getSecurityManager();
+        if (sm == null) return Integer.getInteger(propertyName, defaultValue);
+        return AccessController.doPrivileged(new PrivilegedAction<Integer>() {
+            @Override
+            public Integer run() {
+                return Integer.getInteger(propertyName, defaultValue);
+            }
+        });
+    }
+
+    public static long getLong(final String propertyName, final long defaultValue) {
+        final SecurityManager sm = System.getSecurityManager();
+        if (sm == null) return Long.getLong(propertyName, defaultValue);
+        return AccessController.doPrivileged(new PrivilegedAction<Long>() {
+            @Override
+            public Long run() {
+                return Long.getLong(propertyName, defaultValue);
+            }
+        });
+    }
+
+    public static String getString(final String propertyName) {
+        return getString(propertyName, null);
+    }
+
+    public static String getString(final String propertyName, final String defaultValue) {
+        final SecurityManager sm = System.getSecurityManager();
+        if (sm == null) return System.getProperty(propertyName, defaultValue);
+        return AccessController.doPrivileged(new PrivilegedAction<String>() {
+            @Override
+            public String run() {
+                return System.getProperty(propertyName, defaultValue);
+            }
+        });
+    }
 }

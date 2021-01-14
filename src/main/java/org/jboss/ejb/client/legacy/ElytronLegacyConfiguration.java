@@ -18,8 +18,6 @@
 
 package org.jboss.ejb.client.legacy;
 
-import java.security.AccessController;
-import java.security.PrivilegedAction;
 import java.util.List;
 import java.util.Map;
 
@@ -49,7 +47,7 @@ import org.xnio.sasl.SaslUtils;
 @MetaInfServices
 public final class ElytronLegacyConfiguration implements LegacyConfiguration {
 
-    private static final String useQuietAuth = AccessController.doPrivileged((PrivilegedAction<String>) () -> System.getProperty(SystemProperties.QUIET_AUTH));
+    private static final boolean QUIET_AUTH = SystemProperties.getBoolean(SystemProperties.QUIET_AUTH);
     private static final String[] NO_STRINGS = new String[0];
 
     public AuthenticationContext getConfiguredAuthenticationContext() {
@@ -145,13 +143,7 @@ public final class ElytronLegacyConfiguration implements LegacyConfiguration {
         if (password != null) config = config.usePassword(password);
 
         OptionMap options = configuration.getConnectionOptions();
-        if (useQuietAuth != null) {
-            // legacy quiet local auth system property specified, use it
-            options = setQuietLocalAuth(options, Boolean.valueOf(useQuietAuth).booleanValue());
-        } else if (callbackHandler != null || userName != null) {
-            // disable quiet local auth
-            options = setQuietLocalAuth(options, false);
-        }
+        options = setQuietLocalAuth(options, QUIET_AUTH);
 
         @SuppressWarnings({"unchecked", "rawtypes"})
         final Map<String, String> props = (Map) SaslUtils.createPropertyMap(options, false);
