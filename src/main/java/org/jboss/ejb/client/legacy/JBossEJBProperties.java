@@ -46,6 +46,7 @@ import java.util.function.Supplier;
 import javax.security.auth.callback.CallbackHandler;
 
 import org.jboss.ejb._private.Logs;
+import org.jboss.ejb._private.SystemProperties;
 import org.jboss.ejb.client.ClusterNodeSelector;
 import org.jboss.ejb.client.DeploymentNodeSelector;
 import org.wildfly.common.Assert;
@@ -120,8 +121,8 @@ public final class JBossEJBProperties implements Contextual<JBossEJBProperties> 
 
     static {
         expandPasswords = doPrivileged((PrivilegedAction<Boolean>) () ->
-            Boolean.valueOf(System.getProperty("jboss-ejb-client.expandPasswords", "false"))).booleanValue();
-        final String filePathPropertyName = "jboss.ejb.client.properties.file.path";
+            Boolean.valueOf(System.getProperty(SystemProperties.EXPAND_PASSWORDS, "false"))).booleanValue();
+        final String filePathPropertyName = SystemProperties.PROPERTIES_FILE_PATH;
         CONFIGURED_PATH_NAME = doPrivileged((PrivilegedAction<String>) () -> System.getProperty(filePathPropertyName));
         final AtomicReference<JBossEJBProperties> onceRef = new AtomicReference<>();
         CONTEXT_MANAGER.setGlobalDefaultSupplier(() -> {
@@ -134,7 +135,7 @@ public final class JBossEJBProperties implements Contextual<JBossEJBProperties> 
                             if (CONFIGURED_PATH_NAME != null) try {
                                 File propertiesFile = new File(CONFIGURED_PATH_NAME);
                                 if (! propertiesFile.isAbsolute()) {
-                                    propertiesFile = new File(System.getProperty("user.dir"), propertiesFile.toString());
+                                    propertiesFile = new File(System.getProperty(SystemProperties.USER_DIR), propertiesFile.toString());
                                 }
                                 value = JBossEJBProperties.fromFile(propertiesFile);
                             } catch (IOException e) {

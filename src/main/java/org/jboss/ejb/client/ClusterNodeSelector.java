@@ -25,6 +25,7 @@ import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import org.jboss.ejb._private.Logs;
+import org.jboss.ejb._private.SystemProperties;
 import org.wildfly.common.Assert;
 import org.wildfly.security.manager.WildFlySecurityManager;
 
@@ -91,7 +92,7 @@ public interface ClusterNodeSelector {
      * If no local node is used the DEFAULT will be used and connect a minimum of 5 nodes and select it randomly.
      */
   ClusterNodeSelector DEFAULT_PREFER_LOCAL = new ClusterNodeSelector() {
-      private final String localNodeName = WildFlySecurityManager.getPropertyPrivileged("jboss.node.name", null);
+      private final String localNodeName = WildFlySecurityManager.getPropertyPrivileged(SystemProperties.JBOSS_NODE_NAME, null);
 
 		public String selectNode(String clusterName, String[] connectedNodes, String[] totalAvailableNodes) {
           // Check if more than one node is available
@@ -110,7 +111,7 @@ public interface ClusterNodeSelector {
 	};
 
     ClusterNodeSelector RANDOM_PREFER_LOCAL = new ClusterNodeSelector() {
-        private final String localNodeName = WildFlySecurityManager.getPropertyPrivileged("jboss.node.name", null);
+        private final String localNodeName = WildFlySecurityManager.getPropertyPrivileged(SystemProperties.JBOSS_NODE_NAME, null);
 
 		public String selectNode(String clusterName, String[] connectedNodes, String[] totalAvailableNodes) {
 	          // Check if more than one node is available

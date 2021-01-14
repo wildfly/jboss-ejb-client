@@ -189,7 +189,7 @@ public class MixedModeServiceURLTestCase extends AbstractEJBClientTestCase {
      * Namely:
      * cluster "mixed-ejb" = {"127.0.0.1":6999, "127.0.0.1":7099}
      * deployments of a module on both nodes: {"my-foo-app/my-bar-module"}
-     * logical node names (jboss.node.name values): {"node1", "node2"}
+     * logical node names (JBOSS_NODE_NAME values): {"node1", "node2"}
      */
     private void validateResults(Map<String, List<ServiceURL>> results) {
 

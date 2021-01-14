@@ -17,6 +17,8 @@
  */
 package org.jboss.ejb.client.test;
 
+import static org.jboss.ejb._private.SystemProperties.DISCOVERY_TIMEOUT;
+
 import javax.ejb.NoSuchEJBException;
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -106,7 +108,7 @@ public class RemoteDiscoveryTimeoutTestCase {
    @Test
    public void testClientDiscoveryTimeout() throws InterruptedException {
       logger.info("Testing client discovery timeout of 10 seconds");
-      System.setProperty("org.jboss.ejb.client.discovery.timeout", "10");
+      System.setProperty(DISCOVERY_TIMEOUT, "10");
       String errorMessage = "";
 
       try {
