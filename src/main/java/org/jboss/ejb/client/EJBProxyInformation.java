@@ -51,7 +51,7 @@ import org.jboss.ejb.client.annotation.Idempotent;
  */
 final class EJBProxyInformation<T> {
 
-    static final boolean ENABLE_SCANNING = doPrivileged((PrivilegedAction<Boolean>) () -> Boolean.valueOf(System.getProperty(SystemProperties.VIEW_ANNOTATION_SCAN_ENABLED, "true"))).booleanValue();
+    static final boolean ENABLE_SCANNING = SystemProperties.getBoolean(SystemProperties.VIEW_ANNOTATION_SCAN_ENABLED, true);
 
     static final Class<?>[] JUST_INV_HANDLER = new Class<?>[] { InvocationHandler.class };
 

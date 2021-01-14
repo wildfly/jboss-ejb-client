@@ -23,7 +23,6 @@ import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
 import java.rmi.RemoteException;
-import java.security.AccessController;
 import java.security.PrivilegedAction;
 import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicReference;
@@ -51,15 +50,7 @@ final class EJBInvocationHandler<T> extends Attachable implements InvocationHand
 
     private static final Supplier<Discovery> DISCOVERY_SUPPLIER = doPrivileged((PrivilegedAction<Supplier<Discovery>>) Discovery.getContextManager()::getPrivilegedSupplier);
 
-    private static final int MAX_RETRIES =
-            AccessController.doPrivileged((PrivilegedAction<Integer>) () -> {
-                String val = System.getProperty(SystemProperties.MAX_ENTRIES);
-                try {
-                    return Integer.valueOf(val);
-                } catch (NumberFormatException e) {
-                    return 8;
-                }
-            });
+    private static final int MAX_RETRIES = SystemProperties.getInteger(SystemProperties.MAX_ENTRIES, 8);
 
     private final transient boolean async;
 
