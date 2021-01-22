@@ -63,7 +63,7 @@ public class AbstractEJBClientTestCase {
 
     private static final Logger logger = Logger.getLogger(AbstractEJBClientTestCase.class);
 
-    // server names; these are logical names (c.f. jboss.node.name) and not DNS resolvable hostnames
+    // server names; these are logical names (c.f. JBOSS_NODE_NAME) and not DNS resolvable hostnames
     public static final String SERVER1_NAME = "node1";
     public static final String SERVER2_NAME = "node2";
     public static final String SERVER3_NAME = "node3";

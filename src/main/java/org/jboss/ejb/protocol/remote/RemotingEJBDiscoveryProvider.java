@@ -32,7 +32,6 @@ import java.net.InetSocketAddress;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.UnknownHostException;
-import java.security.AccessController;
 import java.security.GeneralSecurityException;
 import java.security.PrivilegedAction;
 import java.util.ArrayList;
@@ -48,6 +47,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import javax.net.ssl.SSLContext;
 
 import org.jboss.ejb._private.Logs;
+import org.jboss.ejb._private.SystemProperties;
 import org.jboss.ejb.client.DiscoveryEJBClientInterceptor;
 import org.jboss.ejb.client.EJBClientConnection;
 import org.jboss.ejb.client.EJBClientContext;
@@ -91,15 +91,7 @@ final class RemotingEJBDiscoveryProvider implements DiscoveryProvider, Discovere
 
     private final ConcurrentHashMap<String, URI> effectiveAuthURIs = new ConcurrentHashMap<>();
     
-    private static final long DESTINATION_RECHECK_INTERVAL =
-            AccessController.doPrivileged((PrivilegedAction<Long>) () -> {
-                String val = System.getProperty("org.jboss.ejb.client.destination-recheck-interval");
-                try {
-                    return TimeUnit.MILLISECONDS.toNanos(Long.valueOf(val));
-                } catch (NumberFormatException e) {
-                    return TimeUnit.MILLISECONDS.toNanos(5000L);
-                }
-            });
+    private static final long DESTINATION_RECHECK_INTERVAL = TimeUnit.MILLISECONDS.toNanos(SystemProperties.getLong(SystemProperties.DESTINATION_RECHECK_INTERVAL, 5000L));
 
     public RemotingEJBDiscoveryProvider() {
         Endpoint.getCurrent(); //this will blow up if remoting is not present, preventing this from being registered

@@ -17,6 +17,9 @@
  */
 package org.jboss.ejb.client.test;
 
+import static org.jboss.ejb._private.SystemProperties.DISCOVERY_ADDITIONAL_NODE_TIMEOUT;
+import static org.jboss.ejb._private.SystemProperties.DISCOVERY_TIMEOUT;
+
 import org.jboss.ejb.client.EJBClient;
 import org.jboss.ejb.client.StatelessEJBLocator;
 import org.jboss.ejb.client.legacy.JBossEJBProperties;
@@ -106,13 +109,13 @@ public class NetworkBlackHoleInvocationTestCase {
 
         // broken-server-jboss-ejb-client.properties will have the ejb-client with 2 nodes on ports 6999 and 7099
         // it will succesfully invoke the ejb and then it will kill the 7099 port and try to invoke again
-        // the expected behavior is that it will not wait more than org.jboss.ejb.client.discovery.additional-node-timeout once it has a connection to 6999 before invoking the ejb
-        System.setProperty("org.jboss.ejb.client.discovery.timeout", "10");
+        // the expected behavior is that it will not wait more than DISCOVERY_ADDITIONAL_NODE_TIMEOUT once it has a connection to 6999 before invoking the ejb
+        System.setProperty(DISCOVERY_TIMEOUT, "10");
 
-        // This test will fail if org.jboss.ejb.client.discovery.additional-node-timeout is not set
-        // assertInvocationTimeLessThan checks that the org.jboss.ejb.client.discovery.additional-node-timeout is effective
-        // if org.jboss.ejb.client.discovery.additional-node-timeout is not effective it will timeout once it reaches the value of org.jboss.ejb.client.discovery.timeout
-        System.setProperty("org.jboss.ejb.client.discovery.additional-node-timeout", "2");
+        // This test will fail if DISCOVERY_ADDITIONAL_NODE_TIMEOUT is not set
+        // assertInvocationTimeLessThan checks that the DISCOVERY_ADDITIONAL_NODE_TIMEOUT is effective
+        // if DISCOVERY_ADDITIONAL_NODE_TIMEOUT is not effective it will timeout once it reaches the value of DISCOVERY_TIMEOUT
+        System.setProperty(DISCOVERY_ADDITIONAL_NODE_TIMEOUT, "2");
 
         try (DummyServer server2 = new DummyServer("localhost", 7099, "test2")) {
             server2.start();
@@ -131,7 +134,7 @@ public class NetworkBlackHoleInvocationTestCase {
 
             long invocationStart = System.currentTimeMillis(); 
             Result<String> echo = proxy.echo(message);
-            assertInvocationTimeLessThan("org.jboss.ejb.client.discovery.additional-node-timeout ineffective", 3000, invocationStart);
+            assertInvocationTimeLessThan(DISCOVERY_ADDITIONAL_NODE_TIMEOUT + " ineffective", 3000, invocationStart);
             Assert.assertEquals(message, echo.getValue());
             server2.hardKill();
 
@@ -145,7 +148,7 @@ public class NetworkBlackHoleInvocationTestCase {
             try (ServerSocket s = new ServerSocket(7099, 100, InetAddress.getByName("localhost"))) {
                 invocationStart = System.currentTimeMillis(); 
                 echo = proxy2.echo(message);
-                assertInvocationTimeLessThan("org.jboss.ejb.client.discovery.additional-node-timeout ineffective", 3000, invocationStart);
+                assertInvocationTimeLessThan(DISCOVERY_ADDITIONAL_NODE_TIMEOUT + " ineffective", 3000, invocationStart);
                 Assert.assertEquals(message, echo.getValue());
             }
         }
