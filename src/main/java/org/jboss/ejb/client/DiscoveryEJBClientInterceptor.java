@@ -49,7 +49,6 @@ import javax.ejb.NoSuchEJBException;
 
 import org.jboss.ejb._private.Keys;
 import org.jboss.ejb._private.Logs;
-import org.jboss.ejb._private.SystemProperties;
 import org.jboss.ejb.client.annotation.ClientInterceptorPriority;
 import org.wildfly.common.Assert;
 import org.wildfly.common.net.CidrAddress;
@@ -74,11 +73,11 @@ public final class DiscoveryEJBClientInterceptor implements EJBClientInterceptor
     private static final Supplier<Discovery> DISCOVERY_SUPPLIER = doPrivileged((PrivilegedAction<Supplier<Discovery>>) Discovery.getContextManager()::getPrivilegedSupplier);
 
     private static final String[] NO_STRINGS = new String[0];
-    private static final boolean WILDFLY_TESTSUITE_HACK = SystemProperties.getBoolean(SystemProperties.WILDFLY_TESTSUITE_HACK);
+    private static final boolean WILDFLY_TESTSUITE_HACK = SecurityUtils.getBoolean(SystemProperties.WILDFLY_TESTSUITE_HACK);
     // This provides a way timeout a discovery, avoiding blocking on some edge cases. See EJBCLIENT-311.
-    private static final long DISCOVERY_TIMEOUT = SystemProperties.getLong(SystemProperties.DISCOVERY_TIMEOUT, 0L);
+    private static final long DISCOVERY_TIMEOUT = SecurityUtils.getLong(SystemProperties.DISCOVERY_TIMEOUT, 0L);
     //how long to wait if at least one node has already been discovered. This one is in ms rather than s
-    private static final long DISCOVERY_ADDITIONAL_TIMEOUT = SystemProperties.getLong(SystemProperties.DISCOVERY_ADDITIONAL_NODE_TIMEOUT, 0L);
+    private static final long DISCOVERY_ADDITIONAL_TIMEOUT = SecurityUtils.getLong(SystemProperties.DISCOVERY_ADDITIONAL_NODE_TIMEOUT, 0L);
 
     /**
      * This interceptor's priority.
@@ -87,7 +86,7 @@ public final class DiscoveryEJBClientInterceptor implements EJBClientInterceptor
 
     private static final AttachmentKey<Set<URI>> BL_KEY = new AttachmentKey<>();
     private static final Map<URI, Long> blacklist = new ConcurrentHashMap<>();
-    private static final long BLACKLIST_TIMEOUT = TimeUnit.MILLISECONDS.toNanos(SystemProperties.getLong(SystemProperties.DISCOVERY_BLACKLIST_TIMEOUT, 5000L));
+    private static final long BLACKLIST_TIMEOUT = TimeUnit.MILLISECONDS.toNanos(SecurityUtils.getLong(SystemProperties.DISCOVERY_BLACKLIST_TIMEOUT, 5000L));
 
     /**
      * Construct a new instance.

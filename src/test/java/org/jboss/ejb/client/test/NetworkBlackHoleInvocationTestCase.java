@@ -17,9 +17,6 @@
  */
 package org.jboss.ejb.client.test;
 
-import static org.jboss.ejb._private.SystemProperties.DISCOVERY_ADDITIONAL_NODE_TIMEOUT;
-import static org.jboss.ejb._private.SystemProperties.DISCOVERY_TIMEOUT;
-
 import org.jboss.ejb.client.Affinity;
 import org.jboss.ejb.client.ClusterAffinity;
 import org.jboss.ejb.client.EJBClient;
@@ -61,18 +58,18 @@ public class NetworkBlackHoleInvocationTestCase extends AbstractEJBClientTestCas
         // broken-server-jboss-ejb-client.properties will have the ejb-client with 2 nodes on ports 6999 and 7099
         // it will succesfully invoke the ejb and then it will kill the 7099 port and try to invoke again
         // the expected behavior is that it will not wait more than org.jboss.ejb.client.discovery.additional-node-timeout once it has a connection to 6999 before invoking the ejb
-        System.setProperty(DISCOVERY_TIMEOUT, "10");
+        System.setProperty("org.jboss.ejb.client.discovery.timeout", "10");
 
         // This test will fail if org.jboss.ejb.client.discovery.additional-node-timeout is not set
         // assertInvocationTimeLessThan checks that the org.jboss.ejb.client.discovery.additional-node-timeout is effective
         // if org.jboss.ejb.client.discovery.additional-node-timeout is not effective it will timeout once it reaches the value of org.jboss.ejb.client.discovery.timeout
-        System.setProperty(DISCOVERY_ADDITIONAL_NODE_TIMEOUT, "200");
+        System.setProperty("org.jboss.ejb.client.discovery.additional-node-timeout", "200");
     }
 
     @AfterClass
     public static void afterClass() {
-        System.clearProperty(DISCOVERY_TIMEOUT);
-        System.clearProperty(DISCOVERY_ADDITIONAL_NODE_TIMEOUT);
+        System.clearProperty("org.jboss.ejb.client.discovery.timeout");
+        System.clearProperty("org.jboss.ejb.client.discovery.additional-node-timeout");
     }
 
     @Before

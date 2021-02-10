@@ -46,7 +46,6 @@ import java.util.function.Supplier;
 import javax.security.auth.callback.CallbackHandler;
 
 import org.jboss.ejb._private.Logs;
-import org.jboss.ejb._private.SystemProperties;
 import org.jboss.ejb.client.ClusterNodeSelector;
 import org.jboss.ejb.client.DeploymentNodeSelector;
 import org.wildfly.common.Assert;
@@ -112,8 +111,8 @@ public final class JBossEJBProperties implements Contextual<JBossEJBProperties> 
     private static final String PROPERTY_KEY_PROTOCOL = "protocol";
     private static final String DEFAULT_PROTOCOL = "http-remoting";
 
-    private static final boolean EXPAND_PASSWORDS = SystemProperties.getBoolean(SystemProperties.EXPAND_PASSWORDS);
-    private static final String CONFIGURED_PATH_NAME = SystemProperties.getString(SystemProperties.PROPERTIES_FILE_PATH);
+    private static final boolean EXPAND_PASSWORDS = SecurityUtils.getBoolean(SystemProperties.EXPAND_PASSWORDS);
+    private static final String CONFIGURED_PATH_NAME = SecurityUtils.getString(SystemProperties.PROPERTIES_FILE_PATH);
 
     private static final String PROPERTY_KEY_HTTP_CONNECTIONS = "http.connections";
 
@@ -131,7 +130,7 @@ public final class JBossEJBProperties implements Contextual<JBossEJBProperties> 
                             if (CONFIGURED_PATH_NAME != null) try {
                                 File propertiesFile = new File(CONFIGURED_PATH_NAME);
                                 if (! propertiesFile.isAbsolute()) {
-                                    propertiesFile = new File(SystemProperties.getString(SystemProperties.USER_DIR), propertiesFile.toString());
+                                    propertiesFile = new File(SecurityUtils.getString(SystemProperties.USER_DIR), propertiesFile.toString());
                                 }
                                 value = JBossEJBProperties.fromFile(propertiesFile);
                             } catch (IOException e) {

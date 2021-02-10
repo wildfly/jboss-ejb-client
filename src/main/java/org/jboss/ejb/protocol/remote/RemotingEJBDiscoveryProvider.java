@@ -48,7 +48,6 @@ import java.util.concurrent.atomic.AtomicInteger;
 import javax.net.ssl.SSLContext;
 
 import org.jboss.ejb._private.Logs;
-import org.jboss.ejb._private.SystemProperties;
 import org.jboss.ejb.client.DiscoveryEJBClientInterceptor;
 import org.jboss.ejb.client.EJBClientConnection;
 import org.jboss.ejb.client.EJBClientContext;
@@ -92,7 +91,7 @@ final class RemotingEJBDiscoveryProvider implements DiscoveryProvider, Discovere
 
     private final ConcurrentHashMap<String, URI> effectiveAuthURIs = new ConcurrentHashMap<>();
     
-    private static final long DESTINATION_RECHECK_INTERVAL = TimeUnit.MILLISECONDS.toNanos(SystemProperties.getLong(SystemProperties.DESTINATION_RECHECK_INTERVAL, 5000L));
+    private static final long DESTINATION_RECHECK_INTERVAL = TimeUnit.MILLISECONDS.toNanos(SecurityUtils.getLong(SystemProperties.DESTINATION_RECHECK_INTERVAL, 5000L));
 
     public RemotingEJBDiscoveryProvider() {
         Endpoint.getCurrent(); //this will blow up if remoting is not present, preventing this from being registered
