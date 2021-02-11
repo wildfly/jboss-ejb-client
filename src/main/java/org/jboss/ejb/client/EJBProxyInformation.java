@@ -36,7 +36,6 @@ import java.util.zip.Deflater;
 import javax.ejb.EJBHome;
 import javax.ejb.EJBObject;
 
-import org.jboss.ejb._private.SystemProperties;
 import org.jboss.ejb.client.annotation.ClientAsynchronous;
 import org.jboss.ejb.client.annotation.ClientInterceptors;
 import org.jboss.ejb.client.annotation.ClientTransaction;
@@ -51,7 +50,7 @@ import org.jboss.ejb.client.annotation.Idempotent;
  */
 final class EJBProxyInformation<T> {
 
-    static final boolean ENABLE_SCANNING = SystemProperties.getBoolean(SystemProperties.VIEW_ANNOTATION_SCAN_ENABLED, true);
+    static final boolean ENABLE_SCANNING = SecurityUtils.getBoolean(SystemProperties.VIEW_ANNOTATION_SCAN_ENABLED, true);
 
     static final Class<?>[] JUST_INV_HANDLER = new Class<?>[] { InvocationHandler.class };
 

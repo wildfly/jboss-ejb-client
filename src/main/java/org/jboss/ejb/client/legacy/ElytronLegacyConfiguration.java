@@ -24,7 +24,6 @@ import java.util.Map;
 import javax.security.auth.callback.CallbackHandler;
 
 import org.jboss.ejb._private.Logs;
-import org.jboss.ejb._private.SystemProperties;
 import org.kohsuke.MetaInfServices;
 import org.wildfly.common.function.ExceptionSupplier;
 import org.wildfly.security.auth.client.AuthenticationConfiguration;
@@ -47,7 +46,7 @@ import org.xnio.sasl.SaslUtils;
 @MetaInfServices
 public final class ElytronLegacyConfiguration implements LegacyConfiguration {
 
-    private static final boolean QUIET_AUTH = SystemProperties.getBoolean(SystemProperties.QUIET_AUTH);
+    private static final boolean QUIET_AUTH = SecurityUtils.getBoolean(SystemProperties.QUIET_AUTH);
     private static final String[] NO_STRINGS = new String[0];
 
     public AuthenticationContext getConfiguredAuthenticationContext() {
