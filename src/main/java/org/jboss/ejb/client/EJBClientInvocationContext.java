@@ -71,7 +71,7 @@ public final class EJBClientInvocationContext extends AbstractInvocationContext 
     private final EJBReceiverInvocationContext receiverInvocationContext = new EJBReceiverInvocationContext(this);
     private final EJBClientContext.InterceptorList interceptorList;
     private final long startTime = System.nanoTime();
-    private final long timeout;
+    private long timeout;
 
     // Invocation state
     private final Object lock = new Object();
@@ -344,7 +344,7 @@ public final class EJBClientInvocationContext extends AbstractInvocationContext 
                 // back to the start of the chain; decide what to do next.
                 synchronized (lock) {
                     try {
-                        assert state == State.SENT;
+                        assert state == State.SENT || state == State.READY;
                         // from here we can go to: READY, or WAITING, or retry SENDING.
                         Supplier<? extends Throwable> pendingFailure = this.pendingFailure;
                         EJBReceiverInvocationContext.ResultProducer resultProducer = this.resultProducer;
@@ -392,7 +392,7 @@ public final class EJBClientInvocationContext extends AbstractInvocationContext 
                         // didn't make it to the end of the chain even... but we won't suppress the thrown exception
                         transition(State.SENT);
                     }
-                    assert state == State.SENT;
+                    assert state == State.SENT || state == State.READY;
                     try {
                         // from here we can go to: FAILED, READY, or retry SENDING.
                         Supplier<? extends Throwable> pendingFailure = this.pendingFailure;
@@ -525,7 +525,7 @@ public final class EJBClientInvocationContext extends AbstractInvocationContext 
                 }
                 synchronized (lock) {
                     try {
-                        if (state != State.SENT) {
+                        if (state != State.SENT && state != State.READY) {
                             assert state == State.SENDING;
                             transition(State.SENT);
                             throw Logs.INVOCATION.requestNotSent();
@@ -702,13 +702,19 @@ public final class EJBClientInvocationContext extends AbstractInvocationContext 
         synchronized (lock) {
             if (state.isWaiting() && this.resultProducer == null) {
                 this.resultProducer = resultProducer;
-                if (state == State.WAITING) {
+                if (state == State.WAITING || state == State.SENT) {
                     transition(State.READY);
                 }
                 checkStateInvariants();
+                if (log.isTraceEnabled()) {
+                    log.tracef("Result is ready for %s: result producer: %s, current state: %s", this, resultProducer, state);
+                }
                 return;
             }
             checkStateInvariants();
+            if (log.isTraceEnabled()) {
+                log.tracef("Result discarded for %s: result producer: %s, current state: %s", this, resultProducer, state);
+            }
         }
         // for whatever reason, we don't care
         resultProducer.discardResult();
@@ -799,6 +805,9 @@ public final class EJBClientInvocationContext extends AbstractInvocationContext 
         final Object lock = this.lock;
         Assert.assertHoldsLock(lock);
         final State oldState = this.state;
+        if (oldState == newState) {
+            return;
+        }
         if (log.isTraceEnabled()) {
             StackTraceElement caller = (new Exception()).getStackTrace()[1];
             log.tracef("Transitioning %s from %s to %s (%s)", this, oldState, newState, caller);
@@ -821,7 +830,7 @@ public final class EJBClientInvocationContext extends AbstractInvocationContext 
                 break;
             }
             case CONSUMING: {
-                assert newState == State.SENDING || newState == State.DONE;
+                assert newState == State.SENDING || newState == State.DONE || newState == State.READY;
                 break;
             }
             default: {
@@ -931,7 +940,7 @@ public final class EJBClientInvocationContext extends AbstractInvocationContext 
                             case SENT:
                             case CONSUMING:
                             case WAITING: {
-                                if (timeout <= 0) {
+                                if (timeout <= 0 || timedOut) {
                                     // no timeout; lighter code path
                                     try {
                                         checkStateInvariants();
@@ -950,7 +959,13 @@ public final class EJBClientInvocationContext extends AbstractInvocationContext 
                                     if (remaining == 0L) {
                                         // timed out
                                         timedOut = true;
-                                        resultReady(new ThrowableResult(() -> new TimeoutException("No invocation response received in " + timeout + " milliseconds")));
+                                        this.timeout = 0;
+                                        if (state == State.CONSUMING) {
+                                            addSuppressed(new TimeoutException("No invocation response received in " + timeout + " milliseconds"));
+                                            transition(State.READY);
+                                        } else {
+                                            resultReady(new ThrowableResult(() -> new TimeoutException("No invocation response received in " + timeout + " milliseconds")));
+                                        }
                                     } else try {
                                         checkStateInvariants();
                                         try {
