@@ -22,12 +22,14 @@ import static java.security.AccessController.doPrivileged;
 
 import java.io.IOException;
 import java.io.InterruptedIOException;
+import java.net.ConnectException;
 import java.net.InetSocketAddress;
 import java.net.URI;
 import java.security.PrivilegedAction;
 
 import javax.ejb.CreateException;
 import javax.net.ssl.SSLException;
+import javax.net.ssl.SSLHandshakeException;
 
 import org.jboss.ejb._private.Logs;
 import org.jboss.ejb.client.AbstractInvocationContext;
@@ -110,6 +112,8 @@ class RemoteEJBReceiver extends EJBReceiver {
                 Logs.REMOTING.error("Error in connecting to " + destination + " : Please check if the client and server are configured to use the same protocol and ports.");
             } else if (exception instanceof SSLException && exception.getMessage().equals("Unrecognized SSL message, plaintext connection?")) {
                 Logs.REMOTING.error("Error in connecting to " + destination + " : The destination doesn't support SSL. Did you mean to use http protocol instead?");
+            } else if (exception instanceof SSLHandshakeException && exception instanceof ConnectException) {
+                Logs.REMOTING.error("Error while connecting @ " + destination + " becauese of incorrect protocol and port combination compare to the server.");
             }
             attachment.requestFailed(new RequestSendFailedException("Destination @ " + destination, exception, false), retryExecutorWrapper.getExecutor(Endpoint.getCurrent().getXnioWorker()));
         }
