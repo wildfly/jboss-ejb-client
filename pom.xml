@@ -74,6 +74,9 @@
         <version.org.wildfly.transaction-client>1.1.10.Final</version.org.wildfly.transaction-client>
 
         <test-group>org/jboss/ejb/client</test-group>
+        <modular.jdk.args/>
+        <byteman.properties>-Dorg.jboss.byteman.verbose -Djdk.attach.allowAttachSelf=true</byteman.properties>
+        <surefire.args>${byteman.properties} ${modular.jdk.args}</surefire.args>
     </properties>
 
     <build>
@@ -336,7 +339,7 @@
         <profile>
             <id>allTests</id>
             <activation>
-                <activeByDefault>true</activeByDefault>
+                <jdk>[8,)</jdk>
             </activation>
             <build>
                 <plugins>
@@ -369,6 +372,7 @@
                                     <excludes>
                                         <exclude>${test-group}/**/byteman/*TestCase.java</exclude>
                                     </excludes>
+                                    <argLine>${surefire.args}</argLine>
                                 </configuration>
                             </execution>
                             <!-- Byteman tests -->
@@ -379,13 +383,13 @@
                                     <goal>test</goal>
                                 </goals>
                                 <configuration>
-                                    <argLine>-Dorg.jboss.byteman.verbose, -Djdk.attach.allowAttachSelf=true</argLine>
                                     <environmentVariables>
                                         <BYTEMAN_HOME/>
                                     </environmentVariables>
                                     <includes>
                                         <include>${test-group}/**/byteman/*TestCase.java</include>
                                     </includes>
+                                    <argLine>${surefire.args}</argLine>
                                 </configuration>
                             </execution>
                         </executions>
@@ -425,6 +429,16 @@
                     </plugin>
                 </plugins>
             </build>
+        </profile>
+
+        <profile>
+            <id>JDK9</id>
+            <activation>
+                <jdk>[9,)</jdk>
+            </activation>
+            <properties>
+                <modular.jdk.args>--illegal-access=permit</modular.jdk.args>
+            </properties>
         </profile>
     </profiles>
 
