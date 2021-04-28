@@ -74,7 +74,6 @@ final class EJBProxyInformation<T> {
         }
 
         private <P> EJBProxyInformation<P> doCompute(final Class<P> type) {
-            final Class<? extends P> proxyClass = Proxy.getProxyClass(type.getClassLoader(), type).asSubclass(type);
             final HashMap<Method, ProxyMethodInfo> fallbackMap = new HashMap<>();
             final IdentityHashMap<Method, ProxyMethodInfo> methodInfoMap = new IdentityHashMap<>();
             final HashMap<EJBMethodLocator, ProxyMethodInfo> methodLocatorMap = new HashMap<>();
@@ -96,57 +95,79 @@ final class EJBProxyInformation<T> {
             }
             final boolean classIdempotent = ENABLE_SCANNING && type.getAnnotation(Idempotent.class) != null;
             final boolean classAsync = ENABLE_SCANNING && type.getAnnotation(ClientAsynchronous.class) != null;
-            final Field[] declaredFields = proxyClass.getDeclaredFields();
-            for (Field declaredField : declaredFields) {
-                declaredField.setAccessible(true);
-                if (declaredField.getType() == Method.class && declaredField.getName().charAt(0) == 'm' && (declaredField.getModifiers() & Modifier.STATIC) != 0) {
-                    // seems a likely match
-                    try {
-                        final Method method = (Method) declaredField.get(null);
-                        final boolean alwaysAsync = method.getReturnType() == Future.class;
-                        final boolean idempotent = classIdempotent || ENABLE_SCANNING && method.getAnnotation(Idempotent.class) != null;
-                        final boolean clientAsync = alwaysAsync || classAsync || ENABLE_SCANNING && method.getAnnotation(ClientAsynchronous.class) != null;
-                        final CompressionHint compressionHint = ENABLE_SCANNING ? method.getAnnotation(CompressionHint.class) : null;
-                        final ClientTransaction transactionHint = ENABLE_SCANNING ? method.getAnnotation(ClientTransaction.class) : null;
-                        final ClientInterceptors clientInterceptors = ENABLE_SCANNING ? method.getAnnotation(ClientInterceptors.class) : null;
-                        final EJBClientContext.InterceptorList interceptors = getInterceptorsFromAnnotation(clientInterceptors);
-                        final int compressionLevel;
-                        final ProxyMethodInfo.CompressionHint compressRequest;
-                        final ProxyMethodInfo.CompressionHint compressResponse;
-                        final ClientTransactionPolicy transactionPolicy;
-                        if (compressionHint == null) {
-                            compressionLevel = classCompressionLevel;
-                            compressRequest = classCompressRequest;
-                            compressResponse = classCompressResponse;
-                        } else {
-                            compressionLevel = compressionHint.compressionLevel() == -1 ? Deflater.DEFAULT_COMPRESSION : compressionHint.compressionLevel();
-                            compressRequest = ProxyMethodInfo.CompressionHint.fromBoolean(compressionHint.compressRequest());
-                            compressResponse = ProxyMethodInfo.CompressionHint.fromBoolean(compressionHint.compressResponse());
-                        }
-                        transactionPolicy = transactionHint != null ? transactionHint.value() : clientAsync ? ClientTransactionPolicy.NOT_SUPPORTED : classTransactionHint != null ? classTransactionHint.value() : ClientTransactionPolicy.SUPPORTS;
-                        // build the old signature format
-                        final StringBuilder b = new StringBuilder();
-                        final Class<?>[] methodParamTypes = method.getParameterTypes();
-                        final String[] parameterTypeNames = new String[methodParamTypes.length];
-                        if (parameterTypeNames.length > 0) {
-                            b.append(parameterTypeNames[0] = methodParamTypes[0].getName());
-                            for (int i = 1; i < methodParamTypes.length; i++) {
-                                b.append(',');
-                                b.append(parameterTypeNames[i] = methodParamTypes[i].getName());
-                            }
-                        }
-                        final String methodName = method.getName();
-                        final int methodType = getMethodType(type, methodName, methodParamTypes);
-                        final EJBMethodLocator methodLocator = new EJBMethodLocator(methodName, parameterTypeNames);
-                        final ProxyMethodInfo proxyMethodInfo = new ProxyMethodInfo(methodType, compressionLevel, compressRequest, compressResponse, idempotent, transactionPolicy, method, methodLocator, b.toString(), clientAsync, interceptors);
-                        methodInfoMap.put(method, proxyMethodInfo);
-                        fallbackMap.put(method, proxyMethodInfo);
-                        methodLocatorMap.put(methodLocator, proxyMethodInfo);
-                    } catch (IllegalAccessException e) {
-                        throw new IllegalAccessError(e.getMessage());
+
+            for (Method method : type.getMethods()) {
+                final boolean alwaysAsync = method.getReturnType() == Future.class;
+                final boolean idempotent = classIdempotent || ENABLE_SCANNING && method.getAnnotation(Idempotent.class) != null;
+                final boolean clientAsync = alwaysAsync || classAsync || ENABLE_SCANNING && method.getAnnotation(ClientAsynchronous.class) != null;
+                final CompressionHint compressionHint = ENABLE_SCANNING ? method.getAnnotation(CompressionHint.class) : null;
+                final ClientTransaction transactionHint = ENABLE_SCANNING ? method.getAnnotation(ClientTransaction.class) : null;
+                final ClientInterceptors clientInterceptors = ENABLE_SCANNING ? method.getAnnotation(ClientInterceptors.class) : null;
+                final EJBClientContext.InterceptorList interceptors = getInterceptorsFromAnnotation(clientInterceptors);
+                final int compressionLevel;
+                final ProxyMethodInfo.CompressionHint compressRequest;
+                final ProxyMethodInfo.CompressionHint compressResponse;
+                final ClientTransactionPolicy transactionPolicy;
+                if (compressionHint == null) {
+                    compressionLevel = classCompressionLevel;
+                    compressRequest = classCompressRequest;
+                    compressResponse = classCompressResponse;
+                } else {
+                    compressionLevel = compressionHint.compressionLevel() == -1 ? Deflater.DEFAULT_COMPRESSION : compressionHint.compressionLevel();
+                    compressRequest = ProxyMethodInfo.CompressionHint.fromBoolean(compressionHint.compressRequest());
+                    compressResponse = ProxyMethodInfo.CompressionHint.fromBoolean(compressionHint.compressResponse());
+                }
+                transactionPolicy = transactionHint != null ? transactionHint.value() : clientAsync ? ClientTransactionPolicy.NOT_SUPPORTED : classTransactionHint != null ? classTransactionHint.value() : ClientTransactionPolicy.SUPPORTS;
+                // build the old signature format
+                final StringBuilder b = new StringBuilder();
+                final Class<?>[] methodParamTypes = method.getParameterTypes();
+                final String[] parameterTypeNames = new String[methodParamTypes.length];
+                if (parameterTypeNames.length > 0) {
+                    b.append(parameterTypeNames[0] = methodParamTypes[0].getName());
+                    for (int i = 1; i < methodParamTypes.length; i++) {
+                        b.append(',');
+                        b.append(parameterTypeNames[i] = methodParamTypes[i].getName());
                     }
                 }
+                final String methodName = method.getName();
+                final int methodType = getMethodType(type, methodName, methodParamTypes);
+                final EJBMethodLocator methodLocator = new EJBMethodLocator(methodName, parameterTypeNames);
+                final ProxyMethodInfo proxyMethodInfo = new ProxyMethodInfo(methodType, compressionLevel, compressRequest, compressResponse, idempotent, transactionPolicy, method, methodLocator, b.toString(), clientAsync, interceptors);
+                methodInfoMap.put(method, proxyMethodInfo);
+                fallbackMap.put(method, proxyMethodInfo);
+                methodLocatorMap.put(methodLocator, proxyMethodInfo);
             }
+            for (Method method : Object.class.getMethods()) {
+                final String methodName = method.getName();
+                if (!"hashCode".equals(methodName) && !"toString".equals(methodName) && !"equals".equals(methodName)) continue;
+                final boolean alwaysAsync = false;
+                final boolean idempotent = classIdempotent;
+                final boolean clientAsync = alwaysAsync || classAsync;
+                final EJBClientContext.InterceptorList interceptors = EJBClientContext.InterceptorList.EMPTY;
+                final int compressionLevel = classCompressionLevel;
+                final ProxyMethodInfo.CompressionHint compressRequest = classCompressRequest;
+                final ProxyMethodInfo.CompressionHint compressResponse = classCompressResponse;
+                final ClientTransactionPolicy transactionPolicy;
+                transactionPolicy = clientAsync ? ClientTransactionPolicy.NOT_SUPPORTED : classTransactionHint != null ? classTransactionHint.value() : ClientTransactionPolicy.SUPPORTS;
+                // build the old signature format
+                final StringBuilder b = new StringBuilder();
+                final Class<?>[] methodParamTypes = method.getParameterTypes();
+                final String[] parameterTypeNames = new String[methodParamTypes.length];
+                if (parameterTypeNames.length > 0) {
+                    b.append(parameterTypeNames[0] = methodParamTypes[0].getName());
+                    for (int i = 1; i < methodParamTypes.length; i++) {
+                        b.append(',');
+                        b.append(parameterTypeNames[i] = methodParamTypes[i].getName());
+                    }
+                }
+                final int methodType = getMethodType(type, methodName, methodParamTypes);
+                final EJBMethodLocator methodLocator = new EJBMethodLocator(methodName, parameterTypeNames);
+                final ProxyMethodInfo proxyMethodInfo = new ProxyMethodInfo(methodType, compressionLevel, compressRequest, compressResponse, idempotent, transactionPolicy, method, methodLocator, b.toString(), clientAsync, interceptors);
+                methodInfoMap.put(method, proxyMethodInfo);
+                fallbackMap.put(method, proxyMethodInfo);
+                methodLocatorMap.put(methodLocator, proxyMethodInfo);
+            }
+            final Class<? extends P> proxyClass = Proxy.getProxyClass(type.getClassLoader(), type).asSubclass(type);
             final Constructor<? extends P> constructor;
             try {
                 constructor = proxyClass.getConstructor(JUST_INV_HANDLER);
