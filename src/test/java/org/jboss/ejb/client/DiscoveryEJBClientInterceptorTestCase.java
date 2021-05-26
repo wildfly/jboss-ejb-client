@@ -34,7 +34,7 @@ public class DiscoveryEJBClientInterceptorTestCase {
     public void testBlackList() throws Exception {
         long timeout = 1000L;
         System.setProperty("org.jboss.ejb.client.discovery.blacklist.timeout", timeout + "");
-        AbstractInvocationContext context = new AbstractInvocationContext(null, null) {
+        AbstractInvocationContext context = new AbstractInvocationContext(null, null, null) {
             @Override
             public void requestRetry() {
             }

@@ -32,18 +32,17 @@ import org.wildfly.security.auth.client.AuthenticationContext;
  */
 public final class EJBSessionCreationInvocationContext extends AbstractInvocationContext {
 
-    private final AuthenticationContext authenticationContext;
     private final EJBClientContext.InterceptorList interceptorList;
     private int interceptorChainIndex;
     private boolean retry;
 
     EJBSessionCreationInvocationContext(final StatelessEJBLocator<?> locator, final EJBClientContext ejbClientContext, AuthenticationContext authenticationContext, final EJBClientContext.InterceptorList interceptorList) {
-        super(locator, ejbClientContext);
-        this.authenticationContext = authenticationContext;
+        super(locator, ejbClientContext, authenticationContext);
         this.interceptorList = interceptorList;
     }
 
     SessionID proceedInitial() throws Exception {
+        AuthenticationContext authenticationContext = getAuthenticationContext();
         if (authenticationContext != null) {
             return authenticationContext.runExFunction(EJBSessionCreationInvocationContext::proceed, this);
         } else {
@@ -71,7 +70,8 @@ public final class EJBSessionCreationInvocationContext extends AbstractInvocatio
                     Logs.INVOCATION.debugf("session creation proceed(): setting receiver, remote destination is: %s", destination);
                 }
                 setReceiver(receiver);
-                final SessionID sessionID = receiver.createSession(new EJBReceiverSessionCreationContext(this, authenticationContext));
+
+                final SessionID sessionID = receiver.createSession(new EJBReceiverSessionCreationContext(this));
                 if (sessionID == null) {
                     throw Logs.INVOCATION.nullSessionID(receiver, getLocator().asStateless());
                 }
@@ -90,10 +90,6 @@ public final class EJBSessionCreationInvocationContext extends AbstractInvocatio
 
     public void requestRetry() {
         retry = true;
-    }
-
-    public AuthenticationContext getAuthenticationContext() {
-        return authenticationContext;
     }
 
     boolean shouldRetry() {

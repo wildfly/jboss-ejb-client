@@ -24,6 +24,7 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 
 import org.wildfly.common.Assert;
+import org.wildfly.security.auth.client.AuthenticationContext;
 import org.wildfly.transaction.client.AbstractTransaction;
 
 /**
@@ -32,6 +33,7 @@ import org.wildfly.transaction.client.AbstractTransaction;
  * @author <a href="mailto:david.lloyd@redhat.com">David M. Lloyd</a>
  */
 public abstract class AbstractInvocationContext extends Attachable {
+    private final AuthenticationContext authenticationContext;
     private final EJBClientContext ejbClientContext;
     // selected target receiver
     private EJBReceiver receiver;
@@ -57,9 +59,15 @@ public abstract class AbstractInvocationContext extends Attachable {
     private Map<String, Object> contextData;
     private AbstractTransaction transaction;
 
-    AbstractInvocationContext(final EJBLocator<?> locator, final EJBClientContext ejbClientContext) {
+    AbstractInvocationContext(final EJBLocator<?> locator, final EJBClientContext ejbClientContext,
+            final AuthenticationContext authenticationContext) {
         this.locator = locator;
         this.ejbClientContext = ejbClientContext;
+        this.authenticationContext = authenticationContext;
+    }
+
+    public AuthenticationContext getAuthenticationContext() {
+        return authenticationContext;
     }
 
     /**
