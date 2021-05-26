@@ -896,7 +896,7 @@ public final class EJBClientContext extends Attachable implements Contextual<EJB
         for (int i = 0; i < MAX_SESSION_RETRIES; i++) {
             Throwable t;
             try {
-                sessionID = context.proceed();
+                sessionID = context.proceedInitial();
                 break;
             } catch (RequestSendFailedException r) {
                 if (! r.canBeRetried()) {
