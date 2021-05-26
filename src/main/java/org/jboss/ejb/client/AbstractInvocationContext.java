@@ -18,6 +18,8 @@
 
 package org.jboss.ejb.client;
 
+import static org.jboss.ejb._private.Keys.AUTHENTICATION_CONTEXT_ATTACHMENT_KEY;
+
 import java.io.Serializable;
 import java.net.URI;
 import java.util.LinkedHashMap;
@@ -67,7 +69,9 @@ public abstract class AbstractInvocationContext extends Attachable {
     }
 
     public AuthenticationContext getAuthenticationContext() {
-        return authenticationContext;
+        AuthenticationContext attached = getAttachment(AUTHENTICATION_CONTEXT_ATTACHMENT_KEY);
+
+        return attached != null ? attached : authenticationContext;
     }
 
     /**
