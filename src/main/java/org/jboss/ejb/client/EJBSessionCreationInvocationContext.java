@@ -43,6 +43,14 @@ public final class EJBSessionCreationInvocationContext extends AbstractInvocatio
         this.interceptorList = interceptorList;
     }
 
+    SessionID proceedInitial() throws Exception {
+        if (authenticationContext != null) {
+            return authenticationContext.runExFunction(EJBSessionCreationInvocationContext::proceed, this);
+        } else {
+            return proceed();
+        }
+    }
+
     /**
      * Proceed with the next interceptor in the chain, calling the resolved receiver in the end.
      *
