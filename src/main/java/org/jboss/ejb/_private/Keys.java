@@ -20,10 +20,14 @@ package org.jboss.ejb._private;
 
 import org.jboss.ejb.client.AttachmentKey;
 import org.wildfly.naming.client.NamingProvider;
+import org.wildfly.security.auth.client.AuthenticationContext;
 
 /**
  */
 public final class Keys {
+
+    public static final AttachmentKey<AuthenticationContext> AUTHENTICATION_CONTEXT_ATTACHMENT_KEY = new AttachmentKey<>();
+
     public static final AttachmentKey<NamingProvider> NAMING_PROVIDER_ATTACHMENT_KEY = new AttachmentKey<>();
 
     private Keys() {}

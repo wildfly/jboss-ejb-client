@@ -61,7 +61,6 @@ public final class EJBClientInvocationContext extends AbstractInvocationContext 
 
     // Contextual stuff
     private final EJBInvocationHandler<?> invocationHandler;
-    private final AuthenticationContext authenticationContext;
     private final Discovery discoveryContext;
 
     // Invocation data
@@ -90,9 +89,8 @@ public final class EJBClientInvocationContext extends AbstractInvocationContext 
     private int waiters = 0;
 
     EJBClientInvocationContext(final EJBInvocationHandler<?> invocationHandler, final EJBClientContext ejbClientContext, final Object invokedProxy, final Object[] parameters, final EJBProxyInformation.ProxyMethodInfo methodInfo, final int allowedRetries, final Supplier<AuthenticationContext> authenticationContextSupplier, final Discovery discoveryContext) {
-        super(invocationHandler.getLocator(), ejbClientContext);
+        super(invocationHandler.getLocator(), ejbClientContext, authenticationContextSupplier != null ? authenticationContextSupplier.get() : AuthenticationContext.captureCurrent());
         this.invocationHandler = invocationHandler;
-        this.authenticationContext = authenticationContextSupplier != null ? authenticationContextSupplier.get() : AuthenticationContext.captureCurrent();
         this.discoveryContext = discoveryContext;
         this.invokedProxy = invokedProxy;
         this.parameters = parameters;
@@ -340,7 +338,7 @@ public final class EJBClientInvocationContext extends AbstractInvocationContext 
         for (;;) {
             assert interceptorChainIndex == 0;
             try {
-                authenticationContext.runExConsumer(EJBClientInvocationContext::sendRequest, this);
+                getAuthenticationContext().runExConsumer(EJBClientInvocationContext::sendRequest, this);
                 // back to the start of the chain; decide what to do next.
                 synchronized (lock) {
                     try {
@@ -774,11 +772,6 @@ public final class EJBClientInvocationContext extends AbstractInvocationContext 
                 interest.notifyAssignment((ClusterAffinity)affinity);
             }
         }
-    }
-
-    @NotNull
-    public AuthenticationContext getAuthenticationContext() {
-        return authenticationContext;
     }
 
     @NotNull

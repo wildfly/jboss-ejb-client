@@ -59,6 +59,7 @@ import org.wildfly.discovery.FilterSpec;
 import org.wildfly.discovery.ServiceURL;
 import org.wildfly.discovery.ServicesQueue;
 import org.wildfly.naming.client.NamingProvider;
+import org.wildfly.security.auth.client.AuthenticationContext;
 
 /**
  * The EJB client interceptor responsible for discovering the destination of a request.  If a destination is already
@@ -334,6 +335,12 @@ public final class DiscoveryEJBClientInterceptor implements EJBClientInterceptor
         return blacklist.keySet();
     }
 
+    ServicesQueue discover(final AbstractInvocationContext invocationContext, FilterSpec filterSpec) {
+        AuthenticationContext authenticationContext = invocationContext.getAuthenticationContext();
+        return authenticationContext != null
+                ? authenticationContext.runBiFunction(DiscoveryEJBClientInterceptor::discover, this, filterSpec)
+                : discover(filterSpec);
+    }
 
     ServicesQueue discover(final FilterSpec filterSpec) {
         return getDiscovery().discover(EJB_SERVICE_TYPE, filterSpec);
@@ -427,7 +434,7 @@ public final class DiscoveryEJBClientInterceptor implements EJBClientInterceptor
         }
         final List<Throwable> problems;
         final Set<URI> blacklist = getBlacklist();
-        try (final ServicesQueue queue = discover(filterSpec)) {
+        try (final ServicesQueue queue = discover(context, filterSpec)) {
             ServiceURL serviceURL;
             while ((serviceURL = queue.takeService(DISCOVERY_TIMEOUT, TimeUnit.SECONDS)) != null) {
                 final URI location = serviceURL.getLocationURI();
@@ -492,7 +499,7 @@ public final class DiscoveryEJBClientInterceptor implements EJBClientInterceptor
 
         int nodeless = 0;
         long timeout = DISCOVERY_TIMEOUT * 1000;
-        try (final ServicesQueue queue = discover(filterSpec)) {
+        try (final ServicesQueue queue = discover(context, filterSpec)) {
             ServiceURL serviceURL;
             while ((serviceURL = queue.takeService(timeout, TimeUnit.MILLISECONDS)) != null) {
                 final URI location = serviceURL.getLocationURI();
@@ -623,7 +630,7 @@ public final class DiscoveryEJBClientInterceptor implements EJBClientInterceptor
         final List<Throwable> problems;
         final Set<URI> blacklist = getBlacklist();
         long timeout = DISCOVERY_TIMEOUT * 1000;
-        try (final ServicesQueue queue = discover(filterSpec)) {
+        try (final ServicesQueue queue = discover(context, filterSpec)) {
             ServiceURL serviceURL;
             while ((serviceURL = queue.takeService(timeout, TimeUnit.MILLISECONDS)) != null) {
                 final URI location = serviceURL.getLocationURI();

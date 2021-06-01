@@ -27,11 +27,9 @@ import org.wildfly.security.auth.client.AuthenticationContext;
  */
 public final class EJBReceiverSessionCreationContext extends AbstractReceiverInvocationContext {
     private final EJBSessionCreationInvocationContext invocationContext;
-    private final AuthenticationContext authenticationContext;
 
-    EJBReceiverSessionCreationContext(final EJBSessionCreationInvocationContext invocationContext, final AuthenticationContext authenticationContext) {
+    EJBReceiverSessionCreationContext(final EJBSessionCreationInvocationContext invocationContext) {
         this.invocationContext = invocationContext;
-        this.authenticationContext = authenticationContext;
     }
 
     public EJBSessionCreationInvocationContext getClientInvocationContext() {
@@ -39,6 +37,7 @@ public final class EJBReceiverSessionCreationContext extends AbstractReceiverInv
     }
 
     public AuthenticationContext getAuthenticationContext() {
+        AuthenticationContext authenticationContext = invocationContext.getAuthenticationContext();
         return authenticationContext == null ? AuthenticationContext.captureCurrent() : authenticationContext;
     }
 }
