@@ -125,6 +125,7 @@ public final class EJBClientContext extends Attachable implements Contextual<EJB
 
     static final InterceptorList defaultInterceptors = new InterceptorList(new EJBClientInterceptorInformation[] {
         EJBClientInterceptorInformation.forClass(TransactionInterceptor.class),
+        EJBClientInterceptorInformation.forClass(AuthenticationContextEJBClientInterceptor.class),
         EJBClientInterceptorInformation.forClass(NamingEJBClientInterceptor.class),
         EJBClientInterceptorInformation.forClass(DiscoveryEJBClientInterceptor.class),
         EJBClientInterceptorInformation.forClass(TransactionPostDiscoveryInterceptor.class),
@@ -896,7 +897,7 @@ public final class EJBClientContext extends Attachable implements Contextual<EJB
         for (int i = 0; i < MAX_SESSION_RETRIES; i++) {
             Throwable t;
             try {
-                sessionID = context.proceed();
+                sessionID = context.proceedInitial();
                 break;
             } catch (RequestSendFailedException r) {
                 if (! r.canBeRetried()) {
