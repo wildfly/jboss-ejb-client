@@ -84,7 +84,7 @@ final class RemotingEJBDiscoveryProvider implements DiscoveryProvider, Discovere
 
     private final ConcurrentHashMap<String, NodeInformation> nodes = new ConcurrentHashMap<>();
 
-    private final Map<URI, Long> failedDestinations = new ConcurrentHashMap<URI, Long>();
+    private final ConcurrentHashMap<URI, Long> failedDestinations = new ConcurrentHashMap<URI, Long>();
 
     private final ConcurrentHashMap<String, Set<String>> clusterNodes = new ConcurrentHashMap<>();
 
@@ -118,15 +118,16 @@ final class RemotingEJBDiscoveryProvider implements DiscoveryProvider, Discovere
         if (removed != null) removed.clear();
         effectiveAuthURIs.remove(clusterName);
     }
-    
+
     private boolean haveNotExpiredFailedDestination(URI uri) {
-    	if(!failedDestinations.containsKey(uri))
-    		return false;
-    	else {
-    		long failureTimestamp = failedDestinations.get(uri);
-    		long delta = System.nanoTime() - failureTimestamp;
-    		return delta < DESTINATION_RECHECK_INTERVAL;
-    	}
+        Long failureTimestamp = failedDestinations.get(uri);
+        if(failureTimestamp == null) {
+            return false;
+        }
+        else {
+            long delta = System.nanoTime() - failureTimestamp.longValue();
+            return delta < DESTINATION_RECHECK_INTERVAL;
+        }
     }
 
     public DiscoveryRequest discover(final ServiceType serviceType, final FilterSpec filterSpec, final DiscoveryResult result) {
