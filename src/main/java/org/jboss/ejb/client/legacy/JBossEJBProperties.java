@@ -56,7 +56,7 @@ import org.wildfly.common.expression.Expression;
 import org.wildfly.common.function.ExceptionBiFunction;
 import org.wildfly.common.function.ExceptionFunction;
 import org.wildfly.common.function.ExceptionSupplier;
-import org.wildfly.security.util.CodePointIterator;
+import org.wildfly.common.iteration.CodePointIterator;
 import org.xnio.OptionMap;
 import org.xnio.Options;
 
