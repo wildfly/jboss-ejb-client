@@ -226,13 +226,7 @@
             <artifactId>wildfly-discovery-client</artifactId>
             <version>${version.org.wildfly.discovery}</version>
         </dependency>
-
-        <dependency>
-            <groupId>org.wildfly.security</groupId>
-            <artifactId>wildfly-elytron</artifactId>
-            <version>${version.org.wildfly.security.elytron}</version>
-        </dependency>
-
+        
         <dependency>
             <groupId>org.wildfly.security</groupId>
             <artifactId>wildfly-elytron-auth</artifactId>
