@@ -18,6 +18,9 @@
 
 package org.jboss.ejb.client;
 
+import static java.lang.Math.max;
+import static java.lang.Thread.holdsLock;
+
 import java.lang.reflect.Method;
 import java.lang.reflect.UndeclaredThrowableException;
 import java.net.URI;
@@ -31,9 +34,6 @@ import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.function.Supplier;
-
-import static java.lang.Math.max;
-import static java.lang.Thread.holdsLock;
 
 import org.jboss.ejb._private.Logs;
 import org.jboss.ejb.client.annotation.ClientTransactionPolicy;

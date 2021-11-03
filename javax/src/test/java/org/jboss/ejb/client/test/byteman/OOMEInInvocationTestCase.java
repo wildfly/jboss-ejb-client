@@ -42,7 +42,7 @@ import org.junit.runner.RunWith;
  *
  */
 @RunWith(BMUnitRunner.class)
-@BMScript(dir="src/test/resources")
+@BMScript(dir="target/test-classes")
 public class OOMEInInvocationTestCase extends AbstractEJBClientTestCase {
 
     private static final Logger logger = Logger.getLogger(OOMEInInvocationTestCase.class);

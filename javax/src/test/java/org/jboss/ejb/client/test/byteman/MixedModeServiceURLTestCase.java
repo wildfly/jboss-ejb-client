@@ -17,14 +17,20 @@
  */
 package org.jboss.ejb.client.test.byteman;
 
+import java.io.File;
+import java.net.URL;
+import java.util.Arrays;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+
 import org.jboss.byteman.contrib.bmunit.BMRule;
 import org.jboss.byteman.contrib.bmunit.BMRules;
-import org.jboss.byteman.contrib.bmunit.BMScript;
 import org.jboss.byteman.contrib.bmunit.BMUnitConfig;
 import org.jboss.byteman.contrib.bmunit.BMUnitRunner;
 import org.jboss.ejb.client.Affinity;
 import org.jboss.ejb.client.EJBClient;
-import org.jboss.ejb.client.EJBClientContext;
 import org.jboss.ejb.client.StatelessEJBLocator;
 import org.jboss.ejb.client.test.AbstractEJBClientTestCase;
 import org.jboss.ejb.client.test.ClassCallback;
@@ -40,19 +46,7 @@ import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
 import org.junit.runner.RunWith;
-import org.wildfly.discovery.AttributeValue;
 import org.wildfly.discovery.ServiceURL;
-
-import java.io.File;
-import java.net.URI;
-import java.net.URISyntaxException;
-import java.net.URL;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
 
 /**
  * When receiving topology updates from clusters whose members have client mappings containing literal IP addresses,

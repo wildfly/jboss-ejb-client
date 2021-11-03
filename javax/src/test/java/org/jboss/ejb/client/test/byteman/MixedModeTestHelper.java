@@ -1,13 +1,12 @@
 package org.jboss.ejb.client.test.byteman;
 
-import org.jboss.byteman.rule.Rule;
-import org.jboss.byteman.rule.helper.Helper;
-import org.wildfly.discovery.ServiceURL;
-
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+
+import org.jboss.byteman.rule.Rule;
+import org.jboss.byteman.rule.helper.Helper;
+import org.wildfly.discovery.ServiceURL;
 
 public class MixedModeTestHelper extends Helper {
 
