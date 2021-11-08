@@ -18,15 +18,8 @@
 
 package org.jboss.ejb.client;
 
-import org.jboss.ejb._private.Logs;
-import org.jboss.ejb.client.legacy.LegacyPropertiesConfiguration;
-import org.jboss.modules.Module;
-import org.jboss.modules.ModuleIdentifier;
-import org.jboss.modules.ModuleLoadException;
-import org.wildfly.client.config.ClientConfiguration;
-import org.wildfly.client.config.ConfigXMLParseException;
-import org.wildfly.client.config.ConfigurationXMLStreamReader;
-import org.wildfly.common.Assert;
+import static javax.xml.stream.XMLStreamConstants.END_ELEMENT;
+import static javax.xml.stream.XMLStreamConstants.START_ELEMENT;
 
 import java.net.URI;
 import java.util.Arrays;
@@ -37,8 +30,15 @@ import java.util.ServiceConfigurationError;
 import java.util.ServiceLoader;
 import java.util.Set;
 
-import static javax.xml.stream.XMLStreamConstants.END_ELEMENT;
-import static javax.xml.stream.XMLStreamConstants.START_ELEMENT;
+import org.jboss.ejb._private.Logs;
+import org.jboss.ejb.client.legacy.LegacyPropertiesConfiguration;
+import org.jboss.modules.Module;
+import org.jboss.modules.ModuleIdentifier;
+import org.jboss.modules.ModuleLoadException;
+import org.wildfly.client.config.ClientConfiguration;
+import org.wildfly.client.config.ConfigXMLParseException;
+import org.wildfly.client.config.ConfigurationXMLStreamReader;
+import org.wildfly.common.Assert;
 
 /**
  * A one-time, configuration-based EJB client context configurator.

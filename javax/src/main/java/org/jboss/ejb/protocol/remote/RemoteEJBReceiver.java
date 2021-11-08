@@ -26,7 +26,6 @@ import java.net.ConnectException;
 import java.net.InetSocketAddress;
 import java.net.URI;
 import java.security.PrivilegedAction;
-
 import javax.ejb.CreateException;
 import javax.net.ssl.SSLException;
 import javax.net.ssl.SSLHandshakeException;
@@ -54,7 +53,6 @@ import org.wildfly.security.auth.client.AuthenticationContext;
 import org.xnio.IoFuture;
 import org.xnio.OptionMap;
 import org.xnio.http.ConnectionClosedEarlyException;
-import org.xnio.http.HttpUpgrade;
 import org.xnio.http.UpgradeFailedException;
 
 /**

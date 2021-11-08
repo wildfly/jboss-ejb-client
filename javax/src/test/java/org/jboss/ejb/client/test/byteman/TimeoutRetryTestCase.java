@@ -17,6 +17,12 @@
  */
 package org.jboss.ejb.client.test.byteman;
 
+import java.net.URI;
+import java.net.URISyntaxException;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
+import javax.ejb.NoSuchEJBException;
+
 import org.jboss.byteman.contrib.bmunit.BMScript;
 import org.jboss.byteman.contrib.bmunit.BMUnitRunner;
 import org.jboss.ejb.client.EJBClient;
@@ -36,18 +42,11 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 
-import javax.ejb.EJBException;
-import javax.ejb.NoSuchEJBException;
-import java.net.URI;
-import java.net.URISyntaxException;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
-
 /**
  * Tests that a hang does not happen if timeout happens concurrently with retry
  */
 @RunWith(BMUnitRunner.class)
-@BMScript(dir = "src/test/resources")
+@BMScript(dir = "target/test-classes")
 public class TimeoutRetryTestCase {
 
     private static final Logger logger = Logger.getLogger(TimeoutRetryTestCase.class);
