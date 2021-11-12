@@ -82,6 +82,7 @@ import org.jboss.ejb.client.TransactionID;
 import org.jboss.ejb.client.UserTransactionID;
 import org.jboss.ejb.client.XidTransactionID;
 import org.jboss.marshalling.ByteInput;
+import org.jboss.marshalling.ClassNameTransformer;
 import org.jboss.marshalling.Marshaller;
 import org.jboss.marshalling.MarshallerFactory;
 import org.jboss.marshalling.Marshalling;
@@ -161,6 +162,11 @@ class EJBClientChannel {
             configuration.setObjectResolver(new ProtocolV3ObjectResolver(connection, true));
             configuration.setVersion(4);
             // server does not present v3 unless the transaction service is also present
+        }
+        if (version < Protocol.JAKARTAEE_PROTOCOL_VERSION && Protocol.LATEST_VERSION >= Protocol.JAKARTAEE_PROTOCOL_VERSION) {
+            // EJB client uses EJB PROTOCOL version 4 or above but EJB server uses EJB PROTOCOL version 3 or below
+            // so in this case we need to translate classes from JavaEE API to JakartaEE API and vice versa
+            configuration.setClassNameTransformer(ClassNameTransformer.JAVAEE_TO_JAKARTAEE);
         }
         transactionContext = RemoteTransactionContext.getInstance();
         this.configuration = configuration;
@@ -719,7 +725,7 @@ class EJBClientChannel {
                 final ClassLoader oldCL = getAndSetSafeTCCL();
                 // receive message body
                 try {
-                    final int version = min(3, StreamUtils.readInt8(message));
+                    final int version = min(Protocol.LATEST_VERSION, StreamUtils.readInt8(message));
                     // drain the rest of the message because it's just garbage really
                     while (message.read() != -1) {
                         message.skip(Long.MAX_VALUE);
