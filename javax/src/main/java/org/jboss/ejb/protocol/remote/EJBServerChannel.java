@@ -82,6 +82,7 @@ import org.jboss.ejb.server.ModuleAvailabilityListener;
 import org.jboss.ejb.server.Request;
 import org.jboss.ejb.server.SessionOpenRequest;
 import org.jboss.marshalling.AbstractClassResolver;
+import org.jboss.marshalling.ClassNameTransformer;
 import org.jboss.marshalling.Marshaller;
 import org.jboss.marshalling.MarshallerFactory;
 import org.jboss.marshalling.Marshalling;
@@ -141,6 +142,11 @@ final class EJBServerChannel {
             configuration.setObjectTable(ProtocolV3ObjectTable.INSTANCE);
             configuration.setObjectResolver(new ProtocolV3ObjectResolver(channel.getConnection(), true));
             configuration.setVersion(4);
+        }
+        if (version < Protocol.JAKARTAEE_PROTOCOL_VERSION && Protocol.LATEST_VERSION >= Protocol.JAKARTAEE_PROTOCOL_VERSION) {
+            // EJB server uses EJB PROTOCOL version 4 or above but EJB client uses EJB PROTOCOL version 3 or below
+            // so in this case we need to translate classes from JavaEE API to JakartaEE API and vice versa
+            configuration.setClassNameTransformer(ClassNameTransformer.JAVAEE_TO_JAKARTAEE);
         }
         marshallerFactory = new RiverMarshallerFactory();
         this.configuration = configuration;
