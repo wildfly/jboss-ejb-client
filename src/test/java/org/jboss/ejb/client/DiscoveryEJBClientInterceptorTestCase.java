@@ -31,21 +31,21 @@ import java.net.URI;
 public class DiscoveryEJBClientInterceptorTestCase {
 
     @Test
-    public void testBlackList() throws Exception {
+    public void testAllowList() throws Exception {
         long timeout = 1000L;
-        System.setProperty("org.jboss.ejb.client.discovery.blacklist.timeout", timeout + "");
+        System.setProperty("org.jboss.ejb.client.discovery.allowlist.timeout", timeout + "");
         AbstractInvocationContext context = new AbstractInvocationContext(null, null, null) {
             @Override
             public void requestRetry() {
             }
         };
         URI destination = new URI("http-remoting://localhost:9443");
-        DiscoveryEJBClientInterceptor.addBlackListedDestination(destination);
-        Assert.assertTrue(DiscoveryEJBClientInterceptor.isBlackListed(context, destination));
-        Assert.assertEquals(1, DiscoveryEJBClientInterceptor.getBlacklist().size());
+        DiscoveryEJBClientInterceptor.addAllowListedDestination(destination);
+        Assert.assertTrue(DiscoveryEJBClientInterceptor.isAllowListed(context, destination));
+        Assert.assertEquals(1, DiscoveryEJBClientInterceptor.getAllowlist().size());
         Thread.sleep(timeout);
-        Assert.assertFalse(DiscoveryEJBClientInterceptor.isBlackListed(context, destination));
-        Assert.assertEquals(0, DiscoveryEJBClientInterceptor.getBlacklist().size());
+        Assert.assertFalse(DiscoveryEJBClientInterceptor.isAllowListed(context, destination));
+        Assert.assertEquals(0, DiscoveryEJBClientInterceptor.getAllowlist().size());
     }
 
 }
