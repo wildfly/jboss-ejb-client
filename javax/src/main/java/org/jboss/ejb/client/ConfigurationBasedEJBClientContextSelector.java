@@ -33,7 +33,6 @@ import java.util.Set;
 import org.jboss.ejb._private.Logs;
 import org.jboss.ejb.client.legacy.LegacyPropertiesConfiguration;
 import org.jboss.modules.Module;
-import org.jboss.modules.ModuleIdentifier;
 import org.jboss.modules.ModuleLoadException;
 import org.wildfly.client.config.ClientConfiguration;
 import org.wildfly.client.config.ConfigXMLParseException;
@@ -248,7 +247,9 @@ final class ConfigurationBasedEJBClientContextSelector {
         ClassLoader cl;
         if (moduleName != null) {
             try {
-                cl = ModuleLoadDelegate.loadModule(moduleName);
+                cl = Module.getModuleFromCallerModuleLoader(moduleName).getClassLoader();
+            } catch (ModuleLoadException e) {
+                throw new ConfigXMLParseException(e);
             } catch (LinkageError e) {
                 throw Logs.MAIN.noJBossModules(streamReader);
             }
@@ -268,16 +269,6 @@ final class ConfigurationBasedEJBClientContextSelector {
             return clazz;
         }
         throw streamReader.unexpectedElement();
-    }
-
-    static final class ModuleLoadDelegate {
-        static ClassLoader loadModule(String moduleName) throws ConfigXMLParseException {
-            try {
-                return Module.getModuleFromCallerModuleLoader(ModuleIdentifier.fromString(moduleName)).getClassLoader();
-            } catch (ModuleLoadException e) {
-                throw new ConfigXMLParseException(e);
-            }
-        }
     }
 
     private static void parseConnectionsType(final ConfigurationXMLStreamReader streamReader, final EJBClientContext.Builder builder) throws ConfigXMLParseException {
