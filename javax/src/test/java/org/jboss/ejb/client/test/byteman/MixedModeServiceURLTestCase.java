@@ -188,22 +188,22 @@ public class MixedModeServiceURLTestCase extends AbstractEJBClientTestCase {
     private void validateResults(Map<String, List<ServiceURL>> results) {
 
         // the complete set of ServiceURLs for the above configuration (i.e. same information and attributes for each host representation)
-        final Set<String> EXPECTED_NODE1_URLS = new HashSet<String>(Arrays.asList(
-                "service:ejb.jboss:remote://127.0.0.1:6999;node=node1;ejb-module=my-foo-app/my-bar-module",
-                "service:ejb.jboss:remote://127.0.0.1:6999;cluster=mixed-ejb;node=node1;ejb-module=my-foo-app/my-bar-module",
-                "service:ejb.jboss:remote://localhost:6999;node=node1;ejb-module=my-foo-app/my-bar-module",
-                "service:ejb.jboss:remote://localhost:6999;cluster=mixed-ejb;node=node1;ejb-module=my-foo-app/my-bar-module"
+        final HashSet<HashSet<String>> EXPECTED_NODE1_URLS = new HashSet<HashSet<String>>(Arrays.asList(
+                new HashSet<String> (Arrays.asList("service:ejb.jboss:remote://127.0.0.1:6999;node=node1;ejb-module=my-foo-app/my-bar-module".split(";"))),
+                new HashSet<String> (Arrays.asList("service:ejb.jboss:remote://127.0.0.1:6999;cluster=mixed-ejb;node=node1;ejb-module=my-foo-app/my-bar-module".split(";"))),
+                new HashSet<String> (Arrays.asList("service:ejb.jboss:remote://localhost:6999;node=node1;ejb-module=my-foo-app/my-bar-module".split(";"))),
+                new HashSet<String> (Arrays.asList("service:ejb.jboss:remote://localhost:6999;cluster=mixed-ejb;node=node1;ejb-module=my-foo-app/my-bar-module".split(";")))
         ));
 
-        final Set<String> EXPECTED_NODE2_URLS = new HashSet<String>(Arrays.asList(
-                "service:ejb.jboss:remote://127.0.0.1:7099;node=node2;ejb-module=my-foo-app/my-bar-module",
-                "service:ejb.jboss:remote://127.0.0.1:7099;cluster=mixed-ejb;node=node2;ejb-module=my-foo-app/my-bar-module",
-                "service:ejb.jboss:remote://localhost:7099;node=node2;ejb-module=my-foo-app/my-bar-module",
-                "service:ejb.jboss:remote://localhost:7099;cluster=mixed-ejb;node=node2;ejb-module=my-foo-app/my-bar-module"
+        final HashSet<HashSet<String>> EXPECTED_NODE2_URLS = new HashSet<HashSet<String>>(Arrays.asList(
+                new HashSet<String> (Arrays.asList("service:ejb.jboss:remote://127.0.0.1:7099;node=node2;ejb-module=my-foo-app/my-bar-module".split(";"))),
+                new HashSet<String> (Arrays.asList("service:ejb.jboss:remote://127.0.0.1:7099;cluster=mixed-ejb;node=node2;ejb-module=my-foo-app/my-bar-module".split(";"))),
+                new HashSet<String> (Arrays.asList("service:ejb.jboss:remote://localhost:7099;node=node2;ejb-module=my-foo-app/my-bar-module".split(";"))),
+                new HashSet<String> (Arrays.asList("service:ejb.jboss:remote://localhost:7099;cluster=mixed-ejb;node=node2;ejb-module=my-foo-app/my-bar-module".split(";")))
         ));
 
-        Set<String> actual_node1_urls = new HashSet<String>();
-        Set<String> actual_node2_urls = new HashSet<String>();
+        HashSet<HashSet<String>> actual_node1_urls = new HashSet<HashSet<String>>();
+        HashSet<HashSet<String>> actual_node2_urls = new HashSet<HashSet<String>>();
 
         // validate the actual ServiceURLs agains expected ServiceURLs
         for (Map.Entry<String, List<ServiceURL>> entry : results.entrySet()) {
@@ -211,11 +211,11 @@ public class MixedModeServiceURLTestCase extends AbstractEJBClientTestCase {
             List<ServiceURL> listServiceURLs = (List<ServiceURL>) entry.getValue();
             if (node.equals("node1")) {
                 for (ServiceURL serviceURL : listServiceURLs) {
-                    actual_node1_urls.add(serviceURL.toString());
+                    actual_node1_urls.add(new HashSet<String> (Arrays.asList(serviceURL.toString().split(";"))));
                 }
             } else if (node.equals("node2")) {
                 for (ServiceURL serviceURL : listServiceURLs) {
-                    actual_node2_urls.add(serviceURL.toString());
+                    actual_node2_urls.add(new HashSet<String> (Arrays.asList(serviceURL.toString().split(";"))));
                 }
             }
         }
