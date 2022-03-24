@@ -23,7 +23,6 @@ import java.io.InvalidClassException;
 import java.io.ObjectInputStream;
 import java.io.Serializable;
 import java.net.URI;
-import java.net.URISyntaxException;
 
 /**
  * The affinity specification for an EJB proxy.
@@ -60,14 +59,18 @@ public abstract class Affinity implements Serializable {
      * @return the affinity specification (not {@code null})
      */
     public static Affinity forUri(URI uri) {
-        if (uri == null || ! uri.isAbsolute()) return NONE;
+        if (uri == null || !uri.isAbsolute()) return NONE;
         final String scheme = uri.getScheme();
         assert scheme != null; // due to isAbsolute() check
         switch (scheme) {
-            case "node": return new NodeAffinity(uri.getSchemeSpecificPart());
-            case "cluster": return new ClusterAffinity(uri.getSchemeSpecificPart());
-            case "local": return LOCAL;
-            default: return new URIAffinity(uri);
+            case "node":
+                return new NodeAffinity(uri.getSchemeSpecificPart());
+            case "cluster":
+                return new ClusterAffinity(uri.getSchemeSpecificPart());
+            case "local":
+                return LOCAL;
+            default:
+                return new URIAffinity(uri);
         }
     }
 
@@ -86,77 +89,11 @@ public abstract class Affinity implements Serializable {
 
     public abstract int hashCode();
 
-    private void readObject(ObjectInputStream ois) throws IOException, ClassNotFoundException {
-        ois.defaultReadObject();
-        if (! (this instanceof URIAffinity || this instanceof NodeAffinity || this instanceof ClusterAffinity || this instanceof LocalAffinity || this instanceof NoAffinity)) {
+    private void readObject(ObjectInputStream objectInputStream) throws IOException, ClassNotFoundException {
+        objectInputStream.defaultReadObject();
+        if (!(this instanceof URIAffinity || this instanceof NodeAffinity || this instanceof ClusterAffinity || this instanceof LocalAffinity || this instanceof NoAffinity)) {
             throw new InvalidClassException(getClass().getName(), "Disallowed affinity class");
         }
     }
 
-    static class NoAffinity extends Affinity {
-
-        private static final long serialVersionUID = -2052559528672779420L;
-
-        public int hashCode() {
-            return -1;
-        }
-
-        public URI getUri() {
-            return null;
-        }
-
-        public boolean equals(final Object other) {
-            return other == this;
-        }
-
-        public boolean equals(final Affinity obj) {
-            return obj == this;
-        }
-
-        protected Object readResolve() {
-            return NONE;
-        }
-
-        public String toString() {
-            return "None";
-        }
-    }
-
-    static class LocalAffinity extends Affinity {
-
-        private static final long serialVersionUID = -2052559528672779420L;
-        private static final URI uri;
-
-        static {
-            try {
-                uri = new URI("local", "-", null);
-            } catch (URISyntaxException e) {
-                throw new IllegalStateException(e);
-            }
-        }
-
-        public int hashCode() {
-            return -1;
-        }
-
-        public URI getUri() {
-            return uri;
-        }
-
-        public boolean equals(final Object other) {
-            return other == this;
-        }
-
-        public boolean equals(final Affinity obj) {
-            return obj == this;
-        }
-
-        protected Object readResolve() {
-            return LOCAL;
-        }
-
-        public String toString() {
-            return "Local";
-        }
-    }
 }

@@ -25,23 +25,23 @@ final class ArrayUtil {
     private ArrayUtil() {}
 
     static String bytesToString(byte[] bytes, int offs, int len) {
-        StringBuilder b = new StringBuilder(len * 2);
+        StringBuilder stringBuilder = new StringBuilder(len * 2);
         int h, l;
         for (int i = 0; i < len; i ++) {
             h = bytes[i + offs] & 0xff;
             l = h & 0x0f;
             h >>= 4;
             if (h < 10) {
-                b.append('0' + h);
+                stringBuilder.append('0' + h);
             } else {
-                b.append('A' + h - 10);
+                stringBuilder.append('A' + h - 10);
             }
             if (l < 10) {
-                b.append('0' + l);
+                stringBuilder.append('0' + l);
             } else {
-                b.append('A' + l - 10);
+                stringBuilder.append('A' + l - 10);
             }
         }
-        return b.toString();
+        return stringBuilder.toString();
     }
 }
