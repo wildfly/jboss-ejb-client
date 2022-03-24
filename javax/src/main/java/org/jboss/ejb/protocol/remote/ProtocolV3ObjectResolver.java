@@ -21,6 +21,7 @@ package org.jboss.ejb.protocol.remote;
 import java.net.URI;
 
 import org.jboss.ejb.client.Affinity;
+import org.jboss.ejb.client.LocalAffinity;
 import org.jboss.ejb.client.NodeAffinity;
 import org.jboss.ejb.client.URIAffinity;
 import org.jboss.marshalling.ObjectResolver;
@@ -42,16 +43,16 @@ final class ProtocolV3ObjectResolver extends ProtocolObjectResolver implements O
         selfNodeAffinity = localEndpointName == null ? null : new NodeAffinity(localEndpointName);
         this.preferUri = preferUri;
         final URI peerURI = connection.getPeerURI();
-        peerUriAffinity = peerURI == null ? null : (URIAffinity) Affinity.forUri(peerURI);
+        peerUriAffinity = peerURI == null ? null : (URIAffinity) LocalAffinity.forUri(peerURI);
     }
 
     public Object readResolve(final Object replacement) {
-        if (replacement == Affinity.LOCAL) {
+        if (replacement == LocalAffinity.LOCAL) {
             // This shouldn't be possible.  If it happens though, we will guess that it is the peer talking about itself
             return preferUri && peerUriAffinity != null ? peerUriAffinity : peerNodeAffinity != null ? peerNodeAffinity : Affinity.NONE;
         } else if (replacement instanceof NodeAffinity) {
             if (selfNodeAffinity != null && replacement.equals(selfNodeAffinity)) {
-                return Affinity.LOCAL;
+                return LocalAffinity.LOCAL;
             } else if (preferUri && peerUriAffinity != null && peerNodeAffinity != null && replacement.equals(peerNodeAffinity)) {
                 // the peer is talking about itself; use the more specific URI if we have one
                 return peerUriAffinity;
@@ -61,7 +62,7 @@ final class ProtocolV3ObjectResolver extends ProtocolObjectResolver implements O
     }
 
     public Object writeReplace(final Object original) {
-        if (original == Affinity.LOCAL && selfNodeAffinity != null) {
+        if (original == LocalAffinity.LOCAL && selfNodeAffinity != null) {
             // we don't know the peer's view URI of us, if there even is one, so switch it to node affinity and let the peer sort it out
             return selfNodeAffinity;
         } else if (peerUriAffinity != null && original instanceof URIAffinity && original.equals(peerUriAffinity) && peerNodeAffinity != null) {

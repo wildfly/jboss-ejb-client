@@ -26,8 +26,8 @@ import javax.ejb.NoSuchEJBException;
 import org.jboss.byteman.contrib.bmunit.BMScript;
 import org.jboss.byteman.contrib.bmunit.BMUnitRunner;
 import org.jboss.ejb.client.EJBClient;
+import org.jboss.ejb.client.LocalAffinity;
 import org.jboss.ejb.client.StatelessEJBLocator;
-import org.jboss.ejb.client.URIAffinity;
 import org.jboss.ejb.client.legacy.JBossEJBProperties;
 import org.jboss.ejb.client.test.ClassCallback;
 import org.jboss.ejb.client.test.common.DummyServer;
@@ -110,7 +110,7 @@ public class TimeoutRetryTestCase {
         } catch (URISyntaxException use) {
             //
         }
-        EJBClient.setStrongAffinity(proxy, URIAffinity.forUri(uri));
+        EJBClient.setStrongAffinity(proxy, LocalAffinity.forUri(uri));
         Assert.assertNotNull("Received a null proxy", proxy);
         logger.info("Created proxy for Echo: " + proxy.toString());
 

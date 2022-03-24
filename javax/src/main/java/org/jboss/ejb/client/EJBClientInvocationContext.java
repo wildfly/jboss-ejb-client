@@ -18,8 +18,12 @@
 
 package org.jboss.ejb.client;
 
-import static java.lang.Math.max;
-import static java.lang.Thread.holdsLock;
+import org.jboss.ejb._private.Logs;
+import org.jboss.ejb.client.annotation.ClientTransactionPolicy;
+import org.wildfly.common.Assert;
+import org.wildfly.common.annotation.NotNull;
+import org.wildfly.discovery.Discovery;
+import org.wildfly.security.auth.client.AuthenticationContext;
 
 import java.lang.reflect.Method;
 import java.lang.reflect.UndeclaredThrowableException;
@@ -28,19 +32,11 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.Executor;
-import java.util.concurrent.Future;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
+import java.util.concurrent.*;
 import java.util.function.Supplier;
 
-import org.jboss.ejb._private.Logs;
-import org.jboss.ejb.client.annotation.ClientTransactionPolicy;
-import org.wildfly.common.Assert;
-import org.wildfly.common.annotation.NotNull;
-import org.wildfly.discovery.Discovery;
-import org.wildfly.security.auth.client.AuthenticationContext;
+import static java.lang.Math.max;
+import static java.lang.Thread.holdsLock;
 
 /**
  * An invocation context for EJB invocations from an EJB client
@@ -133,16 +129,16 @@ public final class EJBClientInvocationContext extends AbstractInvocationContext 
      * Indicates to the server that a client side interceptor is interested in the context data that is stored
      * under the given key. Any object on the context data map (i.e. {@code InvocationContext.getContextData()} that is
      * present at the end of the server invocation will be serialised and returned to the client.
-     *
+     * <p>
      * If an object is present under this key and is not serializable then the request will fail.
      *
      * @param key The context data key the client interceptor is interested in
      */
     public void addReturnedContextDataKey(String key) {
         Object returnedData = getContextData().get(RETURNED_CONTEXT_DATA_KEY);
-        if(returnedData == null) {
+        if (returnedData == null) {
             getContextData().put(RETURNED_CONTEXT_DATA_KEY, returnedData = new HashSet<>());
-        } else if(!(returnedData instanceof Set)) {
+        } else if (!(returnedData instanceof Set)) {
             throw Logs.INVOCATION.returnedContextDataKeyOfWrongType();
         }
         Set<String> keys = (Set<String>) returnedData;
@@ -188,7 +184,7 @@ public final class EJBClientInvocationContext extends AbstractInvocationContext 
      * @return {@code true} if the method is definitely synchronous, {@code false} if the method may be asynchronous
      */
     public boolean isSynchronous() {
-        return ! isClientAsync() && methodInfo.isSynchronous();
+        return !isClientAsync() && methodInfo.isSynchronous();
     }
 
     /**
@@ -240,7 +236,7 @@ public final class EJBClientInvocationContext extends AbstractInvocationContext 
      * @return the compression hint level, or -1 for no compression hint
      */
     public int getCompressionLevel() {
-        if(methodInfo.getCompressionLevel() != -1){
+        if (methodInfo.getCompressionLevel() != -1) {
             return methodInfo.getCompressionLevel();
         }
         return getClientContext().getDefaultCompression();
@@ -335,7 +331,7 @@ public final class EJBClientInvocationContext extends AbstractInvocationContext 
 
     void sendRequestInitial() {
         assert checkState() == State.SENDING;
-        for (;;) {
+        for (; ; ) {
             assert interceptorChainIndex == 0;
             try {
                 getAuthenticationContext().runExConsumer(EJBClientInvocationContext::sendRequest, this);
@@ -406,7 +402,7 @@ public final class EJBClientInvocationContext extends AbstractInvocationContext 
                             return;
                         }
                         // FAILED, or retry SENDING.
-                        if (! retryRequested || remainingRetries == 0) {
+                        if (!retryRequested || remainingRetries == 0) {
                             // nobody wants retry, or there are none left; go to FAILED
                             if (pendingFailure != null) {
                                 addSuppressed(pendingFailure);
@@ -429,7 +425,7 @@ public final class EJBClientInvocationContext extends AbstractInvocationContext 
                         this.pendingFailure = null;
                         transition(State.SENDING);
                         retryRequested = false;
-                        remainingRetries --;
+                        remainingRetries--;
                     } finally {
                         checkStateInvariants();
                     }
@@ -463,7 +459,7 @@ public final class EJBClientInvocationContext extends AbstractInvocationContext 
                 throw Logs.MAIN.sendRequestCalledDuringWrongPhase();
             }
         }
-        final int idx = interceptorChainIndex ++;
+        final int idx = interceptorChainIndex++;
         try {
             if (cancelRequested) {
                 synchronized (lock) {
@@ -647,7 +643,7 @@ public final class EJBClientInvocationContext extends AbstractInvocationContext 
                                 suppressedExceptions = this.suppressedExceptions = new ArrayList<>();
                             }
                             suppressedExceptions.add(() -> t);
-                            this.remainingRetries --;
+                            this.remainingRetries--;
                             this.retryRequested = false;
                             this.cachedResult = null;
                             this.pendingFailure = null;
@@ -662,7 +658,8 @@ public final class EJBClientInvocationContext extends AbstractInvocationContext 
                                 for (Supplier<? extends Throwable> supplier : suppressedExceptions) {
                                     try {
                                         t.addSuppressed(supplier.get());
-                                    } catch (Throwable ignored) {}
+                                    } catch (Throwable ignored) {
+                                    }
                                 }
                             }
                             transition(State.DONE);
@@ -761,15 +758,17 @@ public final class EJBClientInvocationContext extends AbstractInvocationContext 
         return max(0L, timeUnit.convert(timeout - (System.nanoTime() - startTime) / 1_000_000L, TimeUnit.MILLISECONDS));
     }
 
-    @Override
+    /**
+     * Set the locator for the invocation target.
+     *
+     * @param locator the locator for the invocation target
+     */
     public <T> void setLocator(EJBLocator<T> locator) {
-        super.setLocator(locator);
-
         Affinity affinity = locator.getAffinity();
         if (affinity instanceof ClusterAffinity) {
             ClusterAffinityInterest interest = invocationHandler.getAttachment(ClusterAffinityInterest.KEY);
             if (interest != null) {
-                interest.notifyAssignment((ClusterAffinity)affinity);
+                interest.notifyAssignment((ClusterAffinity) affinity);
             }
         }
     }
@@ -837,8 +836,8 @@ public final class EJBClientInvocationContext extends AbstractInvocationContext 
                 this.remainingRetries = 0;
                 // fall thru
             }
-            case WAITING:{
-                if(waiters > 0) {
+            case WAITING: {
+                if (waiters > 0) {
                     lock.notifyAll();
                 }
                 break;
@@ -891,16 +890,16 @@ public final class EJBClientInvocationContext extends AbstractInvocationContext 
      * Wait to determine whether this invocation was cancelled.
      *
      * @return {@code true} if the invocation was cancelled; {@code false} if it completed or failed or the thread was
-     *  interrupted
+     * interrupted
      */
     public boolean awaitCancellationResult() {
         final Object lock = this.lock;
         Assert.assertNotHoldsLock(lock);
         synchronized (lock) {
-            for (;;) {
+            for (; ; ) {
                 if (resultProducer == CANCELLED) {
                     return true;
-                } else if (! state.isWaiting()) {
+                } else if (!state.isWaiting()) {
                     return false;
                 }
                 try {
@@ -927,7 +926,8 @@ public final class EJBClientInvocationContext extends AbstractInvocationContext 
             final long timeout = this.timeout;
             synchronized (lock) {
                 try {
-                    out: for (;;) {
+                    out:
+                    for (; ; ) {
                         switch (state) {
                             case SENDING:
                             case SENT:
@@ -1100,7 +1100,7 @@ public final class EJBClientInvocationContext extends AbstractInvocationContext 
                 if (state == State.DONE) {
                     // cannot cancel now; also resultProducer is gone
                     return pendingFailure == CANCELLED_PRODUCER;
-                } else if (! state.isWaiting()) {
+                } else if (!state.isWaiting()) {
                     // cannot cancel now
                     return resultProducer == CANCELLED;
                 } else {
@@ -1114,7 +1114,7 @@ public final class EJBClientInvocationContext extends AbstractInvocationContext 
             }
             final EJBReceiver receiver = getReceiver();
             final boolean result = receiver != null && receiver.cancelInvocation(receiverInvocationContext, mayInterruptIfRunning);
-            if (! result) {
+            if (!result) {
                 synchronized (lock) {
                     if (resultProducer == CANCELLED || state == State.DONE && pendingFailure == CANCELLED_PRODUCER) {
                         return true;
@@ -1140,7 +1140,7 @@ public final class EJBClientInvocationContext extends AbstractInvocationContext 
                     return retryRequested && remainingRetries > 0 && resultProducer instanceof ThrowableResult;
                 } else {
                     // TODO: we should also calculate whether the invocation timed out
-                    return ! state.isWaiting();
+                    return !state.isWaiting();
                 }
             }
         }
@@ -1168,7 +1168,8 @@ public final class EJBClientInvocationContext extends AbstractInvocationContext 
             }
             long remaining = unit.toNanos(timeout);
             synchronized (lock) {
-                out: for (;;) {
+                out:
+                for (; ; ) {
                     switch (state) {
                         case SENDING:
                         case SENT:

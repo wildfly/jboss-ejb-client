@@ -257,7 +257,7 @@ public final class EJBClient {
      * @throws CreateException if an error occurs
      */
     public static <T> StatefulEJBLocator<T> createSession(final URI uri, final Class<T> viewType, final String appName, final String moduleName, final String beanName, final String distinctName) throws Exception {
-        final Affinity affinity = uri == null ? Affinity.NONE : Affinity.forUri(uri);
+        final Affinity affinity = uri == null ? Affinity.NONE : LocalAffinity.forUri(uri);
         return createSession(new StatelessEJBLocator<T>(viewType, appName, moduleName, beanName, distinctName, affinity));
     }
 
@@ -305,7 +305,7 @@ public final class EJBClient {
      * @throws CreateException if an error occurs
      */
     public static <T> StatefulEJBLocator<T> createSession(final URI uri, final Class<T> viewType, final String appName, final String moduleName, final String beanName) throws Exception {
-        final Affinity affinity = uri == null ? Affinity.NONE : Affinity.forUri(uri);
+        final Affinity affinity = uri == null ? Affinity.NONE : LocalAffinity.forUri(uri);
         return createSession(new StatelessEJBLocator<T>(viewType, appName, moduleName, beanName, affinity));
     }
 

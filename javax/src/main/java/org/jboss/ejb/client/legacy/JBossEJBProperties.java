@@ -18,33 +18,6 @@
 
 package org.jboss.ejb.client.legacy;
 
-import static java.security.AccessController.doPrivileged;
-
-import java.io.BufferedInputStream;
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileNotFoundException;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
-import java.nio.file.NoSuchFileException;
-import java.nio.file.Path;
-import java.security.PrivilegedAction;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Properties;
-import java.util.StringTokenizer;
-import java.util.concurrent.atomic.AtomicReference;
-import java.util.function.Supplier;
-
-import javax.security.auth.callback.CallbackHandler;
-
 import org.jboss.ejb._private.Logs;
 import org.jboss.ejb.client.ClusterNodeSelector;
 import org.jboss.ejb.client.DeploymentNodeSelector;
@@ -59,6 +32,19 @@ import org.wildfly.common.function.ExceptionSupplier;
 import org.wildfly.common.iteration.CodePointIterator;
 import org.xnio.OptionMap;
 import org.xnio.Options;
+
+import javax.security.auth.callback.CallbackHandler;
+import java.io.*;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.NoSuchFileException;
+import java.nio.file.Path;
+import java.security.PrivilegedAction;
+import java.util.*;
+import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Supplier;
+
+import static java.security.AccessController.doPrivileged;
 
 /**
  * An object model of the legacy {@code jboss-ejb.properties} file format.
@@ -129,14 +115,15 @@ public final class JBossEJBProperties implements Contextual<JBossEJBProperties> 
                         try {
                             if (CONFIGURED_PATH_NAME != null) try {
                                 File propertiesFile = new File(CONFIGURED_PATH_NAME);
-                                if (! propertiesFile.isAbsolute()) {
+                                if (!propertiesFile.isAbsolute()) {
                                     propertiesFile = new File(SecurityUtils.getString(SystemProperties.USER_DIR), propertiesFile.toString());
                                 }
                                 value = JBossEJBProperties.fromFile(propertiesFile);
                             } catch (IOException e) {
                                 Logs.MAIN.failedToFindEjbClientConfigFileSpecifiedBySysProp(SystemProperties.PROPERTIES_FILE_PATH, e);
                                 value = JBossEJBProperties.fromClassPath();
-                            } else {
+                            }
+                            else {
                                 value = JBossEJBProperties.fromClassPath();
                             }
                         } catch (IOException e) {
@@ -327,28 +314,29 @@ public final class JBossEJBProperties implements Contextual<JBossEJBProperties> 
         builder.populateFromProperties(properties, "", classLoader, null);
 
         // if it's null, leave it null so that Remoting can pick a unique (hopefully) name based on our standard properties
-        builder.setEndpointName(getProperty(properties, PROPERTY_KEY_ENDPOINT_NAME, null, true));
+        final String propertiesEndpoint = getProperty(properties, PROPERTY_KEY_ENDPOINT_NAME, null, true);
 
         // default callback handler class
-        final String defaultCallbackHandlerClassName = getProperty(properties, PROPERTY_KEY_CALLBACK_HANDLER_CLASS, null, true);
-        builder.setCallbackHandlerClassName(defaultCallbackHandlerClassName);
+        final String defaultCallbackProp = getProperty(properties, PROPERTY_KEY_CALLBACK_HANDLER_CLASS, null, true);
 
         builder.setCallbackHandlerSupplier(() ->
-            Class.forName(defaultCallbackHandlerClassName, true, classLoader).asSubclass(CallbackHandler.class).getConstructor().newInstance());
+                Class.forName(defaultCallbackProp, true, classLoader).asSubclass(CallbackHandler.class).getConstructor().newInstance());
 
         // endpoint creation options
-        builder.setEndpointCreationOptions(getOptionMapFromProperties(properties, ENDPOINT_CREATION_OPTIONS_PREFIX, classLoader));
+        final OptionMap creationOptionProp = getOptionMapFromProperties(properties, ENDPOINT_CREATION_OPTIONS_PREFIX, classLoader);
 
         // remote connection provider options
-        builder.setRemoteConnectionProviderCreationOptions(getOptionMapFromProperties(properties, REMOTE_CONNECTION_PROVIDER_CREATE_OPTIONS_PREFIX, classLoader));
+        final OptionMap remoteConnProp = getOptionMapFromProperties(properties, REMOTE_CONNECTION_PROVIDER_CREATE_OPTIONS_PREFIX, classLoader);
 
         // invocation timeout
-        builder.setInvocationTimeout(getLongValueFromProperties(properties, PROPERTY_KEY_INVOCATION_TIMEOUT, -1L));
+        final Long timeoutInvoProp = getLongValueFromProperties(properties, PROPERTY_KEY_INVOCATION_TIMEOUT, -1L);
 
         // reconnect timeout
-        builder.setReconnectTimeout(getLongValueFromProperties(properties, PROPERTY_KEY_RECONNECT_TASKS_TIMEOUT, -1L));
+        final Long timeoutRecoProp = getLongValueFromProperties(properties, PROPERTY_KEY_RECONNECT_TASKS_TIMEOUT, -1L);
 
-        builder.setDefaultCompression(getIntValueFromProperties(properties, PROPERTY_KEY_DEFAULT_COMPRESSION,-1));
+        final int defaultCompProp = getIntValueFromProperties(properties, PROPERTY_KEY_DEFAULT_COMPRESSION, -1);
+
+        builder.initializer(propertiesEndpoint, defaultCallbackProp, creationOptionProp, remoteConnProp, timeoutInvoProp, timeoutRecoProp, defaultCompProp);
 
         // deployment node selector
         final String deploymentNodeSelectorClassName = getProperty(properties, PROPERTY_KEY_DEPLOYMENT_NODE_SELECTOR, null, true);
@@ -356,26 +344,26 @@ public final class JBossEJBProperties implements Contextual<JBossEJBProperties> 
             builder.setDeploymentNodeSelectorClassName(deploymentNodeSelectorClassName);
 
             builder.setDeploymentNodeSelectorSupplier(() ->
-                Class.forName(deploymentNodeSelectorClassName, true, classLoader).asSubclass(DeploymentNodeSelector.class).getConstructor().newInstance());
+                    Class.forName(deploymentNodeSelectorClassName, true, classLoader).asSubclass(DeploymentNodeSelector.class).getConstructor().newInstance());
         }
 
         // connections
         final String connectionsString = getProperty(properties, PROPERTY_KEY_REMOTE_CONNECTIONS, "", true).trim();
         final List<ConnectionConfiguration> connectionList;
 
-        if (! connectionsString.isEmpty()) {
+        if (!connectionsString.isEmpty()) {
             final ArrayList<ConnectionConfiguration> mutableList = new ArrayList<>();
 
             // Parse this the same way as the legacy code.
             final StringTokenizer tokenizer = new StringTokenizer(connectionsString, ",");
             while (tokenizer.hasMoreTokens()) {
                 final String connectionName = tokenizer.nextToken().trim();
-                if (! connectionName.isEmpty()) {
+                if (!connectionName.isEmpty()) {
                     final ConnectionConfiguration.Builder connBuilder = new ConnectionConfiguration.Builder();
 
                     String prefix = "remote.connection." + connectionName + ".";
 
-                    if (! connBuilder.populateFromProperties(properties, prefix, classLoader, builder, connectionName)) {
+                    if (!connBuilder.populateFromProperties(properties, prefix, classLoader, builder, connectionName)) {
                         continue;
                     }
 
@@ -398,12 +386,12 @@ public final class JBossEJBProperties implements Contextual<JBossEJBProperties> 
         final String clustersString = getProperty(properties, PROPERTY_KEY_CLUSTERS, "", true).trim();
         final Map<String, ClusterConfiguration> clusterMap;
 
-        if (! clustersString.isEmpty()) {
+        if (!clustersString.isEmpty()) {
             final HashMap<String, ClusterConfiguration> map = new HashMap<>();
             final StringTokenizer tokenizer = new StringTokenizer(clustersString, ",");
             while (tokenizer.hasMoreTokens()) {
                 final String clusterName = tokenizer.nextToken().trim();
-                if (! clusterName.isEmpty()) {
+                if (!clusterName.isEmpty()) {
                     String prefix = "remote.cluster." + clusterName + ".";
 
                     final ClusterConfiguration.Builder clusterBuilder = new ClusterConfiguration.Builder();
@@ -518,79 +506,6 @@ public final class JBossEJBProperties implements Contextual<JBossEJBProperties> 
 
     static JBossEJBProperties getCurrent() {
         return SUPPLIER.get();
-    }
-
-    static final class Builder extends CommonSubconfiguration.Builder {
-        String endpointName;
-
-        OptionMap endpointCreationOptions;
-        OptionMap remoteConnectionProviderCreationOptions;
-        List<ConnectionConfiguration> connectionList;
-        List<HttpConnectionConfiguration> httpConnectionList;
-        Map<String, ClusterConfiguration> clusterConfigurations;
-        long invocationTimeout;
-        long reconnectTimeout;
-        String deploymentNodeSelectorClassName;
-        int defaultCompression;
-        ExceptionSupplier<DeploymentNodeSelector, ReflectiveOperationException> deploymentNodeSelectorSupplier;
-
-        Builder() {
-        }
-
-        Builder setEndpointName(final String endpointName) {
-            this.endpointName = endpointName;
-            return this;
-        }
-
-        Builder setEndpointCreationOptions(final OptionMap endpointCreationOptions) {
-            this.endpointCreationOptions = endpointCreationOptions;
-            return this;
-        }
-
-        Builder setRemoteConnectionProviderCreationOptions(final OptionMap remoteConnectionProviderCreationOptions) {
-            this.remoteConnectionProviderCreationOptions = remoteConnectionProviderCreationOptions;
-            return this;
-        }
-
-        Builder setConnectionList(final List<ConnectionConfiguration> connectionList) {
-            this.connectionList = connectionList;
-            return this;
-        }
-
-        Builder setClusterConfigurations(final Map<String, ClusterConfiguration> clusterConfigurations) {
-            this.clusterConfigurations = clusterConfigurations;
-            return this;
-        }
-
-        Builder setInvocationTimeout(final long invocationTimeout) {
-            this.invocationTimeout = invocationTimeout;
-            return this;
-        }
-
-        Builder setReconnectTimeout(final long reconnectTimeout) {
-            this.reconnectTimeout = reconnectTimeout;
-            return this;
-        }
-
-        Builder setDeploymentNodeSelectorClassName(final String deploymentNodeSelectorClassName) {
-            this.deploymentNodeSelectorClassName = deploymentNodeSelectorClassName;
-            return this;
-        }
-
-        Builder setDeploymentNodeSelectorSupplier(final ExceptionSupplier<DeploymentNodeSelector, ReflectiveOperationException> deploymentNodeSelectorSupplier) {
-            this.deploymentNodeSelectorSupplier = deploymentNodeSelectorSupplier;
-            return this;
-        }
-
-        Builder setHttpConnectionList(final List<HttpConnectionConfiguration> httpConnectionList) {
-            this.httpConnectionList = httpConnectionList;
-            return this;
-        }
-
-        Builder setDefaultCompression(final int defaultCompression) {
-            this.defaultCompression = defaultCompression;
-            return this;
-        }
     }
 
     abstract static class CommonSubconfiguration {
@@ -714,7 +629,7 @@ public final class JBossEJBProperties implements Contextual<JBossEJBProperties> 
                 setChannelOptions(getOptionMapFromProperties(properties, prefix + "channel.options" + ".", classLoader));
 
                 final ExceptionSupplier<CallbackHandler, ReflectiveOperationException> callbackHandlerSupplier =
-                    () -> Class.forName(callbackHandlerClassName, true, classLoader).asSubclass(CallbackHandler.class).getConstructor().newInstance();
+                        () -> Class.forName(callbackHandlerClassName, true, classLoader).asSubclass(CallbackHandler.class).getConstructor().newInstance();
 
                 return true;
             }
@@ -764,7 +679,7 @@ public final class JBossEJBProperties implements Contextual<JBossEJBProperties> 
                 super.populateFromProperties(properties, prefix, classLoader, defaultsBuilder);
 
                 // connection host name
-                String host = getProperty(properties,prefix + PROPERTY_KEY_HOST, "", true).trim();
+                String host = getProperty(properties, prefix + PROPERTY_KEY_HOST, "", true).trim();
                 if (host.isEmpty()) {
                     Logs.MAIN.skippingConnectionCreationDueToMissingHostOrPort(connectionName);
                     return false;
@@ -772,7 +687,7 @@ public final class JBossEJBProperties implements Contextual<JBossEJBProperties> 
                 setHost(host);
 
                 // connection port#
-                String portStr = getProperty(properties,prefix + PROPERTY_KEY_PORT, "", true).trim();
+                String portStr = getProperty(properties, prefix + PROPERTY_KEY_PORT, "", true).trim();
                 if (portStr.isEmpty()) {
                     Logs.MAIN.skippingConnectionCreationDueToMissingHostOrPort(connectionName);
                     return false;
@@ -875,7 +790,7 @@ public final class JBossEJBProperties implements Contextual<JBossEJBProperties> 
             }
 
             boolean populateFromProperties(final String clusterName, final Properties properties, final String prefix, final ClassLoader classLoader, final CommonSubconfiguration.Builder defaultsBuilder) {
-                if (! super.populateFromProperties(properties, prefix, classLoader, defaultsBuilder)) {
+                if (!super.populateFromProperties(properties, prefix, classLoader, defaultsBuilder)) {
                     return false;
                 }
                 if (clusterName == null) {
@@ -887,7 +802,7 @@ public final class JBossEJBProperties implements Contextual<JBossEJBProperties> 
                 if (clusterNodeSelectorClassName != null) {
                     setClusterNodeSelectorClassName(clusterNodeSelectorClassName);
                     setClusterNodeSelectorSupplier(() ->
-                        Class.forName(clusterNodeSelectorClassName, true, classLoader).asSubclass(ClusterNodeSelector.class).getConstructor().newInstance()
+                            Class.forName(clusterNodeSelectorClassName, true, classLoader).asSubclass(ClusterNodeSelector.class).getConstructor().newInstance()
                     );
                 }
 
@@ -1038,7 +953,7 @@ public final class JBossEJBProperties implements Contextual<JBossEJBProperties> 
                         if (callbackHandlerClassName != null) {
                             setCallbackHandlerClassName(callbackHandlerClassName);
                             setCallbackHandlerSupplier(() ->
-                                Class.forName(callbackHandlerClassName, true, classLoader).asSubclass(CallbackHandler.class).getConstructor().newInstance());
+                                    Class.forName(callbackHandlerClassName, true, classLoader).asSubclass(CallbackHandler.class).getConstructor().newInstance());
                         } else {
                             if (userName == null) {
                                 return false;

@@ -51,35 +51,7 @@ import javax.transaction.SystemException;
 import javax.transaction.TransactionRequiredException;
 import javax.transaction.TransactionRolledbackException;
 
-import org.jboss.ejb.client.AbstractEJBMetaData;
-import org.jboss.ejb.client.Affinity;
-import org.jboss.ejb.client.AttachmentKey;
-import org.jboss.ejb.client.AttachmentKeys;
-import org.jboss.ejb.client.BasicSessionID;
-import org.jboss.ejb.client.ClusterAffinity;
-import org.jboss.ejb.client.EJBClientInvocationContext;
-import org.jboss.ejb.client.EJBClientPermission;
-import org.jboss.ejb.client.EJBHandle;
-import org.jboss.ejb.client.EJBHomeHandle;
-import org.jboss.ejb.client.EJBHomeLocator;
-import org.jboss.ejb.client.EJBIdentifier;
-import org.jboss.ejb.client.EJBLocator;
-import org.jboss.ejb.client.EJBMethodLocator;
-import org.jboss.ejb.client.EJBModuleIdentifier;
-import org.jboss.ejb.client.EntityEJBLocator;
-import org.jboss.ejb.client.EntityEJBMetaData;
-import org.jboss.ejb.client.NodeAffinity;
-import org.jboss.ejb.client.SerializedEJBInvocationHandler;
-import org.jboss.ejb.client.SessionID;
-import org.jboss.ejb.client.StatefulEJBLocator;
-import org.jboss.ejb.client.StatefulEJBMetaData;
-import org.jboss.ejb.client.StatelessEJBLocator;
-import org.jboss.ejb.client.StatelessEJBMetaData;
-import org.jboss.ejb.client.TransactionID;
-import org.jboss.ejb.client.URIAffinity;
-import org.jboss.ejb.client.UnknownSessionID;
-import org.jboss.ejb.client.UserTransactionID;
-import org.jboss.ejb.client.XidTransactionID;
+import org.jboss.ejb.client.*;
 import org.jboss.marshalling.ObjectTable;
 import org.jboss.marshalling.Unmarshaller;
 
@@ -100,7 +72,7 @@ final class ProtocolV3ObjectTable implements ObjectTable {
         final Object[] simpleObjects = {
             TransactionID.PRIVATE_DATA_KEY,
             Affinity.NONE,
-            Affinity.WEAK_AFFINITY_CONTEXT_KEY,
+                LocalAffinity.WEAK_AFFINITY_CONTEXT_KEY,
             EJBClientInvocationContext.PRIVATE_ATTACHMENTS_KEY,
             AttachmentKeys.TRANSACTION_ID_KEY,
             AttachmentKeys.WEAK_AFFINITY,

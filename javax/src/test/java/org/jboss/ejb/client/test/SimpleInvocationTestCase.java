@@ -22,13 +22,7 @@ import java.net.URISyntaxException;
 import java.util.List;
 import javax.ejb.NoSuchEJBException;
 
-import org.jboss.ejb.client.Affinity;
-import org.jboss.ejb.client.EJBClient;
-import org.jboss.ejb.client.EJBClientConnection;
-import org.jboss.ejb.client.EJBClientContext;
-import org.jboss.ejb.client.NodeAffinity;
-import org.jboss.ejb.client.StatelessEJBLocator;
-import org.jboss.ejb.client.URIAffinity;
+import org.jboss.ejb.client.*;
 import org.jboss.ejb.client.legacy.JBossEJBProperties;
 import org.jboss.ejb.client.test.common.Echo;
 import org.jboss.ejb.client.test.common.Result;
@@ -118,7 +112,7 @@ public class SimpleInvocationTestCase extends AbstractEJBClientTestCase {
         } catch(URISyntaxException use) {
             //
         }
-        final Affinity expectedStrongAffinity = URIAffinity.forUri(uri);
+        final Affinity expectedStrongAffinity = LocalAffinity.forUri(uri);
 
         final StatelessEJBLocator<Echo> statelessEJBLocator = StatelessEJBLocator.create(Echo.class, STATELESS_IDENTIFIER, expectedStrongAffinity);
         final Echo proxy = EJBClient.createProxy(statelessEJBLocator);
@@ -154,7 +148,7 @@ public class SimpleInvocationTestCase extends AbstractEJBClientTestCase {
         } catch(URISyntaxException use) {
             //
         }
-        final Affinity expectedStrongAffinity = URIAffinity.forUri(uri);
+        final Affinity expectedStrongAffinity = LocalAffinity.forUri(uri);
 
         final StatelessEJBLocator<Echo> statelessEJBLocator = StatelessEJBLocator.create(Echo.class, STATELESS_IDENTIFIER, expectedStrongAffinity);
         final Echo proxy = EJBClient.createProxy(statelessEJBLocator);

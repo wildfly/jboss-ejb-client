@@ -210,7 +210,7 @@ public final class NamingEJBClientInterceptor implements EJBClientInterceptor {
 
     private void processMissingTarget(final AbstractInvocationContext context, Exception cause) {
         final URI destination = context.getDestination();
-        if (destination == null || context.getTargetAffinity() == Affinity.LOCAL) {
+        if (destination == null || context.getTargetAffinity() == LocalAffinity.LOCAL) {
             // some later interceptor cleared it out on us
             return;
         }

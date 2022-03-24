@@ -20,11 +20,7 @@ package org.jboss.ejb.protocol.remote;
 
 import java.net.URI;
 
-import org.jboss.ejb.client.AbstractEJBMetaData;
-import org.jboss.ejb.client.Affinity;
-import org.jboss.ejb.client.EJBMetaDataImpl;
-import org.jboss.ejb.client.NodeAffinity;
-import org.jboss.ejb.client.URIAffinity;
+import org.jboss.ejb.client.*;
 import org.jboss.marshalling.ObjectResolver;
 import org.jboss.remoting3.Connection;
 import org.wildfly.common.rpc.RemoteExceptionCause;
@@ -45,7 +41,7 @@ final class ProtocolV1ObjectResolver extends ProtocolObjectResolver implements O
         selfNodeAffinity = localEndpointName == null ? null : new NodeAffinity(localEndpointName);
         this.preferUri = preferUri;
         final URI peerURI = connection.getPeerURI();
-        peerUriAffinity = peerURI == null ? null : (URIAffinity) Affinity.forUri(peerURI);
+        peerUriAffinity = peerURI == null ? null : (URIAffinity) LocalAffinity.forUri(peerURI);
     }
 
     public Object readResolve(final Object replacement) {
@@ -54,7 +50,7 @@ final class ProtocolV1ObjectResolver extends ProtocolObjectResolver implements O
         } else if (replacement instanceof NodeAffinity) {
             if (replacement.equals(selfNodeAffinity)) {
                 // Peer sent our node name; make it local
-                return Affinity.LOCAL;
+                return LocalAffinity.LOCAL;
             } else if (preferUri && peerUriAffinity != null && replacement.equals(peerNodeAffinity)) {
                 // Peer (server) sent their own node name; make it a URI if we can
                 return peerUriAffinity;
@@ -71,7 +67,7 @@ final class ProtocolV1ObjectResolver extends ProtocolObjectResolver implements O
                 return peerNodeAffinity;
             }
             return Affinity.NONE;
-        } else if (original == Affinity.LOCAL && selfNodeAffinity != null) {
+        } else if (original == LocalAffinity.LOCAL && selfNodeAffinity != null) {
             // Swap a local affinity with a node affinity with the name of this node
             return selfNodeAffinity;
         } else if (original instanceof AbstractEJBMetaData) {

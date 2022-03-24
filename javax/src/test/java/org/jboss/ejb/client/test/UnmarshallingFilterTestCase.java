@@ -24,17 +24,14 @@ import java.net.URISyntaxException;
 import javax.ejb.EJBException;
 
 import org.jboss.ejb.client.EJBClient;
+import org.jboss.ejb.client.LocalAffinity;
 import org.jboss.ejb.client.StatelessEJBLocator;
-import org.jboss.ejb.client.URIAffinity;
-import org.jboss.ejb.client.test.common.DummyServer;
 import org.jboss.ejb.client.test.common.TypeReporter;
 import org.jboss.ejb.client.test.common.TypeReporterBean;
 import org.jboss.logging.Logger;
 import org.junit.After;
-import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.Before;
-import org.junit.BeforeClass;
 import org.junit.Test;
 
 /**
@@ -74,7 +71,7 @@ public class UnmarshallingFilterTestCase extends AbstractEJBClientTestCase {
         } catch(URISyntaxException use) {
             //
         }
-        EJBClient.setStrongAffinity(proxy, URIAffinity.forUri(uri));
+        EJBClient.setStrongAffinity(proxy, LocalAffinity.forUri(uri));
         Assert.assertNotNull("Received a null proxy", proxy);
         logger.info("Created proxy for Echo: " + proxy.toString());
 
