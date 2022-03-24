@@ -147,8 +147,13 @@ public abstract class SessionID implements Serializable, Comparable<SessionID> {
         }
     }
 
+    protected static IllegalArgumentException wrongFormat() {
+        return new IllegalArgumentException("Wrong session ID format");
+    }
+
     @Override
     public String toString() {
         return String.format("%s [%s]", getClass().getSimpleName(), ArrayUtil.bytesToString(encodedForm, 0, encodedForm.length));
     }
+
 }

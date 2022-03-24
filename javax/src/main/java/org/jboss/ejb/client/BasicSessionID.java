@@ -34,7 +34,4 @@ public final class BasicSessionID extends SessionID {
         }
     }
 
-    private static IllegalArgumentException wrongFormat() {
-        return new IllegalArgumentException("Wrong session ID format");
-    }
 }

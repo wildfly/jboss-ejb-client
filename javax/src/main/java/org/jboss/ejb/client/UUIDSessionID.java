@@ -70,10 +70,6 @@ public final class UUIDSessionID extends SessionID {
         return uuid;
     }
 
-    private static IllegalArgumentException wrongFormat() {
-        return new IllegalArgumentException("Wrong session ID format");
-    }
-
     @Override
     public String toString() {
         return String.format("%s [%s]", getClass().getSimpleName(), uuid);
