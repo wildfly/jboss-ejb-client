@@ -110,6 +110,15 @@ public abstract class AbstractInvocationContext extends Attachable {
     }
 
     /**
+     * Set the locator for the invocation target.
+     *
+     * @param locator the locator for the invocation target
+     */
+    public <T> void setLocator(final EJBLocator<T> locator) {
+        this.locator = locator;
+    }
+
+    /**
      * Get the resolved destination of this invocation.  If the destination is not yet decided, {@code null} is
      * returned.
      *

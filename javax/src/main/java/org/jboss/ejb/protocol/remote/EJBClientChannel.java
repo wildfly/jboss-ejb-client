@@ -61,26 +61,7 @@ import javax.transaction.xa.Xid;
 
 import org.jboss.ejb._private.Keys;
 import org.jboss.ejb._private.Logs;
-import org.jboss.ejb.client.AbstractInvocationContext;
-import org.jboss.ejb.client.Affinity;
-import org.jboss.ejb.client.AttachmentKey;
-import org.jboss.ejb.client.AttachmentKeys;
-import org.jboss.ejb.client.ClusterAffinity;
-import org.jboss.ejb.client.EJBClient;
-import org.jboss.ejb.client.EJBClientContext;
-import org.jboss.ejb.client.EJBClientInvocationContext;
-import org.jboss.ejb.client.EJBLocator;
-import org.jboss.ejb.client.EJBModuleIdentifier;
-import org.jboss.ejb.client.EJBReceiverInvocationContext;
-import org.jboss.ejb.client.EJBSessionCreationInvocationContext;
-import org.jboss.ejb.client.NodeAffinity;
-import org.jboss.ejb.client.RequestSendFailedException;
-import org.jboss.ejb.client.SessionID;
-import org.jboss.ejb.client.StatefulEJBLocator;
-import org.jboss.ejb.client.StatelessEJBLocator;
-import org.jboss.ejb.client.TransactionID;
-import org.jboss.ejb.client.UserTransactionID;
-import org.jboss.ejb.client.XidTransactionID;
+import org.jboss.ejb.client.*;
 import org.jboss.marshalling.ByteInput;
 import org.jboss.marshalling.Marshaller;
 import org.jboss.marshalling.MarshallerFactory;
@@ -1325,7 +1306,7 @@ class EJBClientChannel {
                     final EJBClientInvocationContext clientInvocationContext = receiverInvocationContext.getClientInvocationContext();
                     for (int i = 0; i < attachments; i ++) {
                         String key = unmarshaller.readObject(String.class);
-                        if (version < 3 && key.equals(Affinity.WEAK_AFFINITY_CONTEXT_KEY)) {
+                        if (version < 3 && key.equals(LocalAffinity.WEAK_AFFINITY_CONTEXT_KEY)) {
                             final Affinity affinity = unmarshaller.readObject(Affinity.class);
                             clientInvocationContext.putAttachment(AttachmentKeys.WEAK_AFFINITY, affinity);
                             clientInvocationContext.setWeakAffinity(affinity);

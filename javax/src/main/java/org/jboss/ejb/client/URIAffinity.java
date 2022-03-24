@@ -54,7 +54,7 @@ public final class URIAffinity extends Affinity {
         } else if (s.equals("cluster")) {
             return new ClusterAffinity(uri.getSchemeSpecificPart());
         } else if (s.equals("local")) {
-            return LOCAL;
+            return org.jboss.ejb.client.LocalAffinity.LOCAL;
         } else {
             // keep same object
             return this;

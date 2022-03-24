@@ -149,9 +149,9 @@ public final class DiscoveryEJBClientInterceptor implements EJBClientInterceptor
                 final URI destination = context.getDestination();
                 if (destination != null) {
                     if (Logs.INVOCATION.isDebugEnabled()) {
-                        Logs.INVOCATION.debugf("DiscoveryEJBClientInterceptor: calling handleInvocationResult - stateful, clustered case, setting weakAffinity to URIAffintiy = %s", URIAffinity.forUri(destination));
+                        Logs.INVOCATION.debugf("DiscoveryEJBClientInterceptor: calling handleInvocationResult - stateful, clustered case, setting weakAffinity to URIAffintiy = %s", LocalAffinity.forUri(destination));
                     }
-                    context.setWeakAffinity(URIAffinity.forUri(destination));
+                    context.setWeakAffinity(LocalAffinity.forUri(destination));
                 }
                 // if destination is null, then an interceptor set the location
             }
@@ -228,7 +228,7 @@ public final class DiscoveryEJBClientInterceptor implements EJBClientInterceptor
             } else {
                 final URI destination = context.getDestination();
                 if (destination != null) {
-                    context.setLocator(locator.withNewAffinity(URIAffinity.forUri(destination)));
+                    context.setLocator(locator.withNewAffinity(LocalAffinity.forUri(destination)));
                 }
                 // if destination is null, then an interceptor set the location
             }
@@ -241,7 +241,7 @@ public final class DiscoveryEJBClientInterceptor implements EJBClientInterceptor
             } else {
                 final URI destination = context.getDestination();
                 if (destination != null) {
-                    context.setWeakAffinity(URIAffinity.forUri(destination));
+                    context.setWeakAffinity(LocalAffinity.forUri(destination));
                 }
                 // if destination is null, then an interceptor set the location
             }
@@ -256,7 +256,7 @@ public final class DiscoveryEJBClientInterceptor implements EJBClientInterceptor
     private void processMissingTarget(final AbstractInvocationContext context, final Exception cause) {
         final URI destination = context.getDestination();
 
-        if (destination == null || context.getTargetAffinity() == Affinity.LOCAL) {
+        if (destination == null || context.getTargetAffinity() == LocalAffinity.LOCAL) {
             // nothing we can/should do.
             return;
         }
@@ -362,7 +362,7 @@ public final class DiscoveryEJBClientInterceptor implements EJBClientInterceptor
 
         FilterSpec filterSpec, fallbackFilterSpec;
 
-        if (affinity instanceof URIAffinity || affinity == Affinity.LOCAL) {
+        if (affinity instanceof URIAffinity || affinity == LocalAffinity.LOCAL) {
             if (! isBlackListed(context, affinity.getUri())) {
                 // Simple; just set a fixed destination
                 context.setDestination(affinity.getUri());
@@ -404,7 +404,7 @@ public final class DiscoveryEJBClientInterceptor implements EJBClientInterceptor
                     getFilterSpec(locator.getIdentifier().getModuleIdentifier())
                 );
                 return doFirstMatchDiscovery(context, filterSpec, fallbackFilterSpec);
-            } else if (weakAffinity instanceof URIAffinity || weakAffinity == Affinity.LOCAL) {
+            } else if (weakAffinity instanceof URIAffinity || weakAffinity == LocalAffinity.LOCAL) {
                 // try direct
                 context.setDestination(weakAffinity.getUri());
                 context.setTargetAffinity(weakAffinity);
@@ -445,7 +445,7 @@ public final class DiscoveryEJBClientInterceptor implements EJBClientInterceptor
                         context.setTargetAffinity(new NodeAffinity(nodeValue.toString()));
                     } else {
                         // just set the URI
-                        context.setTargetAffinity(URIAffinity.forUri(location));
+                        context.setTargetAffinity(LocalAffinity.forUri(location));
                     }
                     context.setDestination(location);
                     if (Logs.INVOCATION.isDebugEnabled()) {
@@ -513,7 +513,7 @@ public final class DiscoveryEJBClientInterceptor implements EJBClientInterceptor
                         final String nodeName = nodeValue.toString();
                         nodes.put(location, nodeName);
                         // we want to prioritize local invocation
-                        if(!uris.containsKey(nodeName) || location.equals(Affinity.LOCAL.getUri())) {
+                        if(!uris.containsKey(nodeName) || location.equals(LocalAffinity.LOCAL.getUri())) {
                             uris.put(nodeName, location);
                         }
                     } else {

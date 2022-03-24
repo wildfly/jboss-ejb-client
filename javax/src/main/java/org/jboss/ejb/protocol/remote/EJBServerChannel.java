@@ -54,21 +54,7 @@ import javax.transaction.xa.XAException;
 import javax.transaction.xa.Xid;
 
 import org.jboss.ejb._private.Logs;
-import org.jboss.ejb.client.Affinity;
-import org.jboss.ejb.client.AttachmentKeys;
-import org.jboss.ejb.client.ClusterAffinity;
-import org.jboss.ejb.client.EJBClient;
-import org.jboss.ejb.client.EJBClientInvocationContext;
-import org.jboss.ejb.client.EJBIdentifier;
-import org.jboss.ejb.client.EJBLocator;
-import org.jboss.ejb.client.EJBMethodLocator;
-import org.jboss.ejb.client.EJBModuleIdentifier;
-import org.jboss.ejb.client.NodeAffinity;
-import org.jboss.ejb.client.RequestSendFailedException;
-import org.jboss.ejb.client.SessionID;
-import org.jboss.ejb.client.TransactionID;
-import org.jboss.ejb.client.UserTransactionID;
-import org.jboss.ejb.client.XidTransactionID;
+import org.jboss.ejb.client.*;
 import org.jboss.ejb.client.annotation.CompressionHint;
 import org.jboss.ejb.server.Association;
 import org.jboss.ejb.server.CancelHandle;
@@ -986,7 +972,7 @@ final class EJBServerChannel {
                             marshaller.writeObject(result);
                             attachments.remove(EJBClient.SOURCE_ADDRESS_KEY);
                             if (version >= 3) {
-                                attachments.remove(Affinity.WEAK_AFFINITY_CONTEXT_KEY);
+                                attachments.remove(LocalAffinity.WEAK_AFFINITY_CONTEXT_KEY);
                             }
                             int count = attachments.size();
                             if (count > 255) {

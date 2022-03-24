@@ -17,14 +17,7 @@
  */
 package org.jboss.ejb.client.test.common;
 
-import org.jboss.ejb.client.Affinity;
-import org.jboss.ejb.client.ClusterAffinity;
-import org.jboss.ejb.client.EJBIdentifier;
-import org.jboss.ejb.client.EJBLocator;
-import org.jboss.ejb.client.EJBMethodLocator;
-import org.jboss.ejb.client.EJBModuleIdentifier;
-import org.jboss.ejb.client.NodeAffinity;
-import org.jboss.ejb.client.UUIDSessionID;
+import org.jboss.ejb.client.*;
 import org.jboss.ejb.server.Association;
 import org.jboss.ejb.server.CancelHandle;
 import org.jboss.ejb.server.ClusterTopologyListener;
@@ -325,7 +318,7 @@ public class DummyAssociationImpl implements Association {
 
         // TODO: handle protocol versions less than 3
         if (legacyAffinity != null && !legacyAffinity.equals(Affinity.NONE)) {
-            attachments.put(Affinity.WEAK_AFFINITY_CONTEXT_KEY, legacyAffinity);
+            attachments.put(LocalAffinity.WEAK_AFFINITY_CONTEXT_KEY, legacyAffinity);
         }
 
         logger.info("Server (" + getHost() + ") updated invocation affinities for bean " + bean.getClass().getName() + ": (strong, weak) = (" + strongAffinity + "," + weakAffinity + ")") ;
