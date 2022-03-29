@@ -18,10 +18,10 @@
 
 package org.jboss.ejb.client;
 
-import static org.jboss.ejb.client.DiscoveryEJBClientInterceptor.addBlackListedDestination;
-import static org.jboss.ejb.client.DiscoveryEJBClientInterceptor.addInvocationBlackListedDestination;
-import static org.jboss.ejb.client.DiscoveryEJBClientInterceptor.isBlackListed;
-import static org.jboss.ejb.client.DiscoveryEJBClientInterceptor.shouldBlacklist;
+import static org.jboss.ejb.client.DiscoveryEJBClientInterceptor.addBlocklistedDestination;
+import static org.jboss.ejb.client.DiscoveryEJBClientInterceptor.addInvocationBlocklistedDestination;
+import static org.jboss.ejb.client.DiscoveryEJBClientInterceptor.isBlocklisted;
+import static org.jboss.ejb.client.DiscoveryEJBClientInterceptor.shouldBlocklist;
 
 import java.net.URI;
 import java.util.ArrayList;
@@ -151,11 +151,11 @@ public final class NamingEJBClientInterceptor implements EJBClientInterceptor {
         }
         // select the subset of providerURIs that agree with TransactionInterceptor's choices
         List<URI> uris = findPreferredURIs(context, providerUris);
-        // if there are none, use all non-blacklisted providerURIs instead
+        // if there are none, use all non-blocklisted providerURIs instead
         if (uris == null) {
             uris = new ArrayList<>(providerUris.size());
             for (URI uri : providerUris) {
-                if (!isBlackListed(context, uri)) {
+                if (!isBlocklisted(context, uri)) {
                     uris.add(uri);
                 }
             }
@@ -194,7 +194,7 @@ public final class NamingEJBClientInterceptor implements EJBClientInterceptor {
         HashSet<URI> preferred = new HashSet<>(attachment);
         List<URI> result = null;
         for (URI check : uris) {
-            if (preferred.contains(check) && !isBlackListed(context, check)) {
+            if (preferred.contains(check) && !isBlocklisted(context, check)) {
                 if (result == null) {
                     result = new ArrayList<>(preferred.size());
                 }
@@ -220,10 +220,10 @@ public final class NamingEJBClientInterceptor implements EJBClientInterceptor {
         }
 
         // Oops, we got some wrong information!
-        if(shouldBlacklist(cause)){
-            addBlackListedDestination(destination);
+        if(shouldBlocklist(cause)){
+            addBlocklistedDestination(destination);
         } else {
-            addInvocationBlackListedDestination(context, destination);
+            addInvocationBlocklistedDestination(context, destination);
         }
 
         final EJBLocator<?> locator = context.getLocator();

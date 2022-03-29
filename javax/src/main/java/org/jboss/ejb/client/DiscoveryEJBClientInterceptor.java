@@ -86,8 +86,8 @@ public final class DiscoveryEJBClientInterceptor implements EJBClientInterceptor
     public static final int PRIORITY = ClientInterceptorPriority.JBOSS_AFTER + 100;
 
     private static final AttachmentKey<Set<URI>> BL_KEY = new AttachmentKey<>();
-    private static final Map<URI, Long> blacklist = new ConcurrentHashMap<>();
-    private static final long BLACKLIST_TIMEOUT = TimeUnit.MILLISECONDS.toNanos(SecurityUtils.getLong(SystemProperties.DISCOVERY_BLACKLIST_TIMEOUT, 5000L));
+    private static final Map<URI, Long> blocklist = new ConcurrentHashMap<>();
+    private static final long BLOCKLIST_TIMEOUT = TimeUnit.MILLISECONDS.toNanos(SecurityUtils.getLong(SystemProperties.DISCOVERY_BLOCKLIST_TIMEOUT, 5000L));
 
     /**
      * Construct a new instance.
@@ -262,10 +262,10 @@ public final class DiscoveryEJBClientInterceptor implements EJBClientInterceptor
         }
 
         // Oops, we got some wrong information!
-        if (shouldBlacklist(cause)) {
-            addBlackListedDestination(destination);
+        if (shouldBlocklist(cause)) {
+            addBlocklistedDestination(destination);
         } else {
-            addInvocationBlackListedDestination(context, destination);
+            addInvocationBlocklistedDestination(context, destination);
         }
 
         getDiscovery().processMissingTarget(destination, cause);
@@ -277,7 +277,7 @@ public final class DiscoveryEJBClientInterceptor implements EJBClientInterceptor
         context.requestRetry();
     }
 
-    static boolean shouldBlacklist(Exception cause){
+    static boolean shouldBlocklist(Exception cause){
         if ((cause instanceof RequestSendFailedException)
                 && (cause.getCause()) instanceof ConnectException) {
             return true;
@@ -285,7 +285,7 @@ public final class DiscoveryEJBClientInterceptor implements EJBClientInterceptor
         return false;
     }
 
-    static void addInvocationBlackListedDestination(AbstractInvocationContext context, URI destination) {
+    static void addInvocationBlocklistedDestination(AbstractInvocationContext context, URI destination) {
         Assert.checkNotNullParam("context", context);
         if (destination != null) {
             Set<URI> set = context.getAttachment(BL_KEY);
@@ -297,42 +297,42 @@ public final class DiscoveryEJBClientInterceptor implements EJBClientInterceptor
             }
             set.add(destination);
             if (Logs.INVOCATION.isDebugEnabled()) {
-                Logs.INVOCATION.debugf("DiscoveryEJBClientInterceptor: blacklisting destination for this invocation (locator = %s, weak affinity = %s, missing target = %s)", context.getLocator(), context.getWeakAffinity(), destination);
+                Logs.INVOCATION.debugf("DiscoveryEJBClientInterceptor: blocklisting destination for this invocation (locator = %s, weak affinity = %s, missing target = %s)", context.getLocator(), context.getWeakAffinity(), destination);
             }
         }
     }
 
-    static void addBlackListedDestination(URI destination) {
+    static void addBlocklistedDestination(URI destination) {
         if (destination != null) {
             if (Logs.INVOCATION.isDebugEnabled()) {
-                Logs.INVOCATION.debugf("DiscoveryEJBClientInterceptor: blacklisting destination %s", destination);
+                Logs.INVOCATION.debugf("DiscoveryEJBClientInterceptor: blocklisting destination %s", destination);
             }
-            blacklist.put(destination, System.nanoTime());
+            blocklist.put(destination, System.nanoTime());
         }
     }
 
-    static boolean isBlackListed(AbstractInvocationContext context, URI destination) {
-        final Set<URI> invocationBlacklist = context.getAttachment(BL_KEY);
-        if (invocationBlacklist != null && invocationBlacklist.contains(destination)) {
+    static boolean isBlocklisted(AbstractInvocationContext context, URI destination) {
+        final Set<URI> invocationBlocklist = context.getAttachment(BL_KEY);
+        if (invocationBlocklist != null && invocationBlocklist.contains(destination)) {
             return true;
         }
 
-        // check if it is in the static blacklist
-        if (!blacklist.containsKey(destination)) {
+        // check if it is in the static blocklist
+        if (!blocklist.containsKey(destination)) {
             return false;
         }
 
-        // getBlacklist() will remove any blacklisted entries that are now > than BLACKLIST_TIMEOUT
-        // to check if any blacklisted destinations are now available to be used
-        return getBlacklist().contains(destination);
+        // getBlocklist() will remove any blocklisted entries that are now > than BLOCKLIST_TIMEOUT
+        // to check if any blocklisted destinations are now available to be used
+        return getBlocklist().contains(destination);
     }
 
-    static Set<URI> getBlacklist(){
-        blacklist.entrySet().removeIf(e ->
+    static Set<URI> getBlocklist(){
+        blocklist.entrySet().removeIf(e ->
         {
-            return (System.nanoTime() - e.getValue()) > BLACKLIST_TIMEOUT;
+            return (System.nanoTime() - e.getValue()) > BLOCKLIST_TIMEOUT;
         });
-        return blacklist.keySet();
+        return blocklist.keySet();
     }
 
     ServicesQueue discover(final AbstractInvocationContext invocationContext, FilterSpec filterSpec) {
@@ -363,14 +363,14 @@ public final class DiscoveryEJBClientInterceptor implements EJBClientInterceptor
         FilterSpec filterSpec, fallbackFilterSpec;
 
         if (affinity instanceof URIAffinity || affinity == Affinity.LOCAL) {
-            if (! isBlackListed(context, affinity.getUri())) {
+            if (! isBlocklisted(context, affinity.getUri())) {
                 // Simple; just set a fixed destination
                 context.setDestination(affinity.getUri());
                 context.setTargetAffinity(affinity);
             }
             return null;
         } else if (affinity == Affinity.NONE && weakAffinity instanceof URIAffinity) {
-            if (! isBlackListed(context, weakAffinity.getUri())) {
+            if (! isBlocklisted(context, weakAffinity.getUri())) {
                 context.setDestination(weakAffinity.getUri());
                 context.setTargetAffinity(weakAffinity);
             }
@@ -433,12 +433,12 @@ public final class DiscoveryEJBClientInterceptor implements EJBClientInterceptor
             Logs.INVOCATION.debugf("DiscoveryEJBClientInterceptor: performing first-match discovery(locator = %s, weak affinity = %s, filter spec = %s)", context.getLocator(), context.getWeakAffinity(), filterSpec);
         }
         final List<Throwable> problems;
-        final Set<URI> blacklist = getBlacklist();
+        final Set<URI> blocklist = getBlocklist();
         try (final ServicesQueue queue = discover(context, filterSpec)) {
             ServiceURL serviceURL;
             while ((serviceURL = queue.takeService(DISCOVERY_TIMEOUT, TimeUnit.SECONDS)) != null) {
                 final URI location = serviceURL.getLocationURI();
-                if (!blacklist.contains(location)) {
+                if (!blocklist.contains(location)) {
                     // Got a match!  See if there's a node affinity to set for the invocation.
                     final AttributeValue nodeValue = serviceURL.getFirstAttributeValue(FILTER_ATTR_NODE);
                     if (nodeValue != null) {
@@ -491,8 +491,8 @@ public final class DiscoveryEJBClientInterceptor implements EJBClientInterceptor
     private List<Throwable> doAnyDiscovery(AbstractInvocationContext context, final FilterSpec filterSpec, final EJBLocator<?> locator) {
         Logs.INVOCATION.tracef("DiscoveryEJBClientInterceptor: performing any discovery(locator = %s, weak affinity = %s, filter spec = %s)", context.getLocator(), context.getWeakAffinity(), filterSpec);
         final List<Throwable> problems;
-        // blacklist
-        final Set<URI> blacklist = getBlacklist();
+        // blocklist
+        final Set<URI> blocklist = getBlocklist();
         final Map<URI, String> nodes = new HashMap<>();
         final Map<String, URI> uris = new HashMap<>();
         final Map<URI, List<String>> clusterAssociations = new HashMap<>();
@@ -503,7 +503,7 @@ public final class DiscoveryEJBClientInterceptor implements EJBClientInterceptor
             ServiceURL serviceURL;
             while ((serviceURL = queue.takeService(timeout, TimeUnit.MILLISECONDS)) != null) {
                 final URI location = serviceURL.getLocationURI();
-                if (!blacklist.contains(location)) {
+                if (!blocklist.contains(location)) {
                     // Got a match!  See if there's a node affinity to set for the invocation.
                     final AttributeValue nodeValue = serviceURL.getFirstAttributeValue(FILTER_ATTR_NODE);
                     if (nodeValue != null) {
@@ -628,13 +628,13 @@ public final class DiscoveryEJBClientInterceptor implements EJBClientInterceptor
         Map<String, URI> nodes = new HashMap<>();
         final EJBClientContext clientContext = context.getClientContext();
         final List<Throwable> problems;
-        final Set<URI> blacklist = getBlacklist();
+        final Set<URI> blocklist = getBlocklist();
         long timeout = DISCOVERY_TIMEOUT * 1000;
         try (final ServicesQueue queue = discover(context, filterSpec)) {
             ServiceURL serviceURL;
             while ((serviceURL = queue.takeService(timeout, TimeUnit.MILLISECONDS)) != null) {
                 final URI location = serviceURL.getLocationURI();
-                if (!blacklist.contains(location)) {
+                if (!blocklist.contains(location)) {
                     final EJBReceiver transportProvider = clientContext.getTransportProvider(location.getScheme());
                     if (transportProvider != null && satisfiesSourceAddress(serviceURL, transportProvider)) {
                         final AttributeValue nodeNameValue = serviceURL.getFirstAttributeValue(FILTER_ATTR_NODE);
