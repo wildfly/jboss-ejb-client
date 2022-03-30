@@ -70,9 +70,9 @@ public class DummyServer implements AutoCloseable {
 
     private static final Logger logger = Logger.getLogger(DummyServer.class);
     /*
-     * Reject unmarshalling an instance of IAE, as a kind of 'blacklist'.
+     * Reject unmarshalling an instance of IAE, as a kind of 'blocklist'.
      * In normal tests this type would never be sent, which is analogous to
-     * how blacklisted classes are normally not sent. And then we can
+     * how blocklisted classes are normally not sent. And then we can
      * deliberately send an IAE in tests to confirm it is rejected.
      */
     private static final Function<String, Boolean> DEFAULT_CLASS_FILTER = cName -> !cName.equals(IllegalArgumentException.class.getName());

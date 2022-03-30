@@ -25,7 +25,7 @@ package org.jboss.ejb.client;
 final class SystemProperties {
 
     static final String DISCOVERY_ADDITIONAL_NODE_TIMEOUT = "org.jboss.ejb.client.discovery.additional-node-timeout";
-    static final String DISCOVERY_BLACKLIST_TIMEOUT = "org.jboss.ejb.client.discovery.blacklist.timeout";
+    static final String DISCOVERY_BLOCKLIST_TIMEOUT = "org.jboss.ejb.client.discovery.blacklist.timeout";
     static final String DISCOVERY_TIMEOUT = "org.jboss.ejb.client.discovery.timeout";
     static final String JBOSS_NODE_NAME = "jboss.node.name";
     static final String MAX_ENTRIES = "org.jboss.ejb.client.max-retries";

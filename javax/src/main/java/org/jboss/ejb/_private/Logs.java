@@ -445,7 +445,7 @@ public interface Logs extends BasicLogger {
     @Message(id = 515, value = "HTTP connection was configured with invalid URI: %s .")
     void skippingHttpConnectionCreationDueToInvalidUri(final String uri);
 
-    @Message(id = 516, value = "Exception resolving class %s for unmarshalling; it has either been blacklisted or not whitelisted")
+    @Message(id = 516, value = "Exception resolving class %s for unmarshalling; it has either been blocklisted or not allowlisted")
     InvalidClassException cannotResolveFilteredClass(String clazz);
 
     @LogMessage(level = WARN)
