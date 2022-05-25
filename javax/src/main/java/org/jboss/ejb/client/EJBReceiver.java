@@ -24,8 +24,8 @@ import java.net.URI;
 import org.wildfly.common.Assert;
 
 /**
- * A receiver for EJB invocations.  Receivers can be associated with one or more client contexts.  This interface is
- * implemented by providers for EJB invocation services.
+ * A receiver for Enterprise Beans invocations.  Receivers can be associated with one or more client contexts.  This interface is
+ * implemented by providers for Enterprise Beans invocation services.
  *
  * @author <a href="mailto:david.lloyd@redhat.com">David M. Lloyd</a>
  */
@@ -42,7 +42,7 @@ public abstract class EJBReceiver extends Attachable {
      * operation result should be passed in to the receiver invocation context.  To ensure ideal GC behavior, the
      * receiver should discard any reference to the invocation context(s) once the result producer has been set.
      *
-     * @param receiverContext         The EJB receiver invocation context
+     * @param receiverContext         The Enterprise Beans receiver invocation context
      * @throws Exception if the operation throws an exception
      */
     protected abstract void processInvocation(EJBReceiverInvocationContext receiverContext) throws Exception;
@@ -52,7 +52,7 @@ public abstract class EJBReceiver extends Attachable {
      * the operation was actually cancelled; however it is permissible to fall back to returning {@code false} if
      * it cannot be discovered.
      *
-     * @param receiverContext         the EJB receiver invocation context
+     * @param receiverContext         the Enterprise Beans receiver invocation context
      * @param cancelIfRunning {@code true} to request that the cancellation proceed even if the method is running
      * @return {@code true} if the operation was definitely cancelled immediately, {@code false} otherwise
      */
@@ -66,7 +66,7 @@ public abstract class EJBReceiver extends Attachable {
      * and bean name combination. Returns a {@link StatefulEJBLocator} representing the newly created session.  The
      * returned locator should have the same view type as the requested locator.
      *
-     * @param receiverContext the EJB receiver session creation context
+     * @param receiverContext the Enterprise Beans receiver session creation context
      * @return the session ID for the newly opened session
      * @throws IllegalArgumentException if the session creation request is made for a bean which is <i>not</i> a
      * stateful session bean

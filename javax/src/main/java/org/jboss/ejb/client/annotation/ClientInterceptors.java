@@ -26,7 +26,7 @@ import java.lang.annotation.Target;
 import org.jboss.ejb.client.EJBClientInterceptor;
 
 /**
- * Declares a list of client-side interceptors that should be used on a given remote EJB proxy method or class.  If
+ * Declares a list of client-side interceptors that should be used on a given remote Enterprise Bean proxy method or class.  If
  * the corresponding class has a priority, that priority will govern the order of interception, otherwise the
  * interceptors will be used in the order described by {@link EJBClientInterceptor}.
  *

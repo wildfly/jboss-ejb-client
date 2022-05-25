@@ -23,7 +23,7 @@ import javax.ejb.EJBObject;
 import org.wildfly.common.Assert;
 
 /**
- * A locator for an entity EJB.
+ * A locator for an entity Enterprise Bean.
  *
  * @param <T> the remote view type
  */
@@ -95,7 +95,7 @@ public final class EntityEJBLocator<T extends EJBObject> extends EJBLocator<T> {
      * Construct a new instance.
      *
      * @param viewType the view type
-     * @param identifier the EJB identifier
+     * @param identifier the Enterprise Beans identifier
      * @param primaryKey the entity primary key
      * @param affinity the affinity
      */
@@ -109,7 +109,7 @@ public final class EntityEJBLocator<T extends EJBObject> extends EJBLocator<T> {
      * Construct a new instance.
      *
      * @param viewType the view type
-     * @param identifier the EJB identifier
+     * @param identifier the Enterprise Beans identifier
      * @param primaryKey the entity primary key
      */
     public EntityEJBLocator(final Class<T> viewType, final EJBIdentifier identifier, final Object primaryKey) {
@@ -131,7 +131,7 @@ public final class EntityEJBLocator<T extends EJBObject> extends EJBLocator<T> {
      * Construct a new instance.
      *
      * @param viewType the view type (must not be {@code null})
-     * @param identifier the EJB identifier (must not be {@code null})
+     * @param identifier the Enterprise Beans identifier (must not be {@code null})
      * @param primaryKey the entity primary key (must not be {@code null})
      * @param affinity the affinity
      * @param <T> the remote view type

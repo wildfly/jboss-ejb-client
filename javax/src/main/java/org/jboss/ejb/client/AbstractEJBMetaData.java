@@ -28,7 +28,7 @@ import org.jboss.ejb._private.Logs;
 import org.wildfly.common.Assert;
 
 /**
- * Abstract base class for all EJB metadata.
+ * Abstract base class for all Enterprise Beans metadata.
  *
  * @author <a href="mailto:david.lloyd@redhat.com">David M. Lloyd</a>
  */
@@ -47,9 +47,9 @@ public abstract class AbstractEJBMetaData<T extends EJBObject, H extends EJBHome
     }
 
     /**
-     * Get the EJB home interface.
+     * Get the Enterprise Beans home interface.
      *
-     * @return the EJB home interface
+     * @return the Enterprise Beans home interface
      */
     public H getEJBHome() {
         return EJBClient.createProxy(homeLocator);
@@ -83,18 +83,18 @@ public abstract class AbstractEJBMetaData<T extends EJBObject, H extends EJBHome
     }
 
     /**
-     * Determine whether this EJB metadata refers to a session EJB.
+     * Determine whether this Enterprise Bean metadata refers to a session Enterprise Bean.
      *
-     * @return {@code true} if the EJB is a session EJB, {@code false} otherwise
+     * @return {@code true} if the Enterprise Beans is a session Enterprise Bean, {@code false} otherwise
      */
     public boolean isSession() {
         return true;
     }
 
     /**
-     * Determine whether this EJB metadata refers to a stateless session EJB.
+     * Determine whether this Enterprise Bean metadata refers to a stateless session Enterprise Bean.
      *
-     * @return {@code true} if the EJB is a stateless session EJB, {@code false} otherwise
+     * @return {@code true} if the Enterprise Beans is a stateless session Enterprise Bean, {@code false} otherwise
      */
     public boolean isStatelessSession() {
         return false;

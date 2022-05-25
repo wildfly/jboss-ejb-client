@@ -75,9 +75,9 @@ public abstract class AbstractInvocationContext extends Attachable {
     }
 
     /**
-     * Get the EJB client context associated with this invocation.
+     * Get the Enterprise Beans client context associated with this invocation.
      *
-     * @return the EJB client context
+     * @return the Enterprise Beans client context
      */
     public EJBClientContext getClientContext() {
         return ejbClientContext;
@@ -159,18 +159,18 @@ public abstract class AbstractInvocationContext extends Attachable {
     }
 
     /**
-     * Get the EJB receiver associated with this invocation.
+     * Get the Enterprise Beans receiver associated with this invocation.
      *
-     * @return the EJB receiver
+     * @return the Enterprise Beans receiver
      */
     EJBReceiver getReceiver() {
         return receiver;
     }
 
     /**
-     * Set the EJB receiver associated with this invocation.
+     * Set the Enterprise Beans receiver associated with this invocation.
      *
-     * @param receiver the EJB receiver associated with this invocation
+     * @param receiver the Enterprise Beans receiver associated with this invocation
      */
     void setReceiver(final EJBReceiver receiver) {
         this.receiver = receiver;

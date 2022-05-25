@@ -23,7 +23,7 @@ import java.net.URI;
 import org.wildfly.common.Assert;
 
 /**
- * Information about a configured connection on an EJB client context.
+ * Information about a configured connection on an Enterprise Bean client context.
  *
  * @author <a href="mailto:david.lloyd@redhat.com">David M. Lloyd</a>
  */

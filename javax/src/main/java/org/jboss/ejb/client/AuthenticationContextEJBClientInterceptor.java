@@ -25,7 +25,7 @@ import org.wildfly.common.function.ExceptionSupplier;
 import org.wildfly.security.auth.client.AuthenticationContext;
 
 /**
- * EJB client interceptor to capture the {@code AuthenticationContext} after any application interceptors.
+ * Enterprise Beans client interceptor to capture the {@code AuthenticationContext} after any application interceptors.
  *
  * @author <a href="mailto:darran.lofthouse@redhat.com">Darran Lofthouse</a>
  */

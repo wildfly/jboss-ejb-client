@@ -30,7 +30,7 @@ import org.jboss.ejb.client.EJBMethodLocator;
 import org.wildfly.common.annotation.NotNull;
 
 /**
- * An EJB method invocation request.
+ * An Enterprise Bean method invocation request.
  *
  * @author <a href="mailto:david.lloyd@redhat.com">David M. Lloyd</a>
  */
@@ -47,15 +47,15 @@ public interface InvocationRequest extends Request {
     Resolved getRequestContent(ClassLoader classLoader) throws IOException, ClassNotFoundException;
 
     /**
-     * Get the EJB method locator.
+     * Get the Enterprise Beans method locator.
      *
-     * @return the EJB method locator (must not be {@code null})
+     * @return the Enterprise Beans method locator (must not be {@code null})
      */
     @NotNull
     EJBMethodLocator getMethodLocator();
 
     /**
-     * Write a message indicating that the method is not found on the EJB.  The request should be abandoned after
+     * Write a message indicating that the method is not found on the Enterprise Beans.  The request should be abandoned after
      * invoking this method.
      */
     void writeNoSuchMethod();
@@ -94,11 +94,11 @@ public interface InvocationRequest extends Request {
         Object[] getParameters();
 
         /**
-         * Get the EJB locator of the request.  This contains the same identifier as is returned with
-         * {@link #getEJBIdentifier()}, but of a type corresponding to the EJB type, and with a resolved EJB class
+         * Get the Enterprise Beans locator of the request.  This contains the same identifier as is returned with
+         * {@link #getEJBIdentifier()}, but of a type corresponding to the Enterprise Beans type, and with a resolved Enterprise Beans class
          * and affinity.
          *
-         * @return the EJB locator (must not be {@code null})
+         * @return the Enterprise Beans locator (must not be {@code null})
          */
         @NotNull
         EJBLocator<?> getEJBLocator();

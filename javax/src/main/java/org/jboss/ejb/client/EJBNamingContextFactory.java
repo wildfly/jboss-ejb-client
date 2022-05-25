@@ -28,7 +28,7 @@ import org.wildfly.naming.client.ProviderEnvironment;
 import org.wildfly.naming.client.util.FastHashtable;
 
 /**
- * The naming context factory for EJB JNDI names.  This covers any names that begin with {@code ejb:}.
+ * The naming context factory for Enterprise Bean JNDI names.  This covers any names that begin with {@code ejb:}.
  *
  * @author <a href="mailto:david.lloyd@redhat.com">David M. Lloyd</a>
  */

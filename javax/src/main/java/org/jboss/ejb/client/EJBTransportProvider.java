@@ -19,7 +19,7 @@
 package org.jboss.ejb.client;
 
 /**
- * An EJB transport provider.
+ * An Enterprise Bean transport provider.
  *
  * @author <a href="mailto:david.lloyd@redhat.com">David M. Lloyd</a>
  */
@@ -28,7 +28,7 @@ public interface EJBTransportProvider {
     /**
      * Notify the provider instance that it has been registered with the given client context.
      *
-     * @param receiverContext the EJB receiver context (not {@code null})
+     * @param receiverContext the Enterprise Beans receiver context (not {@code null})
      */
     default void notifyRegistered(EJBReceiverContext receiverContext) {}
 
@@ -41,11 +41,11 @@ public interface EJBTransportProvider {
     boolean supportsProtocol(String uriScheme);
 
     /**
-     * Get an EJB receiver for the protocol identified by the given URI scheme.
+     * Get an Enterprise Bean receiver for the protocol identified by the given URI scheme.
      *
      * @param receiverContext the receiver context
      * @param uriScheme the URI scheme
-     * @return the non-{@code null} EJB receiver
+     * @return the non-{@code null} Enterprise Beans receiver
      * @throws IllegalArgumentException if the protocol is not supported
      */
     EJBReceiver getReceiver(EJBReceiverContext receiverContext, String uriScheme) throws IllegalArgumentException;

@@ -39,7 +39,7 @@ import org.wildfly.common.Assert;
 import org.wildfly.transaction.client.provider.remoting.RemotingTransactionService;
 
 /**
- * The remote EJB service.
+ * The remote Enterprise Beans service.
  *
  * @author <a href="mailto:david.lloyd@redhat.com">David M. Lloyd</a>
  * @author <a href="mailto:ropalka@redhat.com">Richard Opalka</a>
@@ -106,25 +106,25 @@ public final class RemoteEJBService {
     }
 
     /**
-     * Create a new remote EJB service instance without any class resolution filter function.
+     * Create a new remote Enterprise Bean service instance without any class resolution filter function.
      *
      * @param association the association to use (must not be {@code null})
      * @param transactionService the Remoting transaction server to use (must not be {@code null})
-     * @return the remote EJB service instance (not {@code null})
+     * @return the remote Enterprise Beans service instance (not {@code null})
      */
     public static RemoteEJBService create(final Association association, final RemotingTransactionService transactionService) {
         return create(association, transactionService, null);
     }
 
     /**
-     * Create a new remote EJB service instance.
+     * Create a new remote Enterprise Bean service instance.
      *
      * @param association the association to use (must not be {@code null})
      * @param transactionService the Remoting transaction server to use (must not be {@code null})
      * @param classResolverFilter filter function to apply to class names before resolving them during unmarshalling.
      *                            Must return {@link Boolean#TRUE} for the classname to be resolved, else unmarshalling
      *                            will fail. May be {@code null} in which case no filtering is performed
-     * @return the remote EJB service instance (not {@code null})
+     * @return the remote Enterprise Beans service instance (not {@code null})
      */
     public static RemoteEJBService create(final Association association, final RemotingTransactionService transactionService,
                                           final Function<String, Boolean>  classResolverFilter) {

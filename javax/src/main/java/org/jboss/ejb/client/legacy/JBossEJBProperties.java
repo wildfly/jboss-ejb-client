@@ -165,12 +165,12 @@ public final class JBossEJBProperties implements Contextual<JBossEJBProperties> 
 
     private final ExceptionSupplier<CallbackHandler, ReflectiveOperationException> callbackHandlerSupplier;
 
-    // EJB discovery and clustering properties
+    // Enterprise Bean discovery and clustering properties
 
     private final ExceptionSupplier<DeploymentNodeSelector, ReflectiveOperationException> deploymentNodeSelectorSupplier;
     private final Map<String, ClusterConfiguration> clusterConfigurations;
 
-    // Other EJB parameters
+    // Other Enterprise Bean parameters
 
     private final long invocationTimeout;
     private final long reconnectTimeout;

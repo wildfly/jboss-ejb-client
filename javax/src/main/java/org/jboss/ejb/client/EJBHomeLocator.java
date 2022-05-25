@@ -23,7 +23,7 @@ import javax.ejb.EJBHome;
 import org.wildfly.common.Assert;
 
 /**
- * A locator for an EJB's home interface.
+ * A locator for an Enterprise Bean's home interface.
  *
  * @param <T> the remote view type
  */
@@ -87,7 +87,7 @@ public final class EJBHomeLocator<T extends EJBHome> extends EJBLocator<T> {
      * Construct a new instance.
      *
      * @param viewType the view type
-     * @param identifier the EJB identifier
+     * @param identifier the Enterprise Beans identifier
      * @param affinity the affinity
      */
     public EJBHomeLocator(final Class<T> viewType, final EJBIdentifier identifier, final Affinity affinity) {
@@ -98,7 +98,7 @@ public final class EJBHomeLocator<T extends EJBHome> extends EJBLocator<T> {
      * Construct a new instance.
      *
      * @param viewType the view type
-     * @param identifier the EJB identifier
+     * @param identifier the Enterprise Beans identifier
      */
     public EJBHomeLocator(final Class<T> viewType, final EJBIdentifier identifier) {
         super(viewType, identifier, Affinity.NONE);
@@ -118,7 +118,7 @@ public final class EJBHomeLocator<T extends EJBHome> extends EJBLocator<T> {
      * Construct a new instance.
      *
      * @param viewType the view type (must not be {@code null})
-     * @param identifier the EJB identifier (must not be {@code null})
+     * @param identifier the Enterprise Beans identifier (must not be {@code null})
      * @param affinity the affinity
      * @param <T> the remote view type
      * @return the new instance (not {@code null})

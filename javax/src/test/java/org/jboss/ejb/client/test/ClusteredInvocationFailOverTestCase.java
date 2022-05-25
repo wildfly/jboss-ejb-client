@@ -49,7 +49,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import static org.junit.Assert.fail;
 
 /**
- * Tests fail-over of the EJB client invocation mechanism.
+ * Tests fail-over of the Enterprise Beans client invocation mechanism.
  *
  * NOTE: When shutting down a server, if this happens during discovery, we can have trouble:
  * - we shut down the server A

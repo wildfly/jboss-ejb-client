@@ -54,14 +54,14 @@ import org.wildfly.naming.client.NamingProvider;
 import org.wildfly.security.auth.client.AuthenticationContext;
 
 /**
- * The public API for an EJB client context.  An EJB client context may be associated with (and used by) one or more threads concurrently.
+ * The public API for an Enterprise Bean client context. An Enterprise Bean client context may be associated with (and used by) one or more threads concurrently.
  *
  * @author <a href="mailto:david.lloyd@redhat.com">David M. Lloyd</a>
  */
 public final class EJBClientContext extends Attachable implements Contextual<EJBClientContext> {
 
     /**
-     * The service type to use for EJB discovery.
+     * The service type to use for Enterprise Beans discovery.
      */
     public static final ServiceType EJB_SERVICE_TYPE = ServiceType.of("ejb", "jboss");
 
@@ -78,11 +78,11 @@ public final class EJBClientContext extends Attachable implements Contextual<EJB
     private volatile EJBClientInterceptor.Registration[] registrations = NO_INTERCEPTORS;
 
     /**
-     * The discovery attribute name which contains the application and module name of the located EJB.
+     * The discovery attribute name which contains the application and module name of the located Enterprise Beans.
      */
     public static final String FILTER_ATTR_EJB_MODULE = "ejb-module";
     /**
-     * The discovery attribute name which contains the application and module name with the distinct name of the located EJB.
+     * The discovery attribute name which contains the application and module name with the distinct name of the located Enterprise Beans.
      */
     public static final String FILTER_ATTR_EJB_MODULE_DISTINCT = "ejb-module-distinct";
     /**
@@ -678,7 +678,7 @@ public final class EJBClientContext extends Attachable implements Contextual<EJB
     }
 
     /**
-     * A builder for EJB client contexts.
+     * A builder for Enterprise Beans client contexts.
      */
     public static final class Builder {
 

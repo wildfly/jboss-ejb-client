@@ -23,7 +23,7 @@ import java.util.List;
 import org.jboss.ejb.client.EJBModuleIdentifier;
 
 /**
- * A module availability listener for no-affinity EJBs.
+ * A module availability listener for no-affinity Enterprise Beans.
  *
  * @author <a href="mailto:david.lloyd@redhat.com">David M. Lloyd</a>
  */

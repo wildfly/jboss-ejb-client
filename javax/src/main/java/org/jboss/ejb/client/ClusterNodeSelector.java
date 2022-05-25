@@ -36,7 +36,7 @@ import org.wildfly.common.Assert;
  */
 public interface ClusterNodeSelector {
     /**
-     * Returns a node from among the {@code totalAvailableNodes}, as the target node for EJB invocations.
+     * Returns a node from among the {@code totalAvailableNodes}, as the target node for Enterprise Beans invocations.
      * The selector can decide whether to pick an already connected node (from the passed {@code connectedNodes})
      * or decide to select a node to which a connection hasn't yet been established. If a node to which a connection
      * hasn't been established is selected then the cluster context will create a connection to it.

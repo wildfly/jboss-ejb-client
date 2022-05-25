@@ -22,7 +22,7 @@ import javax.transaction.SystemException;
 import javax.transaction.Transaction;
 
 /**
- * An EJB session-open request.
+ * An Enterprise Bean session-open request.
  *
  * @author <a href="mailto:david.lloyd@redhat.com">David M. Lloyd</a>
  */

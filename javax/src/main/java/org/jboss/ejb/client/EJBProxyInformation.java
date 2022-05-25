@@ -44,7 +44,7 @@ import org.jboss.ejb.client.annotation.CompressionHint;
 import org.jboss.ejb.client.annotation.Idempotent;
 
 /**
- * Cached information about an EJB proxy.
+ * Cached information about an Enterprise Bean proxy.
  *
  * @author <a href="mailto:david.lloyd@redhat.com">David M. Lloyd</a>
  */

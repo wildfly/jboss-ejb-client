@@ -30,11 +30,11 @@ import org.wildfly.common.Assert;
 
 /**
  * A selector which selects and returns a node, from among the passed eligible nodes, that can handle a specific
- * deployment within a EJB client context. Typical usage of {@link DeploymentNodeSelector} involves load balancing
+ * deployment within an Enterprise Bean client context. Typical usage of {@link DeploymentNodeSelector} involves load balancing
  * calls to multiple nodes which can all handle the same deployment. This allows the application to have a deterministic
  * node selection policy while dealing with multiple nodes with same deployment.
  * <p>
- * Node selection is only used when discovery yields nodes as a result of its query to locate an EJB.  If discovery
+ * Node selection is only used when discovery yields nodes as a result of its query to locate an Enterprise Bean.  If discovery
  * yields a URI or cluster, this mechanism is not used.
  *
  * @author Jaikiran Pai

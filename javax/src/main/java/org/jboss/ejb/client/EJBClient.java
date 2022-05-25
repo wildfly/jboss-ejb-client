@@ -37,7 +37,7 @@ import org.wildfly.security.auth.client.AuthenticationContext;
 import org.wildfly.transaction.client.RemoteTransactionContext;
 
 /**
- * The main EJB client API class.  This class contains helper methods which may be used to create proxies, open sessions,
+ * The main Enterprise Beans client API class.  This class contains helper methods which may be used to create proxies, open sessions,
  * and associate the current invocation context.
  *
  * @author jpai
@@ -162,21 +162,21 @@ public final class EJBClient {
     }
 
     /**
-     * Determine whether an object is indeed a valid EJB proxy object created by this API.
+     * Determine whether an object is indeed a valid Enterprise Bean proxy object created by this API.
      *
      * @param object the object to test
-     * @return {@code true} if it is an EJB proxy, {@code false} otherwise
+     * @return {@code true} if it is an Enterprise Bean proxy, {@code false} otherwise
      */
     public static boolean isEJBProxy(final Object object) {
         return object != null && Proxy.isProxyClass(object.getClass()) && Proxy.getInvocationHandler(object) instanceof EJBInvocationHandler;
     }
 
     /**
-     * Create a new EJB session proxy.  The returned proxy will be cluster-aware if a cluster affinity is used in the locator.
+     * Create a new Enterprise Bean session proxy.  The returned proxy will be cluster-aware if a cluster affinity is used in the locator.
      *
-     * @param statelessLocator the stateless locator identifying the stateful EJB
+     * @param statelessLocator the stateless locator identifying the stateful Enterprise Beans
      * @param <T> the view type
-     * @return the new EJB locator
+     * @return the new Enterprise Beans locator
      * @throws CreateException if an error occurs
      */
     public static <T> T createSessionProxy(final StatelessEJBLocator<T> statelessLocator) throws Exception {
@@ -211,15 +211,15 @@ public final class EJBClient {
     }
 
     /**
-     * Create a new EJB session.
+     * Create a new Enterprise Bean session.
      *
      * @param viewType     the view type class
      * @param appName      the application name
      * @param moduleName   the module name
-     * @param beanName     the EJB name
+     * @param beanName     the Enterprise Beans name
      * @param distinctName the module distinct name
      * @param <T> the view type
-     * @return the new EJB locator
+     * @return the new Enterprise Beans locator
      * @throws CreateException if an error occurs
      */
     public static <T> StatefulEJBLocator<T> createSession(final Class<T> viewType, final String appName, final String moduleName, final String beanName, final String distinctName) throws Exception {
@@ -227,16 +227,16 @@ public final class EJBClient {
     }
 
     /**
-     * Create a new EJB session.
+     * Create a new Enterprise Bean session.
      *
      * @param affinity     the affinity specification for the session
      * @param viewType     the view type class
      * @param appName      the application name
      * @param moduleName   the module name
-     * @param beanName     the EJB name
+     * @param beanName     the Enterprise Beans name
      * @param distinctName the module distinct name
      * @param <T> the view type
-     * @return the new EJB locator
+     * @return the new Enterprise Beans locator
      * @throws CreateException if an error occurs
      */
     public static <T> StatefulEJBLocator<T> createSession(final Affinity affinity, final Class<T> viewType, final String appName, final String moduleName, final String beanName, final String distinctName) throws Exception {
@@ -244,16 +244,16 @@ public final class EJBClient {
     }
 
     /**
-     * Create a new EJB session.
+     * Create a new Enterprise Bean session.
      *
-     * @param uri          a URI at which EJBs may be obtained
+     * @param uri          a URI at which Enterprise Beans may be obtained
      * @param viewType     the view type class
      * @param appName      the application name
      * @param moduleName   the module name
-     * @param beanName     the EJB name
+     * @param beanName     the Enterprise Beans name
      * @param distinctName the module distinct name
      * @param <T> the view type
-     * @return the new EJB locator
+     * @return the new Enterprise Beans locator
      * @throws CreateException if an error occurs
      */
     public static <T> StatefulEJBLocator<T> createSession(final URI uri, final Class<T> viewType, final String appName, final String moduleName, final String beanName, final String distinctName) throws Exception {
@@ -262,14 +262,14 @@ public final class EJBClient {
     }
 
     /**
-     * Create a new EJB session.
+     * Create a new Enterprise Bean session.
      *
      * @param viewType     the view type class
      * @param appName      the application name
      * @param moduleName   the module name
-     * @param beanName     the EJB name
+     * @param beanName     the Enterprise Beans name
      * @param <T> the view type
-     * @return the new EJB locator
+     * @return the new Enterprise Beans locator
      * @throws CreateException if an error occurs
      */
     public static <T> StatefulEJBLocator<T> createSession(final Class<T> viewType, final String appName, final String moduleName, final String beanName) throws Exception {
@@ -277,15 +277,15 @@ public final class EJBClient {
     }
 
     /**
-     * Create a new EJB session.
+     * Create a new Enterprise Bean session.
      *
      * @param affinity     the affinity specification for the session
      * @param viewType     the view type class
      * @param appName      the application name
      * @param moduleName   the module name
-     * @param beanName     the EJB name
+     * @param beanName     the Enterprise Beans name
      * @param <T> the view type
-     * @return the new EJB locator
+     * @return the new Enterprise Beans locator
      * @throws CreateException if an error occurs
      */
     public static <T> StatefulEJBLocator<T> createSession(final Affinity affinity, final Class<T> viewType, final String appName, final String moduleName, final String beanName) throws Exception {
@@ -293,15 +293,15 @@ public final class EJBClient {
     }
 
     /**
-     * Create a new EJB session.
+     * Create a new Enterprise Bean session.
      *
-     * @param uri          a URI at which EJBs may be obtained
+     * @param uri          a URI at which Enterprise Beans may be obtained
      * @param viewType     the view type class
      * @param appName      the application name
      * @param moduleName   the module name
-     * @param beanName     the EJB name
+     * @param beanName     the Enterprise Beans name
      * @param <T> the view type
-     * @return the new EJB locator
+     * @return the new Enterprise Beans locator
      * @throws CreateException if an error occurs
      */
     public static <T> StatefulEJBLocator<T> createSession(final URI uri, final Class<T> viewType, final String appName, final String moduleName, final String beanName) throws Exception {
@@ -310,11 +310,11 @@ public final class EJBClient {
     }
 
     /**
-     * Create a new EJB session.
+     * Create a new Enterprise Bean session.
      *
-     * @param statelessLocator the stateless locator identifying the stateful EJB
+     * @param statelessLocator the stateless locator identifying the stateful Enterprise Beans
      * @param <T> the view type
-     * @return the new EJB locator
+     * @return the new Enterprise Beans locator
      * @throws CreateException if an error occurs
      */
     public static <T> StatefulEJBLocator<T> createSession(StatelessEJBLocator<T> statelessLocator) throws Exception {
@@ -322,12 +322,12 @@ public final class EJBClient {
     }
 
     /**
-     * Create a new EJB session.
+     * Create a new Enterprise Bean session.
      *
-     * @param statelessLocator the stateless locator identifying the stateful EJB
+     * @param statelessLocator the stateless locator identifying the stateful Enterprise Beans
      * @param authenticationContext the authentication context to use for the request and the resultant proxy
      * @param <T> the view type
-     * @return the new EJB locator
+     * @return the new Enterprise Beans locator
      * @throws CreateException if an error occurs
      */
     static <T> StatefulEJBLocator<T> createSession(StatelessEJBLocator<T> statelessLocator, AuthenticationContext authenticationContext) throws Exception {
@@ -338,7 +338,7 @@ public final class EJBClient {
     /**
      * Perform a one-way asynchronous invocation by method locator on a proxy.  Any return value is ignored.
      *
-     * @param proxy the EJB proxy
+     * @param proxy the Enterprise Beans proxy
      * @param methodLocator the method locator
      * @param args the invocation arguments
      * @param <T> the view type
@@ -353,7 +353,7 @@ public final class EJBClient {
     /**
      * Perform an asynchronous invocation by method locator on a proxy, returning the future result.
      *
-     * @param proxy the EJB proxy
+     * @param proxy the Enterprise Beans proxy
      * @param methodLocator the method locator
      * @param args the invocation arguments
      * @param <T> the view type
@@ -368,7 +368,7 @@ public final class EJBClient {
     /**
      * Perform an invocation by method locator on a proxy, returning the result.
      *
-     * @param proxy the EJB proxy
+     * @param proxy the Enterprise Beans proxy
      * @param methodLocator the method locator
      * @param args the invocation arguments
      * @param <T> the view type
@@ -396,7 +396,7 @@ public final class EJBClient {
     /**
      * Set a per-proxy invocation timeout.  This overrides the globally configured timeout.
      *
-     * @param proxy the proxy to change (must not be {@code null}, must be a valid EJB proxy)
+     * @param proxy the proxy to change (must not be {@code null}, must be a valid Enterprise Bean proxy)
      * @param timeout the amount of time (must be greater than zero)
      * @param timeUnit the time unit (must not be {@code null})
      * @throws IllegalArgumentException if the timeout is less than or equal to zero or a required parameter is
@@ -412,7 +412,7 @@ public final class EJBClient {
     /**
      * Clear the per-proxy invocation timeout, causing it to use the globally configured timeout.
      *
-     * @param proxy the proxy to change (must not be {@code null}, must be a valid EJB proxy)
+     * @param proxy the proxy to change (must not be {@code null}, must be a valid Enterprise Bean proxy)
      * @throws IllegalArgumentException if the proxy is {@code null} or is not valid
      */
     public static void clearInvocationTimeout(Object proxy) throws IllegalArgumentException {

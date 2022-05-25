@@ -39,7 +39,7 @@ import org.xnio.Sequence;
 import org.xnio.sasl.SaslUtils;
 
 /**
- * The interface to merge EJB properties into the Elytron configuration.
+ * The interface to merge Enterprise Bean properties into the Elytron configuration.
  *
  * @author <a href="mailto:david.lloyd@redhat.com">David M. Lloyd</a>
  */

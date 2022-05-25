@@ -24,7 +24,7 @@ import javax.ejb.EJBObject;
 import org.wildfly.common.Assert;
 
 /**
- * EJB metadata for entity EJBs.
+ * Enterprise Beans metadata for entity Enterprise Beans.
  *
  * @param <T> the remote interface type
  * @param <H> the home interface type
@@ -54,7 +54,7 @@ public final class EntityEJBMetaData<T extends EJBObject, H extends EJBHome> ext
      * Construct a new instance.
      *
      * @param remoteInterfaceClass the remote interface class (must not be {@code null})
-     * @param homeLocator the EJB home locator (must not be {@code null})
+     * @param homeLocator the Enterprise Beans home locator (must not be {@code null})
      * @param primaryKeyClass the primary key class (must not be {@code null})
      * @param <T> the remote interface type
      * @param <H> the home interface type

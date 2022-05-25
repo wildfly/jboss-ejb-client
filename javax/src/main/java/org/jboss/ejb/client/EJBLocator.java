@@ -39,7 +39,7 @@ import org.jboss.ejb._private.Logs;
 import org.wildfly.common.Assert;
 
 /**
- * An identifier for an EJB proxy invocation target instance, suitable for use as a hash key or a serialized token.
+ * An identifier for an Enterprise Bean proxy invocation target instance, suitable for use as a hash key or a serialized token.
  *
  * @param <T> the interface type
  */
@@ -288,9 +288,9 @@ public abstract class EJBLocator<T> implements Serializable {
     }
 
     /**
-     * Get the EJB bean name.
+     * Get the Enterprise Beans bean name.
      *
-     * @return the EJB bean name
+     * @return the Enterprise Beans bean name
      */
     public String getBeanName() {
         return identifier.getBeanName();
@@ -315,9 +315,9 @@ public abstract class EJBLocator<T> implements Serializable {
     }
 
     /**
-     * Get the EJB identifier for this locator.
+     * Get the Enterprise Beans identifier for this locator.
      *
-     * @return the EJB identifier
+     * @return the Enterprise Beans identifier
      */
     public EJBIdentifier getIdentifier() {
         return identifier;

@@ -22,7 +22,7 @@ import java.io.Serializable;
 import java.util.Arrays;
 
 /**
- * A session ID for a stateful EJB.  Session IDs can be stored in multiple formats with different
+ * A session ID for a stateful Enterprise Beans.  Session IDs can be stored in multiple formats with different
  * characteristics.
  *
  * @author <a href="mailto:david.lloyd@redhat.com">David M. Lloyd</a>

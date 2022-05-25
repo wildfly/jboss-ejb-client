@@ -43,7 +43,7 @@ import org.wildfly.discovery.Discovery;
 import org.wildfly.security.auth.client.AuthenticationContext;
 
 /**
- * An invocation context for EJB invocations from an EJB client
+ * An invocation context for Enterprise Beans invocations from an Enterprise Bean client
  *
  * @author <a href="mailto:david.lloyd@redhat.com">David M. Lloyd</a>
  * @author Jaikiran Pai
@@ -256,9 +256,9 @@ public final class EJBClientInvocationContext extends AbstractInvocationContext 
     }
 
     /**
-     * Get the EJB method locator.
+     * Get the Enterprise Beans method locator.
      *
-     * @return the EJB method locator
+     * @return the Enterprise Beans method locator
      */
     public EJBMethodLocator getMethodLocator() {
         return methodInfo.getMethodLocator();

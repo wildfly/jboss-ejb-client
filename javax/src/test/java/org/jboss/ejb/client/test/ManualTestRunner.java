@@ -27,7 +27,7 @@ import org.junit.runner.JUnitCore;
 import org.junit.runner.Result;
 import org.junit.runner.notification.Failure;
 
-// Manually launches EJB tests (e.g. for Xbootclasspath testing)
+// Manually launches Enterprise Bean tests (e.g. for Xbootclasspath testing)
 public class ManualTestRunner {
     public static void main(String[] args) throws Exception {
         String summary = args.length > 0 ? args[0] : null;

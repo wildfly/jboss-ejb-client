@@ -71,13 +71,13 @@ public final class AttachmentKeys {
     public static final AttachmentKey<Map<Method, CompressionHint>> VIEW_METHOD_DATA_COMPRESSION_HINT_ATTACHMENT_KEY = new AttachmentKey<Map<Method, CompressionHint>>();
 
     /**
-     * A key to an attachment which specifies whether the response payload data of an EJB invocation should be compressed
+     * A key to an attachment which specifies whether the response payload data of an Enterprise Bean invocation should be compressed
      */
     @Deprecated
     public static final AttachmentKey<Boolean> COMPRESS_RESPONSE = new AttachmentKey<Boolean>();
 
     /**
-     * A key to an attachment which specifies the "compression level" of the response payload data of an EJB invocation
+     * A key to an attachment which specifies the "compression level" of the response payload data of an Enterprise Bean invocation
      */
     @Deprecated
     public static final AttachmentKey<Integer> RESPONSE_COMPRESSION_LEVEL = new AttachmentKey<Integer>();

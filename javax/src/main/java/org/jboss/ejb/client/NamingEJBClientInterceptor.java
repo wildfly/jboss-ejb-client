@@ -39,7 +39,7 @@ import org.wildfly.naming.client.NamingProvider;
 import org.wildfly.naming.client.ProviderEnvironment;
 
 /**
- * EJB client interceptor to discover a target location based on naming context information in the EJB proxy.
+ * Enterprise Beans client interceptor to discover a target location based on naming context information in the Enterprise Beans proxy.
  *
  * @author <a href="mailto:david.lloyd@redhat.com">David M. Lloyd</a>
  */

@@ -133,7 +133,7 @@ final class RemotingEJBDiscoveryProvider implements DiscoveryProvider, Discovere
 
     public DiscoveryRequest discover(final ServiceType serviceType, final FilterSpec filterSpec, final DiscoveryResult result) {
         if (! serviceType.implies(ServiceType.of("ejb", "jboss"))) {
-            // only respond to requests for JBoss EJB services
+            // only respond to requests for JBoss Enterprise Beans services
             Logs.INVOCATION.tracef("EJB discovery provider: wrong service type(%s), returning!", serviceType.toString());
             result.complete();
             return DiscoveryRequest.NULL;

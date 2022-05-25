@@ -34,7 +34,7 @@ import org.junit.Assert;
 import org.junit.Test;
 
 /**
- * Tests that an EJB proxy can be serialized
+ * Tests that an Enterprise Bean proxy can be serialized
  *
  * @author Stuart Douglas
  */

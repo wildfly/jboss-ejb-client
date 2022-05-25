@@ -19,7 +19,7 @@
 package org.jboss.ejb.client;
 
 /**
- * A context which is provided to EJB receiver implementations in order to perform operations on the client context.
+ * A context which is provided to Enterprise Beans receiver implementations in order to perform operations on the client context.
  *
  * @author <a href="mailto:david.lloyd@redhat.com">David M. Lloyd</a>
  */
