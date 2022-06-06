@@ -24,7 +24,7 @@ import org.wildfly.security.util.StringEnumeration;
 import org.wildfly.security.util.StringMapping;
 
 /**
- * The class for various general EJB client permissions.
+ * The class for various general Enterprise Beans client permissions.
  *
  * @author <a href="mailto:david.lloyd@redhat.com">David M. Lloyd</a>
  */

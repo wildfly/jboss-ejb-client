@@ -24,10 +24,10 @@ import java.util.Objects;
 import org.wildfly.common.Assert;
 
 /**
- * An identifier for an EJB located within a container.  This identifier only names the EJB; it does not specify
+ * An identifier for an Enterprise Bean located within a container.  This identifier only names the Enterprise Beans; it does not specify
  * a view, which must be done using the {@link EJBLocator} family of types.
  * <p>
- * EJB identifiers are suitable for use as hash keys.
+ * Enterprise Bean identifiers are suitable for use as hash keys.
  *
  * @author <a href="mailto:david.lloyd@redhat.com">David M. Lloyd</a>
  */
@@ -53,7 +53,7 @@ public final class EJBIdentifier implements Serializable {
     /**
      * Construct a new instance.
      *
-     * @param moduleIdentifier the EJB module identifier (must not be {@code null})
+     * @param moduleIdentifier the Enterprise Beans module identifier (must not be {@code null})
      * @param beanName the bean name (must not be {@code null} or empty)
      */
     public EJBIdentifier(final EJBModuleIdentifier moduleIdentifier, final String beanName) {
@@ -110,7 +110,7 @@ public final class EJBIdentifier implements Serializable {
     }
 
     /**
-     * Determine if this EJB identifier is equal to the given object.
+     * Determine if this Enterprise Bean identifier is equal to the given object.
      *
      * @param other the object to test
      * @return {@code true} if the object is equal to this one, {@code false} otherwise
@@ -120,7 +120,7 @@ public final class EJBIdentifier implements Serializable {
     }
 
     /**
-     * Determine if this EJB identifier is equal to the given object.
+     * Determine if this Enterprise Bean identifier is equal to the given object.
      *
      * @param other the object to test
      * @return {@code true} if the object is equal to this one, {@code false} otherwise
@@ -149,7 +149,7 @@ public final class EJBIdentifier implements Serializable {
     }
 
     /**
-     * Get the EJB identifier as a human-readable string.
+     * Get the Enterprise Beans identifier as a human-readable string.
      *
      * @return the EJB identifier as a human-readable string (not {@code null})
      */

@@ -39,7 +39,7 @@ import org.wildfly.discovery.spi.ExternalDiscoveryConfigurator;
 import org.wildfly.discovery.spi.RegistryProvider;
 
 /**
- * The interface to merge EJB properties into the discovery configuration.
+ * The interface to merge Enterprise Bean properties into the discovery configuration.
  *
  * We want to make any information concerning configured clustered nodes available via abstract ServiceURLs.
  *

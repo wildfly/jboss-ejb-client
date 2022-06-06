@@ -62,7 +62,7 @@ import org.wildfly.naming.client.NamingProvider;
 import org.wildfly.security.auth.client.AuthenticationContext;
 
 /**
- * The EJB client interceptor responsible for discovering the destination of a request.  If a destination is already
+ * The Enterprise Beans client interceptor responsible for discovering the destination of a request.  If a destination is already
  * established, the interceptor passes the invocation through unmodified.  If the interceptor cannot locate the
  * destination, the invocation will proceed without a destination (and ultimately fail if no other interceptor
  * resolves the destination).

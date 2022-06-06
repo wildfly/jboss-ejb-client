@@ -40,7 +40,7 @@ import org.wildfly.client.config.ConfigurationXMLStreamReader;
 import org.wildfly.common.Assert;
 
 /**
- * A one-time, configuration-based EJB client context configurator.
+ * A one-time, configuration-based Enterprise Bean client context configurator.
  *
  * @author <a href="mailto:david.lloyd@redhat.com">David M. Lloyd</a>
  * @author <a href="mailto:jbaesner@redhat.com">Joerg Baesner</a>

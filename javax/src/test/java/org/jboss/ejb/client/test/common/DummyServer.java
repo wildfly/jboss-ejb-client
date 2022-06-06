@@ -181,7 +181,7 @@ public class DummyServer implements AutoCloseable {
         txnServiceBuilder.setTransactionContext(LocalTransactionContext.getCurrent());
         RemotingTransactionService transactionService = txnServiceBuilder.build();
 
-        // setup remote EJB service
+        // setup remote Enterprise Bean service
         RemoteEJBService remoteEJBService = RemoteEJBService.create(dummyAssociation,transactionService, DEFAULT_CLASS_FILTER);
         remoteEJBService.serverUp();
 

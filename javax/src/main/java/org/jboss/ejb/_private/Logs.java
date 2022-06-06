@@ -60,7 +60,7 @@ import java.util.concurrent.TimeoutException;
 import static org.jboss.logging.Logger.Level.*;
 
 /**
- * Primary logging for the main EJB client API.
+ * Primary logging for the main Enterprise Beans client API.
  *
  * @author <a href="mailto:david.lloyd@redhat.com">David M. Lloyd</a>
  */

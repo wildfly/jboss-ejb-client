@@ -23,7 +23,7 @@ import org.wildfly.common.annotation.NotNull;
 /**
  * A server association.  Since server associations yield {@link ClassLoader} instances, it is important that classes
  * implementing this interface are not accessible without a permission check when a security manager is present.  This
- * class is implemented by EJB server environments and consumed by protocol implementations.
+ * class is implemented by Enterprise Beans server environments and consumed by protocol implementations.
  *
  * @author <a href="mailto:david.lloyd@redhat.com">David M. Lloyd</a>
  */
@@ -34,7 +34,7 @@ public interface Association {
      * by the protocol implementation when a cancellation request is received by the server.
      *
      * @param invocationRequest the invocation request (not {@code null})
-     * @param <T> the type of the target EJB
+     * @param <T> the type of the target Enterprise Beans
      * @return a handle which may be used to request cancellation of the invocation (must not be {@code null})
      */
     @NotNull
@@ -60,7 +60,7 @@ public interface Association {
     ListenerHandle registerClusterTopologyListener(@NotNull ClusterTopologyListener clusterTopologyListener);
 
     /**
-     * Register a module availability listener.  This is used by legacy clients which use no-affinity EJB locators.
+     * Register a module availability listener.  This is used by legacy clients which use no-affinity Enterprise Bean locators.
      *
      * @param moduleAvailabilityListener the module availability listener (not {@code null})
      * @return a handle which may be used to cancel the availability listener registration (must not be {@code null})

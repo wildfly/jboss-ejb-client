@@ -21,7 +21,7 @@ package org.jboss.ejb.client;
 import org.wildfly.security.permission.AbstractBooleanPermission;
 
 /**
- * Represents permission to invoke an EJB remotely
+ * Represents permission to invoke an Enterprise Bean remotely
  *
  * @author Stuart Douglas
  */

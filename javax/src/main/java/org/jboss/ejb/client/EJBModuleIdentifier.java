@@ -24,9 +24,9 @@ import java.util.Objects;
 import org.wildfly.common.Assert;
 
 /**
- * An identifier for an EJB module located within a container.
+ * An identifier for an Enterprise Bean module located within a container.
  * <p>
- * EJB module identifiers are suitable for use as hash keys.
+ * Enterprise Bean module identifiers are suitable for use as hash keys.
  *
  * @author <a href="mailto:david.lloyd@redhat.com">David M. Lloyd</a>
  */
@@ -103,7 +103,7 @@ public class EJBModuleIdentifier implements Serializable {
     }
 
     /**
-     * Determine if this EJB identifier is equal to the given object.
+     * Determine if this Enterprise Bean identifier is equal to the given object.
      *
      * @param other the object to test
      * @return {@code true} if the object is equal to this one, {@code false} otherwise
@@ -113,7 +113,7 @@ public class EJBModuleIdentifier implements Serializable {
     }
 
     /**
-     * Determine if this EJB identifier is equal to the given object.
+     * Determine if this Enterprise Bean identifier is equal to the given object.
      *
      * @param other the object to test
      * @return {@code true} if the object is equal to this one, {@code false} otherwise
@@ -143,9 +143,9 @@ public class EJBModuleIdentifier implements Serializable {
     }
 
     /**
-     * Get the EJB identifier as a human-readable string.
+     * Get the Enterprise Beans identifier as a human-readable string.
      *
-     * @return the EJB identifier as a human-readable string (not {@code null})
+     * @return the Enterprise Beans identifier as a human-readable string (not {@code null})
      */
     public String toString() {
         final String distinctName = getDistinctName();

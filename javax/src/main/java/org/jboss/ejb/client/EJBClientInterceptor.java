@@ -21,7 +21,7 @@ package org.jboss.ejb.client;
 import org.jboss.ejb.client.annotation.ClientInterceptorPriority;
 
 /**
- * An EJB client interceptor, possibly protocol-specific.  Client interceptors should not store any state locally since
+ * An Enterprise Bean client interceptor, possibly protocol-specific.  Client interceptors should not store any state locally since
  * they are shared between all threads.
  * <p>
  * Interceptors are generally applied in priority order.  Priority is determined by configuration or by the presence of
@@ -66,7 +66,7 @@ public interface EJBClientInterceptor {
      * default operation forwards to the next interceptor in the chain.
      *
      * @param context the session creation invocation context (not {@code null})
-     * @return the stateful EJB locator (must not be {@code null})
+     * @return the stateful Enterprise Beans locator (must not be {@code null})
      * @throws Exception if an invocation error occurred
      */
     default SessionID handleSessionCreation(EJBSessionCreationInvocationContext context) throws Exception {

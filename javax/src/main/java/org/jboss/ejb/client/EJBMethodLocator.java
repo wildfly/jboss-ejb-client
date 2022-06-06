@@ -28,7 +28,7 @@ import org.jboss.marshalling.FieldSetter;
 import org.wildfly.common.Assert;
 
 /**
- * A locator for a specific EJB method.
+ * A locator for a specific Enterprise Bean method.
  *
  * @author <a href="mailto:david.lloyd@redhat.com">David M. Lloyd</a>
  */

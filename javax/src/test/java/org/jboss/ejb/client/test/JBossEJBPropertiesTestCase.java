@@ -192,7 +192,7 @@ public class JBossEJBPropertiesTestCase {
     }
 
     /*
-     * Checks the common sub-configuration elements of a EJB client component (endpoint, connection, cluster, cluster node)
+     * Checks the common sub-configuration elements of a Enterprise Bean client component (endpoint, connection, cluster, cluster node)
      */
     private void checkCommonSubConfiguration(String componentName, OptionMap connectionOptions, OptionMap channelOptions, long connectionTimeout, String callbackHandlerClassName, boolean connectEagerly, OptionMap expectedConnectionOptions, OptionMap expectedChannelOptions, int expectedConnectionTimeout, String expectedCallbackHandlerClassName, boolean expectedConnectEagerly) {
         if (expectedConnectionOptions != null)
@@ -207,7 +207,7 @@ public class JBossEJBPropertiesTestCase {
     }
 
     /*
-     * Checks the authentication elements of a EJB client component (endpoint, connection, cluster, cluster node)
+     * Checks the authentication elements of a Enterprise Bean client component (endpoint, connection, cluster, cluster node)
      *
      * NOTE: only one of passwordBase64, password, or callback handler classname should be non-null
      * These are mutually exclusive options for specifying a password

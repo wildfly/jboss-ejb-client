@@ -30,7 +30,7 @@ import org.wildfly.naming.client.NamingProvider;
 import org.wildfly.security.auth.client.AuthenticationContext;
 
 /**
- * A serialized EJB invocation handler.
+ * A serialized Enterprise Bean invocation handler.
  *
  * @author <a href="mailto:david.lloyd@redhat.com">David M. Lloyd</a>
  */

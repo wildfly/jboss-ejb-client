@@ -26,9 +26,9 @@ import javax.ejb.Handle;
 import org.wildfly.common.Assert;
 
 /**
- * A handle for an EJB interface.
+ * A handle for an Enterprise Bean interface.
  *
- * @param <T> the EJB remote interface type
+ * @param <T> the Enterprise Beans remote interface type
  * @author <a href="mailto:david.lloyd@redhat.com">David M. Lloyd</a>
  */
 public final class EJBHandle<T extends EJBObject> implements Handle {
@@ -50,8 +50,8 @@ public final class EJBHandle<T extends EJBObject> implements Handle {
     /**
      * Construct a new instance.
      *
-     * @param locator the locator for the EJB instance (must not be {@code null})
-     * @param <T> the EJB object type
+     * @param locator the locator for the Enterprise Beans instance (must not be {@code null})
+     * @param <T> the Enterprise Beans object type
      * @return the handle (not {@code null})
      */
     public static <T extends EJBObject> EJBHandle<T> create(EJBLocator<T> locator) {
@@ -86,7 +86,7 @@ public final class EJBHandle<T extends EJBObject> implements Handle {
     }
 
     /**
-     * Get the hash code for this EJB handle.
+     * Get the hash code for this Enterprise Bean handle.
      *
      * @return the hash code
      */

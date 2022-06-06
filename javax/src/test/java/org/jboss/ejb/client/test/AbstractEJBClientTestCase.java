@@ -27,7 +27,7 @@ import org.jboss.ejb.server.ClusterTopologyListener;
 import org.jboss.logging.Logger;
 
 /**
- * A base class for EJB client test cases.
+ * A base class for Enterprise Bean client test cases.
  *
  * @author <a href="mailto:rachmato@redhat.com">Richard Achmatowicz</a>
  */

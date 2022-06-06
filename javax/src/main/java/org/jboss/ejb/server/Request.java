@@ -29,8 +29,8 @@ import org.wildfly.common.annotation.NotNull;
 import org.wildfly.security.auth.server.SecurityIdentity;
 
 /**
- * The base type of any EJB server request.  This type is implemented by protocol implementations and consumed by
- * EJB invocation servers.
+ * The base type of any Enterprise Bean server request.  This type is implemented by protocol implementations and consumed by
+ * Enterprise Bean invocation servers.
  *
  * @author <a href="mailto:david.lloyd@redhat.com">David M. Lloyd</a>
  */
@@ -76,9 +76,9 @@ public interface Request {
     boolean isBlockingCaller();
 
     /**
-     * Get the identifier of the target EJB.
+     * Get the identifier of the target Enterprise Beans.
      *
-     * @return the identifier of the target EJB (must not be {@code null})
+     * @return the identifier of the target Enterprise Beans (must not be {@code null})
      */
     @NotNull
     EJBIdentifier getEJBIdentifier();
@@ -98,13 +98,13 @@ public interface Request {
     void writeException(@NotNull Exception exception);
 
     /**
-     * Write a message indicating that the EJB is not found on this server.  The request should be abandoned after
+     * Write a message indicating that the Enterprise Bean is not found on this server.  The request should be abandoned after
      * invoking this method.
      */
     void writeNoSuchEJB();
 
     /**
-     * Write a message indicating that the EJB exists but the locator does not refer to a remote view.  The request
+     * Write a message indicating that the Enterprise Bean exists but the locator does not refer to a remote view.  The request
      * should be abandoned after invoking this method.
      */
     void writeWrongViewType();
@@ -115,19 +115,19 @@ public interface Request {
     void writeCancelResponse();
 
     /**
-     * Write a message indicating that given EJB is not actually stateful.  The request should be abandoned after
+     * Write a message indicating that given Enterprise Bean is not actually stateful.  The request should be abandoned after
      * invoking this method.
      */
     void writeNotStateful();
 
     /**
      * Attempt to convert the current invocation into a stateful invocation.  For session creation requests, this method
-     * <em>must</em> be called.  For regular method invocations, this method <em>may</em> be called if the invoked EJB
+     * <em>must</em> be called.  For regular method invocations, this method <em>may</em> be called if the invoked Enterprise Bean
      * is stateful but the locator is stateless, in order to auto-create the session.
      *
      * @param sessionId the new session ID (must not be {@code null})
      * @throws IllegalArgumentException if the current invocation cannot be converted to a stateful invocation because
-     *  it is already stateful or the target EJB is not a stateful EJB
+     *  it is already stateful or the target Enterprise Bean is not a stateful Enterprise Bean
      * @throws IllegalStateException if the invocation was already converted to be stateful with a different session ID
      */
     void convertToStateful(@NotNull SessionID sessionId) throws IllegalArgumentException, IllegalStateException;

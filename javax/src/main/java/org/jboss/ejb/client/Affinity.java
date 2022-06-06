@@ -40,13 +40,13 @@ public abstract class Affinity implements Serializable {
     public static final Affinity NONE = new NoAffinity();
 
     /**
-     * The specification for the local EJB environment.
+     * The specification for the local Enterprise Beans environment.
      */
     public static final Affinity LOCAL = new LocalAffinity();
 
     /**
      * Key which will be used in the invocation context data for passing around the weak affinity
-     * associated with a EJB.
+     * associated with a Enterprise Bean.
      */
     public static final String WEAK_AFFINITY_CONTEXT_KEY = "jboss.ejb.weak.affinity";
 

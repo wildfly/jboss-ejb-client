@@ -22,7 +22,7 @@ import javax.ejb.EJBHome;
 import javax.ejb.EJBObject;
 
 /**
- * EJB metadata for stateless EJBs.
+ * Enterprise Beans metadata for stateless Enterprise Beans.
  *
  * @param <T> the remote interface type
  * @param <H> the home interface type
@@ -37,7 +37,7 @@ public final class StatelessEJBMetaData<T extends EJBObject, H extends EJBHome> 
      * Construct a new instance.
      *
      * @param remoteInterfaceClass the remote interface class
-     * @param homeLocator the EJB home locator
+     * @param homeLocator the Enterprise Beans home locator
      */
     public StatelessEJBMetaData(final Class<T> remoteInterfaceClass, final EJBHomeLocator<H> homeLocator) {
         super(remoteInterfaceClass, homeLocator);
@@ -47,7 +47,7 @@ public final class StatelessEJBMetaData<T extends EJBObject, H extends EJBHome> 
      * Construct a new instance.
      *
      * @param remoteInterfaceClass the remote interface class (must not be {@code null})
-     * @param homeLocator the EJB home locator (must not be {@code null})
+     * @param homeLocator the Enterprise Beans home locator (must not be {@code null})
      * @param <T> the remote interface type
      * @param <H> the home interface type
      * @return the new instance (not {@code null})

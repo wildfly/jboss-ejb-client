@@ -23,7 +23,7 @@ import java.util.EnumSet;
 import javax.ejb.TransactionAttributeType;
 
 /**
- * The transaction policy for the client side of an EJB interface or method.
+ * The transaction policy for the client side of an Enterprise Bean interface or method.
  *
  * @author <a href="mailto:david.lloyd@redhat.com">David M. Lloyd</a>
  */

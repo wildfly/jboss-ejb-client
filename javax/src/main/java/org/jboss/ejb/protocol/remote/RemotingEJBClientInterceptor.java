@@ -56,7 +56,7 @@ public final class RemotingEJBClientInterceptor implements EJBClientInterceptor 
         try {
             return context.getResult();
         } catch (NoSuchEJBException e) {
-            // EJB is not present on target node!
+            // Enterprise Bean is not present on target node!
             removeNode(context);
             throw e;
         }
@@ -66,7 +66,7 @@ public final class RemotingEJBClientInterceptor implements EJBClientInterceptor 
         try {
             return context.proceed();
         } catch (NoSuchEJBException e) {
-            // EJB is not present on target node!
+            // Enterprise Bean is not present on target node!
             removeNode(context);
             throw e;
         }

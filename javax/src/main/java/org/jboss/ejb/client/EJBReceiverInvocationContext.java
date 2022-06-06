@@ -27,7 +27,7 @@ import org.wildfly.discovery.Discovery;
 import org.wildfly.security.auth.client.AuthenticationContext;
 
 /**
- * The context used for an EJB receiver to return the result of an invocation.
+ * The context used for an Enterprise Bean receiver to return the result of an invocation.
  *
  * @author <a href="mailto:david.lloyd@redhat.com">David M. Lloyd</a>
  */

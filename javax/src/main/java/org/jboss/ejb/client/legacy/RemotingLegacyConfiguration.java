@@ -35,7 +35,7 @@ import org.xnio.Options;
 import org.xnio.Xnio;
 
 /**
- * The interface to merge EJB properties into the Remoting configuration.
+ * The interface to merge Enterprise Bean properties into the Remoting configuration.
  *
  * @author <a href="mailto:david.lloyd@redhat.com">David M. Lloyd</a>
  */

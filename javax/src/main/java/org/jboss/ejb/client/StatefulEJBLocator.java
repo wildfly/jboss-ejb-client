@@ -21,7 +21,7 @@ package org.jboss.ejb.client;
 import org.wildfly.common.Assert;
 
 /**
- * A locator for a stateful session EJB.
+ * A locator for a stateful session Enterprise Bean.
  *
  * @param <T> the remote view type
  */
@@ -93,7 +93,7 @@ public final class StatefulEJBLocator<T> extends EJBLocator<T> {
      * Construct a new instance.
      *
      * @param viewType the view type
-     * @param identifier the EJB identifier
+     * @param identifier the Enterprise Beans identifier
      * @param sessionId the stateful session ID
      * @param affinity the {@link Affinity} for this stateful bean locator
      */
@@ -107,7 +107,7 @@ public final class StatefulEJBLocator<T> extends EJBLocator<T> {
      * Construct a new instance.
      *
      * @param viewType the view type
-     * @param identifier the EJB identifier
+     * @param identifier the Enterprise Beans identifier
      * @param sessionId the stateful session ID
      */
     public StatefulEJBLocator(final Class<T> viewType, final EJBIdentifier identifier, final SessionID sessionId) {
@@ -156,7 +156,7 @@ public final class StatefulEJBLocator<T> extends EJBLocator<T> {
      * Construct a new instance.
      *
      * @param viewType the view type (must not be {@code null})
-     * @param identifier the EJB identifier (must not be {@code null})
+     * @param identifier the Enterprise Beans identifier (must not be {@code null})
      * @param sessionId the stateful session ID (must not be {@code null})
      * @param affinity the {@link Affinity} for this stateful bean locator
      * @param <T> the remote view type
@@ -167,9 +167,9 @@ public final class StatefulEJBLocator<T> extends EJBLocator<T> {
     }
 
     /**
-     * Get a copy of this stateful EJB locator, but without any session ID.
+     * Get a copy of this stateful Enterprise Beans locator, but without any session ID.
      *
-     * @return the stateless EJB locator (not {@code null})
+     * @return the stateless Enterprise Beans locator (not {@code null})
      */
     public StatelessEJBLocator<T> withoutSession() {
         return new StatelessEJBLocator<T>(this, getAffinity());

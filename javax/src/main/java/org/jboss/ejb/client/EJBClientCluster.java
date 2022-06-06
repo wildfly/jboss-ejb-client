@@ -22,7 +22,7 @@ import org.wildfly.common.Assert;
 import org.wildfly.security.auth.client.AuthenticationConfiguration;
 
 /**
- * Information about a configured cluster on an EJB client context.
+ * Information about a configured cluster on an Enterprise Bean client context.
  *
  * @author <a href="mailto:david.lloyd@redhat.com">David M. Lloyd</a>
  */

@@ -71,7 +71,7 @@ final class EJBInvocationHandler<T> extends Attachable implements InvocationHand
     /**
      * Construct a new instance.
      *
-     * @param locator the initial EJB locator (not {@code null})
+     * @param locator the initial Enterprise Beans locator (not {@code null})
      * @param authenticationContextSupplier the sticky authentication context supplier, or {@code null} to always capture the current context
      */
     EJBInvocationHandler(final EJBLocator<T> locator, final Supplier<AuthenticationContext> authenticationContextSupplier) {

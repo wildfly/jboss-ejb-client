@@ -499,7 +499,7 @@ class EJBClientChannel {
      * Wraps the {@link MessageOutputStream message output stream} into a relevant {@link DataOutputStream}, taking into account various factors like the necessity to
      * compress the data that gets passed along the stream
      *
-     * @param invocationContext         The EJB client invocation context
+     * @param invocationContext         The Enterprise Beans client invocation context
      * @param messageOutputStream       The message output stream that needs to be wrapped
      * @return the compressed stream
      * @throws IOException if a problem occurs

@@ -26,9 +26,9 @@ import javax.ejb.HomeHandle;
 import org.wildfly.common.Assert;
 
 /**
- * A handle for an EJB home interface.
+ * A handle for an Enterprise Bean home interface.
  *
- * @param <T> the EJB remote home interface type
+ * @param <T> the Enterprise Beans remote home interface type
  * @author <a href="mailto:david.lloyd@redhat.com">David M. Lloyd</a>
  */
 public final class EJBHomeHandle<T extends EJBHome> implements HomeHandle {
@@ -51,7 +51,7 @@ public final class EJBHomeHandle<T extends EJBHome> implements HomeHandle {
      * Construct a new instance.
      *
      * @param locator the locator for the home interface (must not be {@code null})
-     * @param <T> the EJB home type
+     * @param <T> the Enterprise Beans home type
      * @return the handle (not {@code null})
      */
     public static <T extends EJBHome> EJBHomeHandle<T> create(EJBHomeLocator<T> locator) {
@@ -86,7 +86,7 @@ public final class EJBHomeHandle<T extends EJBHome> implements HomeHandle {
     }
 
     /**
-     * Get the hash code for this EJB home handle.
+     * Get the hash code for this Enterprise Beans home handle.
      *
      * @return the hash code
      */
