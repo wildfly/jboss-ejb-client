@@ -67,7 +67,7 @@
         <version.org.jboss.narayana>5.12.4.Final</version.org.jboss.narayana>
         <version.org.jboss.remoting>5.0.23.Final</version.org.jboss.remoting>
         <version.org.jboss.spec.javax.ejb>1.0.0.Final</version.org.jboss.spec.javax.ejb>
-        <version.jakarta.ejb-api>4.0.0</version.jakarta.ejb-api>
+        <version.jakarta.ejb-api>4.0.1</version.jakarta.ejb-api>
         <version.org.jboss.spec.javax.transaction>1.0.1.Final</version.org.jboss.spec.javax.transaction>
         <version.jakarta-transaction-api>2.0.0</version.jakarta-transaction-api>
         <version.org.jboss.spec.javax.resource.jboss-connector-api_1.7_spec>2.0.0.Final</version.org.jboss.spec.javax.resource.jboss-connector-api_1.7_spec>
