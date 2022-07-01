@@ -43,6 +43,7 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -1310,6 +1311,21 @@ class EJBClientChannel {
                 this.id = id;
             }
 
+            /**
+             * Clean the ContextData on the {@link EJBClientInvocationContext} by removing all keys, contained in the
+             * {@link EJBClientInvocationContext#RETURNED_CONTEXT_DATA_KEY}.
+             *
+             * @param clientInvocationContext
+             */
+            private void cleanContextDataBeforeUnmarshalling(EJBClientInvocationContext clientInvocationContext) {
+                Map<String, Object> contextData = clientInvocationContext.getContextData();
+                @SuppressWarnings("unchecked")
+                Set<String> returnedContextDataKeys = (Set<String>) contextData.get(EJBClientInvocationContext.RETURNED_CONTEXT_DATA_KEY);
+                if(returnedContextDataKeys != null) {
+                    contextData.keySet().removeAll(returnedContextDataKeys);
+                }
+            }
+            
             public Object apply(final Void ignored0, final Void ignored1) throws Exception {
                 final ResponseMessageInputStream response;
                 if(inputStream instanceof ResponseMessageInputStream) {
@@ -1323,6 +1339,8 @@ class EJBClientChannel {
                     result = unmarshaller.readObject();
                     int attachments = unmarshaller.readUnsignedByte();
                     final EJBClientInvocationContext clientInvocationContext = receiverInvocationContext.getClientInvocationContext();
+                    // clean the client side ContextData to allow server side removed keys being removed - EJBCLIENT-425
+                    cleanContextDataBeforeUnmarshalling(clientInvocationContext);
                     for (int i = 0; i < attachments; i ++) {
                         String key = unmarshaller.readObject(String.class);
                         if (version < 3 && key.equals(Affinity.WEAK_AFFINITY_CONTEXT_KEY)) {
