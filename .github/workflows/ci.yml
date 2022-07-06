@@ -36,7 +36,7 @@ jobs:
         version: ${{ matrix.jdk }}
         impl: ${{ matrix.impl }}
     - name: Run Tests
-      run: mvn -U -B -fae clean install test
+      run: mvn -ntp -U -B -fae clean install test
     - uses: actions/upload-artifact@v2
       if: failure()
       with:
