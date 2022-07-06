@@ -71,7 +71,7 @@
         <version.org.jboss.spec.javax.transaction>1.0.1.Final</version.org.jboss.spec.javax.transaction>
         <version.jakarta-transaction-api>2.0.0</version.jakarta-transaction-api>
         <version.org.jboss.spec.javax.resource.jboss-connector-api_1.7_spec>2.0.0.Final</version.org.jboss.spec.javax.resource.jboss-connector-api_1.7_spec>
-        <version.jakarta.resource.jakarta-resource-api>2.0.0</version.jakarta.resource.jakarta-resource-api>
+        <version.jakarta.resource.jakarta-resource-api>2.1.0</version.jakarta.resource.jakarta-resource-api>
         <version.org.jboss.threads>2.3.3.Final</version.org.jboss.threads>
         <version.org.jboss.xnio>3.8.2.Final</version.org.jboss.xnio>
         <version.org.kohsuke.metainf-services>1.7</version.org.kohsuke.metainf-services>
