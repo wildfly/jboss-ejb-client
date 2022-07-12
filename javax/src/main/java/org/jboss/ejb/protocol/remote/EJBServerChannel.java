@@ -35,9 +35,12 @@ import java.net.Inet6Address;
 import java.net.SocketAddress;
 import java.nio.charset.StandardCharsets;
 import java.security.PrivilegedAction;
+import java.util.Collection;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.Executor;
 import java.util.function.Function;
 import java.util.zip.Deflater;
@@ -106,6 +109,7 @@ import org.wildfly.transaction.client.spi.SubordinateTransactionControl;
  * @author <a href="mailto:david.lloyd@redhat.com">David M. Lloyd</a>
  * @author <a href="mailto:tadamski@redhat.com">Tomasz Adamski</a>
  * @author <a href="mailto:ropalka@redhat.com">Richard Opalka</a>
+ * @author <a href="mailto:jbaesner@redhat.com">Joerg Baesner</a>
  */
 @SuppressWarnings("deprecation")
 final class EJBServerChannel {
@@ -799,6 +803,7 @@ final class EJBServerChannel {
 
         public Resolved getRequestContent(final ClassLoader classLoader) throws IOException, ClassNotFoundException {
             classResolver.setClassLoader(classLoader);
+            Set<String>retainContextDataKeys = new HashSet<>();
             int responseCompressLevel = 0;
             // resolve the rest of everything here
             try (Unmarshaller unmarshaller = remaining) {
@@ -831,6 +836,9 @@ final class EJBServerChannel {
 
                         throw Logs.REMOTING.mismatchedMethodLocation();
                     }
+
+                    // Protocol version <= 2 is dealing with the WEAK_AFFINITY_CONTEXT_KEY as an attachment, see writeInvocationResult(final Object result) 
+                    retainContextDataKeys.add(Affinity.WEAK_AFFINITY_CONTEXT_KEY);
                 }
                 Object[] parameters = new Object[methodLocator.getParameterCount()];
                 for (int i = 0; i < parameters.length; i ++) {
@@ -878,7 +886,14 @@ final class EJBServerChannel {
                         }
                     } else {
                         final Object value = unmarshaller.readObject();
-                        if (value != null) attachments.put(attName, value);
+                        if (value != null) {
+                            attachments.put(attName, value);
+
+                            // add all client requested ContextData keys to the retainContextDataKeys
+                            if(EJBClientInvocationContext.RETURNED_CONTEXT_DATA_KEY.equals(attName)) {
+                                retainContextDataKeys.addAll((Collection<? extends String>) value);
+                            }
+                        }
                     }
                 }
                 attachments.put(EJBClient.SOURCE_ADDRESS_KEY, channel.getConnection().getPeerAddress());
@@ -984,7 +999,8 @@ final class EJBServerChannel {
                             final Marshaller marshaller = marshallerFactory.createMarshaller(configuration);
                             marshaller.start(new NoFlushByteOutput(Marshalling.createByteOutput(os)));
                             marshaller.writeObject(result);
-                            attachments.remove(EJBClient.SOURCE_ADDRESS_KEY);
+                            // during the unmarshalling of the incoming request, the retainContextDataKeys have been collected
+                            attachments.keySet().retainAll(retainContextDataKeys);
                             if (version >= 3) {
                                 attachments.remove(Affinity.WEAK_AFFINITY_CONTEXT_KEY);
                             }
