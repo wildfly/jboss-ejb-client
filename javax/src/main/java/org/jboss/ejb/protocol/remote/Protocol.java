@@ -23,11 +23,7 @@ package org.jboss.ejb.protocol.remote;
  */
 final class Protocol {
 
-    static final int JAVAEE_PROTOCOL_VERSION = 3;
-    static final int JAKARTAEE_PROTOCOL_VERSION = 4;
-    // Batavia transformer sensible constant - it can start with either "javax." or "jakarta." if transformation was performed
-    private static final String VARIABLE_CONSTANT = "javax.ejb.FAKE_STRING";
-    public static final int LATEST_VERSION = VARIABLE_CONSTANT.startsWith("jakarta") ? JAKARTAEE_PROTOCOL_VERSION : JAVAEE_PROTOCOL_VERSION;
+    public static final int LATEST_VERSION = 3;
 
     // flags field (v3 and up)
     public static final int COMPRESS_RESPONSE = 0b0000_1111;

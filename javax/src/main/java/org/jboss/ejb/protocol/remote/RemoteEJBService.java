@@ -67,7 +67,7 @@ public final class RemoteEJBService {
                         try {
                             final int version;
                             try {
-                                version = min(Protocol.LATEST_VERSION, StreamUtils.readInt8(message));
+                                version = min(3, StreamUtils.readInt8(message));
                                 // drain the rest of the message because it's just garbage really
                                 while (message.read() != -1) {
                                     message.skip(Long.MAX_VALUE);
