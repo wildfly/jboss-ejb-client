@@ -80,7 +80,7 @@
         <version.org.wildfly.naming.client>1.0.14.Final</version.org.wildfly.naming.client>
         <version.org.wildfly.discovery>1.2.1.Final</version.org.wildfly.discovery>
         <version.org.wildfly.security.elytron>1.19.0.Final</version.org.wildfly.security.elytron>
-        <version.org.wildfly.transaction-client>2.0.0.Final</version.org.wildfly.transaction-client>
+        <version.org.wildfly.transaction-client>2.0.1.Final</version.org.wildfly.transaction-client>
         <version.org.wildfly.extras.batavia>1.0.10.Final</version.org.wildfly.extras.batavia>
 
         <test-group>org/jboss/ejb/client</test-group>
