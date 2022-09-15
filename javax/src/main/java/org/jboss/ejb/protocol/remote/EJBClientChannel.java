@@ -18,48 +18,6 @@
 
 package org.jboss.ejb.protocol.remote;
 
-import static java.lang.Math.min;
-import static org.jboss.ejb.protocol.remote.TCCLUtils.getAndSetSafeTCCL;
-import static org.jboss.ejb.protocol.remote.TCCLUtils.resetTCCL;
-import static org.xnio.Bits.allAreClear;
-import static org.xnio.Bits.allAreSet;
-import static org.xnio.IoUtils.safeClose;
-
-import java.io.DataInputStream;
-import java.io.DataOutput;
-import java.io.DataOutputStream;
-import java.io.EOFException;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.UnsupportedEncodingException;
-import java.lang.reflect.Method;
-import java.net.InetSocketAddress;
-import java.net.URI;
-import java.nio.channels.ClosedChannelException;
-import java.nio.charset.StandardCharsets;
-import java.security.PrivilegedActionException;
-import java.security.PrivilegedExceptionAction;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Map;
-import java.util.Set;
-import java.util.concurrent.Executor;
-import java.util.concurrent.ThreadLocalRandom;
-import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.atomic.AtomicReference;
-import java.util.zip.Deflater;
-import java.util.zip.DeflaterOutputStream;
-import java.util.zip.InflaterInputStream;
-import javax.ejb.CreateException;
-import javax.ejb.EJBException;
-import javax.ejb.NoSuchEJBException;
-import javax.transaction.InvalidTransactionException;
-import javax.transaction.RollbackException;
-import javax.transaction.SystemException;
-import javax.transaction.Transaction;
-import javax.transaction.xa.Xid;
-
 import org.jboss.ejb._private.Keys;
 import org.jboss.ejb._private.Logs;
 import org.jboss.ejb.client.AbstractInvocationContext;
@@ -83,7 +41,6 @@ import org.jboss.ejb.client.TransactionID;
 import org.jboss.ejb.client.UserTransactionID;
 import org.jboss.ejb.client.XidTransactionID;
 import org.jboss.marshalling.ByteInput;
-import org.jboss.marshalling.ClassNameTransformer;
 import org.jboss.marshalling.Marshaller;
 import org.jboss.marshalling.MarshallerFactory;
 import org.jboss.marshalling.Marshalling;
@@ -115,6 +72,48 @@ import org.wildfly.transaction.client.provider.remoting.SimpleIdResolver;
 import org.xnio.Cancellable;
 import org.xnio.FutureResult;
 import org.xnio.IoFuture;
+
+import javax.ejb.CreateException;
+import javax.ejb.EJBException;
+import javax.ejb.NoSuchEJBException;
+import javax.transaction.InvalidTransactionException;
+import javax.transaction.RollbackException;
+import javax.transaction.SystemException;
+import javax.transaction.Transaction;
+import javax.transaction.xa.Xid;
+import java.io.DataInputStream;
+import java.io.DataOutput;
+import java.io.DataOutputStream;
+import java.io.EOFException;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.UnsupportedEncodingException;
+import java.lang.reflect.Method;
+import java.net.InetSocketAddress;
+import java.net.URI;
+import java.nio.channels.ClosedChannelException;
+import java.nio.charset.StandardCharsets;
+import java.security.PrivilegedActionException;
+import java.security.PrivilegedExceptionAction;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.Executor;
+import java.util.concurrent.ThreadLocalRandom;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
+import java.util.zip.Deflater;
+import java.util.zip.DeflaterOutputStream;
+import java.util.zip.InflaterInputStream;
+
+import static java.lang.Math.min;
+import static org.jboss.ejb.protocol.remote.TCCLUtils.getAndSetSafeTCCL;
+import static org.jboss.ejb.protocol.remote.TCCLUtils.resetTCCL;
+import static org.xnio.Bits.allAreClear;
+import static org.xnio.Bits.allAreSet;
+import static org.xnio.IoUtils.safeClose;
 
 /**
  * @author <a href="mailto:david.lloyd@redhat.com">David M. Lloyd</a>
@@ -164,12 +163,7 @@ class EJBClientChannel {
             configuration.setVersion(4);
             // server does not present v3 unless the transaction service is also present
         }
-        if (version < Protocol.JAKARTAEE_PROTOCOL_VERSION && Protocol.LATEST_VERSION >= Protocol.JAKARTAEE_PROTOCOL_VERSION) {
-            // EJB client uses EJB PROTOCOL version 4 or above but EJB server uses EJB PROTOCOL version 3 or below
-            // so in this case we need to translate classes from JavaEE API to JakartaEE API and vice versa
-            configuration.setClassNameTransformer(ClassNameTransformer.JAVAEE_TO_JAKARTAEE);
-            Logs.REMOTING.javaeeToJakartaeeBackwardCompatibilityLayerInstalled();
-        }
+        EENamespaceInteroperability.handleInteroperability(configuration, version);
         transactionContext = RemoteTransactionContext.getInstance();
         this.configuration = configuration;
         invocationTracker = new InvocationTracker(this.channel, channel.getOption(RemotingOptions.MAX_OUTBOUND_MESSAGES).intValue(), EJBClientChannel::mask);
