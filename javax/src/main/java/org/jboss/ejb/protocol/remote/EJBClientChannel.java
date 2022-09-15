@@ -164,12 +164,7 @@ class EJBClientChannel {
             configuration.setVersion(4);
             // server does not present v3 unless the transaction service is also present
         }
-        if (version < Protocol.JAKARTAEE_PROTOCOL_VERSION && Protocol.LATEST_VERSION >= Protocol.JAKARTAEE_PROTOCOL_VERSION) {
-            // EJB client uses EJB PROTOCOL version 4 or above but EJB server uses EJB PROTOCOL version 3 or below
-            // so in this case we need to translate classes from JavaEE API to JakartaEE API and vice versa
-            configuration.setClassNameTransformer(ClassNameTransformer.JAVAEE_TO_JAKARTAEE);
-            Logs.REMOTING.javaeeToJakartaeeBackwardCompatibilityLayerInstalled();
-        }
+        EEInteroperability.handleInteroperability(configuration, version);
         transactionContext = RemoteTransactionContext.getInstance();
         this.configuration = configuration;
         invocationTracker = new InvocationTracker(this.channel, channel.getOption(RemotingOptions.MAX_OUTBOUND_MESSAGES).intValue(), EJBClientChannel::mask);
