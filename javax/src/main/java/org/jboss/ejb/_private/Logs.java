@@ -495,4 +495,9 @@ public interface Logs extends BasicLogger {
 
     @Message(value = "Context data under org.jboss.private.data was not of type Set<String>")
     IllegalStateException returnedContextDataKeyOfWrongType();
+
+    @LogMessage(level = DEBUG)
+    @Message(id = 524, value = "JavaEE to JakartaEE backward compatibility layer have been installed")
+    void javaeeToJakartaeeBackwardCompatibilityLayerInstalled();
+
 }

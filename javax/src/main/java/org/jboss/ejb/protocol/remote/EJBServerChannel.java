@@ -18,44 +18,6 @@
 
 package org.jboss.ejb.protocol.remote;
 
-import static java.lang.Math.min;
-import static java.security.AccessController.doPrivileged;
-import static org.jboss.ejb.protocol.remote.TCCLUtils.getAndSetSafeTCCL;
-import static org.jboss.ejb.protocol.remote.TCCLUtils.resetTCCL;
-import static org.xnio.IoUtils.safeClose;
-
-import java.io.DataInput;
-import java.io.DataInputStream;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.InvalidClassException;
-import java.lang.reflect.Method;
-import java.lang.reflect.Proxy;
-import java.net.Inet6Address;
-import java.net.SocketAddress;
-import java.nio.charset.StandardCharsets;
-import java.security.PrivilegedAction;
-import java.util.Collection;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.concurrent.Executor;
-import java.util.function.Function;
-import java.util.zip.Deflater;
-import java.util.zip.DeflaterOutputStream;
-import java.util.zip.InflaterInputStream;
-
-import javax.ejb.EJBException;
-import javax.transaction.HeuristicMixedException;
-import javax.transaction.HeuristicRollbackException;
-import javax.transaction.RollbackException;
-import javax.transaction.SystemException;
-import javax.transaction.Transaction;
-import javax.transaction.xa.XAException;
-import javax.transaction.xa.Xid;
-
 import org.jboss.ejb._private.Logs;
 import org.jboss.ejb.client.Affinity;
 import org.jboss.ejb.client.AttachmentKeys;
@@ -105,6 +67,43 @@ import org.wildfly.transaction.client.SimpleXid;
 import org.wildfly.transaction.client.provider.remoting.RemotingTransactionServer;
 import org.wildfly.transaction.client.spi.SubordinateTransactionControl;
 
+import javax.ejb.EJBException;
+import javax.transaction.HeuristicMixedException;
+import javax.transaction.HeuristicRollbackException;
+import javax.transaction.RollbackException;
+import javax.transaction.SystemException;
+import javax.transaction.Transaction;
+import javax.transaction.xa.XAException;
+import javax.transaction.xa.Xid;
+import java.io.DataInput;
+import java.io.DataInputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.InvalidClassException;
+import java.lang.reflect.Method;
+import java.lang.reflect.Proxy;
+import java.net.Inet6Address;
+import java.net.SocketAddress;
+import java.nio.charset.StandardCharsets;
+import java.security.PrivilegedAction;
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.Executor;
+import java.util.function.Function;
+import java.util.zip.Deflater;
+import java.util.zip.DeflaterOutputStream;
+import java.util.zip.InflaterInputStream;
+
+import static java.lang.Math.min;
+import static java.security.AccessController.doPrivileged;
+import static org.jboss.ejb.protocol.remote.TCCLUtils.getAndSetSafeTCCL;
+import static org.jboss.ejb.protocol.remote.TCCLUtils.resetTCCL;
+import static org.xnio.IoUtils.safeClose;
+
 /**
  * @author <a href="mailto:david.lloyd@redhat.com">David M. Lloyd</a>
  * @author <a href="mailto:tadamski@redhat.com">Tomasz Adamski</a>
@@ -142,6 +141,7 @@ final class EJBServerChannel {
             configuration.setObjectResolver(new ProtocolV3ObjectResolver(channel.getConnection(), true));
             configuration.setVersion(4);
         }
+        EENamespaceInteroperability.handleInteroperability(configuration, version);
         marshallerFactory = new RiverMarshallerFactory();
         this.configuration = configuration;
         this.classResolverFilter = classResolverFilter;
