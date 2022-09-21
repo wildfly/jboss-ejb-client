@@ -125,6 +125,10 @@
                                 <name>java.util.logging.manager</name>
                                 <value>org.jboss.logmanager.LogManager</value>
                             </property>
+                            <property>
+                                <name>org.wildfly.ee.namespace.interop</name>
+                                <value>true</value>
+                            </property>
                         </systemProperties>
                     </configuration>
                 </plugin>
