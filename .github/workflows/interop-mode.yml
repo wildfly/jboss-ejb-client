@@ -1,7 +1,7 @@
 # This workflow will build a Java project with Maven
 # For more information see: https://help.github.com/actions/language-and-framework-guides/building-and-testing-java-with-maven
 
-name: Wildfly EJB Client CI
+name: ee-namespace-interop profile
 
 on:
   pull_request:
@@ -17,7 +17,7 @@ jobs:
       matrix:
         os: [ubuntu-20.04, windows-latest]
         jdk: [8, 11, 17]
-        impl: [hotspot]
+        impl: [openj9]
     steps:
     - name: Configure runner - Linux 
       if: contains(matrix.os, 'ubuntu')
@@ -38,12 +38,12 @@ jobs:
         impl: ${{ matrix.impl }}
     - name: Run Tests with JDK 8
       if: ${{ matrix.jdk  == '8' }}
-      run: mvn -ntp -U -B -fae clean verify -pl javax,. --also-make
+      run: mvn -ntp -U -B -fae clean verify -Pee-namespace-interop -pl javax,. --also-make
     - name: Run Tests with JDK 11 or above
       if: ${{ matrix.jdk  != '8' }}
-      run: mvn -ntp -U -B -fae clean verify
+      run: mvn -ntp -U -B -fae clean verify -Pee-namespace-interop
     - uses: actions/upload-artifact@v2
       if: failure()
       with:
-        name: surefire-reports-${{ matrix.openjdk}}-${{ matrix.jdk }}-${{ matrix.os }}
-        path: '**/surefire-reports/*.txt'
+        name: surefire-ee-interoperable-reports-${{ matrix.openjdk}}-${{ matrix.jdk }}-${{ matrix.os }}
+        path: '**/surefire-ee-interoperable-reports/*.txt'
