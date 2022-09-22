@@ -125,10 +125,6 @@
                                 <name>java.util.logging.manager</name>
                                 <value>org.jboss.logmanager.LogManager</value>
                             </property>
-                            <property>
-                                <name>org.wildfly.ee.namespace.interop</name>
-                                <value>true</value>
-                            </property>
                         </systemProperties>
                     </configuration>
                 </plugin>
@@ -547,6 +543,67 @@
                                 "Boot ClassPath Testing"
                             </commandlineArgs>
                         </configuration>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+        <profile>
+            <id>ee-namespace-interop</id>
+            <activation>
+                <property>
+                    <name>test-interop</name>
+                </property>
+            </activation>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-surefire-plugin</artifactId>
+                          <executions>
+                                <execution>
+                                    <id>default-test</id>
+                                    <goals>
+                                        <goal>test</goal>
+                                    </goals>
+                                    <phase>none</phase>
+                                </execution>
+                                <execution>
+                                    <id>tests-ee-namespace-interop</id>
+                                    <phase>test</phase>
+                                    <goals><goal>test</goal></goals>
+                                    <configuration>
+                                        <systemPropertyVariables>
+                                            <org.wildfly.ee.namespace.interop>true</org.wildfly.ee.namespace.interop>
+                                        </systemPropertyVariables>
+                                        <!-- Skip Byteman tests -->
+                                        <excludes>
+                                            <exclude>${test-group}/**/byteman/*TestCase.java</exclude>
+                                        </excludes>
+                                        <reportsDirectory>${project.build.directory}/surefire-ee-interoperable-reports</reportsDirectory>
+                                    </configuration>
+                                </execution>
+                                <!-- Byteman tests -->
+                                <execution>
+                                    <id>tests-byteman-ee-namespace-interop</id>
+                                    <phase>test</phase>
+                                    <goals>
+                                        <goal>test</goal>
+                                    </goals>
+                                    <configuration>
+                                        <systemPropertyVariables>
+                                            <org.wildfly.ee.namespace.interop>true</org.wildfly.ee.namespace.interop>
+                                        </systemPropertyVariables>
+                                        <argLine>-Dorg.jboss.byteman.verbose, -Djdk.attach.allowAttachSelf=true</argLine>
+                                        <environmentVariables>
+                                            <BYTEMAN_HOME/>
+                                        </environmentVariables>
+                                        <includes>
+                                            <include>${test-group}/**/byteman/*TestCase.java</include>
+                                        </includes>
+                                        <reportsDirectory>${project.build.directory}/surefire-ee-interoperable-reports</reportsDirectory>
+                                    </configuration>
+                                </execution>
+                            </executions>
                     </plugin>
                 </plugins>
             </build>
