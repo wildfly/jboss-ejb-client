@@ -30,7 +30,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.concurrent.ThreadLocalRandom;
 
-import javax.ejb.NoSuchEJBException;
+import jakarta.ejb.NoSuchEJBException;
 
 import org.jboss.ejb._private.Keys;
 import org.jboss.ejb._private.Logs;

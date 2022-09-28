@@ -19,7 +19,7 @@ package org.jboss.ejb.client.test.common;
 
 import org.jboss.logging.Logger;
 
-import javax.ejb.Stateful;
+import jakarta.ejb.Stateful;
 
 /**
  * User: jpai

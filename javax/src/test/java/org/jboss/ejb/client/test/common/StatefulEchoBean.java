@@ -17,7 +17,7 @@
  */
 package org.jboss.ejb.client.test.common;
 
-import javax.ejb.Stateful;
+import jakarta.ejb.Stateful;
 
 /**
  * An instance of Echo marked explicitly as stateful.

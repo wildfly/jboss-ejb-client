@@ -20,10 +20,10 @@ package org.jboss.ejb.protocol.remote;
 
 import java.io.IOException;
 
-import javax.transaction.HeuristicMixedException;
-import javax.transaction.HeuristicRollbackException;
-import javax.transaction.RollbackException;
-import javax.transaction.SystemException;
+import jakarta.transaction.HeuristicMixedException;
+import jakarta.transaction.HeuristicRollbackException;
+import jakarta.transaction.RollbackException;
+import jakarta.transaction.SystemException;
 
 import org.jboss.ejb.client.UserTransactionID;
 import org.jboss.marshalling.Marshalling;

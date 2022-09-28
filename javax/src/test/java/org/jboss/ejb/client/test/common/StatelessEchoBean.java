@@ -17,7 +17,7 @@
  */
 package org.jboss.ejb.client.test.common;
 
-import javax.ejb.Stateless;
+import jakarta.ejb.Stateless;
 
 /**
  * An instance of Echo marked explicitly as stateless.

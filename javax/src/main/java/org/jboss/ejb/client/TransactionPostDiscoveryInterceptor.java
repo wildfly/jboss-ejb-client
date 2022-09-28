@@ -26,7 +26,7 @@ import static org.jboss.ejb.client.TransactionInterceptor.toApplication;
 import java.net.URI;
 import java.util.concurrent.ConcurrentMap;
 
-import javax.ejb.NoSuchEJBException;
+import jakarta.ejb.NoSuchEJBException;
 
 import org.jboss.ejb._private.Logs;
 import org.jboss.ejb.client.annotation.ClientInterceptorPriority;

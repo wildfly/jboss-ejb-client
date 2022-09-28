@@ -39,14 +39,14 @@ import org.jboss.remoting3.Channel;
 import org.wildfly.client.config.ConfigXMLParseException;
 import org.wildfly.client.config.ConfigurationXMLStreamReader;
 
-import javax.ejb.EJBException;
-import javax.ejb.NoSuchEJBException;
+import jakarta.ejb.EJBException;
+import jakarta.ejb.NoSuchEJBException;
 import javax.naming.CommunicationException;
 import javax.naming.Name;
 import javax.naming.NamingException;
-import javax.transaction.NotSupportedException;
-import javax.transaction.SystemException;
-import javax.transaction.Transaction;
+import jakarta.transaction.NotSupportedException;
+import jakarta.transaction.SystemException;
+import jakarta.transaction.Transaction;
 
 import java.io.IOException;
 import java.io.InvalidClassException;

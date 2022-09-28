@@ -21,8 +21,8 @@ package org.jboss.ejb.server;
 import java.io.IOException;
 import java.util.Map;
 
-import javax.transaction.SystemException;
-import javax.transaction.Transaction;
+import jakarta.transaction.SystemException;
+import jakarta.transaction.Transaction;
 
 import org.jboss.ejb.client.Affinity;
 import org.jboss.ejb.client.EJBLocator;

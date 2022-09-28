@@ -20,7 +20,7 @@ package org.jboss.ejb.protocol.remote;
 
 import java.io.IOException;
 
-import javax.transaction.SystemException;
+import jakarta.transaction.SystemException;
 import javax.transaction.xa.XAException;
 import javax.transaction.xa.Xid;
 

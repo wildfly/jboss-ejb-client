@@ -18,7 +18,7 @@
 
 package org.jboss.ejb.client;
 
-import javax.ejb.EJBException;
+import jakarta.ejb.EJBException;
 
 /**
  * An exception (typically) thrown by {@link EJBReceiver}s if the receiver couldn't successfully handle a request.  If

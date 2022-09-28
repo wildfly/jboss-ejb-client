@@ -21,7 +21,7 @@ import java.io.InvalidClassException;
 import java.net.URI;
 import java.net.URISyntaxException;
 
-import javax.ejb.EJBException;
+import jakarta.ejb.EJBException;
 
 import org.jboss.ejb.client.EJBClient;
 import org.jboss.ejb.client.StatelessEJBLocator;

@@ -18,7 +18,7 @@
 
 package org.jboss.ejb.protocol.remote;
 
-import javax.ejb.NoSuchEJBException;
+import jakarta.ejb.NoSuchEJBException;
 
 import org.jboss.ejb.client.AbstractInvocationContext;
 import org.jboss.ejb.client.Affinity;

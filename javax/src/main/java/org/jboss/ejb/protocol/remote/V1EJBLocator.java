@@ -20,8 +20,8 @@ package org.jboss.ejb.protocol.remote;
 
 import java.io.Serializable;
 
-import javax.ejb.EJBHome;
-import javax.ejb.EJBObject;
+import jakarta.ejb.EJBHome;
+import jakarta.ejb.EJBObject;
 
 import org.jboss.ejb.client.Affinity;
 import org.jboss.ejb.client.EJBHomeLocator;

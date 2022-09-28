@@ -56,20 +56,20 @@
 
     <dependencies>
         <dependency>
-            <groupId>org.jboss.spec.javax.ejb</groupId>
-            <artifactId>jboss-ejb-api_3.2_spec</artifactId>
+            <groupId>jakarta.ejb</groupId>
+            <artifactId>jakarta.ejb-api</artifactId>
         </dependency>
         <dependency>
-            <groupId>org.jboss.spec.javax.transaction</groupId>
-            <artifactId>jboss-transaction-api_1.2_spec</artifactId>
+            <groupId>jakarta.transaction</groupId>
+            <artifactId>jakarta.transaction-api</artifactId>
         </dependency>
         <dependency>
             <groupId>org.wildfly.transaction</groupId>
-            <artifactId>wildfly-transaction-client</artifactId>
+            <artifactId>wildfly-transaction-client-jakarta</artifactId>
         </dependency>
         <dependency>
             <groupId>org.jboss.invocation</groupId>
-            <artifactId>jboss-invocation</artifactId>
+            <artifactId>jboss-invocation-jakarta</artifactId>
         </dependency>
         <dependency>
             <groupId>org.jboss.marshalling</groupId>
@@ -194,19 +194,19 @@
         </dependency>
         <dependency>
             <groupId>org.jboss.narayana.jta</groupId>
-            <artifactId>narayana-jta</artifactId>
+            <artifactId>narayana-jta-jakarta</artifactId>
         </dependency>
         <dependency>
             <groupId>org.jboss.narayana.jts</groupId>
-            <artifactId>narayana-jts-integration</artifactId>
+            <artifactId>narayana-jts-integration-jakarta</artifactId>
         </dependency>
         <dependency>
-            <groupId>org.jboss.spec.javax.resource</groupId>
-            <artifactId>jboss-connector-api_1.7_spec</artifactId>
+            <groupId>jakarta.resource</groupId>
+            <artifactId>jakarta.resource-api</artifactId>
         </dependency>
         <dependency>
             <groupId>org.jboss</groupId>
-            <artifactId>jboss-transaction-spi</artifactId>
+            <artifactId>jboss-transaction-spi-jakarta</artifactId>
         </dependency>
         <!-- ByteMan -->
         <dependency>

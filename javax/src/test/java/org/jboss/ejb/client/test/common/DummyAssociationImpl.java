@@ -41,8 +41,8 @@ import org.jboss.ejb.client.test.common.DummyServer.EJBClusterRegistry;
 import org.jboss.ejb.client.test.common.DummyServer.EJBClusterRegistryListener;
 import org.wildfly.common.annotation.NotNull;
 
-import javax.ejb.EJBException;
-import javax.ejb.Stateful;
+import jakarta.ejb.EJBException;
+import jakarta.ejb.Stateful;
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;

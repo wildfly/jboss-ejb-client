@@ -33,8 +33,8 @@ import java.util.IdentityHashMap;
 import java.util.concurrent.Future;
 import java.util.zip.Deflater;
 
-import javax.ejb.EJBHome;
-import javax.ejb.EJBObject;
+import jakarta.ejb.EJBHome;
+import jakarta.ejb.EJBObject;
 
 import org.jboss.ejb.client.annotation.ClientAsynchronous;
 import org.jboss.ejb.client.annotation.ClientInterceptors;

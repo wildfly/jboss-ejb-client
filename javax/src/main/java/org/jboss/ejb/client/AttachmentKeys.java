@@ -21,7 +21,7 @@ package org.jboss.ejb.client;
 import java.lang.reflect.Method;
 import java.util.Map;
 
-import javax.transaction.Transaction;
+import jakarta.transaction.Transaction;
 
 import org.jboss.ejb.client.annotation.CompressionHint;
 

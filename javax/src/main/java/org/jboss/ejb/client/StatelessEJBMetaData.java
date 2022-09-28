@@ -18,8 +18,8 @@
 
 package org.jboss.ejb.client;
 
-import javax.ejb.EJBHome;
-import javax.ejb.EJBObject;
+import jakarta.ejb.EJBHome;
+import jakarta.ejb.EJBObject;
 
 /**
  * Enterprise Beans metadata for stateless Enterprise Beans.

@@ -27,8 +27,8 @@ import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
 import java.util.function.UnaryOperator;
 
-import javax.ejb.CreateException;
-import javax.transaction.UserTransaction;
+import jakarta.ejb.CreateException;
+import jakarta.transaction.UserTransaction;
 
 import org.jboss.ejb._private.Logs;
 import org.wildfly.common.Assert;

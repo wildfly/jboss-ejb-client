@@ -18,8 +18,8 @@
 
 package org.jboss.ejb.server;
 
-import javax.transaction.SystemException;
-import javax.transaction.Transaction;
+import jakarta.transaction.SystemException;
+import jakarta.transaction.Transaction;
 
 /**
  * An Enterprise Bean session-open request.

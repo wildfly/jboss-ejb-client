@@ -20,7 +20,7 @@ package org.jboss.ejb.client.test;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.List;
-import javax.ejb.NoSuchEJBException;
+import jakarta.ejb.NoSuchEJBException;
 
 import org.jboss.ejb.client.Affinity;
 import org.jboss.ejb.client.EJBClient;

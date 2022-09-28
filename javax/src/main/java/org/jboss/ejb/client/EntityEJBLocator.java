@@ -18,7 +18,7 @@
 
 package org.jboss.ejb.client;
 
-import javax.ejb.EJBObject;
+import jakarta.ejb.EJBObject;
 
 import org.wildfly.common.Assert;
 

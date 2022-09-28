@@ -37,7 +37,6 @@
 
     <modules>
         <module>javax</module>
-        <module>jakarta</module>
     </modules>
     <scm>
         <connection>scm:git:git@github.com:wildfly/jboss-ejb-client.git</connection>

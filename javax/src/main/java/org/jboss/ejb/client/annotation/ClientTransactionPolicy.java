@@ -20,7 +20,7 @@ package org.jboss.ejb.client.annotation;
 
 import java.util.EnumSet;
 
-import javax.ejb.TransactionAttributeType;
+import jakarta.ejb.TransactionAttributeType;
 
 /**
  * The transaction policy for the client side of an Enterprise Bean interface or method.

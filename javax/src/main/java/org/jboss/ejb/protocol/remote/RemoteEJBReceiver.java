@@ -25,7 +25,7 @@ import java.io.InterruptedIOException;
 import java.net.InetSocketAddress;
 import java.net.URI;
 import java.security.PrivilegedAction;
-import javax.ejb.CreateException;
+import jakarta.ejb.CreateException;
 import javax.net.ssl.SSLException;
 
 import org.jboss.ejb._private.Logs;

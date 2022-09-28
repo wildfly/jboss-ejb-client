@@ -20,8 +20,8 @@ package org.jboss.ejb.client;
 
 import java.rmi.RemoteException;
 
-import javax.ejb.EJBHome;
-import javax.ejb.HomeHandle;
+import jakarta.ejb.EJBHome;
+import jakarta.ejb.HomeHandle;
 
 import org.wildfly.common.Assert;
 
