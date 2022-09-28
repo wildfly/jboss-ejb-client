@@ -67,7 +67,7 @@
         <version.org.kohsuke.metainf-services>1.7</version.org.kohsuke.metainf-services>
         <version.org.wildfly.client-config>1.0.1.Final</version.org.wildfly.client-config>
         <version.org.wildfly.common>1.5.1.Final</version.org.wildfly.common>
-        <version.org.wildfly.naming.client>1.0.16.Final</version.org.wildfly.naming.client>
+        <version.org.wildfly.naming.client>1.1.0.Final</version.org.wildfly.naming.client>
         <version.org.wildfly.discovery>1.2.1.Final</version.org.wildfly.discovery>
         <version.org.wildfly.security.elytron>1.19.0.Final</version.org.wildfly.security.elytron>
         <version.org.wildfly.transaction-client>2.0.1.Final</version.org.wildfly.transaction-client>
@@ -281,7 +281,7 @@
         </dependency>
         <dependency>
             <groupId>org.wildfly</groupId>
-            <artifactId>wildfly-naming-client-jakarta</artifactId>
+            <artifactId>wildfly-naming-client</artifactId>
             <version>${version.org.wildfly.naming.client}</version>
         </dependency>
         <!-- JUnit -->
