@@ -28,14 +28,10 @@ import org.jboss.marshalling.MarshallingConfiguration;
  * @author Richard Opalka
  */
 final class EENamespaceInteroperability {
-    // Batavia transformer sensible constant - it can start with either "javax." or "jakarta." if transformation was performed
-    private static final String VARIABLE_CONSTANT = "jakarta.ejb.FAKE_STRING";
-    static final boolean JAKARTAEE_ENVIRONMENT = VARIABLE_CONSTANT.startsWith("jakarta");
-
     /**
      * Indicates if EE namespace interoperable mode is enabled.
      */
-    static final boolean EE_NAMESPACE_INTEROPERABLE_MODE = JAKARTAEE_ENVIRONMENT && Boolean.parseBoolean(
+    static final boolean EE_NAMESPACE_INTEROPERABLE_MODE = Boolean.parseBoolean(
             org.wildfly.security.manager.WildFlySecurityManager.getPropertyPrivileged("org.wildfly.ee.namespace.interop", "false"));
 
     static {

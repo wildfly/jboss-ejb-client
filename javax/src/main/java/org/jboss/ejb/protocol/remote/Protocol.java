@@ -18,8 +18,6 @@
 
 package org.jboss.ejb.protocol.remote;
 
-import static org.jboss.ejb.protocol.remote.EENamespaceInteroperability.*;
-
 /**
  * @author <a href="mailto:david.lloyd@redhat.com">David M. Lloyd</a>
  */
@@ -27,7 +25,7 @@ final class Protocol {
 
     static final int JAVAEE_PROTOCOL_VERSION = 3;
     static final int JAKARTAEE_PROTOCOL_VERSION = 4;
-    public static final int LATEST_VERSION = JAKARTAEE_ENVIRONMENT ? JAKARTAEE_PROTOCOL_VERSION : JAVAEE_PROTOCOL_VERSION;
+    public static final int LATEST_VERSION = JAKARTAEE_PROTOCOL_VERSION;
 
     // flags field (v3 and up)
     public static final int COMPRESS_RESPONSE = 0b0000_1111;
