@@ -36,12 +36,8 @@ jobs:
       with:
         version: ${{ matrix.jdk }}
         impl: ${{ matrix.impl }}
-    - name: Run Tests with JDK 8
-      if: ${{ matrix.jdk  == '8' }}
-      run: mvn -ntp -U -B -fae clean install -pl javax,. --also-make
-    - name: Run Tests with JDK 11 or above
-      if: ${{ matrix.jdk  != '8' }}
-      run: mvn -ntp -U -B -fae clean install
+    - name: Run Tests
+      run: mvn -ntp -U -B -fae clean verify
     - uses: actions/upload-artifact@v2
       if: failure()
       with:
