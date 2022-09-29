@@ -55,7 +55,7 @@
         <version.org.jboss.logging.jboss-logging>3.4.0.Final</version.org.jboss.logging.jboss-logging>
         <version.org.jboss.logging.jboss-logging-tools>2.1.0.Final</version.org.jboss.logging.jboss-logging-tools>
         <version.org.jboss.logmanager>2.1.10.Final</version.org.jboss.logmanager>
-        <version.org.jboss.marshalling>2.1.0.Final</version.org.jboss.marshalling>
+        <version.org.jboss.marshalling>2.1.1.Final</version.org.jboss.marshalling>
         <version.org.jboss.modules>1.6.0.Final</version.org.jboss.modules>
         <version.org.jboss.narayana>5.12.4.Final</version.org.jboss.narayana>
         <version.org.jboss.remoting>5.0.23.Final</version.org.jboss.remoting>
