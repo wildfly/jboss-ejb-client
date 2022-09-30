@@ -16,7 +16,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-20.04, windows-latest]
-        jdk: [8, 11, 17]
+        jdk: [11, 17]
         impl: [hotspot]
     steps:
     - name: Configure runner - Linux 
@@ -36,11 +36,7 @@ jobs:
       with:
         version: ${{ matrix.jdk }}
         impl: ${{ matrix.impl }}
-    - name: Run Tests with JDK 8
-      if: ${{ matrix.jdk  == '8' }}
-      run: mvn -ntp -U -B -fae clean verify -pl javax,. --also-make
-    - name: Run Tests with JDK 11 or above
-      if: ${{ matrix.jdk  != '8' }}
+    - name: Run Tests
       run: mvn -ntp -U -B -fae clean verify
     - uses: actions/upload-artifact@v2
       if: failure()
