@@ -19,7 +19,7 @@ Bugs and features are tracked within the JBoss EJB client Jira project at https:
 ## Contributions
 
 All new features and enhancements should be submitted to _main_ branch.
-Our contribution guide will guide you through the steps for getting started on the JBoss EJB client project and will go through how to format and submit your first PR.
+Our [contribution guide](https://github.com/wildfly/jboss-ejb-client/blob/main/CONTRIBUTING.md) will guide you through the steps for getting started on the JBoss EJB client project and will go through how to format and submit your first PR.
 
 
 ## Get Help
