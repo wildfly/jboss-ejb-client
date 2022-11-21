@@ -18,10 +18,10 @@
 
 package org.jboss.ejb.client;
 
+import java.net.URI;
+
 import org.junit.Assert;
 import org.junit.Test;
-
-import java.net.URI;
 
 /**
  * Tests on DiscoveryEJBClientInterceptor
@@ -43,7 +43,11 @@ public class DiscoveryEJBClientInterceptorTestCase {
         DiscoveryEJBClientInterceptor.addBlocklistedDestination(destination);
         Assert.assertTrue(DiscoveryEJBClientInterceptor.isBlocklisted(context, destination));
         Assert.assertEquals(1, DiscoveryEJBClientInterceptor.getBlocklist().size());
-        Thread.sleep(timeout);
+
+        // If sleeping for just the timeout duration, the lifespan of
+        // the blocklist may equal to, but not greater than, the configured
+        // timeout, and so will not be removed yet. So sleep a bit longer.
+        Thread.sleep(timeout * 2);
         Assert.assertFalse(DiscoveryEJBClientInterceptor.isBlocklisted(context, destination));
         Assert.assertEquals(0, DiscoveryEJBClientInterceptor.getBlocklist().size());
     }
