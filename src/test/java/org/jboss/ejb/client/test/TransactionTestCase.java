@@ -18,13 +18,10 @@
 package org.jboss.ejb.client.test;
 
 import java.io.File;
-import java.nio.file.Path;
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
-
 import javax.transaction.TransactionManager;
 import javax.transaction.TransactionSynchronizationRegistry;
 import javax.transaction.UserTransaction;
@@ -36,9 +33,7 @@ import com.arjuna.ats.internal.jta.transaction.arjunacore.TransactionSynchroniza
 import com.arjuna.ats.jta.common.JTAEnvironmentBean;
 import com.arjuna.ats.jta.common.jtaPropertyManager;
 import com.arjuna.common.internal.util.propertyservice.BeanPopulator;
-import org.jboss.ejb.client.test.common.DummyServer;
 import org.jboss.ejb.client.test.common.Echo;
-import org.jboss.ejb.client.test.common.EchoBean;
 import org.jboss.ejb.client.test.common.StatefulEchoBean;
 import org.jboss.ejb.client.test.common.StatelessEchoBean;
 import org.jboss.logging.Logger;
@@ -49,7 +44,6 @@ import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.BeforeClass;
-import org.junit.Ignore;
 import org.junit.Test;
 import org.wildfly.naming.client.WildFlyInitialContextFactory;
 import org.wildfly.naming.client.WildFlyRootContext;
@@ -196,15 +190,25 @@ public class TransactionTestCase extends AbstractEJBClientTestCase {
             transaction.begin();
             HashMap<String, Integer> replies = new HashMap<>();
             String id = null;
-            for (int i = 0; i < 20; i++) {
-                // get the correct bean name and interface depending on case
-                String beanInterface = Echo.class.getName();
-                String beanName = stateful ? StatefulEchoBean.class.getSimpleName() : StatelessEchoBean.class.getSimpleName();
 
-                Echo echo = (Echo) context.lookup("ejb:" + APP_NAME + "/" + MODULE_NAME + "/" + beanName + "!" + beanInterface + (stateful ? "?stateful" : ""));
-                id = echo.echo("someMsg").getNode();
-                Integer existing = replies.get(id);
-                replies.put(id, existing == null ? 1 : existing + 1);
+            try {
+                for (int i = 0; i < 20; i++) {
+                    // get the correct bean name and interface depending on case
+                    String beanInterface = Echo.class.getName();
+                    String beanName = stateful ? StatefulEchoBean.class.getSimpleName() : StatelessEchoBean.class.getSimpleName();
+
+                    Echo echo = (Echo) context.lookup("ejb:" + APP_NAME + "/" + MODULE_NAME + "/" + beanName + "!" + beanInterface + (stateful ? "?stateful" : ""));
+                    id = echo.echo("someMsg").getNode();
+                    Integer existing = replies.get(id);
+                    replies.put(id, existing == null ? 1 : existing + 1);
+                }
+            } catch (Exception e) {
+                try {
+                    transaction.rollback();
+                } catch (Exception exceptionFromRollback) {
+                    // ignore
+                }
+                throw e;
             }
 
             // Everything should clump to one node under this transaction
@@ -233,16 +237,26 @@ public class TransactionTestCase extends AbstractEJBClientTestCase {
             txManager.begin();
             HashMap<String, Integer> replies = new HashMap<>();
             String id = null;
-            for (int i = 0; i < 30; i++) {
-                // get the correct bean name and interface depending on case
-                String beanInterface = Echo.class.getName();
-                String beanName = stateful ? StatefulEchoBean.class.getSimpleName() : StatelessEchoBean.class.getSimpleName();
 
-                Echo echo = (Echo) context.lookup("ejb:" + APP_NAME + "/" + MODULE_NAME + "/" + beanName + "!" + beanInterface + (stateful ? "?stateful" : ""));
-                // invoke the non-transactional version of echo
-                id = echo.echoNonTx("someMsg").getNode();
-                Integer existing = replies.get(id);
-                replies.put(id, existing == null ? 1 : existing + 1);
+            try {
+                for (int i = 0; i < 30; i++) {
+                    // get the correct bean name and interface depending on case
+                    String beanInterface = Echo.class.getName();
+                    String beanName = stateful ? StatefulEchoBean.class.getSimpleName() : StatelessEchoBean.class.getSimpleName();
+
+                    Echo echo = (Echo) context.lookup("ejb:" + APP_NAME + "/" + MODULE_NAME + "/" + beanName + "!" + beanInterface + (stateful ? "?stateful" : ""));
+                    // invoke the non-transactional version of echo
+                    id = echo.echoNonTx("someMsg").getNode();
+                    Integer existing = replies.get(id);
+                    replies.put(id, existing == null ? 1 : existing + 1);
+                }
+            } catch (Exception e) {
+                try {
+                    txManager.rollback();
+                } catch (Exception exceptionFromRollback) {
+                    // ignore
+                }
+                throw e;
             }
 
             // Everything should clump to one node under this transaction
