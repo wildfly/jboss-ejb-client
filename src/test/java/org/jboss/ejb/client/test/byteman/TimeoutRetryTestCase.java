@@ -48,7 +48,6 @@ import org.junit.runner.RunWith;
 @RunWith(BMUnitRunner.class)
 @BMScript(dir = "target/test-classes")
 public class TimeoutRetryTestCase {
-
     private static final Logger logger = Logger.getLogger(TimeoutRetryTestCase.class);
     private static final String PROPERTIES_FILE = "jboss-ejb-client.properties";
 
@@ -59,9 +58,8 @@ public class TimeoutRetryTestCase {
     private static final String APP_NAME = "my-foo-app";
     private static final String MODULE_NAME = "my-bar-module";
     private static final String DISTINCT_NAME = "";
-
+    private static final String BEAN_NAME = EchoBean.class.getName();
     private static final String SERVER_NAME = "test-server";
-
 
     /**
      * Do any general setup here
@@ -70,7 +68,7 @@ public class TimeoutRetryTestCase {
      */
     @BeforeClass
     public static void beforeClass() throws Exception {
-        // trigger the static init of the correct proeprties file - this also depends on running in forkMode=always
+        // trigger the static init of the correct properties file - this also depends on running in forkMode=always
         JBossEJBProperties ejbProperties = JBossEJBProperties.fromClassPath(TimeoutRetryTestCase.class.getClassLoader(), PROPERTIES_FILE);
         JBossEJBProperties.getContextManager().setGlobalDefault(ejbProperties);
 
@@ -89,8 +87,8 @@ public class TimeoutRetryTestCase {
         serverStarted = true;
         logger.info("Started server ...");
 
-        server.register(APP_NAME, MODULE_NAME, DISTINCT_NAME, "missing", new EchoBean());
-        logger.info("Registered module ...");
+        server.register(APP_NAME, MODULE_NAME, DISTINCT_NAME, BEAN_NAME, new EchoBean());
+        logger.infof("Registered module: %s %s %s %s", APP_NAME, MODULE_NAME, DISTINCT_NAME, BEAN_NAME);
     }
 
     /**
@@ -98,24 +96,28 @@ public class TimeoutRetryTestCase {
      */
     @Test
     public void testInvocationWithURIAffinity() {
-        logger.info("Testing invocation on proxy with URIAffinity");
-
-        // create a proxy for invocation
-        final StatelessEJBLocator<Echo> statelessEJBLocator = new StatelessEJBLocator<Echo>(Echo.class, APP_NAME, MODULE_NAME, Echo.class.getSimpleName(), DISTINCT_NAME);
-        final Echo proxy = EJBClient.createProxy(statelessEJBLocator);
-        EJBClient.setInvocationTimeout(proxy, 1, TimeUnit.SECONDS);
-        URI uri = null;
+        final String message = "hello!";
+        final URI uri;
         try {
             uri = new URI("remote", null, "localhost", 6999, null, null, null);
         } catch (URISyntaxException use) {
-            //
+            throw new RuntimeException((use));
         }
+
+        // first calling a correctly configured EchoBean proxy
+        StatelessEJBLocator<Echo> statelessEJBLocator = new StatelessEJBLocator<>(Echo.class, APP_NAME, MODULE_NAME, BEAN_NAME, DISTINCT_NAME);
+        Echo proxy = EJBClient.createProxy(statelessEJBLocator);
+        EJBClient.setStrongAffinity(proxy, URIAffinity.forUri(uri));
+        Assert.assertEquals(message, proxy.echo(message).getValue());
+
+        // create a proxy with wrong bean name for invocation
+        statelessEJBLocator = new StatelessEJBLocator<>(Echo.class, APP_NAME, MODULE_NAME, "wrong-name", DISTINCT_NAME);
+        proxy = EJBClient.createProxy(statelessEJBLocator);
+        EJBClient.setInvocationTimeout(proxy, 1, TimeUnit.SECONDS);
         EJBClient.setStrongAffinity(proxy, URIAffinity.forUri(uri));
         Assert.assertNotNull("Received a null proxy", proxy);
-        logger.info("Created proxy for Echo: " + proxy.toString());
 
-        logger.info("Invoking on proxy...");
-        final String message = "hello!";
+        logger.info("Invoking on proxy with wrong bean name " + proxy);
         long start = System.currentTimeMillis();
         try {
             proxy.echo(message);
@@ -129,14 +131,16 @@ public class TimeoutRetryTestCase {
                 }
             }
             if (!found) {
-                Assert.fail("Expected a supressed timeout exception");
+                expected.printStackTrace();
+                Assert.fail("Expected a suppressed timeout exception");
             }
-            expected.printStackTrace();
         }
         //we have a 3s sleep in the retry code
         //and a 1s timeout
         //so we verify it was less than 1s
-        Assert.assertTrue("Invocation should have timed out after 1s", System.currentTimeMillis() - start < 2000);
+        final long invocationDuration = System.currentTimeMillis() - start;
+        Assert.assertTrue("Invocation should have timed out after 1000 ms, but actual duration is " + invocationDuration, invocationDuration < 2000);
+        logger.infof("Invocation correctly timed out in %s ms", invocationDuration);
     }
 
     /**
@@ -144,8 +148,8 @@ public class TimeoutRetryTestCase {
      */
     @After
     public void afterTest() {
-        server.unregister(APP_NAME, MODULE_NAME, DISTINCT_NAME, Echo.class.getName());
-        logger.info("Unregistered module ...");
+        server.unregister(APP_NAME, MODULE_NAME, DISTINCT_NAME, BEAN_NAME);
+        logger.infof("Unregistered module: %s %s %s %s", APP_NAME, MODULE_NAME, DISTINCT_NAME, BEAN_NAME);
 
         if (serverStarted) {
             try {
