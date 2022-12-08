@@ -21,6 +21,8 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import javax.ejb.NoSuchEJBException;
 
 import org.jboss.byteman.contrib.bmunit.BMScript;
@@ -118,29 +120,38 @@ public class TimeoutRetryTestCase {
         Assert.assertNotNull("Received a null proxy", proxy);
 
         logger.info("Invoking on proxy with wrong bean name " + proxy);
+        NoSuchEJBException expectedException = null;
         long start = System.currentTimeMillis();
         try {
             proxy.echo(message);
             Assert.fail("Invocation expected to fail");
         } catch (NoSuchEJBException expected) {
-            boolean found = false;
-            for (Throwable i : expected.getSuppressed()) {
-                if (i instanceof TimeoutException) {
-                    found = true;
-                    break;
-                }
-            }
-            if (!found) {
-                expected.printStackTrace();
-                Assert.fail("Expected a suppressed timeout exception");
-            }
+            expectedException = expected;
         }
+
         //we have a 3s sleep in the retry code
         //and a 1s timeout
         //so we verify it was less than 1s
         final long invocationDuration = System.currentTimeMillis() - start;
         Assert.assertTrue("Invocation should have timed out after 1000 ms, but actual duration is " + invocationDuration, invocationDuration < 2000);
         logger.infof("Invocation correctly timed out in %s ms", invocationDuration);
+
+        // check the expected exception type
+        boolean found = false;
+        final Throwable[] suppressed = expectedException.getSuppressed();
+        logger.infof("Suppressed exceptions: %s", Stream.of(suppressed).map(Throwable::toString).collect(Collectors.toList()));
+        for (Throwable i : suppressed) {
+            // the suppressed exception may be a java.util.concurrent.TimeoutException, or
+            // NoSuchEJBException that embeds a TimeoutException
+            if (i instanceof TimeoutException || i instanceof NoSuchEJBException) {
+                found = true;
+                break;
+            }
+        }
+        if (!found) {
+            expectedException.printStackTrace();
+            Assert.fail("Expected a suppressed timeout exception or NoSuchEJBException");
+        }
     }
 
     /**
