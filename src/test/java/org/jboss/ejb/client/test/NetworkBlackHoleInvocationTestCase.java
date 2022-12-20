@@ -17,6 +17,9 @@
  */
 package org.jboss.ejb.client.test;
 
+import java.net.InetAddress;
+import java.net.ServerSocket;
+
 import org.jboss.ejb.client.Affinity;
 import org.jboss.ejb.client.ClusterAffinity;
 import org.jboss.ejb.client.EJBClient;
@@ -32,9 +35,6 @@ import org.junit.Assert;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
-
-import java.net.InetAddress;
-import java.net.ServerSocket;
 
 /**
  * Tests discovery timeout configuration.
@@ -100,37 +100,28 @@ public class NetworkBlackHoleInvocationTestCase extends AbstractEJBClientTestCas
 
     /**
      * Tests that node discovery times out after additional-node-timeout, after the first node has been discovered.
-     *
      * This method tests the use case when affinity is None.
-     *
      * If the test method timed out, then the additional-node-timeout system property didn't take effect.
      */
     @Test(timeout = 4000)
     public void testDiscoveryTimeoutWithoutAffinity() throws Exception {
-        final StatelessEJBLocator<Echo> locator = StatelessEJBLocator.create(Echo.class, STATELESS_IDENTIFIER,
-                Affinity.NONE);
-
-        // verify that client invocation works when both nodes are responsive
-        verifyClient(locator);
-
-        // stop second node and open a socket at the same port to simulate unresponsive node
-        stopServer(1);
-        try (ServerSocket s = new ServerSocket(7099, 100, InetAddress.getByName("localhost"))) {
-            verifyClient(locator);
-        }
+        logger.info("Starting testDiscoveryTimeoutWithoutAffinity");
+        testDiscoveryTimeout(Affinity.NONE);
     }
 
     /**
      * Tests that node discovery times out after additional-node-timeout, after the first node has been discovered.
-     *
      * This method tests the use case when affinity is ClusterAffinity.
-     *
      * If the test method timed out, then additional-node-timeout system property didn't take effect.
      */
     @Test(timeout = 4000)
     public void testDiscoveryTimeoutWithClusterAffinity() throws Exception {
-        final StatelessEJBLocator<Echo> locator = StatelessEJBLocator.create(Echo.class, STATELESS_IDENTIFIER,
-                new ClusterAffinity(CLUSTER_NAME));
+        logger.info("Starting testDiscoveryTimeoutWithClusterAffinity");
+        testDiscoveryTimeout(new ClusterAffinity(CLUSTER_NAME));
+    }
+
+    private void testDiscoveryTimeout(final Affinity affinity) throws Exception {
+        final StatelessEJBLocator<Echo> locator = StatelessEJBLocator.create(Echo.class, STATELESS_IDENTIFIER, affinity);
 
         // verify that client invocation works when both nodes are responsive
         verifyClient(locator);
@@ -142,24 +133,33 @@ public class NetworkBlackHoleInvocationTestCase extends AbstractEJBClientTestCas
         }
     }
 
+    /**
+     * Creates the proxy to invoke the target ejb, and verifies that the
+     * invocation returns promptly (less than the maximum time).
+     * @param locator ejb locator for creating proxy
+     */
     private static void verifyClient(EJBLocator<Echo> locator) {
         final Echo proxy = EJBClient.createProxy(locator);
         Assert.assertNotNull("Received a null proxy", proxy);
-        logger.info("Created proxy for Echo: " + proxy.toString());
 
-        logger.info("Invoking on proxy...");
+        logger.info("Invoking on proxy " + proxy);
         // Invoke on the proxy. This should fail in 10 seconds or else it'll hang.
         final String message = "hello!";
 
         long invocationStart = System.currentTimeMillis();
-        Result<String> echo = proxy.echo(message);
-        assertInvocationTimeLessThan("org.jboss.ejb.client.discovery.additional-node-timeout ineffective", 3000, invocationStart);
-        Assert.assertEquals(message, echo.getValue());
+        Result<String> result = proxy.echo(message);
+        final long invocationTime = System.currentTimeMillis() - invocationStart;
+
+        assertInvocationTimeLessThan(invocationTime, result);
+        Assert.assertEquals(message, result.getValue());
     }
 
-    private static void assertInvocationTimeLessThan(String message, long maximumInvocationTimeMs, long invocationStart) {
-        long invocationTime = System.currentTimeMillis() - invocationStart;
-        if (invocationTime > maximumInvocationTimeMs)
-            Assert.fail(String.format("%s: invocation time: %d > maximum expected invocation time: %d", message, invocationTime, maximumInvocationTimeMs));
+    private static void assertInvocationTimeLessThan(long invocationTime, Result<String> result) {
+        final long maximumInvocationTimeMs = 3000;
+        logger.infof("Invocation returned from %s in %d ms", result.getNode(), invocationTime);
+        if (invocationTime > maximumInvocationTimeMs) {
+            Assert.fail(String.format("org.jboss.ejb.client.discovery.additional-node-timeout ineffective: invocation time: %d > maximum expected invocation time: %d",
+                    invocationTime, maximumInvocationTimeMs));
+        }
     }
 }
