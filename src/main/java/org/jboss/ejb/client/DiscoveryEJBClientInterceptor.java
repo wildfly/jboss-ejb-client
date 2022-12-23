@@ -78,7 +78,7 @@ public final class DiscoveryEJBClientInterceptor implements EJBClientInterceptor
     // This provides a way timeout a discovery, avoiding blocking on some edge cases. See EJBCLIENT-311.
     private static final long DISCOVERY_TIMEOUT = SecurityUtils.getLong(SystemProperties.DISCOVERY_TIMEOUT, 0L);
     //how long to wait if at least one node has already been discovered. This one is in ms rather than s
-    private static final long DISCOVERY_ADDITIONAL_TIMEOUT = SecurityUtils.getLong(SystemProperties.DISCOVERY_ADDITIONAL_NODE_TIMEOUT, 0L);
+    private static final long DISCOVERY_ADDITIONAL_TIMEOUT = SecurityUtils.getLong(SystemProperties.DISCOVERY_ADDITIONAL_NODE_TIMEOUT, 200L);
 
     /**
      * This interceptor's priority.
@@ -543,6 +543,7 @@ public final class DiscoveryEJBClientInterceptor implements EJBClientInterceptor
                     //one has already been discovered, we may want a shorter timeout for additional nodes
                     if (DISCOVERY_ADDITIONAL_TIMEOUT != 0) {
                         timeout = DISCOVERY_ADDITIONAL_TIMEOUT; //this one is actually in ms, you generally want it very short
+                        Logs.MAIN.warnf("  DISCOVERY_ADDITIONAL_TIMEOUT = %s", timeout);
                     }
                 }
             }
