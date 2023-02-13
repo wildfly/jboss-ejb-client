@@ -1322,11 +1322,10 @@ class EJBClientChannel {
                 Map<String, Object> contextData = clientInvocationContext.getContextData();
                 @SuppressWarnings("unchecked")
                 Set<String> returnedContextDataKeys = (Set<String>) contextData.get(EJBClientInvocationContext.RETURNED_CONTEXT_DATA_KEY);
-                if(returnedContextDataKeys != null) {
-                    contextData.keySet().removeAll(returnedContextDataKeys);
-                }
+                contextData.keySet().removeIf(k -> returnedContextDataKeys.contains(k));
             }
-            
+
+
             public Object apply(final Void ignored0, final Void ignored1) throws Exception {
                 final ResponseMessageInputStream response;
                 if(inputStream instanceof ResponseMessageInputStream) {
