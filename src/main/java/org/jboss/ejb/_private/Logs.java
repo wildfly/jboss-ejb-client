@@ -18,35 +18,10 @@
 
 package org.jboss.ejb._private;
 
-import org.jboss.ejb.client.Affinity;
-import org.jboss.ejb.client.EJBClientInvocationContext;
-import org.jboss.ejb.client.EJBIdentifier;
-import org.jboss.ejb.client.EJBLocator;
-import org.jboss.ejb.client.EJBMethodLocator;
-import org.jboss.ejb.client.EJBReceiver;
-import org.jboss.ejb.client.RequestSendFailedException;
-import org.jboss.ejb.client.StatelessEJBLocator;
-import org.jboss.logging.BasicLogger;
-import org.jboss.logging.annotations.Cause;
-import org.jboss.logging.annotations.LogMessage;
-import org.jboss.logging.Logger;
-import org.jboss.logging.annotations.Message;
-import org.jboss.logging.annotations.MessageLogger;
-import org.jboss.logging.annotations.Once;
-import org.jboss.logging.annotations.Param;
-import org.jboss.logging.annotations.Property;
-import org.jboss.remoting3.Channel;
-import org.wildfly.client.config.ConfigXMLParseException;
-import org.wildfly.client.config.ConfigurationXMLStreamReader;
-
-import jakarta.ejb.EJBException;
-import jakarta.ejb.NoSuchEJBException;
-import javax.naming.CommunicationException;
-import javax.naming.Name;
-import javax.naming.NamingException;
-import jakarta.transaction.NotSupportedException;
-import jakarta.transaction.SystemException;
-import jakarta.transaction.Transaction;
+import static org.jboss.logging.Logger.Level.DEBUG;
+import static org.jboss.logging.Logger.Level.ERROR;
+import static org.jboss.logging.Logger.Level.INFO;
+import static org.jboss.logging.Logger.Level.WARN;
 
 import java.io.IOException;
 import java.io.InvalidClassException;
@@ -56,8 +31,35 @@ import java.util.Set;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeoutException;
+import javax.naming.CommunicationException;
+import javax.naming.Name;
+import javax.naming.NamingException;
 
-import static org.jboss.logging.Logger.Level.*;
+import jakarta.ejb.EJBException;
+import jakarta.ejb.NoSuchEJBException;
+import jakarta.transaction.NotSupportedException;
+import jakarta.transaction.SystemException;
+import jakarta.transaction.Transaction;
+import org.jboss.ejb.client.Affinity;
+import org.jboss.ejb.client.EJBClientInvocationContext;
+import org.jboss.ejb.client.EJBIdentifier;
+import org.jboss.ejb.client.EJBLocator;
+import org.jboss.ejb.client.EJBMethodLocator;
+import org.jboss.ejb.client.EJBReceiver;
+import org.jboss.ejb.client.RequestSendFailedException;
+import org.jboss.ejb.client.StatelessEJBLocator;
+import org.jboss.logging.BasicLogger;
+import org.jboss.logging.Logger;
+import org.jboss.logging.annotations.Cause;
+import org.jboss.logging.annotations.LogMessage;
+import org.jboss.logging.annotations.Message;
+import org.jboss.logging.annotations.MessageLogger;
+import org.jboss.logging.annotations.Once;
+import org.jboss.logging.annotations.Param;
+import org.jboss.logging.annotations.Property;
+import org.jboss.remoting3.Channel;
+import org.wildfly.client.config.ConfigXMLParseException;
+import org.wildfly.client.config.ConfigurationXMLStreamReader;
 
 /**
  * Primary logging for the main Enterprise Beans client API.
@@ -500,4 +502,6 @@ public interface Logs extends BasicLogger {
     @Message(id = 524, value = "JavaEE to JakartaEE backward compatibility layer have been installed")
     void javaeeToJakartaeeBackwardCompatibilityLayerInstalled();
 
+    @Message(value = "IO channel timed out or closed. Check server endpoint read or write timeout settings")
+    EJBException channelTimeoutOrClosed(@Cause Exception cause);
 }

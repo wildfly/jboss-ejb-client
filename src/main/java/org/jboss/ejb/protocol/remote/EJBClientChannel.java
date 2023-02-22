@@ -18,6 +18,48 @@
 
 package org.jboss.ejb.protocol.remote;
 
+import static java.lang.Math.min;
+import static org.jboss.ejb.protocol.remote.TCCLUtils.getAndSetSafeTCCL;
+import static org.jboss.ejb.protocol.remote.TCCLUtils.resetTCCL;
+import static org.xnio.Bits.allAreClear;
+import static org.xnio.Bits.allAreSet;
+import static org.xnio.IoUtils.safeClose;
+
+import java.io.DataInputStream;
+import java.io.DataOutput;
+import java.io.DataOutputStream;
+import java.io.EOFException;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.UnsupportedEncodingException;
+import java.lang.reflect.Method;
+import java.net.InetSocketAddress;
+import java.net.URI;
+import java.nio.channels.ClosedChannelException;
+import java.nio.charset.StandardCharsets;
+import java.security.PrivilegedActionException;
+import java.security.PrivilegedExceptionAction;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.Executor;
+import java.util.concurrent.ThreadLocalRandom;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
+import java.util.zip.Deflater;
+import java.util.zip.DeflaterOutputStream;
+import java.util.zip.InflaterInputStream;
+import javax.transaction.xa.Xid;
+
+import jakarta.ejb.CreateException;
+import jakarta.ejb.EJBException;
+import jakarta.ejb.NoSuchEJBException;
+import jakarta.transaction.InvalidTransactionException;
+import jakarta.transaction.RollbackException;
+import jakarta.transaction.SystemException;
+import jakarta.transaction.Transaction;
 import org.jboss.ejb._private.Keys;
 import org.jboss.ejb._private.Logs;
 import org.jboss.ejb.client.AbstractInvocationContext;
@@ -72,48 +114,6 @@ import org.wildfly.transaction.client.provider.remoting.SimpleIdResolver;
 import org.xnio.Cancellable;
 import org.xnio.FutureResult;
 import org.xnio.IoFuture;
-
-import jakarta.ejb.CreateException;
-import jakarta.ejb.EJBException;
-import jakarta.ejb.NoSuchEJBException;
-import jakarta.transaction.InvalidTransactionException;
-import jakarta.transaction.RollbackException;
-import jakarta.transaction.SystemException;
-import jakarta.transaction.Transaction;
-import javax.transaction.xa.Xid;
-import java.io.DataInputStream;
-import java.io.DataOutput;
-import java.io.DataOutputStream;
-import java.io.EOFException;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.UnsupportedEncodingException;
-import java.lang.reflect.Method;
-import java.net.InetSocketAddress;
-import java.net.URI;
-import java.nio.channels.ClosedChannelException;
-import java.nio.charset.StandardCharsets;
-import java.security.PrivilegedActionException;
-import java.security.PrivilegedExceptionAction;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Map;
-import java.util.Set;
-import java.util.concurrent.Executor;
-import java.util.concurrent.ThreadLocalRandom;
-import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.atomic.AtomicReference;
-import java.util.zip.Deflater;
-import java.util.zip.DeflaterOutputStream;
-import java.util.zip.InflaterInputStream;
-
-import static java.lang.Math.min;
-import static org.jboss.ejb.protocol.remote.TCCLUtils.getAndSetSafeTCCL;
-import static org.jboss.ejb.protocol.remote.TCCLUtils.resetTCCL;
-import static org.xnio.Bits.allAreClear;
-import static org.xnio.Bits.allAreSet;
-import static org.xnio.IoUtils.safeClose;
 
 /**
  * @author <a href="mailto:david.lloyd@redhat.com">David M. Lloyd</a>
@@ -1285,7 +1285,8 @@ class EJBClientChannel {
         }
 
         public void handleClosed() {
-            receiverInvocationContext.requestFailed(new EJBException(new ClosedChannelException()), getRetryExecutor(receiverInvocationContext));
+            receiverInvocationContext.requestFailed(Logs.REMOTING.channelTimeoutOrClosed(new ClosedChannelException()),
+                    getRetryExecutor(receiverInvocationContext));
         }
 
         public void handleException(IOException cause) {
