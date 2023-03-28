@@ -592,7 +592,16 @@ final class RemotingEJBDiscoveryProvider implements DiscoveryProvider, Discovere
         public void cancel() {
             final List<Runnable> cancellers = this.cancellers;
             synchronized (cancellers) {
-                for (Runnable canceller : cancellers) {
+                /**
+                 In scenario in which the last node performs a cancel operation and discovery fails a retry is
+                 attempted (see phase2 in countdown method above). This triggers opening new connections and,
+                 as a result, adding cancellers, which are being iterated over in this method leading to
+                 ConcurrentModificationException. To avoid this the copy is created.
+
+                 See https://issues.redhat.com/browse/JBEAP-24568
+                 */
+                final List<Runnable> cancellersCopy = new ArrayList<>(cancellers);
+                for (Runnable canceller : cancellersCopy) {
                     canceller.run();
                 }
             }
