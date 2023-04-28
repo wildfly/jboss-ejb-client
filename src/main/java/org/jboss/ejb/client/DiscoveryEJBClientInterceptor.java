@@ -543,7 +543,9 @@ public final class DiscoveryEJBClientInterceptor implements EJBClientInterceptor
                     //one has already been discovered, we may want a shorter timeout for additional nodes
                     if (DISCOVERY_ADDITIONAL_TIMEOUT != 0) {
                         timeout = DISCOVERY_ADDITIONAL_TIMEOUT; //this one is actually in ms, you generally want it very short
-                        Logs.MAIN.warnf("  DISCOVERY_ADDITIONAL_TIMEOUT = %s", timeout);
+                        if (Logs.INVOCATION.isDebugEnabled()) {
+                            Logs.INVOCATION.debugf("  DISCOVERY_ADDITIONAL_TIMEOUT = %s", timeout);
+                        }
                     }
                 }
             }
