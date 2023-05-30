@@ -52,7 +52,6 @@ public final class RemoteTransportProvider implements EJBTransportProvider {
             case "remote":
             case "remote+http":
             case "remote+https":
-            case "remote+tls":
             // compatibility
             case "remoting":
             case "http-remoting":
@@ -70,7 +69,6 @@ public final class RemoteTransportProvider implements EJBTransportProvider {
             case "remote":
             case "remote+http":
             case "remote+https":
-            case "remote+tls":
             // compatibility
             case "remoting":
             case "http-remoting":
