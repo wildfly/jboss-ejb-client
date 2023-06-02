@@ -17,6 +17,20 @@
  */
 package org.jboss.ejb.client.test.common;
 
+import java.io.IOException;
+import java.net.InetAddress;
+import java.net.InetSocketAddress;
+import java.net.SocketAddress;
+import java.net.UnknownHostException;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Function;
+
 import org.jboss.ejb.client.EJBModuleIdentifier;
 import org.jboss.ejb.protocol.remote.RemoteEJBService;
 import org.jboss.ejb.server.Association;
@@ -33,9 +47,13 @@ import org.jboss.remoting3.Registration;
 import org.jboss.remoting3.ServiceRegistrationException;
 import org.jboss.remoting3.spi.NetworkServerProvider;
 import org.wildfly.security.auth.realm.SimpleMapBackedSecurityRealm;
+import org.wildfly.security.auth.realm.SimpleRealmEntry;
 import org.wildfly.security.auth.server.MechanismConfiguration;
-import org.wildfly.security.auth.server.SaslAuthenticationFactory;
 import org.wildfly.security.auth.server.SecurityDomain;
+import org.wildfly.security.auth.server.SaslAuthenticationFactory;
+import org.wildfly.security.authz.Attributes;
+import org.wildfly.security.credential.Credential;
+import org.wildfly.security.credential.PasswordCredential;
 import org.wildfly.security.password.interfaces.ClearPassword;
 import org.wildfly.security.permission.PermissionVerifier;
 import org.wildfly.security.sasl.util.SaslFactories;
@@ -47,20 +65,6 @@ import org.xnio.Options;
 import org.xnio.Sequence;
 import org.xnio.Xnio;
 import org.xnio.channels.AcceptingChannel;
-
-import java.io.IOException;
-import java.net.InetAddress;
-import java.net.InetSocketAddress;
-import java.net.SocketAddress;
-import java.net.UnknownHostException;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.function.Function;
 
 /**
  * @author <a href="mailto:cdewolf@redhat.com">Carlo de Wolf</a>
@@ -143,7 +147,10 @@ public class DummyServer implements AutoCloseable {
 
         // set up a security realm called default with a user called test
         final SimpleMapBackedSecurityRealm realm = new SimpleMapBackedSecurityRealm();
-        realm.setPasswordMap("test", ClearPassword.createRaw(ClearPassword.ALGORITHM_CLEAR, "test".toCharArray()));
+        final ClearPassword password = ClearPassword.createRaw(ClearPassword.ALGORITHM_CLEAR, "test".toCharArray());
+        final List<Credential> credentials = Collections.singletonList(new PasswordCredential(password));
+        final SimpleRealmEntry realmEntry = new SimpleRealmEntry(credentials, Attributes.EMPTY);
+        realm.setIdentityMap(Collections.singletonMap("test", realmEntry));
 
         // set up a security domain which has realm "default"
         final SecurityDomain.Builder domainBuilder = SecurityDomain.builder();

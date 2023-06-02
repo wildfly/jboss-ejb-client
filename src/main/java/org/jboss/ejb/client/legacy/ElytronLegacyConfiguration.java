@@ -63,7 +63,7 @@ public final class ElytronLegacyConfiguration implements LegacyConfiguration {
         for (JBossEJBProperties.ConnectionConfiguration configuration : properties.getConnectionList()) {
             // we don't actually care about the protocol for Elytron configuration
             MatchRule rule = MatchRule.ALL.matchAbstractType("ejb", "jboss");
-            AuthenticationConfiguration config = AuthenticationConfiguration.EMPTY;
+            AuthenticationConfiguration config = AuthenticationConfiguration.empty();
 
             final String host = configuration.getHost();
             if (host == null) {
@@ -89,7 +89,7 @@ public final class ElytronLegacyConfiguration implements LegacyConfiguration {
             final JBossEJBProperties.ClusterConfiguration configuration = entry.getValue();
 
             MatchRule defaultRule = MatchRule.ALL.matchAbstractType("ejb", "jboss");
-            AuthenticationConfiguration defaultConfig = AuthenticationConfiguration.EMPTY;
+            AuthenticationConfiguration defaultConfig = AuthenticationConfiguration.empty();
 
             defaultRule = defaultRule.matchProtocol("cluster");
             defaultRule = defaultRule.matchUrnName(clusterName);
@@ -105,7 +105,7 @@ public final class ElytronLegacyConfiguration implements LegacyConfiguration {
             if (nodeConfigurations != null) {
                 for (JBossEJBProperties.ClusterNodeConfiguration nodeConfiguration : nodeConfigurations) {
                     MatchRule rule = MatchRule.ALL.matchAbstractType("ejb", "jboss");
-                    AuthenticationConfiguration config = AuthenticationConfiguration.EMPTY;
+                    AuthenticationConfiguration config = AuthenticationConfiguration.empty();
 
                     rule = rule.matchProtocol("node");
                     rule = rule.matchUrnName(nodeConfiguration.getNodeName());
@@ -147,7 +147,7 @@ public final class ElytronLegacyConfiguration implements LegacyConfiguration {
         @SuppressWarnings({"unchecked", "rawtypes"})
         final Map<String, String> props = (Map) SaslUtils.createPropertyMap(options, false);
         if (! props.isEmpty()) {
-            config = config.useMechanismProperties(props);
+            config = config.useSaslMechanismProperties(props);
         }
         if (options.contains(Options.SASL_DISALLOWED_MECHANISMS)) {
             config = config.setSaslMechanismSelector(SaslMechanismSelector.DEFAULT.forbidMechanisms(options.get(Options.SASL_DISALLOWED_MECHANISMS).toArray(NO_STRINGS)));
