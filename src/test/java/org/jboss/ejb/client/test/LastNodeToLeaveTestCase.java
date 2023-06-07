@@ -17,6 +17,17 @@
  */
 package org.jboss.ejb.client.test;
 
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.Callable;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+
+import jakarta.ejb.NoSuchEJBException;
 import org.jboss.ejb.client.ClusterAffinity;
 import org.jboss.ejb.client.ClusterNodeSelector;
 import org.jboss.ejb.client.EJBClient;
@@ -36,17 +47,6 @@ import org.junit.Assert;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
-
-import jakarta.ejb.NoSuchEJBException;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Map;
-import java.util.concurrent.Callable;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
 
 /**
  * Tests the ability of the the RemoteEJBDiscoveryProvider to detect the condition when a last node left in a cluster has crashed
@@ -127,12 +127,12 @@ public class LastNodeToLeaveTestCase {
     }
 
     /*
-     * Returns a list of true/fase values describing current server availability.
+     * Returns a list of true/false values describing current server availability.
      */
     public static List<Boolean> getServersStarted() {
         List<Boolean> booleanList = new ArrayList<Boolean>();
         for (int i = 0; i < serversStarted.length; i++) {
-            booleanList.add(new Boolean(serversStarted[i]));
+            booleanList.add(serversStarted[i]);
         }
         return booleanList;
     }

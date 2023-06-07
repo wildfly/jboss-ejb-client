@@ -31,7 +31,6 @@ import com.arjuna.ats.jta.common.JTAEnvironmentBean;
 import com.arjuna.ats.jta.common.jtaPropertyManager;
 import com.arjuna.common.internal.util.propertyservice.BeanPopulator;
 import jakarta.transaction.TransactionManager;
-import jakarta.transaction.TransactionSynchronizationRegistry;
 import jakarta.transaction.UserTransaction;
 import org.jboss.ejb.client.test.common.Echo;
 import org.jboss.ejb.client.test.common.StatefulEchoBean;
@@ -84,12 +83,10 @@ public class TransactionTestCase extends AbstractEJBClientTestCase {
         jtaEnvironmentBean.setTransactionManagerClassName(TransactionManagerImple.class.getName());
         jtaEnvironmentBean.setTransactionSynchronizationRegistryClassName(TransactionSynchronizationRegistryImple.class.getName());
         final TransactionManager narayanaTm = jtaEnvironmentBean.getTransactionManager();
-        final TransactionSynchronizationRegistry narayanaTsr = jtaEnvironmentBean.getTransactionSynchronizationRegistry();
         final XATerminator xat = new XATerminator();
         final JBossLocalTransactionProvider.Builder builder = JBossLocalTransactionProvider.builder();
-        builder.setXATerminator(xat).setExtendedJBossXATerminator(xat);
+        builder.setExtendedJBossXATerminator(xat);
         builder.setTransactionManager(narayanaTm);
-        builder.setTransactionSynchronizationRegistry(narayanaTsr);
         builder.setXAResourceRecoveryRegistry(new XAResourceRecoveryRegistry() {
             @Override
             public void addXAResourceRecovery(XAResourceRecovery xaResourceRecovery) {
