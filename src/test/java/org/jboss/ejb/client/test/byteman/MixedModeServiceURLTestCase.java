@@ -23,7 +23,6 @@ import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 
 import org.jboss.byteman.contrib.bmunit.BMRule;
 import org.jboss.byteman.contrib.bmunit.BMRules;
@@ -219,8 +218,8 @@ public class MixedModeServiceURLTestCase extends AbstractEJBClientTestCase {
                 }
             }
         }
-        Assert.assertEquals("ServiceURLs do not match for node1", actual_node1_urls, EXPECTED_NODE1_URLS);
-        Assert.assertEquals("ServiceURLs do not match for node2", actual_node2_urls, EXPECTED_NODE2_URLS);
+        Assert.assertEquals("ServiceURLs do not match for node1", EXPECTED_NODE1_URLS, actual_node1_urls);
+        Assert.assertEquals("ServiceURLs do not match for node2", EXPECTED_NODE2_URLS, actual_node2_urls);
     }
 
     /**
