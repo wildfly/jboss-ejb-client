@@ -34,7 +34,6 @@ import org.jboss.ejb.client.test.common.Echo;
 import org.jboss.ejb.client.test.common.Result;
 import org.jboss.logging.Logger;
 import org.junit.After;
-import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.BeforeClass;
@@ -56,16 +55,19 @@ public class SimpleInvocationTestCase extends AbstractEJBClientTestCase {
 
     /**
      * Do any general setup here
-     * @throws Exception
+     * @throws Exception on errors
      */
     @BeforeClass
     public static void beforeClass() throws Exception {
-        // trigger the static init of the correct proeprties file - this also depends on running in forkMode=always
+        // trigger the static init of the correct properties file - this also depends on running in forkMode=always
         JBossEJBProperties ejbProperties = JBossEJBProperties.fromClassPath(SimpleInvocationTestCase.class.getClassLoader(), PROPERTIES_FILE);
         JBossEJBProperties.getContextManager().setGlobalDefault(ejbProperties);
 
         // Launch callback if needed
         ClassCallback.beforeClassCallback();
+
+        // reset DISCOVERY_ADDITIONAL_TIMEOUT system property for slower machines
+        System.setProperty("org.jboss.ejb.client.discovery.additional-node-timeout", "0");
     }
 
     /**
@@ -176,7 +178,7 @@ public class SimpleInvocationTestCase extends AbstractEJBClientTestCase {
             gotNoSuchEJBException = true;
             echoResult = null;
         }
-        Assert.assertEquals("NoSuchEJBException was expected", true, gotNoSuchEJBException);
+        Assert.assertTrue("NoSuchEJBException was expected", gotNoSuchEJBException);
 
         // redeploy the bean on the server
         deployStateless(0);
@@ -191,7 +193,7 @@ public class SimpleInvocationTestCase extends AbstractEJBClientTestCase {
      *   SFSB session is created on that target, strong affinity = Node(node2), weakAffinity = NONE
      */
     @Test
-    public void testSFSBDefaultProxyInitialization() {
+    public void testSFSBDefaultProxyInitialization() throws Exception {
         logger.info("=== Testing SFSB default proxy initialization ===");
 
         // undeploy the bean from host node1
@@ -204,13 +206,7 @@ public class SimpleInvocationTestCase extends AbstractEJBClientTestCase {
 
         // create a proxy for SFSB, with a default value for strong affinity
         final StatelessEJBLocator<Echo> statefulEJBLocator = StatelessEJBLocator.create(Echo.class, STATEFUL_IDENTIFIER, Affinity.NONE);
-        Echo proxy ;
-        try {
-            proxy = EJBClient.createSessionProxy(statefulEJBLocator);
-        } catch (Exception e) {
-            Assert.fail("Unexpected exception when creating session proxy: e = " + e.getMessage());
-            proxy = null;
-        }
+        Echo proxy = EJBClient.createSessionProxy(statefulEJBLocator);
         Assert.assertNotNull("Received a null proxy", proxy);
 
         // check affinity assignments
@@ -234,7 +230,7 @@ public class SimpleInvocationTestCase extends AbstractEJBClientTestCase {
      *   SFSB session is created on that target, strong affinity = Node(node2), weakAffinity = NONE
      */
     @Test
-    public void testSFSBProgrammaticProxyInitialization() {
+    public void testSFSBProgrammaticProxyInitialization() throws Exception {
         logger.info("=== Testing SFSB programmatic proxy initialization ===");
 
         Affinity expectedStrongAffinity = new NodeAffinity("node2");
@@ -244,13 +240,7 @@ public class SimpleInvocationTestCase extends AbstractEJBClientTestCase {
 
         // create a proxy for SFSB, with a NodeAffinity which points to node2
         final StatelessEJBLocator<Echo> statefulEJBLocator = StatelessEJBLocator.create(Echo.class, STATEFUL_IDENTIFIER, expectedStrongAffinity);
-        Echo proxy ;
-        try {
-            proxy = EJBClient.createSessionProxy(statefulEJBLocator);
-        } catch (Exception e) {
-            Assert.fail("Unexpected exception when creating session proxy: e = " + e.getMessage());
-            proxy = null;
-        }
+        Echo proxy = EJBClient.createSessionProxy(statefulEJBLocator);
         Assert.assertNotNull("Received a null proxy", proxy);
 
         // check affinity assignments
@@ -271,7 +261,7 @@ public class SimpleInvocationTestCase extends AbstractEJBClientTestCase {
      *   the invocation occurs on node2
      */
     @Test
-    public void testSFSBInvocationation() {
+    public void testSFSBInvocationation() throws Exception {
         logger.info("=== Testing SFSB invocation ===");
 
         Affinity expectedStrongAffinity = new NodeAffinity("node2");
@@ -279,13 +269,7 @@ public class SimpleInvocationTestCase extends AbstractEJBClientTestCase {
 
         // create a proxy for SFSB, with a NodeAffinity which points to node2
         final StatelessEJBLocator<Echo> statefulEJBLocator = StatelessEJBLocator.create(Echo.class, STATEFUL_IDENTIFIER, expectedStrongAffinity);
-        Echo proxy ;
-        try {
-            proxy = EJBClient.createSessionProxy(statefulEJBLocator);
-        } catch (Exception e) {
-            Assert.fail("Unexpected exception when creating session proxy: e = " + e.getMessage());
-            proxy = null;
-        }
+        Echo proxy = EJBClient.createSessionProxy(statefulEJBLocator);
         Assert.assertNotNull("Received a null proxy", proxy);
 
         // invoke on the proxy
@@ -354,7 +338,7 @@ public class SimpleInvocationTestCase extends AbstractEJBClientTestCase {
             gotNoSuchEJBException = true;
             echoResult = null;
         }
-        Assert.assertEquals("NoSuchEJBException was expected", true, gotNoSuchEJBException);
+        Assert.assertTrue("NoSuchEJBException was expected", gotNoSuchEJBException);
 
         // redeploy the bean on the server
         deployStateful(0);
@@ -466,9 +450,7 @@ public class SimpleInvocationTestCase extends AbstractEJBClientTestCase {
 
         // check the message contents and the target
         Assert.assertEquals("Got an unexpected echo", echoResult.getValue(), message);
-        Assert.assertTrue("Got an unexpected node for invocation target", echoResult.getNode().equals(SERVER2_NAME));
-
-        deployStateless(0);
+        Assert.assertEquals("Got an unexpected node for invocation target", SERVER2_NAME, echoResult.getNode());
     }
 
     /**
@@ -482,12 +464,5 @@ public class SimpleInvocationTestCase extends AbstractEJBClientTestCase {
             undeployStateless(i);
             stopServer(i);
         }
-    }
-
-    /**
-     * Do any general tear down here.
-     */
-    @AfterClass
-    public static void afterClass() {
     }
  }
