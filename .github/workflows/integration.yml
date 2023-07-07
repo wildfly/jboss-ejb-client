@@ -1,0 +1,30 @@
+name: Wildfly EJB Client CI Integration Tests
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+
+jobs:
+  build-test-matrix:
+    name: ${{ matrix.jdk-distribution}}-${{ matrix.jdk-version }}-${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest]
+        jdk-distribution: [temurin]
+        jdk-version: [17]
+    steps:
+      - uses: actions/checkout@v3
+      - name: Set up JDK ${{ matrix.jdk-distribution }} ${{ matrix.jdk-version }}
+        uses: actions/setup-java@v3
+        with:
+          distribution: ${{ matrix.jdk-distribution }}
+          java-version: ${{ matrix.jdk-version }}
+      - name: Run Tests
+        run: bash ${GITHUB_WORKSPACE}/.github/workflows/integration.sh ${{github.event.pull_request.head.repo.html_url}} ${{github.head_ref}}
+      - uses: actions/upload-artifact@v3
+        if: failure()
+        with:
+          name: surefire-${{ matrix.jdk-distribution }}-${{ matrix.jdk-version }}-${{ matrix.os }}
+          path: '**/surefire-reports/*.txt'
