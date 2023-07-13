@@ -170,7 +170,10 @@ public interface ClusterNodeSelector {
      *
      * @param fallback the fallback selector (must not be {@code null})
      * @return the node selector (not {@code null})
+     *
+     * @deprecated will be removed in future version
      */
+    @Deprecated
     static ClusterNodeSelector useRoundRobinConnectedNode(ClusterNodeSelector fallback) {
         Assert.checkNotNullParam("fallback", fallback);
         return new ClusterNodeSelector() {
@@ -223,7 +226,9 @@ public interface ClusterNodeSelector {
      *
      * @param fallback the selector to use if all available nodes are connected (must not be {@code null})
      * @return the node selector (not {@code null})
+     * @deprecated will be removed in future version
      */
+    @Deprecated
     static ClusterNodeSelector useRoundRobinUnconnectedNode(ClusterNodeSelector fallback) {
         Assert.checkNotNullParam("fallback", fallback);
         return new ClusterNodeSelector() {
