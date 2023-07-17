@@ -63,7 +63,10 @@ public interface DeploymentNodeSelector {
      * @param favorites the favorite nodes, in decreasing order of preference (must not be {@code null})
      * @param fallback the fallback selector (must not be {@code null})
      * @return the selector (not {@code null})
+     *
+     * @deprecated will be removed in future version
      */
+    @Deprecated
     static DeploymentNodeSelector favorite(Collection<String> favorites, DeploymentNodeSelector fallback) {
         Assert.checkNotNullParam("favorites", favorites);
         Assert.checkNotNullParam("fallback", fallback);
