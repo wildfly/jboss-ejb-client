@@ -22,7 +22,7 @@ jobs:
           distribution: ${{ matrix.jdk-distribution }}
           java-version: ${{ matrix.jdk-version }}
       - name: Run Tests
-        run: bash ${GITHUB_WORKSPACE}/.github/workflows/integration.sh ${{github.repository}} ${{github.head_ref}}
+        run: bash ${GITHUB_WORKSPACE}/.github/workflows/integration.sh ${{github.event.pull_request.head.repo.html_url}} ${{github.head_ref}}
       - uses: actions/upload-artifact@v3
         if: failure()
         with:
