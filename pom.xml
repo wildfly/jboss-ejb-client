@@ -74,6 +74,7 @@
         <version.org.wildfly.transaction-client>2.0.1.Final</version.org.wildfly.transaction-client>
         <version.org.jacoco>0.8.10</version.org.jacoco>
         <test-group>org/jboss/ejb/client</test-group>
+        <maven.repository.url>https://repository.jboss.org/nexus/content/groups/public/</maven.repository.url>
     </properties>
 
     <build>
@@ -374,6 +375,37 @@
             <scope>test</scope>
         </dependency>
     </dependencies>
+
+    <repositories>
+        <repository>
+            <releases>
+                <enabled>true</enabled>
+                <updatePolicy>never</updatePolicy>
+            </releases>
+            <snapshots>
+                <enabled>true</enabled>
+                <updatePolicy>never</updatePolicy>
+            </snapshots>
+            <id>jboss-public-repository-group</id>
+            <name>JBoss Public Repository Group</name>
+            <url>${maven.repository.url}</url>
+            <layout>default</layout>
+        </repository>
+    </repositories>
+
+    <pluginRepositories>
+        <pluginRepository>
+            <releases>
+                <enabled>true</enabled>
+            </releases>
+            <snapshots>
+                <enabled>true</enabled>
+            </snapshots>
+            <id>jboss-public-repository-group</id>
+            <name>JBoss Public Repository Group</name>
+            <url>${maven.repository.url}</url>
+        </pluginRepository>
+    </pluginRepositories>
 
     <profiles>
         <profile>
