@@ -21,6 +21,7 @@ jobs:
         with:
           distribution: ${{ matrix.jdk-distribution }}
           java-version: ${{ matrix.jdk-version }}
+          cache: 'maven'
       - name: Run Tests
         run: bash ${GITHUB_WORKSPACE}/.github/workflows/integration.sh ${{github.event.pull_request.head.repo.html_url}} ${{github.head_ref}}
       - uses: actions/upload-artifact@v3
