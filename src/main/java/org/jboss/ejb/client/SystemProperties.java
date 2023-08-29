@@ -28,7 +28,7 @@ final class SystemProperties {
     static final String DISCOVERY_BLOCKLIST_TIMEOUT = "org.jboss.ejb.client.discovery.blacklist.timeout";
     static final String DISCOVERY_TIMEOUT = "org.jboss.ejb.client.discovery.timeout";
     static final String JBOSS_NODE_NAME = "jboss.node.name";
-    static final String MAX_ENTRIES = "org.jboss.ejb.client.max-retries";
+    static final String MAX_RETRIES = "org.jboss.ejb.client.max-retries";
     static final String VIEW_ANNOTATION_SCAN_ENABLED = "org.jboss.ejb.client.view.annotation.scan.enabled";
     static final String WILDFLY_TESTSUITE_HACK = "org.jboss.ejb.client.wildfly-testsuite-hack";
 
