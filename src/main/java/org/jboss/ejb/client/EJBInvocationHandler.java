@@ -49,7 +49,7 @@ final class EJBInvocationHandler<T> extends Attachable implements InvocationHand
 
     private static final Supplier<Discovery> DISCOVERY_SUPPLIER = doPrivileged((PrivilegedAction<Supplier<Discovery>>) Discovery.getContextManager()::getPrivilegedSupplier);
 
-    private static final int MAX_RETRIES = SecurityUtils.getInteger(SystemProperties.MAX_ENTRIES, 8);
+    private static final int MAX_RETRIES = SecurityUtils.getInteger(SystemProperties.MAX_RETRIES, 8);
 
     private final transient boolean async;
 
