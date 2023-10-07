@@ -77,29 +77,45 @@
         <maven.repository.url>https://repository.jboss.org/nexus/content/groups/public/</maven.repository.url>
     </properties>
 
-    <build>
-    <plugins>
-        <!-- ... -->
-        <!-- Add the Nondex Maven Plugin configuration -->
-        <plugin>
-            <groupId>edu.illinois</groupId>
-            <artifactId>nondex-maven-plugin</artifactId>
-            <version>2.1.1</version> <!-- Use the version suggested by your professor -->
-            <executions>
-                <execution>
-                    <goals>
-                        <goal>nondex</goal>
-                    </goals>
-                    <configuration>
-                        <includes>
-                            <include>NetworkUtilTestCase</include> <!-- Specify your test class here -->
-                        </includes>
-                    </configuration>
-                </execution>
-            </executions>
-        </plugin>
-    </plugins>
-</build>
+ <build>
+        <resources>
+            <resource>
+                <directory>src/main/resources</directory>
+                <filtering>true</filtering>
+            </resource>
+        </resources>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <configuration>
+                    <forkMode>always</forkMode>
+                    <redirectTestOutputToFile>true</redirectTestOutputToFile>
+                    <systemProperties>
+                        <property>
+                            <name>java.util.logging.manager</name>
+                            <value>org.jboss.logmanager.LogManager</value>
+                        </property>
+                    </systemProperties>
+                </configuration>
+            </plugin>
+            <plugin>
+                <groupId>org.jboss.bridger</groupId>
+                <artifactId>bridger</artifactId>
+                <version>${version.org.jboss.bridger}</version>
+                <executions>
+                    <!-- run after "compile", runs bridger on main classes -->
+                    <execution>
+                        <id>weave</id>
+                        <phase>process-classes</phase>
+                        <goals>
+                            <goal>transform</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
 
 
     <dependencies>
