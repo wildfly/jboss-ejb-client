@@ -210,13 +210,15 @@ public final class NamingEJBClientInterceptor implements EJBClientInterceptor {
 
     private void processMissingTarget(final AbstractInvocationContext context, Exception cause) {
         final URI destination = context.getDestination();
+
+        if (Logs.INVOCATION.isDebugEnabled()) {
+            String message = cause != null ? cause.getMessage() : "null";
+            Logs.INVOCATION.debugf("NamingEJBClientInterceptor: processing missing target for locator %s, exception = %s, *** retrying ***", context.getLocator(), cause);
+        }
+
         if (destination == null || context.getTargetAffinity() == Affinity.LOCAL) {
             // some later interceptor cleared it out on us
             return;
-        }
-
-        if (Logs.INVOCATION.isDebugEnabled()) {
-            Logs.INVOCATION.debugf("NamingEJBClientInterceptor: missing target, *** retrying ***: locator = %s", context.getLocator());
         }
 
         // Oops, we got some wrong information!

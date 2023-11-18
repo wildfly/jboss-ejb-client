@@ -294,6 +294,10 @@ public final class EJBClientInvocationContext extends AbstractInvocationContext 
     public void addSuppressed(Throwable cause) {
         Assert.checkNotNullParam("cause", cause);
         synchronized (lock) {
+            if (log.isTraceEnabled()) {
+               String message = cause.getMessage() != null ? cause.getMessage() : "null";
+               log.tracef("Adding suppressed exception %s to request! (state = %s)", message, state);
+            }
             if (state == State.DONE) {
                 return;
             }
@@ -313,6 +317,10 @@ public final class EJBClientInvocationContext extends AbstractInvocationContext 
     public void addSuppressed(Supplier<? extends Throwable> cause) {
         Assert.checkNotNullParam("cause", cause);
         synchronized (lock) {
+            if (log.isTraceEnabled()) {
+               String message = (cause.get() != null && cause.get().getMessage() != null) ? cause.get().getMessage() : "null";
+               log.tracef("Adding suppressed exception %s to request! (state = %s)", message, state);
+            }
             if (state == State.DONE) {
                 return;
             }
@@ -326,7 +334,7 @@ public final class EJBClientInvocationContext extends AbstractInvocationContext 
 
     public void requestRetry() {
         if (Logs.INVOCATION.isDebugEnabled()) {
-            Logs.INVOCATION.debugf("Requesting retry of invocation!");
+            Logs.INVOCATION.debugf("Requesting retry of invocation! (state = %s)", checkState());
         }
         synchronized (lock) {
             retryRequested = true;
@@ -335,6 +343,10 @@ public final class EJBClientInvocationContext extends AbstractInvocationContext 
 
     void sendRequestInitial() {
         assert checkState() == State.SENDING;
+
+        if (Logs.INVOCATION.isDebugEnabled()) {
+            Logs.INVOCATION.debugf("Calling sendRequestInitial() to run sendRequest() loop (state = %s)", state);
+        }
         for (;;) {
             assert interceptorChainIndex == 0;
             try {
@@ -354,6 +366,11 @@ public final class EJBClientInvocationContext extends AbstractInvocationContext 
                                 addSuppressed(pendingFailure);
                             }
 
+                            if (log.isTraceEnabled()) {
+                                String message = (pendingFailure.get() != null && pendingFailure.get().getMessage() != null) ? pendingFailure.get().getMessage() : "null";
+                                log.tracef("Call to sendRequest() has pendingFailure %s (state = %s)", message, state);
+                            }
+
                             // Run the result interceptor chain to see if a retry is necessary
                             this.pendingFailure = null;
                             transition(State.CONSUMING);
@@ -361,6 +378,9 @@ public final class EJBClientInvocationContext extends AbstractInvocationContext 
                                 getResult(true);
                             } catch (Throwable t) {
                                 if (state == State.SENDING) {
+                                    if (log.isTraceEnabled()) {
+                                        log.tracef("Call to sendRequest() has triggered retry (state = %s)", state);
+                                    }
                                     // Retry has been requested
                                     continue;
                                 }
@@ -371,10 +391,16 @@ public final class EJBClientInvocationContext extends AbstractInvocationContext 
                         }
 
                         if (resultProducer != null) {
+                            if (log.isTraceEnabled()) {
+                                log.tracef("Call to sendRequest() has produced result with producer %s (state = %s)", resultProducer, state);
+                            }
                             transition(State.READY);
                             return;
                         }
 
+                        if (log.isTraceEnabled()) {
+                            log.tracef("Call to sendRequest() has not yet produced result, waiting (state = %s)", state);
+                        }
                         transition(State.WAITING);
                         return;
                     } finally {
@@ -383,7 +409,10 @@ public final class EJBClientInvocationContext extends AbstractInvocationContext 
                 }
                 // not reachable
             } catch (Throwable t) {
-                log.tracef("Encountered exception when calling sendRequestInitial: exception = %s)", t.getMessage());
+                if (log.isTraceEnabled()) {
+                    String message = (t != null && t.getMessage() != null) ? t.getMessage() : "null";
+                    log.tracef("Encountered exception when calling sendRequest(): exception = %s (state = %s)", message, state);
+                }
                 // back to the start of the chain; decide what to do next.
                 synchronized (lock) {
                     if (state == State.SENDING) {
@@ -397,6 +426,9 @@ public final class EJBClientInvocationContext extends AbstractInvocationContext 
                         EJBReceiverInvocationContext.ResultProducer resultProducer = this.resultProducer;
                         if (resultProducer != null) {
                             // READY, even if we have a pending failure.
+                            if (log.isTraceEnabled()) {
+                                log.tracef("not retrying the invocation!: result producer = %d (state = %s)", resultProducer, state);
+                            }
                             if (pendingFailure != null) {
                                 addSuppressed(t);
                                 addSuppressed(pendingFailure);
@@ -411,6 +443,10 @@ public final class EJBClientInvocationContext extends AbstractInvocationContext 
                             if (pendingFailure != null) {
                                 addSuppressed(pendingFailure);
                             }
+                            if (log.isTraceEnabled()) {
+                                String message = (t != null && t.getMessage() != null) ? t.getMessage() : "null";
+                                log.tracef("not retrying the invocation!: failure exception = %d (state = %s)", message, state);
+                            }
                             if (t instanceof Exception) {
                                 this.resultProducer = new EJBReceiverInvocationContext.ResultProducer.Failed((Exception) t);
                             } else {
@@ -420,7 +456,9 @@ public final class EJBClientInvocationContext extends AbstractInvocationContext 
                             transition(State.READY);
                             return;
                         }
-                        log.tracef("retrying the invocation!: remaining retries = %d", remainingRetries);
+                        if (log.isTraceEnabled()) {
+                            log.tracef("retrying the invocation!: remaining retries = %d (state = %s)", remainingRetries, state);
+                        }
                         // retry SENDING
                         if (pendingFailure != null) {
                             addSuppressed(pendingFailure);
@@ -467,6 +505,9 @@ public final class EJBClientInvocationContext extends AbstractInvocationContext 
         try {
             if (cancelRequested) {
                 synchronized (lock) {
+                    if (log.isTraceEnabled()) {
+                        log.tracef("sendRequest: cancelling the invocation! (state = %s)", state);
+                    }
                     transition(State.SENT);
                     resultReady(CANCELLED);
                     checkStateInvariants();
@@ -483,6 +524,11 @@ public final class EJBClientInvocationContext extends AbstractInvocationContext 
                     receiver = getClientContext().resolveReceiver(destination, getLocator());
                 } catch (Throwable t) {
                     synchronized (lock) {
+                        if (log.isTraceEnabled()) {
+                            String message = (t != null && t.getMessage() != null) ? t.getMessage() : "null";
+                            String scheme = (destination != null && destination.getScheme() != null) ? destination.getScheme() : "no scheme";
+                            log.tracef("sendRequest: resolveReceiver() with scheme %s got exception %s! (state = %s)", scheme, message, state);
+                        }
                         if (state != State.SENT) {
                             transition(State.SENT);
                         }
@@ -496,9 +542,16 @@ public final class EJBClientInvocationContext extends AbstractInvocationContext 
                     checkStateInvariants();
                 }
                 try {
+                    if (Logs.INVOCATION.isDebugEnabled()) {
+                        Logs.INVOCATION.debugf("sendRequest: calling processInvocation, receiver context = %s (state = %s)", receiverInvocationContext, state);
+                    }
                     receiver.processInvocation(receiverInvocationContext);
                 } catch (Throwable t) {
                     synchronized (lock) {
+                        if (log.isTraceEnabled()) {
+                            String message = (t != null && t.getMessage() != null) ? t.getMessage() : "null";
+                            log.tracef("sendRequest: processInvocation got exception %s! (state = %s)", message, state);
+                        }
                         if (state != State.SENT) {
                             transition(State.SENT);
                         }
@@ -509,11 +562,15 @@ public final class EJBClientInvocationContext extends AbstractInvocationContext 
             } else {
                 try {
                     if (Logs.INVOCATION.isDebugEnabled()) {
-                        Logs.INVOCATION.debugf("sendRequest: calling interceptor: %s", chain[idx].getInterceptorInstance());
+                        Logs.INVOCATION.debugf("sendRequest: calling handleInvocation in interceptor[%s]: %s", idx, chain[idx].getInterceptorInstance());
                     }
                     chain[idx].getInterceptorInstance().handleInvocation(this);
                 } catch (Throwable t) {
                     synchronized (lock) {
+                        if (log.isTraceEnabled()) {
+                            String message = (t != null && t.getMessage() != null) ? t.getMessage() : "null";
+                            log.tracef("sendRequest: handleInvocation() got exception %s! (state = %s)", message, state);
+                        }
                         if (state != State.SENT) {
                             transition(State.SENT);
                         }
@@ -565,6 +622,9 @@ public final class EJBClientInvocationContext extends AbstractInvocationContext 
         Throwable fail = null;
         final int idx = this.interceptorChainIndex;
         final Object lock = this.lock;
+        if (Logs.INVOCATION.isDebugEnabled()) {
+            Logs.INVOCATION.debugf("getResult(): calling getResult(%s)", retry);
+        }
         synchronized (lock) {
             try {
                 if (idx == 0) {
@@ -588,9 +648,15 @@ public final class EJBClientInvocationContext extends AbstractInvocationContext 
                             if (pendingFailure != null) {
                                 fail = pendingFailure.get();
                                 if (fail == null) {
+                                    if (log.isTraceEnabled()) {
+                                        log.tracef("getResult(): no pending failure exception, returning cached result (state = %s)", state);
+                                    }
                                     return cachedResult;
                                 }
                             } else {
+                                if (log.isTraceEnabled()) {
+                                    log.tracef("getResult(): no pending failure, returning cached result (state = %s)", state);
+                                }
                                 return cachedResult;
                             }
                         } else if (state != State.READY) {
@@ -606,6 +672,10 @@ public final class EJBClientInvocationContext extends AbstractInvocationContext 
             }
         }
         if (fail != null) try {
+            if (log.isTraceEnabled()) {
+                String message = fail.getMessage() != null ? fail.getMessage() : "null";
+                log.tracef("getResult(): throwing pending failure exception %s (state = %s)", message, state);
+            }
             throw fail;
         } catch (Exception | Error e) {
             throw e;
@@ -617,8 +687,16 @@ public final class EJBClientInvocationContext extends AbstractInvocationContext 
             final Object result;
             try {
                 if (idx == chain.length) {
+                    if (Logs.INVOCATION.isDebugEnabled()) {
+                        String producerString = resultProducer != null ? resultProducer.toString() : "null";
+                        Logs.INVOCATION.debugf("getResult: interceptor chain has completed, calling getResult() in result producer: %s", producerString);
+                    }
                     result = resultProducer.getResult();
                 } else {
+                    if (Logs.INVOCATION.isDebugEnabled()) {
+                        Logs.INVOCATION.debugf("getResult: calling handleInvocationResult in interceptor[%s]: %s", idx, chain[idx].getInterceptorInstance());
+                    }
+                    // recursive call
                     result = chain[idx].getInterceptorInstance().handleInvocationResult(this);
                 }
                 if (idx == 0) {
@@ -634,7 +712,9 @@ public final class EJBClientInvocationContext extends AbstractInvocationContext 
                 return result;
             } catch (Throwable t) {
                 if (idx == 0) {
-                    log.tracef("Encountered exception while calling getResult(): exception = %s", t.toString());
+                    if (log.isTraceEnabled()) {
+                       log.tracef("Encountered exception while calling getResult(): exception = %s (state = %s)", t.toString(), state);
+                    }
                     synchronized (lock) {
                         // retry if we can
                         this.resultProducer = null;
@@ -642,7 +722,9 @@ public final class EJBClientInvocationContext extends AbstractInvocationContext 
                         final int remainingRetries = this.remainingRetries;
                         final boolean retryRequested = this.retryRequested;
                         if (retryRequested && remainingRetries > 0) {
-                            log.tracef("Will retry (requested = %s, remaining = %d)", retryRequested, remainingRetries);
+                            if (log.isTraceEnabled()) {
+                                log.tracef("Will retry (requested = %s, remaining = %d) (state = %s)", retryRequested, remainingRetries, state);
+                            }
                             if (suppressedExceptions == null) {
                                 suppressedExceptions = this.suppressedExceptions = new ArrayList<>();
                             }
@@ -655,7 +737,9 @@ public final class EJBClientInvocationContext extends AbstractInvocationContext 
                             transition(State.SENDING);
                             checkStateInvariants();
                         } else {
-                            log.tracef("Will not retry (requested = %s, remaining = %d)", retryRequested, remainingRetries);
+                            if (log.isTraceEnabled()) {
+                                log.tracef("Will not retry (requested = %s, remaining = %d) (state = %s)", retryRequested, remainingRetries, state);
+                            }
                             pendingFailure = () -> t;
                             if (suppressedExceptions != null) {
                                 this.suppressedExceptions = null;
@@ -697,6 +781,9 @@ public final class EJBClientInvocationContext extends AbstractInvocationContext 
 
     void resultReady(EJBReceiverInvocationContext.ResultProducer resultProducer) {
         Assert.checkNotNullParam("resultProducer", resultProducer);
+        if (Logs.INVOCATION.isDebugEnabled()) {
+            Logs.INVOCATION.debugf("Result is ready for %s: result producer: %s", this, resultProducer);
+        }
         synchronized (lock) {
             if (state.isWaiting() && this.resultProducer == null) {
                 this.resultProducer = resultProducer;
@@ -705,13 +792,13 @@ public final class EJBClientInvocationContext extends AbstractInvocationContext 
                 }
                 checkStateInvariants();
                 if (log.isTraceEnabled()) {
-                    log.tracef("Result is ready for %s: result producer: %s, current state: %s", this, resultProducer, state);
+                    log.tracef("Result is ready for %s: result producer: %s (state = %s)", this, resultProducer, state);
                 }
                 return;
             }
             checkStateInvariants();
             if (log.isTraceEnabled()) {
-                log.tracef("Result discarded for %s: result producer: %s, current state: %s", this, resultProducer, state);
+                log.tracef("Result discarded for %s: result producer: %s (state = %s)", this, resultProducer, state);
             }
         }
         // for whatever reason, we don't care
@@ -803,7 +890,9 @@ public final class EJBClientInvocationContext extends AbstractInvocationContext 
         }
         if (log.isTraceEnabled()) {
             StackTraceElement caller = (new Exception()).getStackTrace()[1];
-            log.tracef("Transitioning %s from %s to %s (%s)", this, oldState, newState, caller);
+            if (log.isTraceEnabled()) {
+                log.tracef("Transitioning %s from %s to %s (%s)", this, oldState, newState, caller);
+            }
         }
         switch (oldState) {
             case SENDING: {
@@ -897,6 +986,9 @@ public final class EJBClientInvocationContext extends AbstractInvocationContext 
         final Object lock = this.lock;
         Assert.assertNotHoldsLock(lock);
         synchronized (lock) {
+            if (Logs.INVOCATION.isDebugEnabled()) {
+               Logs.INVOCATION.debugf("Invocation is awaiting cancellation result (state = %s)", state);
+            }
             for (;;) {
                 if (resultProducer == CANCELLED) {
                     return true;
@@ -926,6 +1018,9 @@ public final class EJBClientInvocationContext extends AbstractInvocationContext 
             final Object lock = this.lock;
             final long timeout = this.timeout;
             synchronized (lock) {
+                if (Logs.INVOCATION.isDebugEnabled()) {
+                   Logs.INVOCATION.debugf("awaitResponse(): invocation is awaiting response (state = %s)", state);
+                }
                 try {
                     out: for (;;) {
                         switch (state) {
@@ -935,6 +1030,9 @@ public final class EJBClientInvocationContext extends AbstractInvocationContext 
                             case WAITING: {
                                 if (timeout <= 0 || timedOut) {
                                     // no timeout; lighter code path
+                                    if (log.isTraceEnabled()) {
+                                        log.tracef("awaitResponse(): invocation waiting with no timeout (state = %s)", state);
+                                    }
                                     try {
                                         checkStateInvariants();
                                         try {
@@ -949,8 +1047,14 @@ public final class EJBClientInvocationContext extends AbstractInvocationContext 
                                 } else {
                                     // timeout in ms, elapsed time in nanosecs
                                     long remaining = max(0L, timeout * 1_000_000L - max(0L, System.nanoTime() - startTime));
+                                    if (log.isTraceEnabled()) {
+                                        log.tracef("awaitResponse(): invocation waiting with time remaining %s (state = %s)", remaining, state);
+                                    }
                                     if (remaining == 0L) {
                                         // timed out
+                                        if (log.isTraceEnabled()) {
+                                            log.tracef("awaitResponse(): invocation has timed out (state = %s)", state);
+                                        }
                                         timedOut = true;
                                         this.timeout = 0;
                                         if (state == State.CONSUMING) {
@@ -975,12 +1079,18 @@ public final class EJBClientInvocationContext extends AbstractInvocationContext 
                             }
                             case READY: {
                                 // we have to get the result, so break out of here.
+                                if (log.isTraceEnabled()) {
+                                    log.tracef("awaitResponse(): response is ready (state = %s)", state);
+                                }
                                 checkStateInvariants();
                                 break out;
                             }
                             case DONE: {
                                 checkStateInvariants();
                                 if (pendingFailure != null) {
+                                    if (log.isTraceEnabled()) {
+                                        log.tracef("awaitResponse(): response has pending failure (state = %s)", state);
+                                    }
                                     try {
                                         throw pendingFailure.get();
                                     } catch (Error | Exception e) {
@@ -988,6 +1098,9 @@ public final class EJBClientInvocationContext extends AbstractInvocationContext 
                                     } catch (Throwable t) {
                                         throw new UndeclaredThrowableException(t);
                                     }
+                                }
+                                if (log.isTraceEnabled()) {
+                                    log.tracef("awaitResponse() returning cached result (state = %s)", state);
                                 }
                                 return cachedResult;
                             }
@@ -1000,10 +1113,16 @@ public final class EJBClientInvocationContext extends AbstractInvocationContext 
                     blockingCaller = false;
                 }
             }
+            if (Logs.INVOCATION.isDebugEnabled()) {
+                Logs.INVOCATION.debugf("awaitResponse() calling getResult() (state = %s)", state);
+            }
             return getResult();
         } finally {
             if (intr) Thread.currentThread().interrupt();
             if (timedOut) {
+                if (Logs.INVOCATION.isDebugEnabled()) {
+                    Logs.INVOCATION.tracef("Invocation has timed out, cancelling (state = %s)", state);
+                }
                 final EJBReceiver receiver = getReceiver();
                 if (receiver != null) receiver.cancelInvocation(receiverInvocationContext, true);
             }
@@ -1015,6 +1134,9 @@ public final class EJBClientInvocationContext extends AbstractInvocationContext 
         assert !holdsLock(lock);
         final EJBReceiverInvocationContext.ResultProducer resultProducer;
         synchronized (lock) {
+            if (Logs.INVOCATION.isDebugEnabled()) {
+                Logs.INVOCATION.debugf("Invocation is discarding result (state = %s)", state);
+            }
             resultProducer = this.resultProducer;
             this.resultProducer = EJBReceiverInvocationContext.ResultProducer.NULL;
             // result is waiting, discard it
@@ -1034,10 +1156,16 @@ public final class EJBClientInvocationContext extends AbstractInvocationContext 
     void failed(Exception exception, Executor retryExecutor) {
         final Object lock = this.lock;
         synchronized (lock) {
-            log.tracef("Invocation marked failed, state is currently: %s", state);
+            if (Logs.INVOCATION.isDebugEnabled()) {
+               String message = exception.getMessage() != null ? exception.getMessage() : "null";
+               Logs.INVOCATION.debugf("failed(): invocation marked as failed with exception %s (state = %s)", message, state);
+            }
             switch (state) {
                 case CONSUMING:
                 case DONE: {
+                    if (log.isTraceEnabled()) {
+                       log.tracef("failed(): response is complete, return with no retry (state = %s)", state);
+                    }
                     // ignore
                     return;
                 }
@@ -1047,6 +1175,9 @@ public final class EJBClientInvocationContext extends AbstractInvocationContext 
                 case SENT: {
                     final Supplier<? extends Throwable> pendingFailure = this.pendingFailure;
                     if (pendingFailure != null) {
+                        if (log.isTraceEnabled()) {
+                            log.tracef("failed(): response has pending failure %s, return with no retry (state = %s)", pendingFailure.get(), state);
+                        }
                         addSuppressed(pendingFailure);
                     }
                     this.pendingFailure = () -> exception;
@@ -1060,6 +1191,9 @@ public final class EJBClientInvocationContext extends AbstractInvocationContext 
                     // moving to CONSUMING, which requires a resultProducer.
                     this.resultProducer = new ThrowableResult(() -> exception);
                     this.pendingFailure = null;
+                    if (log.isTraceEnabled()) {
+                        log.tracef("failed(): response has result producer %s, check for possible retry (state = %s)", state);
+                    }
                     // process result immediately, possibly retrying at the end
                     // retry SENDING via CONSUMING
                     transition(State.CONSUMING);
@@ -1077,12 +1211,19 @@ public final class EJBClientInvocationContext extends AbstractInvocationContext 
     }
 
     void retryOperation() {
+        if (Logs.INVOCATION.isDebugEnabled()) {
+            Logs.INVOCATION.debugf("retryOperation called (state = %s)", state);
+        }
         try {
             getResult(true);
         } catch (Throwable t) {
             final boolean retry;
             synchronized (lock) {
                 retry = state == State.SENDING;
+            }
+            if (log.isTraceEnabled()) {
+              String message = (t != null && t.getMessage() != null) ? t.getMessage() : "null";
+              log.tracef("retryOperation() got exception %s when calling getResult() (state = %s)", message, state);
             }
             if (retry) sendRequestInitial();
         }

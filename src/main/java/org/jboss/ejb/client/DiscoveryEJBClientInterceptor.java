@@ -256,6 +256,11 @@ public final class DiscoveryEJBClientInterceptor implements EJBClientInterceptor
     private void processMissingTarget(final AbstractInvocationContext context, final Exception cause) {
         final URI destination = context.getDestination();
 
+        if (Logs.INVOCATION.isDebugEnabled()) {
+            String message = cause != null ? cause.getMessage() : "null";
+            Logs.INVOCATION.debugf("DiscoveryEJBClientInterceptor: processing missing target for locator %s (exception = %s), *** retrying ***", context.getLocator(), message);
+        }
+
         if (destination == null || context.getTargetAffinity() == Affinity.LOCAL) {
             // nothing we can/should do.
             return;
