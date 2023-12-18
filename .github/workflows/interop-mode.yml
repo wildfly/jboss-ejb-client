@@ -39,7 +39,7 @@ jobs:
         cache: 'maven'
     - name: Run Tests
       run: mvn -ntp -U -B -fae clean verify -Pee-namespace-interop
-    - uses: actions/upload-artifact@v3
+    - uses: actions/upload-artifact@v4
       if: failure()
       with:
         name: surefire-ee-interop-${{ matrix.jdk-distribution }}-${{ matrix.jdk-version }}-${{ matrix.os }}
