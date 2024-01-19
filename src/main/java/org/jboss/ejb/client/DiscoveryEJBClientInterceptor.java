@@ -256,6 +256,10 @@ public final class DiscoveryEJBClientInterceptor implements EJBClientInterceptor
     private void processMissingTarget(final AbstractInvocationContext context, final Exception cause) {
         final URI destination = context.getDestination();
 
+        if (Logs.INVOCATION.isDebugEnabled()) {
+            Logs.INVOCATION.debugf(cause, "DiscoveryEJBClientInterceptor: invocation failed with the following exception");
+        }
+
         if (destination == null || context.getTargetAffinity() == Affinity.LOCAL) {
             // nothing we can/should do.
             return;
@@ -631,13 +635,12 @@ public final class DiscoveryEJBClientInterceptor implements EJBClientInterceptor
         Map<String, URI> nodes = new HashMap<>();
         final EJBClientContext clientContext = context.getClientContext();
         final List<Throwable> problems;
-        final Set<URI> blocklist = getBlocklist();
         long timeout = DISCOVERY_TIMEOUT * 1000;
         try (final ServicesQueue queue = discover(context, filterSpec)) {
             ServiceURL serviceURL;
             while ((serviceURL = queue.takeService(timeout, TimeUnit.MILLISECONDS)) != null) {
                 final URI location = serviceURL.getLocationURI();
-                if (!blocklist.contains(location)) {
+                if (!isBlocklisted(context, location)) {
                     final EJBReceiver transportProvider = clientContext.getTransportProvider(location.getScheme());
                     if (transportProvider != null && satisfiesSourceAddress(serviceURL, transportProvider)) {
                         final AttributeValue nodeNameValue = serviceURL.getFirstAttributeValue(FILTER_ATTR_NODE);
