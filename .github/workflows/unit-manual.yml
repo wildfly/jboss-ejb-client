@@ -54,14 +54,14 @@ jobs:
     steps:
     - uses: actions/checkout@v4
     - name: Set up JDK ${{ inputs.jdk-distribution }} ${{ inputs.jdk-version }}
-      uses: actions/setup-java@v3
+      uses: actions/setup-java@v4
       with:
         distribution: ${{ inputs.jdk-distribution }}
         java-version: ${{ inputs.jdk-version }}
         cache: 'maven'
     - name: Run Tests
       run: mvn -ntp -U -B -fae -P${{ inputs.profile }} clean verify
-    - uses: actions/upload-artifact@v3
+    - uses: actions/upload-artifact@v4
       if: failure()
       with:
         name: ${{ inputs.profile }}-${{ inputs.jdk-distribution }}-${{ inputs.jdk-version }}-${{ inputs.os }}
