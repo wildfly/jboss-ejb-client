@@ -591,8 +591,9 @@ final class RemotingEJBDiscoveryProvider implements DiscoveryProvider, Discovere
 
         public void cancel() {
             final List<Runnable> cancellers = this.cancellers;
+            final List<Runnable> cancellersCopy;
             synchronized (cancellers) {
-                /**
+                /*
                  In scenario in which the last node performs a cancel operation and discovery fails a retry is
                  attempted (see phase2 in countdown method above). This triggers opening new connections and,
                  as a result, adding cancellers, which are being iterated over in this method leading to
@@ -600,10 +601,14 @@ final class RemotingEJBDiscoveryProvider implements DiscoveryProvider, Discovere
 
                  See https://issues.redhat.com/browse/JBEAP-24568
                  */
-                final List<Runnable> cancellersCopy = new ArrayList<>(cancellers);
-                for (Runnable canceller : cancellersCopy) {
-                    canceller.run();
-                }
+                cancellersCopy = new ArrayList<>(cancellers);
+            }
+            /*
+             * EJBCLIENT-536 - since we are iterating the copy we can safely do it outside synchronized block; running
+             * the cancellers synchronized may cause deadlocks
+             */
+            for (Runnable canceller : cancellersCopy) {
+                canceller.run();
             }
         }
 
