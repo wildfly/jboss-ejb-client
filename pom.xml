@@ -374,6 +374,12 @@
             <version>${version.org.jboss.byteman}</version>
             <scope>test</scope>
         </dependency>
+        <!-- FIXME temporary fix dependency to be removed after bug in smallrye common bom is fixed -->
+        <dependency>
+            <groupId>io.smallrye.common</groupId>
+            <artifactId>smallrye-common-constraint</artifactId>
+            <version>2.4.0</version>
+        </dependency>
     </dependencies>
 
     <repositories>
