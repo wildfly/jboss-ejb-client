@@ -24,6 +24,9 @@ import com.arjuna.ats.internal.jta.transaction.arjunacore.TransactionSynchroniza
 import com.arjuna.ats.jta.common.JTAEnvironmentBean;
 import com.arjuna.ats.jta.common.jtaPropertyManager;
 import com.arjuna.common.internal.util.propertyservice.BeanPopulator;
+import jakarta.transaction.TransactionManager;
+import jakarta.transaction.TransactionSynchronizationRegistry;
+import jakarta.transaction.UserTransaction;
 import org.jboss.byteman.contrib.bmunit.BMScript;
 import org.jboss.byteman.contrib.bmunit.BMUnitRunner;
 import org.jboss.ejb.client.test.AbstractEJBClientTestCase;
@@ -40,9 +43,6 @@ import org.wildfly.naming.client.util.FastHashtable;
 import org.wildfly.transaction.client.*;
 import org.wildfly.transaction.client.provider.jboss.JBossLocalTransactionProvider;
 
-import javax.transaction.TransactionManager;
-import javax.transaction.TransactionSynchronizationRegistry;
-import javax.transaction.UserTransaction;
 import java.io.File;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -72,12 +72,10 @@ public class BytemanTransactionTestCase extends AbstractEJBClientTestCase {
         jtaEnvironmentBean.setTransactionManagerClassName(TransactionManagerImple.class.getName());
         jtaEnvironmentBean.setTransactionSynchronizationRegistryClassName(TransactionSynchronizationRegistryImple.class.getName());
         final TransactionManager narayanaTm = jtaEnvironmentBean.getTransactionManager();
-        final TransactionSynchronizationRegistry narayanaTsr = jtaEnvironmentBean.getTransactionSynchronizationRegistry();
         final XATerminator xat = new XATerminator();
         final JBossLocalTransactionProvider.Builder builder = JBossLocalTransactionProvider.builder();
-        builder.setXATerminator(xat).setExtendedJBossXATerminator(xat);
+        builder.setExtendedJBossXATerminator(xat);
         builder.setTransactionManager(narayanaTm);
-        builder.setTransactionSynchronizationRegistry(narayanaTsr);
         builder.setXAResourceRecoveryRegistry(new XAResourceRecoveryRegistry() {
             @Override
             public void addXAResourceRecovery(XAResourceRecovery xaResourceRecovery) {
