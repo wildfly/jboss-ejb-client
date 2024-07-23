@@ -78,7 +78,7 @@ public final class EJBClientInvocationContext extends AbstractInvocationContext 
 
     private volatile boolean cancelRequested;
     private boolean retryRequested;
-    private State state = State.SENDING;
+    private EJBClientInvocationContext.State state = EJBClientInvocationContext.State.SENDING;
     private int remainingRetries;
     private Supplier<? extends Throwable> pendingFailure;
     private List<Supplier<? extends Throwable>> suppressedExceptions;
@@ -1082,7 +1082,7 @@ public final class EJBClientInvocationContext extends AbstractInvocationContext 
         } catch (Throwable t) {
             final boolean retry;
             synchronized (lock) {
-                retry = state == State.SENDING;
+                retry = state == EJBClientInvocationContext.State.SENDING;
             }
             if (retry) sendRequestInitial();
         }
@@ -1097,7 +1097,7 @@ public final class EJBClientInvocationContext extends AbstractInvocationContext 
             final Object lock = EJBClientInvocationContext.this.lock;
             assert !holdsLock(lock);
             synchronized (lock) {
-                if (state == State.DONE) {
+                if (state == EJBClientInvocationContext.State.DONE) {
                     // cannot cancel now; also resultProducer is gone
                     return pendingFailure == CANCELLED_PRODUCER;
                 } else if (! state.isWaiting()) {
@@ -1116,7 +1116,7 @@ public final class EJBClientInvocationContext extends AbstractInvocationContext 
             final boolean result = receiver != null && receiver.cancelInvocation(receiverInvocationContext, mayInterruptIfRunning);
             if (! result) {
                 synchronized (lock) {
-                    if (resultProducer == CANCELLED || state == State.DONE && pendingFailure == CANCELLED_PRODUCER) {
+                    if (resultProducer == CANCELLED || state == EJBClientInvocationContext.State.DONE && pendingFailure == CANCELLED_PRODUCER) {
                         return true;
                     }
                 }
@@ -1128,7 +1128,7 @@ public final class EJBClientInvocationContext extends AbstractInvocationContext 
             final Object lock = EJBClientInvocationContext.this.lock;
             assert !holdsLock(lock);
             synchronized (lock) {
-                return state == State.DONE ? pendingFailure == CANCELLED_PRODUCER : resultProducer == CANCELLED;
+                return state == EJBClientInvocationContext.State.DONE ? pendingFailure == CANCELLED_PRODUCER : resultProducer == CANCELLED;
             }
         }
 
@@ -1136,7 +1136,7 @@ public final class EJBClientInvocationContext extends AbstractInvocationContext 
             final Object lock = EJBClientInvocationContext.this.lock;
             assert !holdsLock(lock);
             synchronized (lock) {
-                if (state == State.CONSUMING) {
+                if (state == EJBClientInvocationContext.State.CONSUMING) {
                     return retryRequested && remainingRetries > 0 && resultProducer instanceof ThrowableResult;
                 } else {
                     // TODO: we should also calculate whether the invocation timed out
