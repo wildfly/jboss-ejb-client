@@ -30,7 +30,7 @@
     </parent>
 
     <artifactId>jboss-ejb-client</artifactId>
-    <version>4.0.55.Final-SNAPSHOT</version>
+    <version>4.0.56.Final-SNAPSHOT</version>
     <name>JBoss EJB Client</name>
     <description>Client library for EJB applications working against Wildfly - Java EE Variant</description>
 
