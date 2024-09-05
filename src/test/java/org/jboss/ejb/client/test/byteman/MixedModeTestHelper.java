@@ -10,6 +10,13 @@ import org.jboss.ejb.client.EJBClientContext;
 import org.wildfly.discovery.FilterSpec;
 import org.wildfly.discovery.ServiceURL;
 
+/**
+ * Helper class for the MixedModeServiceURLTestCase.
+ *
+ * Maintains a map of nodes to ServiceURLs used for test validation.
+ *
+ * @author rachmato@redhat.com
+ */
 public class MixedModeTestHelper extends Helper {
 
     private static final String NODE_LIST_MAP_NAME = "nodeListMap";

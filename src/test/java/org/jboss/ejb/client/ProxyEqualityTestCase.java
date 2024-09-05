@@ -24,12 +24,20 @@ import org.junit.Assert;
 import org.junit.Test;
 
 /**
+ * Tests which validate the test for proxy equality works for proxies created by the EJB Client API.
+ *
+ * Proxy equality is based on module name, use of an EJBINvocationHandler and viewType.
+ *
  * @author Stuart Douglas
  */
 public class ProxyEqualityTestCase {
 
+    /**
+     * A test for proxy equality, inequality and use of the correct invocation handler.
+     */
     @Test
     public void testClientProxyEquality() {
+        // create a proxy with appName = a, moduleName = m, beanName = b and distinctName = d
         final StatelessEJBLocator<SimpleInterface> locatorA = new StatelessEJBLocator<SimpleInterface>(SimpleInterface.class, "a", "m", "b", "d");
         SimpleInterface proxyA = EJBClient.createProxy(locatorA);
 
@@ -39,11 +47,15 @@ public class ProxyEqualityTestCase {
         final StatelessEJBLocator<SimpleInterface> locatorC = new StatelessEJBLocator<SimpleInterface>(SimpleInterface.class, "a", "m", "b", "other");
         SimpleInterface proxyC = EJBClient.createProxy(locatorC);
 
+        // validate proxy equality
         Assert.assertTrue(proxyA.equals(proxyB));
         Assert.assertEquals(proxyA.hashCode(), proxyB.hashCode());
+
+        // valite proxy inequality
         Assert.assertFalse(proxyA.equals(proxyC));
         Assert.assertTrue(proxyA.hashCode() != proxyC.hashCode());
 
+        // validate the proxy was created from EJB Client API
         Assert.assertTrue(EJBClient.isEJBProxy(proxyA));
         Assert.assertTrue(EJBClient.isEJBProxy(proxyB));
         Assert.assertTrue(EJBClient.isEJBProxy(proxyC));

@@ -38,7 +38,8 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Tests basic function of JBossEJBProperties class.
+ * Tests basic function of JBossEJBProperties class, whch involves reading a jboss-ejb-client.properties file
+ * on the classpath and populating the fields of the JBossEJBClientProperties instance.
  *
  * Reads in a legacy configuration file with all possible options specified.
  * Some variation in how passwords are supplied.
@@ -51,23 +52,11 @@ public class JBossEJBPropertiesTestCase {
     private static final String PROPERTIES_FILE = "complete-jboss-ejb-client.properties";
 
     /**
-     * Do any general setup here
-     * @throws Exception
-     */
-    @BeforeClass
-    public static void beforeClass() throws Exception {
-    }
-
-    /**
-     * Do any test specific setup here
-     */
-    @Before
-    public void beforeTest() throws Exception {
-
-    }
-
-    /**
-     * Test some basic stuff.
+     * Test which validates the translation from jboss-ejb-client.properties file to the JBossEJBProperties
+     * instance created from that file. The test covers all properties that may be defined, including:
+     * - defined connections and their options
+     * - defined clusters and their options
+     * - defined nodes within clusters and their options
      */
     @Test
     public void testLegacyProperties() throws Exception {
@@ -75,7 +64,6 @@ public class JBossEJBPropertiesTestCase {
         JBossEJBProperties ejbProperties = JBossEJBProperties.fromClassPath(JBossEJBProperties.class.getClassLoader(), PROPERTIES_FILE);
         testLegacyPropertiesFunctionality(ejbProperties);
     }
-
 
     private void testLegacyPropertiesFunctionality(JBossEJBProperties properties) {
         logger.info("Testing JBossEJBProperties functionality");
@@ -230,21 +218,6 @@ public class JBossEJBPropertiesTestCase {
         // TODO Assert.assertEquals("Bad callback handler supplier value", "connection.one.callback.handler.supplier", authConfig.getCallbackHandlerSupplier());
         if (realm != null)
             Assert.assertEquals("Bad " + componentName + " realm value", realm, authConfig.getMechanismRealm());
-    }
-
-
-    /**
-     * Do any test-specific tear down here.
-     */
-    @After
-    public void afterTest() {
-    }
-
-    /**
-     * Do any general tear down here.
-     */
-    @AfterClass
-    public static void afterClass() {
     }
 
     public static void main(String[] args) throws Exception {

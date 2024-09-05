@@ -38,12 +38,7 @@ import org.jboss.ejb.client.test.common.DummyServer;
 import org.jboss.ejb.client.test.common.Echo;
 import org.jboss.ejb.server.ClusterTopologyListener;
 import org.jboss.logging.Logger;
-import org.junit.After;
-import org.junit.AfterClass;
-import org.junit.Assert;
-import org.junit.Before;
-import org.junit.BeforeClass;
-import org.junit.Test;
+import org.junit.*;
 import org.junit.runner.RunWith;
 import org.wildfly.discovery.ServiceURL;
 

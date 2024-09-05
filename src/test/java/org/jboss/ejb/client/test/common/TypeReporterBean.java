@@ -17,6 +17,9 @@
  */
 package org.jboss.ejb.client.test.common;
 
+/**
+ * A bean which can be used to report the type of the Object parameter passed to its only method.
+ */
 public class TypeReporterBean implements TypeReporter {
 
     @Override

@@ -26,10 +26,18 @@ import org.jboss.ejb._private.NetworkUtil;
 import org.junit.Test;
 
 /**
+ * Tests for the NetworkUtil network utility class.
+ *
  * @author <a href="mailto:david.lloyd@redhat.com">David M. Lloyd</a>
  */
 public final class NetworkUtilTestCase  {
 
+    /**
+     * Validation of the method NetworkUtil.belongsToNetwork(...) used to determine if a given host InetAddress belongs
+     * to a network specified by a network InetAddress value and a network mask.
+     *
+     * @throws UnknownHostException
+     */
     @Test
     public void testNetmask1() throws UnknownHostException {
         assertTrue(NetworkUtil.belongsToNetwork(InetAddress.getByAddress("", new byte[] { 10, 0, 0, 1 }), InetAddress.getByAddress("", new byte[] { 10, 64, 33, 17 }), 8));

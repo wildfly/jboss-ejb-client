@@ -24,12 +24,22 @@ import org.junit.Assert;
 import org.junit.Test;
 
 /**
- * Tests on DiscoveryEJBClientInterceptor
+ * Tests for the DiscoveryEJBClientInterceptor
  *
  * @author <a href="mailto:lgao@redhat.com">Lin Gao</a>
  */
 public class DiscoveryEJBClientInterceptorTestCase {
 
+    /**
+     * A test for the "blocklist" feature of the DiscoveryEJBClientInterceptor which allows invocation targets
+     * to be added to a blocklist. Presence of a URL on the blocklist eans that they should currently be excluded
+     * from discovery request results. The blocklist has an associated timeout; blocklisted entries are cleared
+     * once their time in the blocklist has passed the timeout to avoid being blocklisted forever.
+     *
+     * THis test validates the addition of a URL to the blicklist, as well as its expiration from the blocklist.
+     *
+     * @throws Exception
+     */
     @Test
     public void testBlocklist() throws Exception {
         long timeout = 1000L;
@@ -44,9 +54,8 @@ public class DiscoveryEJBClientInterceptorTestCase {
         Assert.assertTrue(DiscoveryEJBClientInterceptor.isBlocklisted(context, destination));
         Assert.assertEquals(1, DiscoveryEJBClientInterceptor.getBlocklist().size());
 
-        // If sleeping for just the timeout duration, the lifespan of
-        // the blocklist may equal to, but not greater than, the configured
-        // timeout, and so will not be removed yet. So sleep a bit longer.
+        // If sleeping for just the timeout duration, the lifespan of the blocklist may equal to, but not greater than,
+        // the configured timeout, and so will not be removed yet. So sleep a bit longer.
         Thread.sleep(timeout * 2);
         Assert.assertFalse(DiscoveryEJBClientInterceptor.isBlocklisted(context, destination));
         Assert.assertEquals(0, DiscoveryEJBClientInterceptor.getBlocklist().size());

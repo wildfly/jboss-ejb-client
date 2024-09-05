@@ -23,7 +23,14 @@ import org.wildfly.naming.client.WildFlyInitialContextFactory;
 import org.wildfly.naming.client.WildFlyRootContext;
 import org.wildfly.naming.client.util.FastHashtable;
 
-
+/**
+ * Test case to valiate that if long running tasks are interrupted, they clean up the MessageOutputStream
+ * (represented by OutboundMessage.accept()) upon cancellation.
+ *
+ * @todo this test case needs more explanation as to what is being tested and why (see EJBCLIENT-396)
+ *
+ * @author unknown
+ */
 public class InterruptRunningCallTestCase extends AbstractEJBClientTestCase {
     private static final Logger logger = Logger.getLogger(InterruptRunningCallTestCase.class);
 
@@ -54,6 +61,10 @@ public class InterruptRunningCallTestCase extends AbstractEJBClientTestCase {
         ExecutorService executorService = Executors.newFixedThreadPool(1);
         Future<?> future = null;
 
+        // perform a lopp of ten iterations where the loop:
+        // - cancels any currently pending task, represented by a Future, even if it is still running
+        // - execute a callable, using a latch for synchonozation, and block for 5 seconds to give the task time to complete
+        // - sleep before repeating the loop
         for (int i = 0; i < 10; i++)
         {
             if (future != null) {
@@ -67,13 +78,22 @@ public class InterruptRunningCallTestCase extends AbstractEJBClientTestCase {
             Thread.sleep(10);
         }
 
+        // get the result produced by the last iteration
         future.get();
 
+        // verify that no threads are waiting on OutboundMessage.accept()
         Map<Thread, StackTraceElement[]> stackTraces = Thread.getAllStackTraces();
         long stackedThreads = countThreadsStackedInOutboundMessageAccept(stackTraces);
         Assert.assertEquals("Threads are stacked in OutboundMessage$1.accept", 0, stackedThreads);
     }
 
+    /**
+     * Method which takes as input a map of threads to arrays of stack traces, and returs the count of threads
+     * which are blocked in OutboundMessage.accept
+     *
+     * @param stackTraces the map of threads to arrays of stack traces
+     * @return
+     */
     private long countThreadsStackedInOutboundMessageAccept(Map<Thread, StackTraceElement[]> stackTraces) {
         return stackTraces.entrySet().stream()
                 .filter(e -> e.getKey().getName().startsWith("Remoting \"test-server\" task-"))
@@ -83,6 +103,17 @@ public class InterruptRunningCallTestCase extends AbstractEJBClientTestCase {
                 .count();
     }
 
+    /**
+     * Method to return a Callable which does the followng:
+     * - using the JNDI context, looks up a proxy for the deployed bean
+     * - calls countDown on the latch
+     * - calls the echo method on the proxy
+     * - returns "done" when the method call terminates
+     *
+     * @param context a JNDI context for bean lookp
+     * @param latch a CountDownLatch for thread synchronization
+     * @return
+     */
     private Callable<String> echoCallable(WildFlyRootContext context, CountDownLatch latch) {
         return () -> {
             Echo echo = (Echo) lookupBean(context);

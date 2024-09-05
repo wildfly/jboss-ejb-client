@@ -27,8 +27,21 @@ import org.junit.runner.JUnitCore;
 import org.junit.runner.Result;
 import org.junit.runner.notification.Failure;
 
-// Manually launches Enterprise Bean tests (e.g. for Xbootclasspath testing)
+/**
+ * A test class for manually running a subset of Enterprise Bean tests (e.g. for Xbootclasspath testing)
+ *
+ * @author Jason T. Greene
+ */
+
 public class ManualTestRunner {
+
+    /**
+     * Run a subset of tests, making use of ClassCallback to reload the EJBClientContext if the test calls
+     * ClassCallback.beforeClassCallback() in is test setup.
+     *
+     * @param args the name to use for identifying the testsuite run
+     * @throws Exception
+     */
     public static void main(String[] args) throws Exception {
         String summary = args.length > 0 ? args[0] : null;
         if (summary == null || summary.length() == 0) {
@@ -38,13 +51,17 @@ public class ManualTestRunner {
         System.out.printf(" %s \n", summary);
         System.out.println("===========================");
 
+        // reload the configuration of the EJBClientContext
         ClassCallback.setBeforeClassCallback(ManualTestRunner::reloadConfiguration);
 
+        // Run a subset of the test classes in the testsuite
         Result result = JUnitCore.runClasses(JBossEJBPropertiesTestCase.class, ClusteredInvocationTestCase.class, SimpleInvocationTestCase.class, ProxySerializationTestCase.class, WildflyClientXMLTestCase.class);
 
-        System.out.println("Failed: " + result.getFailureCount() + " Ignored: " + result.getIgnoreCount() +
-                           " Succeeded: " + (result.getRunCount() - result.getFailureCount() - result.getIgnoreCount()));
-        for (Failure failure: result.getFailures()) {
+        // report the results of the test run
+        System.out.println("Failed: " + result.getFailureCount() +
+                " Ignored: " + result.getIgnoreCount() +
+                " Succeeded: " + (result.getRunCount() - result.getFailureCount() - result.getIgnoreCount()));
+        for (Failure failure : result.getFailures()) {
             System.out.println(failure.getDescription());
             System.out.println(failure.getTrace());
         }
@@ -52,7 +69,10 @@ public class ManualTestRunner {
         System.exit(result.wasSuccessful() ? 0 : 1);
     }
 
-     private static void reloadConfiguration()  {
+    /**
+     * Call the method ConfigurationBasedEJBClientContextSelector.loadConfiguration() to reload the properties
+     */
+    private static void reloadConfiguration() {
         try {
             // Force reconfiguration so that one test class doesn't pollute the other 
             // (since we are running them all in one JVM)
@@ -60,6 +80,9 @@ public class ManualTestRunner {
             Method init = clazz.getDeclaredMethod("loadConfiguration");
             init.setAccessible(true);
             Object o = init.invoke(null);
+
+            System.out.println("Executing class callback!");
+
             Field field = clazz.getDeclaredField("configuredContext");
             Field modifiersField = Field.class.getDeclaredField("modifiers");
             modifiersField.setAccessible(true);
@@ -70,6 +93,6 @@ public class ManualTestRunner {
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
-     }
+    }
 }
 
