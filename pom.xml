@@ -63,7 +63,7 @@
         <version.jakarta.ejb-api>4.0.1</version.jakarta.ejb-api>
         <version.jakarta-transaction-api>2.0.1</version.jakarta-transaction-api>
         <version.jakarta.resource.jakarta-resource-api>2.1.0</version.jakarta.resource.jakarta-resource-api>
-        <version.org.jboss.threads>3.6.1.Final</version.org.jboss.threads>
+        <version.org.jboss.threads>3.7.0.Final</version.org.jboss.threads>
         <version.org.jboss.xnio>3.8.16.Final</version.org.jboss.xnio>
         <version.org.kohsuke.metainf-services>1.11</version.org.kohsuke.metainf-services>
         <version.org.wildfly.client-config>1.0.1.Final</version.org.wildfly.client-config>
