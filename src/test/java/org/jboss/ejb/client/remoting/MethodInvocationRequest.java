@@ -20,6 +20,8 @@ package org.jboss.ejb.client.remoting;
 import java.util.Map;
 
 /**
+ * Test framework class representing a method invocation and its associated data.
+ *
  * @author <a href="mailto:cdewolf@redhat.com">Carlo de Wolf</a>
  */
 public class MethodInvocationRequest {

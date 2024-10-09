@@ -64,7 +64,9 @@ public class ClusteredInvocationTestCase extends AbstractEJBClientTestCase{
     private static final String PROPERTIES_FILE = "clustered-jboss-ejb-client.properties";
 
     /**
-     * Do any general setup here
+     * Initialize the EJBClientContext with configured connections to localhost:6999, localhost:7099 and
+     * localhost:7199 and a cluster called ejb
+     *
      * @throws Exception
      */
     @BeforeClass
@@ -78,7 +80,7 @@ public class ClusteredInvocationTestCase extends AbstractEJBClientTestCase{
     }
 
     /**
-     * Do any test specific setup here
+     * Before each test, start the servers, form the cluster and deploy the applications
      */
     @Before
     public void beforeTest() throws Exception {
@@ -431,7 +433,7 @@ public class ClusteredInvocationTestCase extends AbstractEJBClientTestCase{
     }
 
     /**
-     * Do any test-specific tear down here.
+     * After each test, undeploy the applications and stop the servers.
      */
     @After
     public void afterTest() {
@@ -446,12 +448,5 @@ public class ClusteredInvocationTestCase extends AbstractEJBClientTestCase{
             undeployStateless(i);
             stopServer(i);
         }
-    }
-
-    /**
-     * Do any general tear down here.
-     */
-    @AfterClass
-    public static void afterClass() {
     }
 }

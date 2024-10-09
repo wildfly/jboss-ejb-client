@@ -45,7 +45,8 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 
 /**
- * Tests usage of ClusterNodeSelector
+ * Tests use of the ClusterNodeSelector to control the choice of target node for an invocation, when all invocations
+ * have a strong affinity to a cluster.
  *
  * @author Jason T. Greene
  * @author <a href="mailto:rachmato@redhat.com">Richard Achmatowicz</a>
@@ -55,6 +56,9 @@ public class ClusterNodeSelectorTestCase extends AbstractEJBClientTestCase {
     private static final Logger logger = Logger.getLogger(ClusterNodeSelectorTestCase.class);
     private static final String PROPERTIES_FILE = "cluster-node-selector-jboss-ejb-client.properties";
 
+    /*
+     * A cluster node selector which returns the pick node (if set) or the first connected node otherwise.
+     */
     public static class TestSelector implements ClusterNodeSelector  {
         private static volatile String PICK_NODE = null;
 
@@ -67,9 +71,9 @@ public class ClusterNodeSelectorTestCase extends AbstractEJBClientTestCase {
         }
     }
 
-
     /**
-     * Do any general setup here
+     * Configure the EJBClientContext to be aware of servers localhost:6999 and localhost:7099 as a cluster "ejb",
+     * as well as which ClusterNodeSelector to use.
      * @throws Exception
      */
     @BeforeClass
@@ -83,7 +87,7 @@ public class ClusterNodeSelectorTestCase extends AbstractEJBClientTestCase {
     }
 
     /**
-     * Do any test specific setup here
+     * Before each test, start the two servers as a cluster and deploy deploy stateless and stateful applicatuons on each.
      */
     @Before
     public void beforeTest() throws Exception {
@@ -103,6 +107,10 @@ public class ClusterNodeSelectorTestCase extends AbstractEJBClientTestCase {
         defineCluster(1, CLUSTER);
     }
 
+    /**
+     * A convenince test to ensure that the EJBClientContext is setup correctly for this test.
+     * It expects two servers in a cluster called "ejb".
+     */
     @Test
     public void testConfiguredConnections() {
         EJBClientContext context = EJBClientContext.getCurrent();
@@ -114,13 +122,19 @@ public class ClusterNodeSelectorTestCase extends AbstractEJBClientTestCase {
         }
 
         Collection<EJBClientCluster> clusters = context.getInitialConfiguredClusters();
+        //Assert.assertEquals("Number of configured clusters is incorrect", 1, clusters.size());
         for (EJBClientCluster cluster: clusters) {
-            logger.info("found cluster: name = " + cluster.getName());
+            String name = cluster.getName();
+            logger.info("found cluster: name = " + name);
+            //Assert.assertEquals("Cluster name should be ejb", "ejb", name);
         }
     }
 
     /**
-     * Test a basic invocation on clustered SLSB
+     * Test the operation of the ClusterNodeSelector with a SLSB deployment.
+     *
+     * This test uses the pick node to select the target node for the invocation and verifies that the invocation
+     * arrived at the correct node.
      */
     @Test
     public void testClusteredSLSBInvocation() {
@@ -136,11 +150,13 @@ public class ClusterNodeSelectorTestCase extends AbstractEJBClientTestCase {
 
         logger.info("Invoking on proxy...");
 
+        // use the cluster node selector to always use node1 as the target node for the invocation
         TestSelector.PICK_NODE = NODE1_NAME;
         for (int i = 0; i < 10; i++) {
             Assert.assertEquals(NODE1_NAME, proxy.echo("someMsg").getNode());
         }
 
+        // use the cluster node selector to always use node2 as the target node for the invocation
         TestSelector.PICK_NODE = NODE2_NAME;
         for (int i = 0; i < 10; i++) {
             Assert.assertEquals(NODE2_NAME, proxy.echo("someMsg").getNode());
@@ -148,18 +164,24 @@ public class ClusterNodeSelectorTestCase extends AbstractEJBClientTestCase {
     }
 
     /**
-     * Test a basic invocation on clustered SFSB
+     * Test the operation of the ClusterNodeSelector with a SLSB deployment.
+     *
+     * Creating a SFSB proxy for a clustered deployment has the side-effect of setting the weak affinity to the node
+     * the session was created on. So in the absence of failures, all invocations using that proxy should be directed
+     * to that node. This test validates that the ClusterNodeSelector can be used to control the target for
+     * session creation.
      */
     @Test
     public void testClusteredSFSBInvocation() throws Exception {
         logger.info("Testing invocation on SFSB proxy with ClusterAffinity");
 
         TestSelector.PICK_NODE = NODE2_NAME;
-        // create a proxy for invocation
+        // create a proxy for invocation and, using the ClusterNodeSelector, force session creation onto node2
         final StatelessEJBLocator<Echo> statelessEJBLocator = new StatelessEJBLocator<Echo>(Echo.class, APP_NAME, MODULE_NAME, StatefulEchoBean.class.getSimpleName(), DISTINCT_NAME);
         StatefulEJBLocator<Echo> statefulEJBLocator = null;
         statefulEJBLocator = EJBClient.createSession(statelessEJBLocator.withNewAffinity(new ClusterAffinity("ejb")));
 
+        // verify that all invocations are sticky to node2
         Echo proxy = EJBClient.createProxy(statefulEJBLocator);
         Assert.assertNotNull("Received a null proxy", proxy);
         for (int i = 0; i < 10; i++) {
@@ -167,16 +189,18 @@ public class ClusterNodeSelectorTestCase extends AbstractEJBClientTestCase {
         }
 
         TestSelector.PICK_NODE = NODE1_NAME;
+        // create a new proxy for invocation and using the ClusterNodeSelector, force session creation onto node1
         statefulEJBLocator = EJBClient.createSession(statelessEJBLocator.withNewAffinity(new ClusterAffinity("ejb")));
         proxy = EJBClient.createProxy(statefulEJBLocator);
 
+        // verify that all invocations are now sticky to node2
         for (int i = 0; i < 10; i++) {
             Assert.assertEquals(NODE1_NAME, proxy.echo("someMsg").getNode());
         }
     }
 
     /**
-     * Do any test-specific tear down here.
+     * After each test, undeploy the applications and stop the servers in the cluster.
      */
     @After
     public void afterTest() {
@@ -192,12 +216,4 @@ public class ClusterNodeSelectorTestCase extends AbstractEJBClientTestCase {
         stopServer(0);
         stopServer(1);
     }
-
-    /**
-     * Do any general tear down here.
-     */
-    @AfterClass
-    public static void afterClass() {
-    }
-
 }

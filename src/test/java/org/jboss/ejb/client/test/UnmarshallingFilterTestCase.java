@@ -38,12 +38,22 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 
 /**
- * Tests server-sdie filtering of classes before unmarshalling.
+ * Tests server-side filtering of classes before unmarshalling.
+ *
+ * A class resolver filter is a Function<String, boolean> which allows defining a mapping of class names to the
+ * boolean values true or false and is used to control which invocation paramaters may be unmarshalled by the server.
+ *
+ * The class resolver filter is a parameter to the RemoteEJBService, used to initialize the server-side handing
+ * of incoming EJB client requests. If the class resolver filter is null, no filtering is performed. Otherwise,
+ * filtering is performed based on parameter class names and the boolean value returned by the class resolver filter.
+ *
+ * The DummyServer used in these test cases has a class resolver filter which rejects unmarshalling of the
+ * IllegalArgumentException class only.
  *
  * @author Brian Stansberry
  */
 public class UnmarshallingFilterTestCase extends AbstractEJBClientTestCase {
-    private static final Logger logger = Logger.getLogger(LearningTestCase.class);
+    private static final Logger logger = Logger.getLogger(UnmarshallingFilterTestCase.class);
 
     @Before
     public void beforeTest() throws Exception {
@@ -59,7 +69,8 @@ public class UnmarshallingFilterTestCase extends AbstractEJBClientTestCase {
     }
 
     /**
-     * Test a basic invocation
+     * Test the operation of the class resolver filter with an invocation whose paraeter type should be filtered,
+     * as well as with an invocation whose parameter type shpuld not be filtered.
      */
     @Test
     public void testUnmarshallingFiltering() {
@@ -68,6 +79,8 @@ public class UnmarshallingFilterTestCase extends AbstractEJBClientTestCase {
         // create a proxy for invocation
         final StatelessEJBLocator<TypeReporter> statelessEJBLocator = new StatelessEJBLocator<TypeReporter>(TypeReporter.class, APP_NAME, MODULE_NAME, TypeReporter.class.getSimpleName(), DISTINCT_NAME);
         final TypeReporter proxy = EJBClient.createProxy(statelessEJBLocator);
+
+        // set the target for the invocation
         URI uri = null;
         try {
             uri = new URI("remote", null,"localhost", 6999, null, null,null);
@@ -78,11 +91,12 @@ public class UnmarshallingFilterTestCase extends AbstractEJBClientTestCase {
         Assert.assertNotNull("Received a null proxy", proxy);
         logger.info("Created proxy for Echo: " + proxy.toString());
 
+        // perform an invocation with parameter type String, which we expect not to be filtered
         logger.info("Invoking on proxy...");
-        // invoke on the proxy (use a URIAffinity for now)
         final String type = proxy.getObjectType("hello");
         Assert.assertEquals("Got an unexpected type", String.class.getName(), type);
 
+        // perform an invocation with parameter type IllegalArgumentException, which we expect to be filtered
         try {
             final String bad = proxy.getObjectType(new IllegalArgumentException("bad"));
             Assert.fail("IllegalArgumentException was not rejected; got " + bad);

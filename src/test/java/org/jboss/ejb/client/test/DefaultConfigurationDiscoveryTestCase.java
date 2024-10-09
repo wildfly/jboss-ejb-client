@@ -107,8 +107,7 @@ public class DefaultConfigurationDiscoveryTestCase extends AbstractEJBClientTest
     }
 
     /**
-     * Creates the proxy to invoke the target ejb, and verifies that the
-     * invocation returns promptly (less than the maximum time).
+     * Creates the proxy to invoke the target ejb, and verifies that the invocation returns promptly (less than the maximum time).
      * @param locator ejb locator for creating proxy
      */
     private static void verifyClient(EJBLocator<Echo> locator) {

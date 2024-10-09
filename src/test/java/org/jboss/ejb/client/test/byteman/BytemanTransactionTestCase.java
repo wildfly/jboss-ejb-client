@@ -47,6 +47,16 @@ import java.io.File;
 import java.util.HashMap;
 import java.util.HashSet;
 
+/**
+ * A test which validates that when performing a series of EJB client invocations, each in transaction scope,
+ * the PeerTransactionMap of the EJBClientChannel does not contain any leftover connection references used
+ * in transaction processing.
+ *
+ * This test uses the Byteman rule defined in BytemanTransactionTestCase.btm to maintain the PeerTransactionMap
+ * size. After all remote transactions have committed, the PeerTransactionMap should be empty.
+ *
+ * @author unknown
+ */
 @RunWith(BMUnitRunner.class)
 @BMScript(dir="target/test-classes")
 public class BytemanTransactionTestCase extends AbstractEJBClientTestCase {
@@ -55,11 +65,19 @@ public class BytemanTransactionTestCase extends AbstractEJBClientTestCase {
     private static ContextTransactionSynchronizationRegistry txSyncRegistry;
 
     /**
-     * Do any general setup here
+     * Setup a local JTA transaction environment for use with any tests in this class.
+     * The key elements of a local transaction context for the EJB client are:
+     * - JBossLocalTransactionProvider, which represents an underlying Narayana TransactionManager instance and
+     * XATerminator instance
+     * - LocalTransactionContext contextual, which makes the LocalTransactionProvider available to the EJB client
+     * application itself
+     *
      * @throws Exception
      */
     @BeforeClass
     public static void beforeClass() throws Exception {
+
+        // some Narayana-specific setup required for a JTA transaction environment
         BeanPopulator.getNamedInstance(ObjectStoreEnvironmentBean.class, null)
                 .setObjectStoreDir("target/tx-object-store");
         BeanPopulator.getNamedInstance(ObjectStoreEnvironmentBean.class, "communicationStore")
@@ -67,12 +85,13 @@ public class BytemanTransactionTestCase extends AbstractEJBClientTestCase {
         BeanPopulator.getNamedInstance(ObjectStoreEnvironmentBean.class, "stateStore")
                 .setObjectStoreDir("target/tx-object-store");
 
-
         final JTAEnvironmentBean jtaEnvironmentBean = jtaPropertyManager.getJTAEnvironmentBean();
         jtaEnvironmentBean.setTransactionManagerClassName(TransactionManagerImple.class.getName());
         jtaEnvironmentBean.setTransactionSynchronizationRegistryClassName(TransactionSynchronizationRegistryImple.class.getName());
         final TransactionManager narayanaTm = jtaEnvironmentBean.getTransactionManager();
         final XATerminator xat = new XATerminator();
+
+        // create the JBossLocalTransactionProvider instance
         final JBossLocalTransactionProvider.Builder builder = JBossLocalTransactionProvider.builder();
         builder.setExtendedJBossXATerminator(xat);
         builder.setTransactionManager(narayanaTm);
@@ -87,13 +106,16 @@ public class BytemanTransactionTestCase extends AbstractEJBClientTestCase {
         });
         builder.setXARecoveryLogDirRelativeToPath(new File("target/tx-object-store").toPath());
         builder.build();
+
+        // createthe LocalTransactionContext for the EJB client applicatiopn
         LocalTransactionContext.getContextManager().setGlobalDefault(new LocalTransactionContext(builder.build()));
+
         txManager = ContextTransactionManager.getInstance();
         txSyncRegistry = ContextTransactionSynchronizationRegistry.getInstance();
     }
 
     /**
-     * Do any test specific setup here
+     * Before each test, start a single mock server instance and deploy a stateless application
      */
     @Before
     public void beforeTest() throws Exception {
@@ -107,6 +129,11 @@ public class BytemanTransactionTestCase extends AbstractEJBClientTestCase {
         verifyCacheCleaning();
     }
 
+    /**
+     * Tests that the PeerTransactionMap of the EJBClientChannel is cleaned up correctly after transaction commit.
+     *
+     * @throws Exception
+     */
     private void verifyCacheCleaning() throws Exception {
         UserTransaction transaction = RemoteTransactionContext.getInstance().getUserTransaction();
         FastHashtable<String, Object> props = new FastHashtable<>();
@@ -129,15 +156,15 @@ public class BytemanTransactionTestCase extends AbstractEJBClientTestCase {
             echo.echo("someMsg");
             transaction.commit();
         }
-
-
-
+        // after all transactions have completed, verify that the peerMap maintained by Byteman is zero
         Assert.assertEquals(0, Integer.parseInt(System.getProperty("peerMapSize")));
     }
 
+    /**
+     * After each test, undeploy the stateless application and stop the mock server
+     */
     @After
     public void afterTest() {
-
         undeployStateless(0);
         stopServer(0);
     }

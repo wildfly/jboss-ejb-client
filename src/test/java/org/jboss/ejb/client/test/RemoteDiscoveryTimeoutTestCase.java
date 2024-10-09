@@ -34,6 +34,17 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 
 /**
+ * Tests which validate the timeout mechanism(s) used in discovery.
+ *
+ * A call to discovery is made up of two independent activities: an activity which generates discovery results,
+ * amd an activity which consumes discovery results. Under normal circumstances, discovery result generation
+ * terminates, but this is not always the case.
+ *
+ * The system property org.jboss.ejb.client.discovery.timeout is a property which can set a timeout value for
+ * discovery result consumption: if we have not consumed all results before the expiration of the timeout,
+ * discovery result consumption is terminated, and returns the (possibly incomplete) set of already consumed
+ * results.
+ *
  * @author <a href="ingo@redhat.com">Ingo Weiss</a>
  */
 public class RemoteDiscoveryTimeoutTestCase extends AbstractEJBClientTestCase {
@@ -41,7 +52,10 @@ public class RemoteDiscoveryTimeoutTestCase extends AbstractEJBClientTestCase {
    private static final String PROPERTIES_FILE = "no-protocol-jboss-ejb-client.properties";
 
    /**
-    * Do any general setup here
+    * Initialize the legacy JBossEJBProperties contextual with a jboss-ejb-client.properties file which has one
+    * remote destination with a missing protocol; this will result in the client not being able to connect to
+    * the server during discovery.
+    *
     * @throws Exception
     */
    @BeforeClass
@@ -52,7 +66,7 @@ public class RemoteDiscoveryTimeoutTestCase extends AbstractEJBClientTestCase {
    }
 
    /**
-    * Do any test specific setup here
+    * Before each test, start a server at localhost:6999 and deploy a stateless bean.
     */
    @Before
    public void beforeTest() throws Exception {
@@ -63,7 +77,7 @@ public class RemoteDiscoveryTimeoutTestCase extends AbstractEJBClientTestCase {
    }
 
    /**
-    * Do any test-specific tear down here.
+    * After each test, undeploy the staless bean and stop the server.
     */
    @After
    public void afterTest() {
@@ -74,7 +88,9 @@ public class RemoteDiscoveryTimeoutTestCase extends AbstractEJBClientTestCase {
    }
 
    /**
-    * Test a failed client discovery
+    * Test a failed client discovery attempt, using the discovery timeout to avoid the test hanging.
+    *
+    * @todo need to consider exceptions and connect timeouts and avoid sitiations where processes can hang
     */
    @Test
    public void testClientDiscoveryTimeout() throws InterruptedException {

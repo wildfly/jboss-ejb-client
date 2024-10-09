@@ -54,7 +54,8 @@ public class SimpleInvocationTestCase extends AbstractEJBClientTestCase {
     private static final String PROPERTIES_FILE = "jboss-ejb-client.properties";
 
     /**
-     * Do any general setup here
+     * Configure the EJBClientContext with two servers localhost:6999, localhost:7099
+     *
      * @throws Exception on errors
      */
     @BeforeClass
@@ -71,7 +72,7 @@ public class SimpleInvocationTestCase extends AbstractEJBClientTestCase {
     }
 
     /**
-     * Do any test specific setup here
+     * Before each test, starts the servers and deploy the beans
      */
     @Before
     public void beforeTest() throws Exception {
@@ -454,7 +455,7 @@ public class SimpleInvocationTestCase extends AbstractEJBClientTestCase {
     }
 
     /**
-      * Do any test-specific tear down here.
+      * After each test, undeploy the beans and stop the servers
      */
     @After
     public void afterTest() {
