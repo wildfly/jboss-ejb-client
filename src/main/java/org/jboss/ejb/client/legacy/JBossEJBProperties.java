@@ -120,7 +120,7 @@ public final class JBossEJBProperties implements Contextual<JBossEJBProperties> 
 
     static {
         final AtomicReference<JBossEJBProperties> onceRef = new AtomicReference<>();
-        CONTEXT_MANAGER.setGlobalDefaultSupplier(() -> {
+        CONTEXT_MANAGER.setGlobalDefaultSupplier(() -> doPrivileged((PrivilegedAction<JBossEJBProperties>) () -> {
             JBossEJBProperties value = onceRef.get();
             if (value == null) {
                 synchronized (onceRef) {
@@ -146,7 +146,7 @@ public final class JBossEJBProperties implements Contextual<JBossEJBProperties> 
                 }
             }
             return value;
-        });
+        }));
     }
 
     // Remoting-specific properties
