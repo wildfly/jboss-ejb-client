@@ -15,7 +15,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-RULE @1 delay innvocation
+RULE @1 delay invocation
 CLASS org.jboss.ejb.client.EJBClientInvocationContext
 AT ENTRY
 METHOD retryOperation

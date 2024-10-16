@@ -34,16 +34,27 @@ import org.junit.Assert;
 import org.junit.Test;
 
 /**
- * Tests that an Enterprise Bean proxy can be serialized
+ * Tests that validate that an Enterprise Bean proxy can be serialized using JBoss Marshalling.
  *
  * @author Stuart Douglas
  */
 public class ProxySerializationTestCase {
 
+    /**
+     * Tests that marshalling/unmarshalling an EJB proxy to and from a byte stream does not affect
+     * the validity of the proxy.
+     *
+     * @throws IOException
+     * @throws ClassNotFoundException
+     */
     @Test
     public void testProxySerialization() throws IOException, ClassNotFoundException {
+
+        // create a sample EJB client proxy
         final StatelessEJBLocator<SimpleInterface> locator = new StatelessEJBLocator<SimpleInterface>(SimpleInterface.class, "a", "m", "b", "d");
         final Object proxy = EJBClient.createProxy(locator);
+
+        // configure a JBoss Marshalling marshaller and marshall the proxy into a byte array, "bytes"
         final MarshallingConfiguration marshallingConfiguration = new MarshallingConfiguration();
         marshallingConfiguration.setVersion(2);
         org.jboss.marshalling.MarshallerFactory factory = new RiverMarshallerFactory();
@@ -52,10 +63,14 @@ public class ProxySerializationTestCase {
         marshaller.start(new OutputStreamByteOutput(bytes));
         marshaller.writeObject(proxy);
         marshaller.finish();
+
+        // configure a JBoss Marshalling unmarshaller and unmarshal the byte array, "bytes", into an Object
         Unmarshaller unmarshaller = factory.createUnmarshaller(marshallingConfiguration);
         ByteArrayInputStream in = new ByteArrayInputStream(bytes.toByteArray());
         unmarshaller.start(new InputStreamByteInput(in));
         Object deserialized = unmarshaller.readObject();
+
+        // check for equality of the original proxy and the marshalled/unmarshalled proxy
         Assert.assertEquals(proxy, deserialized);
     }
 

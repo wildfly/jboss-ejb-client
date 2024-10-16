@@ -27,29 +27,28 @@ import org.jboss.ejb.client.test.AbstractEJBClientTestCase;
 import org.jboss.ejb.client.test.ClassCallback;
 import org.jboss.ejb.client.test.common.Echo;
 import org.jboss.logging.Logger;
-import org.junit.After;
-import org.junit.AfterClass;
-import org.junit.Assert;
-import org.junit.Before;
-import org.junit.BeforeClass;
-import org.junit.Test;
+import org.junit.*;
 import org.junit.runner.RunWith;
 
 /**
  * This test throws OutOfMemoryException on receiver through byteman, we check the log returned by XNIO contains
- * all the information
- * @author tmiyar
+ * all the information.
  *
+ * This test depends on the BytemaN rules in OOMEInvocationTestCase.btm which do the following:
+ * - throw an out of memory error when we try to marshal an object
+ *
+ * @author tmiyar
  */
 @RunWith(BMUnitRunner.class)
-@BMScript(dir="target/test-classes")
+@BMScript(dir = "target/test-classes")
 public class OOMEInInvocationTestCase extends AbstractEJBClientTestCase {
 
     private static final Logger logger = Logger.getLogger(OOMEInInvocationTestCase.class);
     private static final String PROPERTIES_FILE = "jboss-ejb-client.properties";
 
     /**
-     * Do any general setup here
+     * Configure the EJBClientContext to be aware of servers localhost:6999 and localhost:7099
+     *
      * @throws Exception
      */
     @BeforeClass
@@ -63,33 +62,30 @@ public class OOMEInInvocationTestCase extends AbstractEJBClientTestCase {
     }
 
     /**
-     * Do any test specific setup here
+     * Before each test, start server localhost:6999 and deploy a stateless application
      */
     @Before
     public void beforeTest() throws Exception {
-        // start server
-            startServer(0, 6999);
-            // deploy a stateful bean
-            deployStateless(0);
-            System.clearProperty("echo");
-     }
+        startServer(0, 6999);
+        deployStateless(0);
+        System.clearProperty("echo");
+    }
 
     /**
      * Test SLSB invocation
-     *
+     * <p>
      * scenario:
-     *   invoked bean available on node1
-     *   strong affinity is set to Affinity.NONE
+     *   invoked bean available on node1, strong affinity is set to Affinity.NONE
      * expected result:
      *   invocation will fail and a message containing the invoked method will be displayed
      */
     @Test
     public void testSLSBInvocation() {
-        
+
         Assert.assertEquals("echo system property exists", null, System.getProperty("echo"));
-        
+
         Affinity expectedStrongAffinity = Affinity.NONE;
-        
+
         // create a proxy for SLSB
         final StatelessEJBLocator<Echo> statelessEJBLocator = StatelessEJBLocator.create(Echo.class, STATELESS_IDENTIFIER, expectedStrongAffinity);
         Echo proxy = EJBClient.createProxy(statelessEJBLocator);
@@ -103,19 +99,20 @@ public class OOMEInInvocationTestCase extends AbstractEJBClientTestCase {
         } catch (RuntimeException e) {
             //don't do anything, it is expected
         }
+
         // check the property contents
         Assert.assertEquals("method echo not in error message", "true", System.getProperty("echo"));
     }
 
     /**
-      * Do any test-specific tear down here.
+     * After each test, undeploy the stateless application and stop the server
      */
     @After
     public void afterTest() {
         // undeploy server
-            undeployStateless(0);
-            stopServer(0);
-            System.clearProperty("echo");
+        undeployStateless(0);
+        stopServer(0);
+        System.clearProperty("echo");
     }
 
     /**
@@ -124,5 +121,5 @@ public class OOMEInInvocationTestCase extends AbstractEJBClientTestCase {
     @AfterClass
     public static void afterClass() {
     }
-    
- }
+
+}

@@ -36,16 +36,14 @@ import org.jboss.ejb.client.test.common.DummyServer;
 import org.jboss.ejb.client.test.common.Echo;
 import org.jboss.ejb.client.test.common.EchoBean;
 import org.jboss.logging.Logger;
-import org.junit.After;
-import org.junit.AfterClass;
-import org.junit.Assert;
-import org.junit.Before;
-import org.junit.BeforeClass;
-import org.junit.Test;
+import org.junit.*;
 import org.junit.runner.RunWith;
 
 /**
- * Tests that a hang does not happen if timeout happens concurrently with retry
+ * Tests that validate that invocation timeouts and the invocation retry mechanism work together as expected.
+ *
+ * This test depends on the Byteman rule TimeoutRetryTestCase.btm which introduces a 3000 ms delay whenever
+ * the retry of an invocation is attempted.
  */
 @RunWith(BMUnitRunner.class)
 @BMScript(dir = "target/test-classes")
@@ -64,7 +62,7 @@ public class TimeoutRetryTestCase {
     private static final String SERVER_NAME = "test-server";
 
     /**
-     * Do any general setup here
+     * Configure the EJBClientContext to be aware of servers localhost:6999 and localhost:7099
      *
      * @throws Exception
      */
@@ -79,7 +77,7 @@ public class TimeoutRetryTestCase {
     }
 
     /**
-     * Do any test specific setup here
+     * Before each test, start server localhost:6999 and deploy a stateless application
      */
     @Before
     public void beforeTest() throws Exception {
@@ -94,7 +92,12 @@ public class TimeoutRetryTestCase {
     }
 
     /**
-     * Test a basic invocation
+     * Test which verifies that if an invocation timeout and an invocation retry occur at the same time,
+     * the invocation does not hang and returns an exception of the correct type.
+     *
+     * This test makes an invocation on a non-existent bean, which will trigger the retry mechanism, and has an
+     * invocation timeout of 1000 ms. A Byteman rule is used to delay the retry by 3000 ms, which is shorter than
+     * the invocation timeout. We expect to see the invocation return with a TimeoutException.
      */
     @Test
     public void testInvocationWithURIAffinity() {
@@ -129,9 +132,7 @@ public class TimeoutRetryTestCase {
             expectedException = expected;
         }
 
-        //we have a 3s sleep in the retry code
-        //and a 1s timeout
-        //so we verify it was less than 1s
+        // we have a 3s sleep in the retry code and a 1s timeout so we verify it was less than 1s
         final long invocationDuration = System.currentTimeMillis() - start;
         Assert.assertTrue("Invocation should have timed out after 1000 ms, but actual duration is " + invocationDuration, invocationDuration < 2000);
         logger.infof("Invocation correctly timed out in %s ms", invocationDuration);
@@ -155,7 +156,7 @@ public class TimeoutRetryTestCase {
     }
 
     /**
-     * Do any test-specific tear down here.
+     * After each test, undeploy the stateless application and stop the server
      */
     @After
     public void afterTest() {

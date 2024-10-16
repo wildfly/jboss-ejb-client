@@ -23,6 +23,9 @@ import java.net.Inet6Address;
 import java.net.InetAddress;
 
 /**
+ * Tests for the network utility class, used to determine if an internet address belongs to a particular network, where
+ * the network is defined by a network address and netmask.
+ *
  * @author Jaikiran Pai
  */
 public class NetworkUtil {

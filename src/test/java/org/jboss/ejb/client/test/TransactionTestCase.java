@@ -55,7 +55,13 @@ import org.wildfly.transaction.client.RemoteTransactionContext;
 import org.wildfly.transaction.client.provider.jboss.JBossLocalTransactionProvider;
 
 /**
- * Tests transaction stickiness
+ * Tests transaction stickiness for transaction-scoped invocations.
+ * <p>
+ * NOTE: Transaction stickiness requirements vary based on three factors:
+ * - whether the bean being invoked upon is stateless or stateful
+ * - whether the client making the invocation is local (using a LocalTransaction) or remote (using a RemoteTransaction)
+ * - any ClientTransaction annotation describing the client-side transaction policy on the client-side interface
+ * (the default policy is ClientSideTransactionPolicy.SUPPORTS which supports transaction context propagation)
  *
  * @author Jason T. Greene
  * @author <a href="mailto:rachmato@redhat.com">Richard Achmatowicz</a>
@@ -66,7 +72,13 @@ public class TransactionTestCase extends AbstractEJBClientTestCase {
     private static ContextTransactionSynchronizationRegistry txSyncRegistry;
 
     /**
-     * Do any general setup here
+     * Setup a local JTA transaction environment for use with any tests in this class.
+     * The key elements of a local transaction context for the EJB client are:
+     * - JBossLocalTransactionProvider, which represents an underlying Narayana TransactionManager instance and
+     * XATerminator instance
+     * - LocalTransactionContext contextual, which makes the LocalTransactionProvider available to the EJB client
+     * application itself
+     *
      * @throws Exception
      */
     @BeforeClass
@@ -77,7 +89,6 @@ public class TransactionTestCase extends AbstractEJBClientTestCase {
                 .setObjectStoreDir("target/tx-object-store");
         BeanPopulator.getNamedInstance(ObjectStoreEnvironmentBean.class, "stateStore")
                 .setObjectStoreDir("target/tx-object-store");
-
 
         final JTAEnvironmentBean jtaEnvironmentBean = jtaPropertyManager.getJTAEnvironmentBean();
         jtaEnvironmentBean.setTransactionManagerClassName(TransactionManagerImple.class.getName());
@@ -104,7 +115,15 @@ public class TransactionTestCase extends AbstractEJBClientTestCase {
     }
 
     /**
-     * Do any test specific setup here
+     * Before each test, start four mock server instances and deploy specific combinations of stateful and stateless
+     * beans used in the tests. The final arrangement of nodes and beans is as follows:
+     *
+     * node1: SFSB, SLSB
+     * node2: OSFSB, OSLSB
+     * node3: SFSB, SLSB, OSFSB, OSLSB
+     * node4: SFSB, SLSB, OSFSB, OSLSB
+     *
+     * where OSFSL/OSLSB refers to the OtherStateful and OtherStateless beans.
      */
     @Before
     public void beforeTest() throws Exception {
@@ -130,47 +149,108 @@ public class TransactionTestCase extends AbstractEJBClientTestCase {
         deployOtherStateless(3);
     }
 
+    /**
+     * Validates transaction stickiness in the case of invocations on stateless beans by a local client (i.e. a client
+     * application deployed on a server).
+     *
+     * @throws Exception
+     */
     @Test
     public void testTransactionStickiness() throws Exception {
         verifyStickiness(false, false);
     }
 
+    /**
+     * Validates transaction stickiness in the case of invocations on stateless beans by a remote client (i.e. a client
+     * application not deployed on a server).
+     *
+     * @throws Exception
+     */
     @Test
     public void testRemoteTransactionStickiness() throws Exception {
         verifyStickiness(false, true);
     }
 
+    /**
+     * Validates transaction stickiness in the case of invocations on stateful beans by a remote client (i.e. a client
+     * application not deployed on a server).
+     *
+     * @throws Exception
+     */
     @Test
     public void testRemoteStatefulTransactionStickiness() throws Exception {
         verifyStickiness(true, true);
     }
 
+    /**
+     * Validates transaction stickiness in the case of invocations on stateful beans by a local client (i.e. a client
+     * application deployed on a server).
+     *
+     * @throws Exception
+     */
     @Test
     public void testStatefulTransactionStickiness() throws Exception {
         verifyStickiness(true, false);
     }
 
+    /**
+     * Validates transaction stickiness in the case of invocations on stateless beans by a local client (i.e. a client
+     * application deployed on a server) where transaction contexts are not propagated.
+     * <p>
+     * i.e. the method echoNonTx is annotated with @ClientTransaction(ClientTransactionPolicy.NOT_SUPPORTED) to
+     * supress transaction context propagation
+     * <p>
+     * Expected behavior is that such stateless invocations are not sticky to a particular node.
+     *
+     * @throws Exception
+     */
     @Test
     public void testNonPropagatingInvocation() throws Exception {
         verifyNonTxBehavior(false, false);
     }
 
-   @Test
+    /**
+     * Validates transaction stickiness in the case of invocations on stateful beans by a local client (i.e. a client
+     * application deployed on a server) where transaction contexts are not propagated.
+     * <p>
+     * i.e. the method echoNonTx is annotated with @ClientTransaction(ClientTransactionPolicy.NOT_SUPPORTED) to
+     * supress transaction context propagation
+     * <p>
+     * Expected behavior is that such stateful invocations are sticky to a particular node due to the session
+     * stickiness of the SFSB.
+     *
+     * @throws Exception
+     */
+    @Test
     public void testStatefulNonPropagatingInvocation() throws Exception {
-        // Session open is sticky, resulting in a weak affinity and therefore
-        // stickiness even with non-propagating method calls.
+        // Session open is sticky, resulting in a weak affinity and therefore stickiness even with
+        // non-propagating method calls.
         verifyNonTxBehavior(true, true);
     }
 
+    /**
+     * A method which returns a UserTransaction, configuted for use with a remote application client or
+     * from a deployment on a server.
+     *
+     * @param remote if true, returns a RemoteUserTransaction; otherwise, returns a LocalUserTransaction
+     * @return the UserTransaction instance
+     */
     private UserTransaction getTransaction(boolean remote) {
         if (remote) {
             return RemoteTransactionContext.getInstance().getUserTransaction();
         } else {
             return LocalUserTransaction.getInstance();
         }
-
     }
 
+    /**
+     * Verifies the stickiness properties of invocations scoped by transactions, which constrain which nodes
+     * may be targetted by such invocations.
+     *
+     * @param stateful if true, assumes beans under test are stateful; assumes stateless otherwise
+     * @param remote   if true, assumes client application is remote; assumes application is local otherwise
+     * @throws Exception
+     */
     private void verifyStickiness(boolean stateful, boolean remote) throws Exception {
         UserTransaction transaction = getTransaction(remote);
         FastHashtable<String, Object> props = new FastHashtable<>();
@@ -220,6 +300,17 @@ public class TransactionTestCase extends AbstractEJBClientTestCase {
         Assert.assertEquals(Stream.of("node1", "node3", "node4").collect(Collectors.toSet()), ids);
     }
 
+    /**
+     * Verifies the stickiness properties of invocations scoped by transactions, which constrain which nodes
+     * may be targetted by such invocations.
+     *
+     *  i.e. the method echoNonTx is annotated with @ClientTransaction(ClientTransactionPolicy.NOT_SUPPORTED) to
+     *  supress transaction context propagation
+     *
+     * @param stateful if true, assumes beans under test are stateful; assumes stateless otherwise
+     * @param sticky if true, indicates that session stickiness will be present for invocations
+     * @throws Exception
+     */
     private void verifyNonTxBehavior(boolean stateful, boolean sticky) throws Exception {
         FastHashtable<String, Object> props = new FastHashtable<>();
 
@@ -270,9 +361,15 @@ public class TransactionTestCase extends AbstractEJBClientTestCase {
     }
 
 
+    /**
+     *
+     * @throws Exception
+     */
     @Test
     public void testTransactionPreference() throws Exception {
         FastHashtable<String, Object> props = new FastHashtable<>();
+
+        // this context is not used ..
         props.put("java.naming.provider.url", "remote://localhost:7199");
         props.put("java.naming.factory.initial", WildFlyInitialContextFactory.class.getName());
         WildFlyRootContext context2 = new WildFlyRootContext(props);
@@ -284,8 +381,11 @@ public class TransactionTestCase extends AbstractEJBClientTestCase {
 
         HashSet<String> id1s = new HashSet<>();
         HashSet<String> id2s = new HashSet<>();
+
         for (int attempts = 0; attempts < 80; attempts++) {
             txManager.begin();
+
+            // invoke on APP_NAME deployments on node1, node3 and node4
             HashMap<String, Integer> replies = new HashMap<>();
             String id1 = null;
             for (int i = 0; i < 20; i++) {
@@ -301,6 +401,7 @@ public class TransactionTestCase extends AbstractEJBClientTestCase {
             Assert.assertEquals(20, replies.values().iterator().next().intValue());
             id1s.add(id1);
 
+            // invoke on OTHER_APP deployments on node2, node3 and node4
             replies.clear();
             String id2 = null;
             for (int i = 0; i < 20; i++) {
@@ -315,6 +416,9 @@ public class TransactionTestCase extends AbstractEJBClientTestCase {
             Assert.assertEquals(1, replies.size());
             Assert.assertEquals(20, replies.values().iterator().next().intValue());
 
+            // 1. if invocations on APP_NAME land on node1, invocations on OTHER_APP must land on another node
+            // due to the way the deployments are distributed on servers
+            // 2. otherwise, invocations on both apps should land on the same nodes, due to ...???
             System.out.println(id1 + ":" + id2);
             if (id1.equals("node1")) {
                 Assert.assertTrue(Stream.of("node2", "node3", "node4").collect(Collectors.toSet()).contains(id2));
@@ -332,7 +436,7 @@ public class TransactionTestCase extends AbstractEJBClientTestCase {
     }
 
     /**
-     * Do any test-specific tear down here.
+     * After each test, undeploy the beans and stop the mock servers.
      */
     @After
     public void afterTest() {
@@ -355,12 +459,4 @@ public class TransactionTestCase extends AbstractEJBClientTestCase {
             stopServer(i);
         }
     }
-
-    /**
-     * Do any general tear down here.
-     */
-    @AfterClass
-    public static void afterClass() {
-    }
-
 }

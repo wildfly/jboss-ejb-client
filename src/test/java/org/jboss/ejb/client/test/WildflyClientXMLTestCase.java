@@ -27,9 +27,23 @@ import java.io.File;
 import java.net.URL;
 
 /**
- * Tests some basic features of wildfly-client.xml processing
+ * Tests some basic features of using a wildfly-config.xml file to configure the various contextuals which
+ * the EJB client library depends on for configuration of key cross cutting concerns.
+ *
+ * This processing reads a wildfly-config.xml file from the classpath (or one referenced by the system property
+ * wildfly.config.url) and uses the configuration in that file to configure the following contextuals:
+ * - Endpoint
+ * - XNIOWorker
+ * - EJBClientContext
+ * - AuthenticationConfiguration
+ * - Discovery
+ * - WildflyHttpContext
+ *
  *
  * @author <a href="mailto:rachmato@redhat.com">Richard Achmatowicz</a>
+ *
+ * @todo this test should include complete coverage of all available settings realting to the EJBClientContext
+ * at a minimum.
  */
 public class WildflyClientXMLTestCase {
 
@@ -39,12 +53,12 @@ public class WildflyClientXMLTestCase {
     private static final long INVOCATION_TIMEOUT = 10*1000;
 
     /**
-     * Do any general setup here
+     * Initialize the contextuals by setting the wildfly.config.url system property
      * @throws Exception
      */
     @BeforeClass
     public static void beforeClass() throws Exception {
-        // make sure the desired configuration file is picked up
+        // make sure the desired configuration file is picked up for processing
         ClassLoader cl = WildflyClientXMLTestCase.class.getClassLoader();
         URL resource = cl != null ? cl.getResource(CONFIGURATION_FILE) : ClassLoader.getSystemResource(CONFIGURATION_FILE);
         File file = new File(resource.getFile());
@@ -52,6 +66,10 @@ public class WildflyClientXMLTestCase {
         ClassCallback.beforeClassCallback();
     }
 
+    /*
+     * Tests that the invocation timeout value set in wildfly-config.xml is used to populate the invocation timeout
+     * value in the EJBClientContext.
+     */
     @Test
     public void testInvocationTimeout() {
         EJBClientContext clientContext = EJBClientContext.getCurrent();

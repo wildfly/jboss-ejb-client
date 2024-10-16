@@ -58,6 +58,8 @@ import static org.junit.Assert.fail;
  * - topology update arrives which excludes A from available nodes
  *
  * @author <a href="mailto:rachmato@redhat.com">Richard Achmatowicz</a>
+ *
+ * @todo add test case for SFSB case
  */
 public class ClusteredInvocationFailOverTestCase extends AbstractEJBClientTestCase {
 
@@ -78,7 +80,9 @@ public class ClusteredInvocationFailOverTestCase extends AbstractEJBClientTestCa
     Map<String, AtomicInteger> oneNodeUp = new HashMap<String, AtomicInteger>();
 
     /**
-     * Do any general setup here
+     * Initialize the EJBClientContext with configured connections to localhost:6999 and localhost:7099, and
+     * make available a thread pool for asynchronous task execution.
+     *
      * @throws Exception
      */
     @BeforeClass
@@ -91,7 +95,8 @@ public class ClusteredInvocationFailOverTestCase extends AbstractEJBClientTestCa
     }
 
     /**
-     * Do any test specific setup here
+     * Before each test, start the servers, make them form a cluster called "ejb" and deploy the beans onto each
+     * node in the cluster.
      */
     @Before
     public void beforeTest() throws Exception {
@@ -107,7 +112,21 @@ public class ClusteredInvocationFailOverTestCase extends AbstractEJBClientTestCa
 
 
     /**
-     * Test a basic invocation on clustered SLSB
+     * Test invocations on a clustered SLSB
+     *
+     * The test is structured as follows:
+     * - a Callable is set up to act as client, making invocations and keeping statistics on the invocation contexts
+     *   through use of the maps twoNodesUp and oneNodeUp to record invocations when one or two cluster nodes are
+     *   available
+     * - the test case body then simulates the shutdown and subsquent startup of a server in the cluster
+     *   - start with two nodesin the cluster active and sleep for 500ms to allow invoations to happen
+     *   - shutdown node1 and sleep for 500 ms to allow invocations to happen
+     *   - start node1 and then sleep for 500 ms to allow invocations to happen
+     *   - stop the client Callable
+     *
+     * The expectation for the test validation:
+     * - there shoul be no failed invocations as one node is available at all times
+     * - the invocation targets should be split between node1 and node2
      */
     @Test
     public void testClusteredSLSBInvocation() throws Exception {
@@ -186,7 +205,7 @@ public class ClusteredInvocationFailOverTestCase extends AbstractEJBClientTestCa
         // invoke
         Thread.sleep(500);
 
-        // start a server and update the topologuy of the new node and the remaining node
+        // start a server and update the topology of the new node and the remaining node
         logger.info("Starting server: " + serverNames[0]);
         startServer(0);
         deployStateless(0);
@@ -198,18 +217,27 @@ public class ClusteredInvocationFailOverTestCase extends AbstractEJBClientTestCa
         Thread.sleep(500);
 
         runInvocations = false;
+
+        // check that each Callable completed successfully
         for(Future<?> i : retList) {
-            i.get();
+            // i.get();
+            Assert.assertEquals("ok", i.get());
         }
 
         // check results
+        // two nodes map should have positive ccounts for node1 and node2
         System.out.println("map twoNodesUp = " + twoNodesUp.toString());
-        System.out.println("map oneNodeUp = " + oneNodeUp.toString());
+        Assert.assertTrue(twoNodesUp.get("node1") != null && twoNodesUp.get("node1").get() > 0);
+        Assert.assertTrue(twoNodesUp.get("node2") != null && twoNodesUp.get("node2").get() > 0);
 
+        // one node map should have positive ccounts for node2 but not for node1
+        System.out.println("map oneNodeUp = " + oneNodeUp.toString());
+        Assert.assertTrue(oneNodeUp.get("node1") == null);
+        Assert.assertTrue(oneNodeUp.get("node2") != null && oneNodeUp.get("node2").get() > 0);
     }
 
     /**
-     * Do any test-specific tear down here.
+     * After each test, undeploy the applications, tear down the cluser and stop the servers.
      */
     @After
     public void afterTest() throws Exception {

@@ -26,7 +26,8 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 
 /**
- * Tests some basic features of ConfigurationBasedEJBClientContextSelector
+ * Tests some basic features of ConfigurationBasedEJBClientContextSelector, responsible for initialization of
+ * the contextual for EJBClientContext.
  *
  * @author <a href="mailto:jbaesner@redhat.com">Joerg Baesner</a>
  */
@@ -36,8 +37,8 @@ public class ConfigurationBasedEJBClientContextSelectorTestCase {
     private static final String CONFIGURATION_FILE = "wildfly-client.xml";
 
     /**
-     * Do any general setup here
-     * 
+     * Configure the wildfly-client.xml file to be used in initialize the EJBClientConext.
+     *
      * @throws Exception
      */
     @BeforeClass
@@ -50,6 +51,9 @@ public class ConfigurationBasedEJBClientContextSelectorTestCase {
         ClassCallback.beforeClassCallback();
     }
 
+    /**
+     * A test which validates that the EJBCLientContext has been initialized with the configured DeploymentNodeSelector.
+     */
     @Test
     public void testDeploymentNodeSelector() {
         EJBClientContext clientContext = EJBClientContext.getCurrent();
@@ -60,6 +64,9 @@ public class ConfigurationBasedEJBClientContextSelectorTestCase {
         Assert.assertEquals("Wrong <selectNode> value,", DummyNodeSelector.DEPLOYMENT_NODE_IDENTIFIER, dns.selectNode(null, null, null, null));
     }
 
+    /**
+     * A test which validates that the EJBCLientContext has been initialized with the configured ClusterNodeSelector.
+     */
     @Test
     public void testClusterNodeSelector() {
         EJBClientContext clientContext = EJBClientContext.getCurrent();
@@ -70,6 +77,10 @@ public class ConfigurationBasedEJBClientContextSelectorTestCase {
         Assert.assertEquals("Wrong <selectNode> value,", DummyNodeSelector.CLUSTER_NODE_IDENTIFIER, cns.selectNode(null, null, null));
     }
 
+    /**
+     * A test which validates that the EJBCLientContext has been initialized with the configured value for
+     * the max-allowed-connected-nodes property.
+     */
     @Test
     public void testMaximumAllowedClusterNodes() {
         EJBClientContext clientContext = EJBClientContext.getCurrent();
@@ -77,5 +88,4 @@ public class ConfigurationBasedEJBClientContextSelectorTestCase {
 
         Assert.assertEquals("Wrong <max-allowed-connected-nodes> value,", 15, nodes);
     }
-
 }
