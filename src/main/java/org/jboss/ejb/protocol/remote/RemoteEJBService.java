@@ -24,10 +24,13 @@ import static org.jboss.ejb.protocol.remote.TCCLUtils.resetTCCL;
 import static org.xnio.IoUtils.safeClose;
 
 import java.io.IOException;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Function;
 
 import org.jboss.ejb.server.Association;
 import org.jboss.ejb.server.ListenerHandle;
+import org.jboss.logging.Logger;
 import org.jboss.remoting3.Channel;
 import org.jboss.remoting3.MessageInputStream;
 import org.jboss.remoting3.MessageOutputStream;
@@ -46,12 +49,20 @@ import org.wildfly.transaction.client.provider.remoting.RemotingTransactionServi
  */
 public final class RemoteEJBService {
 
+    protected static final Logger log = Logger.getLogger(RemoteEJBService.class.getSimpleName());
+
     private final OpenListener openListener;
     private final CallbackBuffer callbackBuffer = new CallbackBuffer();
+    private final Set<Channel> openChannels = ConcurrentHashMap.newKeySet();
 
     private RemoteEJBService(final Association association, final RemotingTransactionService transactionService, final Function<String, Boolean> classResolverFilter) {
         openListener = new OpenListener() {
             public void channelOpened(final Channel channel) {
+                if (log.isTraceEnabled()) {
+                    log.tracef("Channel opened on port: %s", channel.getConnection().getLocalAddress());
+                }
+                // keep track of the channels created
+                openChannels.add(channel);
                 final MessageTracker messageTracker = new MessageTracker(channel, channel.getOption(RemotingOptions.MAX_OUTBOUND_MESSAGES).intValue());
                 channel.receiveMessage(new Channel.Receiver() {
                     public void handleError(final Channel channel, final IOException error) {
@@ -73,8 +84,12 @@ public final class RemoteEJBService {
                                     message.skip(Long.MAX_VALUE);
                                 }
                             } catch (IOException e) {
+                                openChannels.remove(channel);
                                 safeClose(channel);
                                 return;
+                            }
+                            if (log.isTraceEnabled()) {
+                                log.tracef("Creating EJBServerChannel");
                             }
                             final EJBServerChannel serverChannel = new EJBServerChannel(transactionService.getServerForConnection(channel.getConnection()),
                                     channel, version, messageTracker, classResolverFilter);
@@ -94,13 +109,24 @@ public final class RemoteEJBService {
                     mos.writeUTF("river");
                 } catch (InterruptedException e) {
                     Thread.currentThread().interrupt();
+                    openChannels.remove(channel);
                     safeClose(channel);
                 } catch (IOException e) {
+                    openChannels.remove(channel);
                     safeClose(channel);
                 }
             }
 
             public void registrationTerminated() {
+                if (log.isTraceEnabled()) {
+                    log.tracef("Registration terminated for EJBReceiverService open listener");
+                }
+                for (Channel channel : openChannels.toArray(new Channel[0])) {
+                    if (log.isTraceEnabled()) {
+                        log.tracef("Closing channel %s", channel);
+                    }
+                    safeClose(channel);
+                }
             }
         };
     }
