@@ -28,6 +28,7 @@ import java.security.PrivilegedAction;
 import jakarta.ejb.CreateException;
 import javax.net.ssl.SSLException;
 
+import jakarta.ejb.NoSuchEJBException;
 import org.jboss.ejb._private.Logs;
 import org.jboss.ejb.client.AbstractInvocationContext;
 import org.jboss.ejb.client.Affinity;
@@ -45,6 +46,7 @@ import org.jboss.remoting3.ClientServiceHandle;
 import org.jboss.remoting3.Connection;
 import org.jboss.remoting3.ConnectionPeerIdentity;
 import org.jboss.remoting3.Endpoint;
+import org.jboss.remoting3.ServiceOpenException;
 import org.wildfly.common.Assert;
 import org.wildfly.common.annotation.NotNull;
 import org.wildfly.security.auth.client.AuthenticationContext;
@@ -83,6 +85,12 @@ class RemoteEJBReceiver extends EJBReceiver {
 
                     ejbClientChannel = ioFuture.getInterruptibly();
                 } catch (IOException e) {
+                    if (e instanceof ServiceOpenException) {
+                        // special case - wrap a received ServiceOpenException with NoSuchEJBException (see EJBCLIENT-541)
+                        NoSuchEJBException wrappedException = new NoSuchEJBException("jboss.ejb service not available " + "@" + peerIdentity.getConnection().getPeerURI(), e);
+                        attachment1.requestFailed(wrappedException, retryExecutorWrapper.getExecutor(peerIdentity.getConnection().getEndpoint().getXnioWorker()));
+                        return;
+                    }
                     // should generally not be possible but we should handle it cleanly regardless
                     attachment1.requestFailed(new RequestSendFailedException(e + "@" + peerIdentity.getConnection().getPeerURI(), false), retryExecutorWrapper.getExecutor(peerIdentity.getConnection().getEndpoint().getXnioWorker()));
                     return;
