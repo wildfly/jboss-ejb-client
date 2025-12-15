@@ -61,7 +61,7 @@ jobs:
         cache: 'maven'
     - name: Run Tests
       run: mvn -ntp -U -B -fae -P${{ inputs.profile }} clean verify
-    - uses: actions/upload-artifact@v5
+    - uses: actions/upload-artifact@v6
       if: failure()
       with:
         name: ${{ inputs.profile }}-${{ inputs.jdk-distribution }}-${{ inputs.jdk-version }}-${{ inputs.os }}
