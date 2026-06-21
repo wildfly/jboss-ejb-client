@@ -347,7 +347,13 @@ public final class DiscoveryEJBClientInterceptor implements EJBClientInterceptor
     }
 
     ServicesQueue discover(final FilterSpec filterSpec) {
-        return getDiscovery().discover(EJB_SERVICE_TYPE, filterSpec);
+        // EJBCLIENT-544 - if the DISCOVERY_TIMEOUT is not set or set to '0' (default), do an _infinite_ discovery,
+        // otherwise use the DISCOVERY_TIMEOUT configuration to _discover_ a ServicesQueue with the timeout set
+        if (DISCOVERY_TIMEOUT < 1) {
+            return getDiscovery().discover(EJB_SERVICE_TYPE, filterSpec);
+        } else {
+            return getDiscovery().discover(EJB_SERVICE_TYPE, filterSpec, DISCOVERY_TIMEOUT, TimeUnit.SECONDS);
+        }
     }
 
     Discovery getDiscovery() {
