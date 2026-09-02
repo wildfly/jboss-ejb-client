@@ -50,6 +50,7 @@
 
     <properties>
         <nexus.repository.staging>wildfly-staging</nexus.repository.staging>
+        <nexus.repository.release>ejb-common</nexus.repository.release>
         <nexus.staging.tag>jboss-ejb-client-${project.version}</nexus.staging.tag>
 
         <version.org.jboss.bridger>1.8</version.org.jboss.bridger>
