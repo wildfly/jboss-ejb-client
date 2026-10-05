@@ -32,7 +32,6 @@ import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.BeforeClass;
-import org.junit.Ignore;
 import org.junit.Test;
 
 import jakarta.ejb.EJBException;
@@ -62,7 +61,6 @@ import static org.junit.Assert.fail;
  *
  * @todo add test case for SFSB case
  */
-@Ignore
 public class ClusteredInvocationFailOverTestCase extends AbstractEJBClientTestCase {
 
     public static AtomicInteger SENT = new AtomicInteger();
